@@ -25,7 +25,6 @@ export const routing = $state({
   notice: "",
   startedAt: null,
   elapsedMs: 0,
-  budgetMs: 120000,   // the plotter's time budget for this plot
   best: null,         // best complete candidate so far (a long plot runs several variants)
   candidates: [],     // other candidates shown on the map, newest last
   persona: "standard",
@@ -117,7 +116,6 @@ export async function runPlot(query) {
   routing.notice = ""; routing.lastQuery = query; routing.triedHarder = false;
   routing.startedAt = Date.now(); routing.elapsedMs = 0;
   routing.best = null; routing.candidates = [];
-  routing.budgetMs = query.thorough ? ({ low: 30000, medium: 60000 }[query.effort] ?? 120000) : 15000;
   routing.from = query.from ?? ""; routing.to = query.to ?? "";
   try {
     const route = await plotRoute(query);
@@ -140,7 +138,6 @@ export async function tryHarder() {
   routing.loading = true; routing.error = ""; routing.progress = null; routing.notice = "";
   routing.startedAt = Date.now(); routing.elapsedMs = 0;
   routing.best = null; routing.candidates = [];
-  routing.budgetMs = { low: 30000, medium: 60000 }[query.effort] ?? 120000;
   try {
     const route = await plotRoute(query);
     if (betterRoute(route, current)) {
@@ -201,16 +198,16 @@ function phaseLine(p) {
 }
 
 // What is actually known: the search phase, the best complete route so
-// far, and how long this can take at most. No guessed time left.
+// far, and the time elapsed. No guessed time left, and no ceiling: the
+// plot runs on the server, whose lanes budget 30 s to 2 min by route,
+// so the client's old "up to 15 s" was a promise it could not keep
+// (maintainer, 2026-09-09).
 export function plotDetailLine() {
   const parts = [];
   const p = routing.progress;
   if (p?.phase) parts.push(phaseLine(p));
   if (routing.best) parts.push(`best so far: ${routing.best.jumps} jumps`);
-  const s = Math.round(routing.elapsedMs / 1000);
-  const b = routing.budgetMs;
-  const budget = b >= 60000 ? `${Math.round(b / 60000)} min` : `${Math.round(b / 1000)} s`;
-  parts.push(`${s} s, up to ${budget}`);
+  parts.push(`${Math.round(routing.elapsedMs / 1000)} s`);
   return parts.join(" · ");
 }
 
