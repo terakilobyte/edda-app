@@ -1,9 +1,10 @@
 # Roadmap
 
-What is next, in the order it currently matters. Decisions and their
-measurements are recorded as they happen in the engineering ledger,
-which is kept privately by the maintainer; this page is the public view
-of what is open. Dates are when an item was opened.
+What is next, in the order it currently matters, and what was tried and
+buried. This page is the project's record from the public release on:
+decisions carry their date, buried ideas carry the numbers that buried
+them, and the reasoning behind a change is in its pull request. Bench
+verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
@@ -67,3 +68,24 @@ of what is open. Dates are when an item was opened.
   dependency graphs.
 - **Community data with no licence file** (FDevIDs, two engineering
   guides): reproduced with attribution; replaced on request.
+
+## Buried
+
+Ideas measured and set aside stay here with their numbers; they come
+back only when a premise changes, and then they are re-measured, not
+re-argued.
+
+- **Doubling the supercruise estimate** (2026-09-09). Proposed from a
+  comparison against the 45 s base alone; the full curve already priced
+  the measured loop long (174/234 s vs 98/139 s flown). Replaced by the
+  fitted shape, 150 s + 0.5 s per 1,000 ls.
+- **The routing index not resident as the cause of slow Beagle plots**
+  (2026-09-09). Refuted: 13 major faults over a two-minute plot; the
+  cost is the long-range search's own allocation and the box's two
+  low-priority planner threads.
+- **A 10,000-station cap after the freshness gate** (2026-09-09). Took
+  the box to 474 MB free on a Sol / 100 ly / 48 h search (2,653 fresh
+  stations, ~7M materialised legs). Now 1,000 with legs bounded at 100k.
+- **Weekly and monthly syncs** (2026-09-09). The dumps' station boards
+  were 99.9 % already known from EDDN; the weekly was the daily's
+  superset. Retired; break-glass is a documented manual line.

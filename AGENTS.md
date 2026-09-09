@@ -14,4 +14,4 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 Project rules live in `CLAUDE.md` and `CONTRIBUTING.md`; design notes in
 `docs/` (`PLAN.md`, `API-SERVICE-DESIGN.md`, `BINARY-FORMATS.md`); the
-engineering record (the ledger) is kept privately by the maintainer; open work is in `docs/ROADMAP.md`. See `docs/agents/domain.md`.
+engineering record is `docs/ROADMAP.md` (open work, decisions, buried ideas); the reasoning behind a change is in its pull request. See `docs/agents/domain.md`.

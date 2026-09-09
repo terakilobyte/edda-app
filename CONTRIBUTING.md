@@ -45,7 +45,7 @@ EDDA does not make decisions blindly. Before we build, we measure.
    and write down the expected outcome before you run. Pinned routes are
    tests: a change that worsens a pin fails.
 5. **Keep the negatives.** Null and negative results go in the project
-   ledger (kept privately by the maintainer; `docs/ROADMAP.md` is the public view), with their
+   roadmap, `docs/ROADMAP.md` (under "Buried"), with their
    numbers, permanently. A buried idea stays buried until a premise
    changes; then re-bench rather than re-argue.
 
@@ -80,8 +80,8 @@ or was. As a contribution rule:
 - **Tests must not speak.** Voice stays muted under test (`test_state`);
   a test that must be audible runs only under
   `cargo test --features test-voice`.
-- **The ledger.** Decisions, bench verdicts and retractions go in
-  the ledger as they happen, so the next person does not
+- **The record.** Decisions, bench verdicts and retractions go in
+  `docs/ROADMAP.md` and the pull request as they happen, so the next person does not
   re-run a settled experiment.
 - **Attribution.** Anything ported from another project gets an in-source
   header naming its origin and an entry in `docs/THIRD-PARTY.md`.
