@@ -60,7 +60,7 @@ for p in $platforms; do
     bad "$p: $url returned $code"
     rm -f "$tmp"; continue
   fi
-  served_sha="$(sha256sum "$tmp" | cut -d' ' -f1)"
+  served_sha="$(sha256sum "$tmp" | cut -d' ' -f1 | sed 's/^\\//')"
   served_size="$(stat -c%s "$tmp")"
   note "$p: http 200, $served_size bytes, sha ${served_sha:0:16}"
 
@@ -78,7 +78,7 @@ print(next((l.split('file:')[1].strip() for l in sig.splitlines() if 'file:' in 
 
   local_file="$LOCAL/$(basename "$url")"
   if [[ -f "$local_file" ]]; then
-    local_sha="$(sha256sum "$local_file" | cut -d' ' -f1)"
+    local_sha="$(sha256sum "$local_file" | cut -d' ' -f1 | sed 's/^\\//')"
     if [[ "$local_sha" == "$served_sha" ]]; then
       note "$p: MATCHES the local signed artifact"
       compared=$(( compared + 1 ))
