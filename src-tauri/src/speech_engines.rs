@@ -52,7 +52,14 @@ fn hide_console(_command: &mut Command) {}
 pub struct SpeechEngineStatus {
     engine: String,
     installed: bool,
+    /// The process is alive (spawned and not exited). Not the same as
+    /// answering: a cold Kokoro takes about a minute to import torch.
     running: bool,
+    /// The process answers on its port. `running && !ready` is
+    /// "starting" (maintainer, 2026-09-09: the panel said running and
+    /// probed last session's port, "how is it connected but can't be
+    /// reached?").
+    ready: bool,
     url: Option<String>,
     approximate_mb: u32,
     available: bool,
@@ -66,17 +73,21 @@ fn engine_root(data_dir: &Path, engine: &str) -> PathBuf {
 fn kokoro_status(state: &AppState) -> SpeechEngineStatus {
     let root = engine_root(&state.data_dir, "kokoro");
     let configured = state.config.lock().unwrap_or_else(|e| e.into_inner()).voice_server.clone();
+    let running = state.helpers.running("speech:kokoro");
+    // Item 37: the reported URL is LIVE state — a configured-but-dead
+    // engine advertises nothing, so no panel can claim it is active.
+    let url = if running { configured.filter(|c| c.model == "kokoro").map(|c| c.url) } else { None };
+    let ready = url.as_deref().is_some_and(|u| {
+        u.strip_prefix("http://")
+            .and_then(|hp| hp.trim_end_matches('/').parse::<std::net::SocketAddr>().ok())
+            .is_some_and(|addr| std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(150)).is_ok())
+    });
     SpeechEngineStatus {
         engine: "kokoro".into(),
         installed: root.join("installed.ok").is_file(),
-        running: state.helpers.running("speech:kokoro"),
-        // Item 37: the reported URL is LIVE state — a configured-but-dead
-        // engine advertises nothing, so no panel can claim it is active.
-        url: if state.helpers.running("speech:kokoro") {
-            configured.filter(|c| c.model == "kokoro").map(|c| c.url)
-        } else {
-            None
-        },
+        running,
+        ready,
+        url,
         approximate_mb: 2800,
         available: true,
         note: "Natural local speech. EDDA downloads an isolated Python runtime, dependencies, and Kokoro model.".into(),
@@ -261,6 +272,17 @@ fn start_kokoro(state: &AppState) -> Result<(), String> {
     }
     state.helpers.spawn("speech:kokoro", &mut command).map_err(|e| e.to_string())?;
     let url = format!("http://127.0.0.1:{port}");
+    // Publish the port NOW, not once the engine answers: while Kokoro
+    // warms up, every status read and probe must name this launch's
+    // port, not last session's dead one.
+    {
+        let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut c = cfg.voice_server.clone().unwrap_or_default();
+        c.url = url.clone();
+        c.model = "kokoro".into();
+        cfg.voice_server = Some(c);
+        let _ = cfg.save(&state.data_dir);
+    }
     // Item 36: a child that dies instantly must FAIL instantly with a
     // diagnosis, not poll a corpse for sixty seconds (the old `.any`
     // closure's `return false` skipped one iteration, not the loop —
