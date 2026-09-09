@@ -225,8 +225,8 @@ pub fn run() {
 
     // ONE INSTANCE, IN EVERY BUILD. This guard used to sit under
     // #[cfg(debug_assertions)] with the deep-link spike it was added
-    // for, so every SHIPPED build had no guard at all -- and EDDA is a
-    // tray app people launch again when they cannot see a window.
+    // for, so every SHIPPED build had no guard at all -- and people
+    // launch EDDA again when they cannot see its window.
     //
     // Field case 2026-09-07 (maintainer, on 0.2.8): two edda.exe processes,
     // PIDs 60344 and 46292, both from Program Files. Two processes means
@@ -245,7 +245,7 @@ pub fn run() {
         |app, _argv, _cwd| {
             use tauri::Manager as _;
             // The second launch is the commander asking to SEE EDDA --
-            // it hides to tray, so focus alone is not enough.
+            // it may be minimized, so focus alone is not enough.
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
                 let _ = w.unminimize();
@@ -454,115 +454,7 @@ pub fn run() {
                 tracing::info!("EDDN feed disabled by EDDA_NO_EDDN");
             }
 
-            // Minimize-to-tray (maintainer-approved 2026-09-05): closing the
-            // main window keeps EDDA flying with the commander —
-            // watcher, voice, overlay, EDDN — with a tray icon whose
-            // Quit is the real shutdown. The rejected alternative was
-            // an always-on background daemon; the ruling was "the
-            // community server IS that daemon", so the tray only keeps
-            // the app alive WHILE the commander plays.
-            #[cfg(not(target_os = "linux"))]
-            {
-                use tauri::menu::{MenuBuilder, MenuItemBuilder};
-                use tauri::tray::TrayIconBuilder;
-                let show = MenuItemBuilder::with_id("show", "Show EDDA").build(app)?;
-                let hud = MenuItemBuilder::with_id("hud", "Show / hide HUD").build(app)?;
-                let quit = MenuItemBuilder::with_id("quit", "Quit EDDA").build(app)?;
-                let menu = MenuBuilder::new(app).items(&[&show, &hud, &quit]).build()?;
-                TrayIconBuilder::with_id("edda")
-                    .icon(app.default_window_icon().cloned().ok_or("no window icon")?)
-                    .tooltip("EDDA — flying with you")
-                    .menu(&menu)
-                    .show_menu_on_left_click(true)
-                    .on_menu_event(|app, event| match event.id().as_ref() {
-                        "show" => {
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                            // Put the HUD back if it was up when we went
-                            // to the tray; leave it down if the commander
-                            // had already hidden it.
-                            if app
-                                .state::<crate::state::AppState>()
-                                .overlay_visible_before_tray
-                                .load(std::sync::atomic::Ordering::Relaxed)
-                            {
-                                if let Some(hud) = app.get_webview_window("overlay") {
-                                    let _ = hud.show();
-                                }
-                            }
-                        }
-                        // The overlay toggle, reachable while the main
-                        // window is tucked away (maintainer, 2026-09-05) —
-                        // the same show/hide the Ctrl+Shift+H shortcut
-                        // and the Settings switch drive.
-                        "hud" => {
-                            if let Some(w) = app.get_webview_window("overlay") {
-                                let visible = w.is_visible().unwrap_or(true);
-                                let _ = if visible { w.hide() } else { w.show() };
-                                // An explicit toggle is a fresh intent:
-                                // record it so the next tray round-trip
-                                // restores THIS, not what was up before.
-                                app.state::<crate::state::AppState>()
-                                    .overlay_visible_before_tray
-                                    .store(!visible, std::sync::atomic::Ordering::Relaxed);
-                                tracing::info!(now_visible = !visible, "HUD toggled from the tray");
-                            }
-                        }
-                        "quit" => app.exit(0),
-                        _ => {}
-                    })
-                    .build(app)?;
-            }
-
             Ok(())
-        })
-        .on_window_event(|window, event| {
-            // Close on the MAIN window hides to the tray; the overlay
-            // has no close affordance and other windows behave normally.
-            // NOT on Linux: tray indicators need a shell extension on
-            // vanilla GNOME, so hide-to-tray can strand a running app
-            // with no way back — there, close means close.
-            if cfg!(target_os = "linux") {
-                return;
-            }
-            if window.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
-                    // The HUD goes with it (maintainer, 2026-09-07). Closing
-                    // to the tray means "get off my screen", and an
-                    // overlay left floating over the desktop with no
-                    // window behind it is the thing that reads as a
-                    // half-dead app. Remember whether it was up, so
-                    // opening from the tray restores what he had rather
-                    // than overriding a deliberate Ctrl+Shift+H.
-                    let app = window.app_handle();
-                    if let Some(hud) = app.get_webview_window("overlay") {
-                        let visible = hud.is_visible().unwrap_or(true);
-                        app.state::<state::AppState>()
-                            .overlay_visible_before_tray
-                            .store(visible, std::sync::atomic::Ordering::Relaxed);
-                        if visible {
-                            let _ = hud.hide();
-                        }
-                        tracing::info!(hud_was_visible = visible, "main window hidden to tray; HUD follows");
-                    }
-                    tracing::info!("main window hidden to tray; EDDA keeps flying");
-                    // Windows buries fresh tray icons in the overflow
-                    // chevron, so a silent hide is indistinguishable
-                    // from a crash (maintainer, first close: "didn't it
-                    // close?"). Say so, once per session.
-                    static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                    if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                        let state = window.app_handle().state::<state::AppState>();
-                        state.voice.say(
-                            "Still with you, Commander — EDDA is in the system tray, and the HUD stays up. Quit from the tray icon when you mean it.".to_string(),
-                        );
-                    }
-                }
-            }
         })
         .invoke_handler(tauri::generate_handler![
             data_location_get,
@@ -730,39 +622,24 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             match event {
-                // Tauri's default exits when it thinks the last window
-                // is gone — which escalated hide-to-tray into a full
-                // shutdown 235 ms after the hide (maintainer's second close,
-                // 2026-09-05 18:10). A DELIBERATE quit (tray Quit,
-                // updater restart) calls app.exit(code) and carries
-                // Some(code); the heuristic carries None and is refused.
-                // Diagnosis trace (2026-09-05, X-still-quits hunt): name
-                // every lifecycle step so the next close tells us which
-                // path kills us. Cheap; kept until the tray ships.
+                // Closing the main window quits (maintainer, 2026-09-09:
+                // the tray existed to keep a local EDDN feed warm, and
+                // the community API is that daemon now). The lifecycle
+                // trace stays: it names every step when a close misbehaves.
                 tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } => {
                     tracing::trace!(%label, "runevent: window DESTROYED");
                 }
                 tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { .. }, .. } => {
                     tracing::trace!(%label, "runevent: close requested");
                 }
-                tauri::RunEvent::ExitRequested { api, code, .. } => {
+                tauri::RunEvent::ExitRequested { code, .. } => {
                     tracing::trace!(?code, "runevent: exit requested");
-                    // Only where hide-to-tray is active (see the Linux
-                    // note on the close handler): refusing exits on a
-                    // platform where the window really closed would
-                    // leave an unreachable process.
-                    if code.is_none() && !cfg!(target_os = "linux") {
-                        api.prevent_exit();
-                        tracing::info!("window-close exit request refused; EDDA lives in the tray");
-                    } else {
-                        // A REAL quit. Start the jobs winding down NOW,
-                        // while the windows are still closing, so the
-                        // blocking join in RunEvent::Exit has almost
-                        // nothing left to wait for. Non-blocking on
-                        // purpose: this runs on the UI thread.
-                        app.state::<AppState>().jobs.cancel_all();
-                        tracing::info!("quit: background jobs cancelled");
-                    }
+                    // Start the jobs winding down NOW, while the windows
+                    // are still closing, so the blocking join in
+                    // RunEvent::Exit has almost nothing left to wait for.
+                    // Non-blocking on purpose: this runs on the UI thread.
+                    app.state::<AppState>().jobs.cancel_all();
+                    tracing::info!("quit: background jobs cancelled");
                 }
                 tauri::RunEvent::Exit => {
                     // THIS RUNS ON THE UI THREAD, so whatever it waits

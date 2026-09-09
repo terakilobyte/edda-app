@@ -28,7 +28,7 @@ test-voice = []
 
 [dependencies]
 memmap2 = "0.9"
-tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
+tauri = { version = "2", features = ["macos-private-api", "image-png"] }
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 serde_json = "1"
