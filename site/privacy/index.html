@@ -8,8 +8,9 @@
   :root { --bg:#0a0c10; --panel:#131820; --rule:#262e3a; --ink:#e4e6ea; --muted:#8b95a5; --accent:#ff8c1a; --cyan:#5ec8e5; --ok:#57c66d; --bad:#ff5c5c; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,"Segoe UI",sans-serif; }
   .wrap { max-width:44rem; margin:0 auto; padding:2rem 1.4rem 5rem; }
-  .sitenav { font-family:"IBM Plex Mono",monospace; font-size:0.8rem; margin-bottom:2.5rem; }
+  .sitenav { font-family:"IBM Plex Mono",monospace; font-size:0.8rem; margin-bottom:2.5rem; display:flex; gap:1.2rem; flex-wrap:wrap; }
   .sitenav a { color:var(--accent); text-decoration:none; }
+  .sitenav .here { color:#667081; }
   h1 { font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:2.1rem; margin:0 0 0.5rem; }
   h2 { font-family:"Bricolage Grotesque",sans-serif; font-weight:700; font-size:1.25rem; margin:2.2rem 0 0.6rem; }
   p, li { color:var(--muted); }
@@ -21,22 +22,23 @@
   .no::marker { content:"✕  "; color:var(--bad); }
   code { font-family:"IBM Plex Mono",monospace; font-size:0.85em; background:#10141b; border:1px solid var(--rule); border-radius:4px; padding:0.05em 0.35em; }
   .quiet { color:#667081; font-size:0.85rem; }
+  .quiet a { color:var(--muted); }
 </style></head><body><div class="wrap">
-<div class="sitenav"><a href="/">EDDA</a> <span style="color:#667081">/ privacy</span></div>
+<nav class="sitenav"><a href="/">EDDA</a><span class="here">/ privacy</span><a href="/notes/">release notes</a><a href="/blog/">build log</a><a href="https://github.com/terakilobyte/edda-app" rel="noopener">source</a></nav>
 
 <h1>What EDDA collects</h1>
-<p>The short version: <b>nothing that identifies you, ever.</b> The long version is below, and it's genuinely short, because the list is genuinely short.</p>
+<p>The short version: <b>nothing that identifies you, ever.</b> The long version is below, and it's genuinely short, because the list is genuinely short. EDDA is open source, so every claim on this page can be checked against the code.</p>
 
 <div class="law">EDDA's design law, written into the project's own rules: <b>EDDA is not a surveillance tool.</b> Nothing it collects, aggregates, or displays may identify a commander or reveal where any individual is or has been. When a feature would need that data to work, the feature changes shape or doesn't ship.</div>
 
 <h2>Anonymous usage data (on by default; one checkbox turns it off)</h2>
 <p>If you leave "Send anonymous usage data" enabled, EDDA sends:</p>
 <ul>
-  <li class="yes"><b>App version and operating system</b> — e.g. <code>0.2.0</code>, <code>windows x86_64</code>.</li>
+  <li class="yes"><b>App version and operating system</b> — e.g. <code>0.3.0</code>, <code>windows x86_64</code>.</li>
   <li class="yes"><b>Warning and error signals</b> — <i>which</i> internal component warned or failed (a code location and severity), so bugs get found. <b>Never the message text</b>, because message text can mention star systems, and where you fly is your business.</li>
   <li class="yes"><b>Performance timings</b> — how long route plotting, trade searches, data sync, and data loading took. Durations only.</li>
   <li class="yes"><b>Which features are switched on</b> — the toggles, so we know what's actually used.</li>
-  <li class="yes"><b>Two search settings, as plain numbers</b> — the price-freshness window and the jump range you search at (e.g. <code>2 h</code>, <code>48 ly</code>), pooled across everyone so the app can ship better defaults. The numbers only — never <i>what</i> you searched for, or where.</li>
+  <li class="yes"><b>Two search settings, as plain numbers</b> — the price-freshness window and the jump range you plot at (e.g. <code>2 h</code>, <code>48 ly</code>), pooled across everyone so the app can ship better defaults. The numbers only — never <i>what</i> you searched for, or where.</li>
 </ul>
 <p>It never sends:</p>
 <ul>
@@ -44,19 +46,22 @@
   <li class="no">Your position, your routes, or any star system or station name.</li>
   <li class="no">Anything from your journal — cargo, credits, scans, missions, none of it.</li>
 </ul>
-<p>Reports are not linked to you: they carry no account, no name and no system, and we have no way to tell two reports came from the same person.</p>
+<p>Reports carry no account, no name and no system. The server folds each one into running counters the moment it arrives and keeps nothing per report, so there is nothing to link back to anyone.</p>
 
 <h2>Problem reports (only when you press Send)</h2>
-<p>The <b>Report</b> tab sends what you typed, plus your app version and OS. Attaching the day's log is a <b>separate checkbox, off by default</b>, and labeled with exactly why: logs can contain the names of systems you visited. Nothing is sent until you press the button.</p>
+<p>The <b>Report</b> tab sends what you typed, plus your app version, your OS and the time you pressed the button. Attaching the day's log is a <b>separate checkbox, off by default</b>, and labeled with exactly why: logs can contain the names of systems you visited. Nothing is sent until you press the button.</p>
 
 <h2>The live activity map</h2>
-<p>The galaxy heatmap is built from the community's public <a href="https://github.com/EDCD/EDDN">EDDN</a> data feed that every Elite tool shares — not from EDDA users. It is deliberately blurry: cells are a hundred light years wide, nothing on it can name a system, and the map cannot be clicked to identify anything. It's weather, not surveillance.</p>
+<p>The galaxy heatmap is built from the community's public <a href="https://github.com/EDCD/EDDN">EDDN</a> data feed that every Elite tool shares — not from EDDA users. EDDA only listens to that feed; <b>it never uploads anything to EDDN</b>. The map is deliberately blurry: cells are a hundred light years wide, nothing on it can name a system, and the map cannot be clicked to identify anything. It's weather, not surveillance.</p>
+
+<h2>Update checks</h2>
+<p>Now and then the app fetches our server's current version file, the same way a browser fetches a page. Nothing about you travels with that request. An update only downloads and installs when you choose to, and the app checks its signature before it will run it.</p>
+
+<h2>The ship computer (only with your own key)</h2>
+<p>The talking ship computer is off unless you add your own Anthropic or OpenAI API key in Settings. The key lives in your operating system's credential store, never in a file EDDA writes. When you ask it something, your question and the journal facts needed to answer it (your ship, where you are, what you carry) go to <b>that provider, under your own account</b>. None of it passes through EDDA's server, and we never see it.</p>
 
 <h2>Everything else stays home</h2>
-<p>Your journal, your settings and your marks live on your machine and are read there. Nothing in them is uploaded.</p>
-
-<h2>Searches on the community API</h2>
-<p>Route plotting, trade finding, market and mining searches run on our server, the same one every EDDA install shares. Only the search travels: the system you searched from (or, when the server does not know that system by name yet, its coordinates from your own journal), what you asked for, the radius, and your ship's cargo and jump figures; a trade search from the station you are docked at also carries that station's price board so the answer can use the fresher copy. The server answers and forgets. No account, no history, nothing retained per person. Its logs record how many results a search returned and how long it took, never a name or a position.</p>
+<p>Your journal, your settings and your marks live on your machine and are read there. Nothing in them is uploaded. The voices run on your machine too: choosing the Kokoro engine downloads it once from GitHub, and after that nothing it says or hears leaves your computer.</p>
 
 <p class="quiet" style="margin-top:2.6rem">Changes to what's collected will be reflected on this page before they ship. EDDA is an unofficial third-party tool. Elite Dangerous © Frontier Developments plc.</p>
 </div></body></html>
