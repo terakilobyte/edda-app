@@ -48,16 +48,21 @@ depended on it in the prod cutover — cold trade searches went from
 ## Publish the website (edda-app.com)
 
 The site is static files under `site/`, served by Caddy from
-`/var/www/edda-site` (deploy/Caddyfile). Publishing is one rsync:
+`/var/www/edda-site` (deploy/Caddyfile). It publishes itself:
+`.github/workflows/site.yml` runs on every merge to `main` that touches
+`site/` (and on demand from the Actions tab), rsyncs to the deploy inbox,
+runs `apply site`, and then checks from the outside that the served
+front page is byte-for-byte the merged one. A release publishes the
+site too (release.yml), together with the notes feed.
+
+Break glass, from a machine with root on the box:
 
     rsync -av --delete --exclude '*.py' --exclude README.md site/ root@api.edda-app.com:/var/www/edda-site/
 
-Then check `https://edda-app.com/notes/` tops out at the version just
-released. **This is a release step** (2026-09-07 lesson: 0.2.6
-announced itself in the app while the site still said 0.2.5 — the
-maintainer read it as "release notes are broken"): the release script
-regenerates `site/notes/index.html` and warns when it changed; commit
-it and run the rsync in the same sitting.
+2026-09-07 lesson, still the reason the release publishes the site in
+the same run as the manifest: 0.2.6 announced itself in the app while
+the site still said 0.2.5, and the maintainer read it as "release notes
+are broken".
 
 ## Cron (systemd timers)
 
