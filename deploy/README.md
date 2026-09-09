@@ -3,7 +3,7 @@
 Target: one one 4-8 vCPU / 16 GB Ubuntu 24.04 x86_64 box at
 `api.edda-app.com`. Everything the box runs is
 declared here; nothing is configured by hand over SSH. The measurements
-behind the sizing live in the maintainer's engineering ledger ("SERVER SIZING
+behind the sizing live in the pre-release engineering notes ("SERVER SIZING
 CLOSED", 2026-09-04: Postgres 32 GB near-steady-state, ingest ~630k
 msgs/day at 0.4% core, first installs ~11 GB egress each).
 

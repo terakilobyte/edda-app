@@ -23,7 +23,8 @@
    pinned inputs; pre-register the expected outcome before running.
    Pinned routes are tests — a change that worsens a pin fails.
 5. **Keep the negatives.** Null and negative results go in the ledger
-   (the private engineering ledger) with their numbers, permanently. Buried ideas
+   in `docs/ROADMAP.md` under "Buried" (and in the bench CSV's verdict
+   header) with their numbers, permanently. Buried ideas
    stay buried until a *premise* changes — then re-bench, don't
    re-litigate. (Precedent: ALT, buried on measurement, exhumed on a
    premise change, vindicated by re-measurement.)
@@ -33,8 +34,10 @@ measurements disagree, find the broken instrument before trusting either.
 
 ## House conventions
 
-- The project ledger (kept privately by the maintainer) captures decisions, maintainer
-  rulings, bench verdicts, and retractions there as they happen.
+- `docs/ROADMAP.md` is the project's record: open work, decisions with
+  their dates, buried ideas with the numbers that buried them. Bench
+  verdicts live in the CSV headers under `docs/benches/`; the reasoning
+  behind a change goes in its pull request.
 - Rust edits from an assistant session happen in a worktree
   (`.claude/worktrees/`) with a separate `CARGO_TARGET_DIR` — edits to
   the main tree restart the user's dev app.
