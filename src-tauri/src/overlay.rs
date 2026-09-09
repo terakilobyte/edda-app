@@ -37,23 +37,17 @@ pub fn setup(app: &AppHandle) -> Result<()> {
         });
     }
 
-    // Closing the main window saves its state everywhere. What happens
-    // NEXT is per-platform: on Linux (no reliable tray) the session
-    // ends here — the old guard against an unreachable overlay-only
-    // process. On Windows/macOS the tray owns the lifecycle now, and
-    // this exit(0) was the assassin behind "X still closes everything":
-    // it fired 1 ms after hide-to-tray, wearing the deliberate-exit
-    // code that the refusal correctly waves through (traced 2026-09-05
-    // 18:21:07.859, code Some(0)).
+    // Closing the main window saves its state and ends the session on
+    // every platform (the tray that once kept EDDA alive behind a closed
+    // window went with the local data, 2026-09-09). The explicit exit
+    // keeps an overlay-only process from lingering with no way back.
     if let Some(main) = app.get_webview_window("main") {
         let handle = app.clone();
         main.on_window_event(move |e| {
             if matches!(e, tauri::WindowEvent::CloseRequested { .. }) {
                 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
                 let _ = handle.save_window_state(StateFlags::all());
-                if cfg!(target_os = "linux") {
-                    handle.exit(0);
-                }
+                handle.exit(0);
             }
         });
     }
@@ -73,12 +67,6 @@ pub fn setup(app: &AppHandle) -> Result<()> {
                     if let Some(w) = app.get_webview_window("overlay") {
                         let visible = w.is_visible().unwrap_or(true);
                         let _ = if visible { w.hide() } else { w.show() };
-                        // Same intent as the tray toggle: remember it so
-                        // a later hide-to-tray round trip restores what
-                        // the commander last chose.
-                        app.state::<AppState>()
-                            .overlay_visible_before_tray
-                            .store(!visible, Ordering::Relaxed);
                     }
                 }
             })

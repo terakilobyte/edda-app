@@ -167,11 +167,6 @@ pub struct AppState {
     pub data_dir: PathBuf,
     /// Whether the overlay currently accepts mouse input (false = click-through).
     pub overlay_interactive: AtomicBool,
-    /// Was the HUD visible when the main window went to the tray? Hiding
-    /// to the tray takes the HUD with it, and opening from the tray puts
-    /// back what the commander had -- not blindly a visible HUD, or
-    /// Ctrl+Shift+H would be undone by every trip through the tray.
-    pub overlay_visible_before_tray: AtomicBool,
     pub config: Arc<Mutex<AppConfig>>,
     pub db_path: PathBuf,
     /// Galaxy index caches; also managed separately for the routing commands.
@@ -251,7 +246,6 @@ impl AppState {
             callouts: Arc::new(Mutex::new(VecDeque::with_capacity(CALLOUT_HISTORY))),
             data_dir,
             overlay_interactive: AtomicBool::new(false),
-            overlay_visible_before_tray: AtomicBool::new(true),
         }
     }
 
