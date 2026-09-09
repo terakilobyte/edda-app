@@ -156,7 +156,12 @@ To rotate:
    (archive the old item after step 4).
 2. `op read "op://Private/EDDA deploy key/public key" > deploy/deploy-key.pub`,
    open a pull request, merge.
-3. On the box, from a checkout of `main`: `sudo bash deploy/install-deploy-user.sh`.
+3. Copy the four files the installer reads to the box and run it (no
+   checkout on the box; it holds no source):
+
+       ssh root@api.edda-app.com 'mkdir -p /root/deploy-kit'
+       scp deploy/install-deploy-user.sh deploy/deploy-key.pub deploy/edda-deploy deploy/edda-apply root@api.edda-app.com:/root/deploy-kit/
+       ssh root@api.edda-app.com 'bash /root/deploy-kit/install-deploy-user.sh'
 4. Set the secret (command above), then run **Deploy check** from the
    Actions tab; it must connect, report readyz, and be refused `id`.
 
