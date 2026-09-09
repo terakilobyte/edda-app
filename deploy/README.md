@@ -117,7 +117,11 @@ else:
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | `op://Private/EDDA updater signing key/password`      |
 | `EDDA_CAPI_CLIENT_ID`                | `op://Private/EDDA CAPI client id/password` (0.3.0+)  |
 
-    op read "op://Private/EDDA deploy key/private key" | gh secret set DEPLOY_SSH_KEY --repo terakilobyte/edda-app
+    op read "op://Private/EDDA deploy key/private key?ssh-format=openssh" | gh secret set DEPLOY_SSH_KEY --repo terakilobyte/edda-app
+
+`?ssh-format=openssh` is not optional: without it `op read` emits the
+key as PKCS#8, which OpenSSH cannot load, and the box answers
+"Permission denied (publickey)" (first Deploy check, 2026-09-09).
 
 Variables (Settings → Variables → Actions): `DEPLOY_HOST`
 (api.edda-app.com) and `DEPLOY_HOST_KEY`, the box's `ssh-ed25519` host
