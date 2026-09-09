@@ -22,7 +22,7 @@
 4. **Compare where it makes sense.** A/B against the current default with
    pinned inputs; pre-register the expected outcome before running.
    Pinned routes are tests — a change that worsens a pin fails.
-5. **Keep the negatives.** Null and negative results go in the ledger
+5. **Keep the negatives.** Null and negative results go on the record,
    in `docs/ROADMAP.md` under "Buried" (and in the bench CSV's verdict
    header) with their numbers, permanently. Buried ideas
    stay buried until a *premise* changes — then re-bench, don't

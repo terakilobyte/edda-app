@@ -80,7 +80,7 @@ or was. As a contribution rule:
 - **Tests must not speak.** Voice stays muted under test (`test_state`);
   a test that must be audible runs only under
   `cargo test --features test-voice`.
-- **The ledger.** Decisions, bench verdicts and retractions go in
+- **The record.** Decisions, bench verdicts and retractions go in
   `docs/ROADMAP.md` and the pull request as they happen, so the next person does not
   re-run a settled experiment.
 - **Attribution.** Anything ported from another project gets an in-source
