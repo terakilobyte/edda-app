@@ -2,6 +2,15 @@
   // Report a problem — top-bar citizen, not buried in Settings (maintainer,
   // 2026-09-05): the site promises it, so it gets a door of its own.
   import { feedbackSend } from "./api.js";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  // The other door (maintainer, 2026-09-09): a commander who would
+  // rather not send anything through the app files a GitHub issue.
+  const ISSUES_URL = "https://github.com/terakilobyte/edda-app/issues/new";
+  /** @param {MouseEvent} e */
+  function openIssues(e) {
+    e.preventDefault();
+    openUrl(ISSUES_URL).catch(() => {});
+  }
   let text = $state("");
   let includeLog = $state(false);
   let busy = $state(false);
@@ -24,6 +33,7 @@
 <section class="panel">
   <h2>Report a problem <span class="sub">anonymous</span></h2>
   <p class="muted small" style="margin:0 0 0.6rem">What went wrong, what you expected, what you were doing. Sent with your app version and OS — nothing that identifies you. <a href="https://edda-app.com/privacy/" target="_blank" rel="noreferrer">Exactly what EDDA collects.</a></p>
+  <p class="muted small" style="margin:0 0 0.6rem">Rather not use this form? <a href={ISSUES_URL} onclick={openIssues}>Open an issue on GitHub</a> instead — same people, under your GitHub name rather than anonymously.</p>
   <textarea rows="8" style="width:100%" bind:value={text} placeholder="It said 'throttle down' after I had already become one with the star…"></textarea>
   <div class="row" style="margin-top:0.6rem">
     <label><input type="checkbox" bind:checked={includeLog} /> include today's log <span class="muted small">(may contain system names you visited)</span></label>
