@@ -31,9 +31,15 @@ verdicts live in the CSV headers under `docs/benches/`.
   fssdiscoveryscan, scanbarycentre, fssallbodiesfound, codexentry,
   approachsettlement, docking events, scanorganic, navbeaconscan,
   fcmaterials.
-- **Deploy user** (2026-09-09). CI deploys as root over SSH; move to a
+- ~~**Deploy user** (2026-09-09). CI deploys as root over SSH; move to a
   dedicated deploy user once the repository is public and CI minutes are
-  free.
+  free.~~ Done 2026-09-09: CI reaches the box as user `deploy` with a
+  fresh key (born in 1Password, public half in `deploy/deploy-key.pub`)
+  that can only rsync into an inbox and run four `apply` verbs
+  (`deploy/edda-deploy`, `deploy/edda-apply`); the host key is pinned in
+  CI. Watch the per-verb `edda-apply <verb>: done in N s` lines in the
+  release log; pre-registered: `apply api` under 30 s, the other three
+  under 5 s.
 - **Full routing rebuild on demand** (2026-09-09). The monthly rebuild is
   retired; build the instrument that diffs the applied index against a
   fresh dump (systems missing, records mismatched, bucket skew) and

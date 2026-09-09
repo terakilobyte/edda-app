@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# The root half of a deploy. Reached only through `sudo edda-apply <verb>`
+# from edda-deploy (sudoers names each verb exactly; no arguments are
+# free-form). Each verb moves what CI rsync'd into the inbox to where it
+# lives, in the order the release contract requires, and empties that
+# part of the inbox afterwards so nothing stale is applied twice.
+#
+#   api         /usr/local/bin/ed-api ← inbox/ed-api, restart, wait for
+#               readyz (120 s), ANALYZE the hot tables (runbook, 2026-09-06)
+#   app         installers + sigs + notes.json, then latest.json LAST: the
+#               pointer flips only once everything it names is in place
+#   site        /var/www/edda-site ← inbox/site (mirror)
+#   dashboards  /var/lib/edda/dashboards ← inbox/dashboards/*.json
+#
+# Prints one `edda-apply <verb>: done in N s` line per verb; the CI log is
+# the record of how long each step took on the box.
+set -euo pipefail
+
+INBOX=/var/lib/edda-deploy/inbox
+verb="${1:-}"
+t0=$(date +%s)
+
+case "$verb" in
+    api)
+        src="$INBOX/ed-api"
+        [[ -s "$src" ]] || { echo "edda-apply api: $src is missing or empty" >&2; exit 1; }
+        install -o root -g root -m 755 "$src" /usr/local/bin/ed-api.new
+        mv -f /usr/local/bin/ed-api.new /usr/local/bin/ed-api
+        systemctl restart edda-api.service
+        for i in $(seq 1 60); do
+            if curl -sf --max-time 2 http://127.0.0.1:8787/readyz >/dev/null; then
+                echo "readyz ok after $((i * 2)) s"
+                break
+            fi
+            sleep 2
+            if [[ $i -eq 60 ]]; then
+                echo "edda-apply api: ed-api not ready after 120 s" >&2
+                systemctl --no-pager --lines 20 status edda-api.service >&2 || true
+                exit 1
+            fi
+        done
+        sudo -u postgres psql -d edda -qc 'ANALYZE market; ANALYZE systems; ANALYZE stations;'
+        rm -f "$src"
+        ;;
+    app)
+        src="$INBOX/app"
+        dst=/var/lib/edda/artifacts/app
+        [[ -d "$src" ]] || { echo "edda-apply app: $src is missing" >&2; exit 1; }
+        mkdir -p "$dst"
+        # Everything the manifest names first; the manifest itself last.
+        for f in "$src"/*; do
+            [[ -f "$f" ]] || continue
+            [[ "$(basename "$f")" == latest.json ]] && continue
+            install -o edda -g edda -m 644 "$f" "$dst/"
+        done
+        [[ -f "$src/latest.json" ]] && install -o edda -g edda -m 644 "$src/latest.json" "$dst/latest.json"
+        chmod -R u=rwX,g=rX,o=rX /var/lib/edda/artifacts
+        rm -rf "$src"
+        ;;
+    site)
+        src="$INBOX/site"
+        [[ -d "$src" ]] || { echo "edda-apply site: $src is missing" >&2; exit 1; }
+        mkdir -p /var/www/edda-site
+        rsync -a --delete --chown=root:root --chmod=D755,F644 "$src/" /var/www/edda-site/
+        rm -rf "$src"
+        ;;
+    dashboards)
+        src="$INBOX/dashboards"
+        [[ -d "$src" ]] || { echo "edda-apply dashboards: $src is missing" >&2; exit 1; }
+        mkdir -p /var/lib/edda/dashboards
+        install -o root -g root -m 644 "$src"/*.json /var/lib/edda/dashboards/
+        rm -rf "$src"
+        ;;
+    *)
+        echo "edda-apply: unknown verb '${verb}'" >&2
+        exit 1
+        ;;
+esac
+
+echo "edda-apply $verb: done in $(( $(date +%s) - t0 )) s"

@@ -11,8 +11,11 @@ msgs/day at 0.4% core, first installs ~11 GB egress each).
 
 | path                        | what                                        |
 |-----------------------------|---------------------------------------------|
-| /usr/local/bin/ed-api       | the server binary (pushed by push-api.ps1)  |
+| /usr/local/bin/ed-api       | the server binary (release.yml, `apply api`) |
 | /etc/edda/api.env           | DATABASE_URL, artifact dir, bind (0600)     |
+| /var/lib/edda-deploy/inbox  | where CI's rsync lands (user deploy only)   |
+| /usr/local/bin/edda-deploy  | the deploy key's forced command (allowlist) |
+| /usr/local/sbin/edda-apply  | the root half: four verbs, named in sudoers |
 | /var/lib/edda/artifacts     | manifest + products + app/ (self-update)    |
 | /var/lib/edda/dumps         | weekly upstream dumps (transient)           |
 | /var/lib/edda/backups       | nightly irreplaceables pg_dump (14 kept)    |
@@ -103,14 +106,63 @@ commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`. Nothing else.
 The manual scripts (scripts/release-app.*, deploy/push-api.ps1) remain
 for emergencies only.
 
-Secrets the repository needs (Settings → Secrets → Actions):
-`TAURI_SIGNING_PRIVATE_KEY` (the minisign key CONTENT),
-`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (may be empty), `DEPLOY_SSH_KEY`
-(a dedicated ed25519 private key whose public half is in the box's
-root authorized_keys), `EDDA_CAPI_CLIENT_ID` (0.3.0+). Environment
-`production` on the deploy job: add a required reviewer there if the
-plan allows it; otherwise the tag push itself is the approval, so only
-collaborators may push tags.
+Secrets the repository needs (Settings → Secrets → Actions), each read
+from 1Password by path — the values are never written down anywhere
+else:
+
+| secret                               | 1Password path                                        |
+|--------------------------------------|-------------------------------------------------------|
+| `DEPLOY_SSH_KEY`                     | `op://Private/EDDA deploy key/private key`            |
+| `TAURI_SIGNING_PRIVATE_KEY`          | `op://Private/EDDA updater signing key/private_key`   |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | `op://Private/EDDA updater signing key/password`      |
+| `EDDA_CAPI_CLIENT_ID`                | `op://Private/EDDA CAPI client id/password` (0.3.0+)  |
+
+    op read "op://Private/EDDA deploy key/private key" | gh secret set DEPLOY_SSH_KEY --repo terakilobyte/edda-app
+
+Variables (Settings → Variables → Actions): `DEPLOY_HOST`
+(api.edda-app.com) and `DEPLOY_HOST_KEY`, the box's `ssh-ed25519` host
+public key, pinned so CI never trusts whoever answers a keyscan:
+
+    ssh-keyscan -t ed25519 api.edda-app.com 2>/dev/null | awk '$2=="ssh-ed25519"{print $2, $3}' | gh variable set DEPLOY_HOST_KEY --repo terakilobyte/edda-app
+
+(compare against your own known_hosts first: `ssh-keygen -F api.edda-app.com`).
+
+Environment `production` on the deploy job: add a required reviewer
+there if the plan allows it; otherwise the tag push itself is the
+approval, so only collaborators may push tags.
+
+### The deploy key: what it can do, and rotating it
+
+CI logs in as user `deploy`, not root. The key's authorized_keys entry
+carries `restrict,command="/usr/local/bin/edda-deploy"`, so no matter
+what the runner asks for, the box runs `edda-deploy` and that script
+allows exactly: rsync INTO `/var/lib/edda-deploy/inbox` (rrsync,
+write-only), `apply api|app|site|dashboards` (sudo to root-owned
+`edda-apply`, each verb named exactly in `/etc/sudoers.d/edda-deploy`),
+and `status`. Everything else is refused and journaled
+(`journalctl -t edda-deploy`). A leaked key can therefore deploy
+what CI deploys — nothing more — and the `deploy-check.yml` workflow
+proves the refusal on demand.
+
+The key was generated inside 1Password (`op item create --category
+"SSH Key" --ssh-generate-key ed25519`); the private half has never been
+on a disk. Its public half is committed as `deploy/deploy-key.pub` and
+`deploy/install-deploy-user.sh` (idempotent, root, no service restarts)
+writes the box's authorized_keys from that file.
+
+To rotate:
+
+1. `op item create --category "SSH Key" --title "EDDA deploy key" --vault Private --ssh-generate-key ed25519`
+   (archive the old item after step 4).
+2. `op read "op://Private/EDDA deploy key/public key" > deploy/deploy-key.pub`,
+   open a pull request, merge.
+3. On the box, from a checkout of `main`: `sudo bash deploy/install-deploy-user.sh`.
+4. Set the secret (command above), then run **Deploy check** from the
+   Actions tab; it must connect, report readyz, and be refused `id`.
+
+The old CI key lived in root's authorized_keys; `install-deploy-user.sh`
+lists root's keys at the end so it can be deleted by hand — only the
+maintainer's own key belongs there.
 
 Release notes on the website are a FEED: `site/build-notes.py --out
 notes.json` from RELEASE-NOTES.md, published at
@@ -155,7 +207,10 @@ fixed (review proposes; allowlist enforced at the API boundary).
   bind loopback only — TLS via Caddy is the sole public door, and it
   404s /metrics (scrape from the box; operational detail is not public).
 - SSH: keys only (password + keyboard-interactive off, root
-  prohibit-password), fail2ban on top for log hygiene.
+  prohibit-password), fail2ban on top for log hygiene. CI holds no root
+  key: it logs in as `deploy`, whose only key is bound to a forced
+  command with a closed allowlist (see "The deploy key" above), and the
+  runner pins the box's host key instead of scanning for it.
 - Patching: unattended security upgrades with auto-reboot 04:30 UTC —
   the service units Restart=always through it.
 - Process containment: every unit runs as the unprivileged `edda` user
