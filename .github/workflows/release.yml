@@ -142,7 +142,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    name: build (linux AppImage + deb, signed)
+    name: build (linux AppImage + deb + rpm, signed)
     needs: [verify, test]
     runs-on: ubuntu-22.04
     timeout-minutes: 90
@@ -192,6 +192,11 @@ jobs:
           [[ -f "$app.sig" ]] && cp "$app.sig" "out/EDDA_${v}_amd64.AppImage.sig" || echo "::warning::no AppImage signature (updater on Linux stays manual)"
           deb="$(ls target/release/bundle/deb/*.deb | head -1)"
           cp "$deb" "out/EDDA_${v}_amd64.deb"
+          # rpm (maintainer, 2026-09-09, on a user's ask): Tauri bundles it
+          # in pure Rust, no rpmbuild needed. Fedora/openSUSE install by
+          # reinstalling, like the deb; the AppImage stays the self-updater.
+          rpm="$(ls target/release/bundle/rpm/*.rpm | head -1)"
+          cp "$rpm" "out/EDDA_${v}_x86_64.rpm"
           ls -la out
       - uses: actions/upload-artifact@v4
         with:
