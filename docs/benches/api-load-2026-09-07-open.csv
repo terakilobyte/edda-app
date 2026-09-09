@@ -1,0 +1,55 @@
+# api-load OPEN (2026-09-07 07:00–07:18Z): binary 81610fc3 (1957ad7), limiters opened to 100000 via systemd drop-in.
+# the assistant's Mac, overlapping the maintainer's ladder (api-load-2026-09-07-maintainer.csv) from the same Mac, offset ~6 min.
+# Missing rows (market_search c=16/64, trade_search c=16/64) = ZERO responses in 30 s: the market-search pool
+# self-deadlock (resolve_commodity took a second pool connection inside the transaction; 10 backends idle-in-transaction,
+# pool idle 0/10). trade_search and names_complete_station (c=64 p99 20 s) starved behind it — victims.
+# Server-side over both ladders: names/complete p95 4 ms, knowledge/system 5 ms, market/station 10 ms, market/search
+# 97 ms, trade/search 7 ms, route 1 ms; peak CPU busy 14.2%; zero 5xx. route/trade p50 1 ms = CACHE HITS on the pinned
+# queries — the ladder measured the caches for those routes; next harness revision rotates queries.
+# VERDICT: nothing bent but the pool, and it bent because of a bug (fixed 088049f, then transaction removed 0b405f8).
+# c=64 from one Mac ≈ 320 rps on cheap routes with the box idle. Pool 10 → 30 (maintainer).
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors
+box,load1=0.35,eddn_queue=,pool_idle=,pool_conns=
+names_complete_system_so,1,155,5.2,189.2,199.3,203.4,155,0,0,0,1
+names_complete_station_jam,1,150,5.03,194.6,203.8,281.6,150,0,0,0,1
+knowledge_system_sol,1,154,5.17,189.5,199.7,210.6,154,0,0,0,1
+market_station,1,152,5.1,191.8,204.9,238.6,152,0,0,0,1
+market_search_gold_50ly,1,120,4.03,244.1,259.2,298.4,120,0,0,0,1
+trade_search_sol_40ly,1,152,5.1,189.6,200.3,230.4,152,0,0,0,1
+route_sol_deciat,1,151,5.07,192.0,202.5,209.9,151,0,0,0,1
+route_sol_colonia,1,150,5.03,192.0,204.2,209.0,150,0,0,0,1
+box,load1=0.06,eddn_queue=0.0,pool_idle=3.0,pool_conns=3.0
+names_complete_system_so,4,611,20.5,192.1,203.0,216.8,611,0,0,0,4
+names_complete_station_jam,4,608,20.4,193.8,203.6,219.1,608,0,0,0,4
+knowledge_system_sol,4,611,20.5,192.4,202.4,241.4,611,0,0,0,4
+market_station,4,608,20.4,192.9,204.5,212.3,608,0,0,0,4
+market_search_gold_50ly,4,480,16.13,244.0,257.4,324.2,480,0,0,0,4
+trade_search_sol_40ly,4,598,20.07,194.4,203.2,240.8,598,0,0,0,4
+route_sol_deciat,4,611,20.5,192.1,201.0,226.4,611,0,0,0,4
+route_sol_colonia,4,606,20.33,194.3,204.1,209.4,606,0,0,0,4
+box,load1=0.14,eddn_queue=0.0,pool_idle=7.0,pool_conns=7.0
+names_complete_system_so,16,2429,81.49,193.5,202.8,222.8,2429,0,0,0,16
+names_complete_station_jam,16,2412,80.92,194.9,203.3,210.3,2412,0,0,0,16
+knowledge_system_sol,16,2429,81.49,194.0,203.6,224.0,2429,0,0,0,16
+market_station,16,2407,80.76,195.8,205.1,211.3,2407,0,0,0,16
+Traceback (most recent call last):
+  File "<stdin>", line 10, in <module>
+  File "<stdin>", line 9, in <lambda>
+TypeError: unsupported operand type(s) for *: 'NoneType' and 'int'
+trade_search_sol_40ly,16,2347,78.74,198.1,206.4,235.9,2347,0,0,0,16
+route_sol_deciat,16,2364,79.32,193.9,203.7,238.2,2364,0,0,0,16
+route_sol_colonia,16,2378,79.79,197.7,206.8,224.1,2378,0,0,0,16
+box,load1=0.39,eddn_queue=0.0,pool_idle=10.0,pool_conns=10.0
+names_complete_system_so,64,9554,320.56,196.2,205.5,266.6,9554,0,0,0,64
+names_complete_station_jam,64,3229,109.74,198.7,208.7,20077.1,3229,0,0,0,64
+knowledge_system_sol,64,9529,319.7,197.5,207.3,237.3,9529,0,0,0,64
+market_station,64,9392,315.13,200.4,209.8,217.0,9392,0,0,0,64
+Traceback (most recent call last):
+  File "<stdin>", line 10, in <module>
+  File "<stdin>", line 9, in <lambda>
+TypeError: unsupported operand type(s) for *: 'NoneType' and 'int'
+trade_search_sol_40ly,64,9306,312.29,199.6,208.4,221.8,9306,0,0,0,64
+route_sol_deciat,64,9542,320.13,196.7,205.6,218.1,9542,0,0,0,64
+route_sol_colonia,64,9396,315.29,199.4,210.7,254.6,9396,0,0,0,64
+box,load1=1.03,eddn_queue=0.0,pool_idle=10.0,pool_conns=10.0
+exit=0

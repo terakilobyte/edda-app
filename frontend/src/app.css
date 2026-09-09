@@ -1,0 +1,208 @@
+/* EDDA — cockpit palette. Elite's HUD is orange on near-black with
+   cyan for friendly/secondary, so the accent is orange, the secondary is a
+   muted cyan, and the neutrals lean warm rather than pure grey. */
+:root {
+  --bg: #0a0c10;
+  --bg-2: #10141b;
+  --panel: #131820;
+  --panel-2: #1a2029;
+  --line: #262e3a;
+  --line-2: #33405060;
+  --text: #e4e6ea;
+  --muted: #8b95a5;
+  --accent: #ff8c1a;
+  --accent-2: #ffb35c;
+  --cyan: #5ec8e5;
+  --ok: #57c66d;
+  --warn: #ffb300;
+  --bad: #ff5c5c;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+h1, h2, h3 { text-wrap: balance; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.6rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.panel h2 .sub {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+}
+
+.muted { color: var(--muted); font-size: 0.85rem; }
+.error { color: var(--bad); }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.small { font-size: 0.8rem; }
+
+select, input, textarea, button {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 0.38rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+input:focus, select:focus, textarea:focus, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+input[type="number"] { width: 5.5rem; }
+input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+
+button {
+  background: var(--accent);
+  color: #1a1200;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+button.quiet {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font-weight: 500;
+}
+button:disabled { opacity: 0.45; cursor: default; }
+button:not(:disabled):hover { filter: brightness(1.12); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--line-2);
+  vertical-align: top;
+}
+th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+td.r, th.r { text-align: right; }
+tr:hover td { background: #ffffff06; }
+
+.table-wrap { overflow-x: auto; }
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--bg-2);
+}
+.pill.ok { color: var(--ok); border-color: #57c66d55; }
+.pill.warn { color: var(--warn); border-color: #ffb30055; }
+.pill.bad { color: var(--bad); border-color: #ff5c5c55; }
+.pill.accent { color: var(--accent); border-color: #ff8c1a66; }
+.pill.cyan { color: var(--cyan); border-color: #5ec8e555; }
+
+.bar {
+  height: 5px;
+  background: #ffffff10;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bar-fill { height: 100%; background: var(--accent); }
+.bar-fill.warn { background: var(--warn); }
+.bar-fill.bad { background: var(--bad); }
+
+dl.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.6rem;
+}
+.stat {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0.5rem 0.7rem;
+}
+.stat .label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stat .value {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,27 @@
+{
+  "uid": "edda-feedback",
+  "title": "EDDA Feedback",
+  "schemaVersion": 39,
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "table", "title": "Reports (newest first)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 14 },
+      "datasource": { "uid": "edda-pg" },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT id, received_at, version, os, left(body, 400) AS report, (log_tail IS NOT NULL) AS has_log FROM feedback ORDER BY id DESC LIMIT 200"
+      }]
+    },
+    {
+      "id": 2, "type": "table", "title": "Full report (set id in the panel query)",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 10 },
+      "datasource": { "uid": "edda-pg" },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT body, log_tail FROM feedback ORDER BY id DESC LIMIT 1"
+      }]
+    }
+  ]
+}

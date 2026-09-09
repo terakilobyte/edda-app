@@ -1,0 +1,12 @@
+endpoint,cold_http,cold_s,warm_http,warm_s
+healthz,200,0.591156,200,0.565490
+readyz,200,0.604415,200,0.567721
+manifest,200,0.579880,200,0.578019
+stars_ids,200,0.600383,200,0.594818
+market_station,200,0.768684,200,0.769115
+knowledge_sphere_r20,200,1.608969,200,1.545173
+trade_search_sol_40ly,200,1.053349,200,0.575847
+trade_search_deciat_60ly,200,1.280401,200,0.591136
+market_search_gold_50ly,200,0.677980,200,0.648963
+route_sol_deciat,200,0.608364,200,0.578574
+route_sol_colonia,200,0.782100,200,0.779797

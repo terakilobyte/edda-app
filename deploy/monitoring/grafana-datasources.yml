@@ -1,0 +1,25 @@
+apiVersion: 1
+datasources:
+  - name: EDDA Metrics
+    uid: edda-vm
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:8428
+    isDefault: true
+  - name: EDDA Feedback
+    uid: edda-pg
+    type: postgres
+    access: proxy
+    url: 127.0.0.1:5432
+    user: grafana_ro
+    secureJsonData:
+      password: __PG_PASSWORD__
+    jsonData:
+      # database lives HERE, not at datasource top level — current
+      # Grafana ignores the top-level field, and the connection test
+      # still passes (it reaches Postgres; only queries read jsonData),
+      # so panels error "no default database configured" while the
+      # datasource looks healthy (review field fix, 2026-09-05).
+      database: edda
+      sslmode: disable
+      postgresVersion: 1600

@@ -1,0 +1,9 @@
+[Unit]
+Description=EDDA daily publishes at 00:05 UTC
+
+[Timer]
+OnCalendar=*-*-* 00:05:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

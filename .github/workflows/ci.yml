@@ -1,0 +1,111 @@
+# Tests on Linux only (maintainer, 2026-09-07: "Normal pushes only run tests in
+# linux"). Windows runs on TAGS — see release.yml.
+#
+# Where CI runs (maintainer, 2026-09-08: "keep it as the MR gate and tags
+# only"): pull requests into main — the one clean-checkout-on-another-OS
+# run per merge, which is exactly what caught the Windows path-separator
+# bug — and tags (release.yml). Nothing on pushes: on 2026-09-07 CI on a
+# hot main cancelled itself four times and never reached the Rust half;
+# the three machines (PC, WSL with the Postgres suite CI cannot run, Mac)
+# are the real testing, and main moves only by merge request, so the PR
+# run is the record. workflow_dispatch stays as the manual button.
+#
+# Cost controls (private repo, GitHub-hosted minutes): docs/site/ledger-only
+# PRs do not run at all; a newer push to a PR cancels its run in flight;
+# the cargo cache keeps a warm run to a few minutes.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "site/**"
+      - "deploy/monitoring/**"
+      - "**/*.md"
+  # A fresh run without a PR (a rerun of a job that never started keeps
+  # its original verdict, billing included).
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # The app pulls Spansh dumps and the EDDN feed at runtime, never in tests.
+  EDDA_NO_EDDN: "1"
+  # A hosted runner has ~14 GB free; this workspace's debug target with
+  # full debuginfo is bigger, and the 2026-09-08 run on main died with
+  # `ld terminated with signal 7 [Bus error]` linking ed-galaxy's test
+  # binary — the disk-full signature. No incremental artefacts, no
+  # debuginfo in CI builds; tests do not need either.
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+
+jobs:
+  test-linux:
+    name: test (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Free runner disk (dotnet, Android, Haskell, CodeQL — ~20 GB we never use)
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          df -h / | tail -1
+
+      - name: Linux build dependencies (Tauri 2 webview, ALSA for cpal, D-Bus for keyring)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev libdbus-1-dev pkg-config
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Binary fixtures are intact
+        run: node tools/verify-binary-fixtures.mjs
+
+      - name: Frontend tests + build
+        working-directory: frontend
+        run: |
+          npm ci
+          npx vitest run
+          npx vite build
+
+      - name: Rust tests
+        run: cargo test --workspace
+
+      - name: Clippy
+        # The tree is not yet clippy-clean (pre-existing lints in ed-store/ed-galaxy/commands.rs);
+        # tighten to -D warnings once it is.
+        run: cargo clippy --workspace --all-targets
+
+  # Licence and advisory gate (maintainer, 2026-09-09): every dependency's
+  # licence must be on the allow list in deny.toml, for every target — the
+  # Windows and Linux graphs are what an offline check on one machine
+  # cannot see. Runs in parallel with the tests; a few seconds.
+  deny:
+    name: cargo deny (licenses, advisories)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories bans sources

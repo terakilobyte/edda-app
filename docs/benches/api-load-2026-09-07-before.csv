@@ -1,0 +1,18 @@
+# api-load BEFORE (2026-09-07 ~06:50Z): live binary 81610fc3 predecessor (0875b860), limiters at production DEFAULTS.
+# Harness: docs/benches/knobs/api-load.sh from a Mac (~185 ms RTT floor on every row). STOPPED after the c=1 rung
+# by the maintainer: every market/trade/route row above the hourly budget is a LIMITER result (route 60/h, market 120/h per
+# source; ~100 of the market budget was already spent by smoke runs), not capacity. names/complete = 404 (not deployed yet).
+# VERDICT: from one IP the production limits, not the server, are the ceiling — 22 market answers then 429s in the
+# first rung. The limits are the wrong shape for API-first (a trade loop replots and searches at every stop).
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors
+box,load1=0.04,eddn_queue=0.0,pool_idle=3.0,pool_conns=3.0
+names_complete_system_so,1,155,5.2,189.4,198.9,235.1,0,0,0,155,1
+names_complete_station_jam,1,151,5.07,191.5,214.2,360.1,0,0,0,151,1
+knowledge_system_sol,1,154,5.17,190.8,200.5,240.7,154,0,0,0,1
+market_station,1,154,5.17,190.3,201.2,204.0,22,132,0,0,1
+market_search_gold_50ly,1,154,5.17,191.7,201.9,212.5,0,154,0,0,1
+trade_search_sol_40ly,1,154,5.17,190.5,200.0,207.1,0,154,0,0,1
+route_sol_deciat,1,149,5.0,191.2,229.8,461.3,0,149,0,0,1
+route_sol_colonia,1,148,4.97,191.4,233.9,514.1,0,148,0,0,1
+box,load1=0.08,eddn_queue=0.0,pool_idle=3.0,pool_conns=3.0
+names_complete_system_so,4,616,20.67,190.6,200.3,207.5,0,0,0,616,4

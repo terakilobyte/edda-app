@@ -1,0 +1,34 @@
+# Acceptance ladder for the morning binary (2026-09-09 03:12Z, review from WSL, ~185 ms RTT), live 0.3.0 @ 94df457
+# (7d43fa86): trade gate 3, two-speed budgets (burst caps route 30 / market 60 / knowledge 60 / names 120 per 10 s
+# in front of the 2,500/h ceilings), production limits, NO drop-in. Harness knobs/api-load-rotate.py, 30 s per rung.
+# PRE-REGISTERED (the assistant session): "the c=4 rotating ladder must pass unrefused under the burst caps".
+#
+# VERDICT: NOT MET — the burst caps are the ceiling at c=4 from one IP, exactly as arithmetic says. Every 200 count
+# is the cap x three 10 s windows: knowledge 60x3=180, market 60x3=180 (market_search 132 + trade_report 184 share
+# it), names 120x3=360, route 30x3=90, stations (knowledge budget) 180. Refused: names 42 %, knowledge 71 %, market
+# 59 %, trade_report 57 %, stations 63 %, route_bubble 84 %. Zero 5xx at c=4; server-side latency where served was
+# the warm profile (knowledge p50 190 ms wire = RTT). At c=16 the same caps hold (~180-360 served per rung) plus the
+# long lane's 47 x 503 and one 27 s p99 — the 2-slot long lane as measured yesterday.
+# What this does NOT say: that a commander is refused. c=4 sustained is ~20 rps from ONE address; no client does that.
+# What it DOES say: (1) the pre-registration and the caps cannot both stand — one is wrong, and that is a product
+# call; (2) everyone behind one NAT shares these caps, and the client does not yet SEND X-EDDA-Install (server side
+# accepts it since 4f71a81) — that is the fix that makes per-IP caps this tight defensible. Trade gate 3: trade_report
+# served 184 at c=4 / 180 at c=16 — cap-bound, so the gate-3 throughput (~550 at c=16 in the sweep) is not observable
+# under production caps; the sweep's number stands as the capacity figure.
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors,codes
+names_complete_rotating,4,620,20.54,189.8,199.5,250.2,360,260,0,0,0,200:360;429:260
+knowledge_system_rotating,4,620,20.61,190.1,199.8,245.7,180,440,0,0,0,200:180;429:440
+market_search_rotating,4,323,10.71,195.5,861.1,7450.7,132,191,0,0,0,200:132;429:191
+trade_search_rotating,4,135,4.47,932.0,1933.0,2338.7,131,4,0,0,0,200:131;429:4
+trade_report_rotating,4,430,14.26,196.4,511.1,1244.7,184,246,0,0,0,200:184;429:246
+stations_near_rotating,4,489,16.21,193.3,499.2,912.5,180,309,0,0,0,200:180;429:309
+route_bubble_rotating,4,549,18.19,191.3,354.9,781.6,90,459,0,0,0,200:90;429:459
+route_long_rotating,4,27,0.58,2913.9,23926.5,24295.6,27,0,0,0,0,200:27
+names_complete_rotating,16,2487,82.35,190.2,197.8,251.0,360,2127,0,0,0,200:360;429:2127
+knowledge_system_rotating,16,2493,82.57,189.7,196.8,230.1,180,2313,0,0,0,200:180;429:2313
+market_search_rotating,16,2373,78.62,192.6,253.0,396.1,180,2193,0,0,0,200:180;429:2193
+trade_search_rotating,16,173,5.16,3029.7,4093.0,4349.4,167,6,0,0,0,200:167;429:6
+trade_report_rotating,16,1888,62.6,192.2,803.4,1172.3,180,1708,0,0,0,200:180;429:1708
+stations_near_rotating,16,2399,79.44,191.8,233.0,448.6,180,2219,0,0,0,200:180;429:2219
+route_bubble_rotating,16,2360,78.24,192.1,200.7,589.7,86,2270,4,0,0,200:86;429:2270;503:4
+route_long_rotating,16,1074,15.01,191.3,200.6,27729.2,43,984,47,0,0,200:43;429:984;503:47

@@ -1,0 +1,33 @@
+[Unit]
+Description=VictoriaMetrics (loopback-only; scrapes ed-api /metrics)
+After=network.target
+
+[Service]
+User=edda
+Group=edda
+ExecStart=/usr/local/bin/victoria-metrics \
+    -httpListenAddr=127.0.0.1:8428 \
+    -storageDataPath=/var/lib/edda/metrics \
+    -retentionPeriod=180d \
+    -promscrape.config=/etc/edda/vm-scrape.yml
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edda/metrics
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

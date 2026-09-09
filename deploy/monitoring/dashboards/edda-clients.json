@@ -1,0 +1,510 @@
+{
+  "uid": "edda-clients",
+  "title": "EDDA Clients",
+  "schemaVersion": 39,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Client warns/errors by callsite (top 10)",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (callsite, level) (increase(edda_client_events_total[1h])))",
+          "legendFormat": "{{callsite}} \u00b7 {{level}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Errors by version",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (version, level) (increase(edda_client_events_total[6h]))",
+          "legendFormat": "{{version}} \u00b7 {{level}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Timing p95 by kind (ms)",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(edda_client_timing_ms_bucket[6h])))",
+          "legendFormat": "p95 {{kind}}"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, kind) (rate(edda_client_timing_ms_bucket[6h])))",
+          "legendFormat": "p50 {{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Failed operations /h by kind",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind) (increase(edda_client_timing_ms_count{ok=\"false\"}[1h]))",
+          "legendFormat": "{{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Feature adoption (batches reporting enabled, 24h)",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (name) (increase(edda_client_feature_total[24h]))",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Telemetry batches by outcome",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(edda_telemetry_batches_total[1h]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Trade Finder",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Trade search latency (ms)",
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_client_timing_ms_bucket{kind=\"trade\"}[6h])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_client_timing_ms_bucket{kind=\"trade\"}[6h])))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Trade search p95 by version (ms) \u2014 0.2.5 before/after",
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, version) (rate(edda_client_timing_ms_bucket{kind=\"trade\"}[6h])))",
+          "legendFormat": "p95 {{version}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Trade searches /h by version",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (version) (increase(edda_client_timing_ms_count{kind=\"trade\"}[1h]))",
+          "legendFormat": "{{version}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Trade search failure rate",
+      "gridPos": {
+        "x": 8,
+        "y": 33,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h])) / clamp_min(sum(increase(edda_client_timing_ms_count{kind=\"trade\"}[1h])), 1)",
+          "legendFormat": "failed / total"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Trade failures /h",
+      "gridPos": {
+        "x": 16,
+        "y": 33,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h]))",
+          "legendFormat": "failures/h"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Search defaults \u2014 what commanders actually pick",
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Trade freshness \u00b7 average window (h)",
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_search_age_hours_sum[24h])) / clamp_min(sum(increase(edda_client_search_age_hours_count[24h])), 1)",
+          "legendFormat": "avg"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Trade freshness \u00b7 p50 / p90 (h)",
+      "gridPos": {
+        "x": 6,
+        "y": 42,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_client_search_age_hours_bucket[24h])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(edda_client_search_age_hours_bucket[24h])))",
+          "legendFormat": "p90"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Router gate \u00b7 average (ly)",
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_router_gate_ly_sum[24h])) / clamp_min(sum(increase(edda_client_router_gate_ly_count[24h])), 1)",
+          "legendFormat": "avg ly"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "\"EDDA always plans\" share (gate = 0)",
+      "gridPos": {
+        "x": 18,
+        "y": 42,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_router_gate_ly_bucket{le=\"0\"}[24h])) / clamp_min(sum(increase(edda_client_router_gate_ly_count[24h])), 1)",
+          "legendFormat": "always-plans"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "Honest gaps \u2014 local data with no coverage (0.2.6)",
+      "gridPos": {
+        "x": 0,
+        "y": 49,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Coverage gaps /h by path",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "A local-mode search that came back empty over a coverage gap (no observed board where it looked). Pre-registered reading: near zero after a week = rare papercut, keep the offer UI; a constant drumbeat = the next task is coverage itself.",
+      "targets": [
+        {
+          "expr": "sum by (path) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"path\", \"$1\", \"callsite\", \"edda::coverage_gap::([a-z_]+)::.*\"))",
+          "legendFormat": "{{path}}"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Coverage gaps /h by kind",
+      "gridPos": {
+        "x": 8,
+        "y": 50,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"kind\", \"$1\", \"callsite\", \"edda::coverage_gap::[a-z_]+::([a-z_]+)\"))",
+          "legendFormat": "{{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Local-data share of clients (24h)",
+      "gridPos": {
+        "x": 16,
+        "y": 50,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "1 \u2212 remote share. data_source_remote is a feature flag; batches without it are local or not yet chosen.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "1 - sum(increase(edda_client_feature_total{name=\"data_source_remote\",enabled=\"true\"}[24h])) / clamp_min(sum(increase(edda_telemetry_batches_total{outcome=\"accepted\"}[24h])), 1)",
+          "legendFormat": "local"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "\"Always check API\" share (24h)",
+      "gridPos": {
+        "x": 20,
+        "y": 50,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "Commanders who turned the gap offer into a standing answer.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_client_feature_total{name=\"api_fallback_always\",enabled=\"true\"}[24h])) / clamp_min(sum(increase(edda_telemetry_batches_total{outcome=\"accepted\"}[24h])), 1)",
+          "legendFormat": "always"
+        }
+      ]
+    }
+  ]
+}

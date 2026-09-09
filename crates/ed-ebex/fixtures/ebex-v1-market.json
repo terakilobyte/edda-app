@@ -1,0 +1,46 @@
+{
+  "uncompressed_bytes": 216,
+  "uncompressed_sha256": "c1e5324ce6caa709b4d82e1f4f015277f2297d3dd9e7efb6211fbcaa42b6623f",
+  "metadata": {
+    "sequence": 9,
+    "created_at": 10,
+    "watermark": 8,
+    "section_count": 1
+  },
+  "sections": [
+    {
+      "id": 5,
+      "schema": 1,
+      "required": true,
+      "record_count": 1,
+      "record_size": 34,
+      "records": [
+        {
+          "station_id": 7,
+          "commodity_id": 1,
+          "buy_price": 2,
+          "sell_price": 3,
+          "demand": 4,
+          "supply": 5,
+          "observed_at": 6
+        }
+      ],
+      "auxiliary": {
+        "commodities": [
+          {
+            "id": 1,
+            "symbol": "gold",
+            "name": "Gold",
+            "category": "Metals"
+          }
+        ],
+        "stations": [
+          {
+            "station_id": 7,
+            "observed_at": 6
+          }
+        ]
+      }
+    }
+  ]
+}

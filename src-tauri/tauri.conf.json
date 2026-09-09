@@ -1,0 +1,76 @@
+{
+  "productName": "EDDA",
+  "identifier": "app.edda",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["edda"]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzQ0EyQTRERkY3QkZCMDUKUldRRiszdi9UU3JLRTZCQlk3OE5jNGpFc3JBdDhlVGU0NnFielVIaFI0c3RhS25IaGxRZStNcGkK",
+      "endpoints": [
+        "https://api.edda-app.com/v1/app/latest.json"
+      ]
+    }
+  },
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "EDDA",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "alwaysOnTop": false
+      },
+      {
+        "label": "overlay",
+        "title": "EDDA HUD",
+        "url": "overlay.html",
+        "width": 440,
+        "height": 300,
+        "x": 24,
+        "y": 24,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": true,
+        "focus": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": [
+      "nsis",
+      "deb",
+      "appimage",
+      "dmg"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "source": "synthetic-v1",
+  "observed_at": "2026-08-29T12:00:00Z",
+  "systems": [
+    {
+      "address": 10477373803,
+      "name": "Sol",
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "population": 22781091954
+    },
+    {
+      "address": 670417926481,
+      "name": "Alpha Centauri",
+      "x": 3.03125,
+      "y": -0.09375,
+      "z": 3.15625,
+      "population": 10014676
+    },
+    {
+      "address": 5068467889465,
+      "name": "Shinrarta Dezhra",
+      "x": 55.71875,
+      "y": 17.59375,
+      "z": 27.15625,
+      "population": 85788654
+    }
+  ]
+}

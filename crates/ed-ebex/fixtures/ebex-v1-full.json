@@ -1,0 +1,94 @@
+{
+  "uncompressed_bytes": 1240,
+  "uncompressed_sha256": "73e24dfeec15f1e1387fccc3103b821e805fea3818499236349700a1a6e657a5",
+  "metadata": {
+    "sequence": 100,
+    "created_at": 200,
+    "watermark": 150,
+    "section_count": 9
+  },
+  "section_ids": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    16
+  ],
+  "system": {
+    "address": 10477373803,
+    "position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "population": 22781091954,
+    "observed_at": 150,
+    "name": "Sol",
+    "security": "High",
+    "allegiance": "Federation",
+    "controlling_power": "Aisling Duval",
+    "power_state": "Control",
+    "powers": "Aisling Duval",
+    "flags": 3
+  },
+  "station": {
+    "id": 10,
+    "system_address": 10477373803,
+    "name": "Galileo",
+    "flags": 7,
+    "market_observed_at": 150,
+    "outfitting_observed_at": 150,
+    "shipyard_observed_at": 150
+  },
+  "commodity": {
+    "id": 1,
+    "symbol": "gold",
+    "name": "Gold",
+    "category": "Metals"
+  },
+  "market": {
+    "station_id": 10,
+    "commodity_id": 1,
+    "buy_price": 50000,
+    "sell_price": 60000,
+    "demand": 20,
+    "supply": 30,
+    "observed_at": 150
+  },
+  "module": {
+    "id": 1,
+    "symbol": "int_hyperdrive_size2_class1"
+  },
+  "outfitting": {
+    "station_id": 10,
+    "item_id": 1,
+    "observed_at": 150
+  },
+  "ship": {
+    "id": 1,
+    "symbol": "cobramkiii"
+  },
+  "shipyard": {
+    "station_id": 10,
+    "item_id": 1,
+    "observed_at": 150
+  },
+  "stars": [
+    {
+      "address": -42,
+      "class": 2,
+      "scoopable": true,
+      "observed_at": 150
+    },
+    {
+      "address": 10477373803,
+      "class": 14,
+      "scoopable": false,
+      "observed_at": 150
+    }
+  ]
+}

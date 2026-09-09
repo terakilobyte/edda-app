@@ -1,0 +1,10 @@
+# Normalize line endings: everything git detects as text is stored LF in the
+# repo AND checked out LF on every platform, Windows included.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.ico binary
+*.icns binary
+*.sqlite3 binary
+*.bin binary

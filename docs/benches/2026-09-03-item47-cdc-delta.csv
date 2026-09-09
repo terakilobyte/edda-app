@@ -1,0 +1,54 @@
+# Item 47 bench: what would a chunk-store sync actually move? (2026-09-03, PC)
+# Tool: docs/benches/knobs/cdc-delta/ (FastCDC v2020, min=avg/4 max=avg*4, 64-bit chunk hashes).
+#
+# Part 1 - the real pair on disk, routing v8 vs v45 (.data/api/artifacts/routing):
+# NOT a churn pair. Header byte 4 says v8 is EDGX format 2, v45 is format 3 -
+# the Morton re-keying migration. Same 199M systems, identical file sizes,
+# ~everything re-encoded; CDC correctly finds ~zero sharing. A format flag-day
+# ships the whole product under ANY diff scheme; the 11 GB v8->v45 pull the
+# maintainer just paid was unavoidable. exact_diff is positional (pre-shift-naive).
+file,total_bytes,exact_diff_bytes,fixed64k_dirty_bytes,cdc64k_new_bytes,chunks_a,chunks_b,avg_chunk
+cells.bin,589850144,448757165,589850144,589850144,7428,7330,65536
+byname.bin,795914020,752665447,795914020,795914020,10000,10091,65536
+stars.bin,5770376677,4210562890,5770376677,5770376677,72085,72116,65536
+names.bin,3915805866,3750329027,3915805866,3915805866,49099,48989,65536
+#
+# Part 2 - synthetic same-format weekly churn on v45 stars.bin (5.77 GB),
+# uniform-random placement, seed 47. U = 15,000 in-place one-byte class
+# updates (EDSM teaching rate). UI = U + 50,000 spliced 29-byte records
+# (a generous week of new discoveries; 1.45 MB of actual new data).
+scenario,avg,file,total_bytes,exact_diff_bytes,fixed_dirty_bytes,cdc_new_bytes,chunks_a,chunks_b,avg_chunk
+U,65536,stars.bin,5770376677,15000,902692864,1281570483,72116,72117,65536
+U,16384,stars.bin,5770376677,15000,902692864,357701179,289114,289120,16384
+UI,65536,stars.bin,5771826677,3604707467,5771826677,3688451878,72116,72135,65536
+UI,16384,stars.bin,5771826677,3604707467,5771826677,1383531841,289114,289183,16384
+#
+# Part 3 - EDGX v4 Morton-segment layout, benched against the REAL v45 cell
+# distribution (36,865,634 occupied cells, 198,978,505 records, 29.00 B/rec;
+# tool: knobs/cdc-delta segment_bench). Same churn (65k change points), two
+# placements: uniform-by-record, and corridor (80% of points in 8 contiguous
+# Morton runs of 5,000 cells, 20% uniform). Greedy packing at three targets.
+scenario,target_bytes,segments,dirty_segments,dirty_bytes,directory_bytes
+uniform,262144,21901,20776,5474152259,1051248
+corridor,262144,21901,9752,2570287400,1051248
+uniform,1048576,5496,5496,5770376645,263808
+corridor,1048576,5496,4974,5222312431,263808
+uniform,4194304,1376,1376,5770376645,66048
+corridor,4194304,1376,1376,5770376645,66048
+# Segment reading: 65k change points saturate any plausible segment count
+# (21.9k segments at 256K target -> 95% dirty uniform, 45% corridor). Same
+# law as CDC: delta >= points x unit size. Segments do NOT rescue the daily
+# wire; they fix STORAGE (local splices, clean rebase chunks). The record
+# overlay stays the only path to the MB-scale daily diff.
+#
+# VERDICT: the delta is chunk-GRANULARITY-bound, not changed-bytes-bound.
+# ~65k scattered change points dirty ~one chunk each: 64K chunks -> 3.7 GB
+# (64% of the file) for 1.5 MB of real change; 16K -> 1.4 GB (24%). Fixed-grid
+# chunking ships the entire file the moment one record is spliced (insertion
+# shift, measured: 100% dirty). CDC on the BUILT index therefore cannot reach
+# "small" at realistic churn density - the exact-churn floor (~2 MB/week) is
+# only reachable by shipping the changed RECORDS and splicing client-side
+# (the overlay design). Caveat in CDC's favor: uniform-random placement is
+# its worst case; real discoveries cluster along corridors, so a real
+# consecutive same-format pair (which the daily reconcile job will produce)
+# should re-grade CDC before the design is locked.

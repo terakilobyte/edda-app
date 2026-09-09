@@ -1,0 +1,42 @@
+# plot-gate sweep (API-only spec Phase A step 2), 2026-09-07 19:3x–19:5xZ, ed-api 30c1a09 (082a4771…), pool cores−2 niced
+# (step 1), gate set per rung via drop-in EDDA_API_PLOT_CONCURRENCY, queue 8. Instrument per gate: rotating route rungs at
+# c=16 for 30 s from a Mac (~185 ms RTT inside client numbers; READ WITH THE CODES COLUMN — a 503 is a fast response) and
+# trade-behind-plots (5 cold trade searches through the API while 2 threads plot fresh long routes; pg mean/max beside).
+# VERDICT: bubble plots served 435 → 701 → 812 (gate 2/4/6), refusals 56 % → 23 % → 7 %, served p50 ~500 ms at 4 and 6;
+# trade behind plots flat (pg mean 430 / 455 / 410 ms) — the niced pool holds. Long (Colonia-class) plots do NOT scale:
+# 18–20 served at every gate, timeouts appear at 6. Pre-registration for 4 MET and exceeded (served +61 %, not ±20 %);
+# the prediction that 6 would FALL was WRONG for short plots (812) — it holds only for long ones. Default becomes 4
+# (safe single gate); 6 is the interactive lane's number once step 3 splits lanes so long plots cannot hog the pool.
+# trade-behind-plots' own plot counts (12/6/7 in 50 s) are small random-destination draws and not a discriminator.
+gate,instrument,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors,codes
+# gate 2: plot gate sized","concurrency":2,"queue":8},"target":"ed_api::plot"}
+2,route_bubble_rotating,16,990,31.95,205.3,1218.3,1449.6,435,0,555,0,0,200:435;503:555
+2,route_long_rotating,16,911,14.48,195.6,208.0,39708.8,18,0,893,0,0,200:18;503:893
+# gate 2 trade Wyrd               200   1.67 s (behind 2 plots)
+# gate 2 trade Eravate            200   0.72 s (behind 2 plots)
+# gate 2 trade LP 98-132          200   1.39 s (behind 2 plots)
+# gate 2 trade Kremainn           200   0.79 s (behind 2 plots)
+# gate 2 trade Shinrarta Dezhra   200   0.79 s (behind 2 plots)
+# gate 2 plots: 12 codes={200: 12} served p50=6.69s max=27.11s
+2,trade_behind_plots_pg,5,430,868,,,,,,,,,
+# gate 4: plot gate sized","concurrency":4,"queue":8},"target":"ed_api::plot"}
+4,route_bubble_rotating,16,909,29.38,518.7,1018.9,1276.6,701,0,208,0,0,200:701;503:208
+4,route_long_rotating,16,619,10.84,194.0,208.7,34775.6,20,0,599,0,0,200:20;503:598;504:1
+# gate 4 trade Wyrd               200   1.69 s (behind 2 plots)
+# gate 4 trade Eravate            200   0.71 s (behind 2 plots)
+# gate 4 trade LP 98-132          200   1.49 s (behind 2 plots)
+# gate 4 trade Kremainn           200   0.79 s (behind 2 plots)
+# gate 4 trade Shinrarta Dezhra   200   0.79 s (behind 2 plots)
+# gate 4 plots: 6 codes={200: 5, 504: 1} served p50=20.05s max=32.60s
+4,trade_behind_plots_pg,5,455,1011,,,,,,,,,
+# gate 6: plot gate sized","concurrency":6,"queue":8},"target":"ed_api::plot"}
+6,route_bubble_rotating,16,876,28.66,503.7,1041.1,1336.5,812,0,64,0,0,200:812;503:64
+6,route_long_rotating,16,321,4.98,194.3,2804.8,53077.8,18,0,301,0,2,0:2;200:18;503:300;504:1
+# gate 6 trade Wyrd               200   1.58 s (behind 2 plots)
+# gate 6 trade Eravate            200   0.73 s (behind 2 plots)
+# gate 6 trade LP 98-132          200   1.36 s (behind 2 plots)
+# gate 6 trade Kremainn           200   0.82 s (behind 2 plots)
+# gate 6 trade Shinrarta Dezhra   200   0.79 s (behind 2 plots)
+# gate 6 plots: 7 codes={200: 6, 504: 1} served p50=20.01s max=32.48s
+6,trade_behind_plots_pg,5,410,808,,,,,,,,,
+# restoring code default: plot gate sized","concurrency":2,"queue":8},"target":"ed_api::plot"}

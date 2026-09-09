@@ -1,0 +1,38 @@
+# Local PostgreSQL for the EDDA API service (crates/ed-api).
+#
+#   docker compose up -d postgres
+#   cp .env.example .env   # then: set -a; source .env; set +a
+#
+# The database is created on first start; `ed-api` applies its own
+# migrations on every connect. Data persists in the `edda-postgres` volume;
+# `docker compose down -v` discards it.
+services:
+  postgres:
+    image: postgres:16
+    container_name: edda-postgres
+    environment:
+      POSTGRES_USER: edda
+      POSTGRES_PASSWORD: edda
+      POSTGRES_DB: edda
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - edda-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edda -d edda"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Bulk hydration writes tens of millions of rows; these are the
+    # settings that matter for a development box, not for production.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - synchronous_commit=off
+
+volumes:
+  edda-postgres:

@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chapter 2 — Funerals, and an Exhumation · EDDA build log</title>
+<style>
+  /* A committed dark design: this is a post about space, set in space.
+     Every color is painted explicitly so the page holds on any host. */
+  :root {
+    --ink: #e4e6ea;          /* EDDA starlight text */
+    --ink-dim: #9aa4b2;
+    --ink-faint: #727c8c;
+    --bg: #0a0c10;           /* the void, EDDA cockpit black */
+    --bg-panel: #131820;
+    --bg-code: #10141b;
+    --accent: #ff8c1a;       /* EDDA cockpit orange */
+    --boost: #ffb35c;        /* supercharge orange */
+    --danger: #ff5c5c;
+    --good: #57c66d;
+    --rule: #262e3a;
+  }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem 6rem; }
+  header.masthead { text-align: left; padding: 5rem 0 2.5rem; }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.05;
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  h1 em { color: var(--boost); font-style: italic; }
+  .subtitle {
+    font-family: "Fraunces", Georgia, serif;
+    font-style: italic;
+    font-size: 1.35rem;
+    color: var(--ink-dim);
+    margin: 0 0 1.5rem;
+  }
+  .byline { color: var(--ink-faint); font-size: 0.95rem; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 3.5rem 0 1rem;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  h2 .kicker {
+    display: block;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  p { margin: 0 0 1.15rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { color: #fff; font-weight: 600; }
+  em { color: var(--ink); }
+  code, .mono {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: var(--bg-code);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.08em 0.35em;
+    color: #c8d6e5;
+  }
+  blockquote {
+    margin: 1.6rem 0;
+    padding: 0.2rem 0 0.2rem 1.25rem;
+    border-left: 3px solid var(--boost);
+    font-style: italic;
+    color: var(--ink-dim);
+    font-size: 1.08em;
+  }
+  blockquote .who { display:block; font-style: normal; font-size: 0.85rem; color: var(--ink-faint); margin-top: 0.4rem; }
+  .clock {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    color: var(--boost);
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.55rem 0.9rem;
+    margin: 1.4rem 0;
+  }
+  .clock b { color: #fff; }
+  figure { margin: 2.2rem 0; }
+  figure canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    background: #07080b;
+  }
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    margin-top: 0.6rem;
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink-dim); }
+  .figbar { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .figbar button {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.75rem;
+    background: var(--bg-panel);
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+  .figbar button:hover { color: var(--accent); border-color: var(--accent); }
+  .figbar button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 0.45rem 0.8rem 0.45rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); font-weight: 500; }
+  td.num, th.num { text-align: right; padding-right: 0; padding-left: 0.8rem; }
+  td b { color: var(--boost); }
+  .grave {
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.6rem 0;
+    font-size: 0.92em;
+  }
+  .grave .rip {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--danger);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .grave.win .rip { color: var(--good); }
+  .grave p:last-child { margin-bottom: 0; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 3rem auto; width: 40%; }
+  .disclosure {
+    font-size: 0.9rem;
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1.2rem;
+    margin: 2rem 0;
+    background: var(--bg-panel);
+  }
+  .footnote { font-size: 0.85rem; color: var(--ink-faint); }
+  .mchan {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.82rem;
+    color: #5ec8e5;
+    opacity: 0.75;
+    background: rgba(94, 200, 229, 0.05);
+    border-left: 2px solid rgba(94, 200, 229, 0.35);
+    border-radius: 0 6px 6px 0;
+    padding: 0.55rem 0.9rem;
+    margin: 1.3rem 0 1.3rem 1.5rem;
+  }
+  .mchan .tag { color: #4d5a6c; user-select: none; }
+  /* Striping, ported from the draft version's callout accents. */
+  .clock { border-left: 3px solid var(--boost); border-radius: 0 6px 6px 0; }
+  .grave { border-left: 3px solid var(--danger); border-radius: 0 8px 8px 0; }
+  .grave.win { border-left-color: var(--good); }
+  /* Deep dives: collapsed by default so the story reads short. */
+  details.deep {
+    margin: 1.4rem 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 0 1rem;
+  }
+  details.deep summary {
+    cursor: pointer;
+    list-style: none;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 0.65rem 1rem;
+    margin: 0 -1rem;
+    user-select: none;
+  }
+  details.deep summary::-webkit-details-marker { display: none; }
+  details.deep summary::before { content: "\25B8  "; }
+  details.deep[open] summary::before { content: "\25BE  "; }
+  details.deep summary:hover { color: var(--ink); }
+  details.deep[open] { padding-bottom: 0.4rem; }
+  details.deep > p:first-of-type { margin-top: 0.3rem; }
+  @media (prefers-reduced-motion: reduce) {
+    /* Animated figures fall back to their final frame. */
+  }
+
+  .sitenav { display:flex; align-items:center; gap:1rem; padding:1.1rem 0 0;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size:0.8rem; }
+  .sitenav a { color: var(--accent); text-decoration: none; }
+  .sitenav a:hover { text-decoration: underline; }
+  .sitenav .crumb { color: var(--ink-faint); }
+  .entrynav { display:flex; justify-content:space-between; gap:1rem;
+    border-top:1px solid var(--rule); margin-top:3rem; padding-top:1.4rem;
+    font-family: ui-monospace, Menlo, monospace; font-size:0.85rem; }
+</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap"></head><body>
+<div class="wrap"><div class="sitenav"><a href="/">EDDA</a> <span class="crumb">/</span> <a href="/blog/">build log</a> <span class="crumb">/</span> <span class="crumb">Chapter 2 — Funerals, and an Exhumation</span></div>
+<h2><span class="kicker">Act 6</span>ALT landmarks: a funeral</h2>
+
+<p>Now for the idea I was proudest of, which is of course the one that
+died.</p>
+
+<details class="deep"><summary>Deep dive &mdash; how landmark tables turn into a hole-aware lower bound</summary>
+<p>A* is only as good as its optimistic guess, and straight-line distance is
+a <em>weak</em> guess in a galaxy with holes in it &mdash; it happily assumes
+you can fly through a 5,000 ly void that contains nothing to jump to. The
+literature&rsquo;s classic upgrade is <strong>ALT</strong> (A*, Landmarks,
+Triangle inequality): pick a handful of landmark points, precompute the true
+travel distance from every cell of the grid to each landmark, and use the
+triangle inequality to turn those tables into a much smarter lower bound. The
+intuition: if I know the true cost from you to the lighthouse, and from the
+goal to the lighthouse, the difference between the two is a floor on the cost
+from you to the goal &mdash; <em>and that floor knows about the holes</em>,
+because the precomputed distances had to route around them.</p>
+</details>
+
+<figure>
+  <canvas id="fig-landmark" width="1200" height="560"></canvas>
+  <div class="figbar"><button id="landmark-replay">&#8635; replay</button></div>
+  <figcaption><b>The lighthouse bound.</b> The straight-line guess (red,
+  dashed) happily prices a path through a void with nothing to jump to. The
+  landmark&rsquo;s two precomputed distances each had to route <em>around</em>
+  the void &mdash; so their difference is a floor on the true cost with the
+  hole already priced in, and it&rsquo;s allowed as a guess because a
+  difference of two true distances can never overestimate (that&rsquo;s the
+  triangle inequality earning its keep). We built it exactly like this. It
+  never fired on the real galaxy &mdash; the safety slack we added for cell
+  granularity was bigger than the signal. Act 10 exhumes it.</figcaption>
+</figure>
+
+<p>We built it exactly to spec. Sixteen landmarks, placed by farthest-point
+sampling &mdash; each new landmark is the point farthest from all the ones
+already chosen, so they spread to the galaxy&rsquo;s corners. We added a
+safety slack so the bound stayed honest at cell resolution, and we tested the
+never-overestimate promise against every pair of points in the fixture. On
+the synthetic galaxy&rsquo;s void it worked beautifully &mdash; the bound
+rose over the hole, the search felt the wall and steered. On the real galaxy
+it&hellip; <strong>never bound.</strong> Not once. At every probe, the bound
+sat about a thousand light-years <em>under</em> the plain straight-line
+guess &mdash; our safety slack was bigger than the signal it protected,
+eating exactly the local detours ALT exists to detect.</p>
+
+<div class="grave">
+<span class="rip">&#10013; Buried with full honors &middot; ALT landmarks, act one</span>
+<p>Built to spec, correct by construction, and useless by measurement. A
+cousin idea &mdash; a heuristic that precomputed a rough cost field over the
+coarse cells &mdash; did worse: <em>slower and wrong</em>, 49 seconds against
+42, with a worse route to show for it. Both went in the ledger with their
+numbers. The autopsy mattered more than the corpse: the stalls we aimed ALT
+at weren&rsquo;t a <em>guidance</em> problem at all. The longest jump the
+search can make reaches about 1,200 ly, and some gaps in this galaxy are
+11,000. <strong>No admissible heuristic can route what the graph cannot
+cross.</strong> Keep the receipt. This corpse gets exhumed in Part II, and
+the exhumation is my favorite part of the whole story.</p>
+</div>
+
+</div>
+
+<div class="wrap">
+
+<h2><span class="kicker">Act 7</span>Roads across the voids</h2>
+
+<p>If no heuristic can route what the graph cannot cross, then the answer is
+to build the missing roads. We derived a <strong>cell graph</strong> from the
+highway index &mdash; the galaxy diced into 250-light-year cells, 475,000 of
+them occupied, joined by roughly 18 million edges &mdash; and, crucially, we
+added <strong>gap edges</strong>: where the graph falls apart into
+disconnected islands, we connect the islands at their closest shores, priced
+honestly at plain-jump rates, with no boosts pretended. The void is now
+<em>in the map</em>, labeled with what it actually costs to swim it.</p>
+
+<figure>
+  <canvas id="fig-gapedges" width="1200" height="520"></canvas>
+  <div class="figbar"><button id="gapedges-replay">&#8635; replay</button></div>
+  <figcaption><b>Building the roads.</b> First the cell graph: every
+  occupied cell linked to the neighbours it can actually reach (475,000
+  cells, roughly 18 million edges in the real one). The graph comes out as
+  islands &mdash; and a search can&rsquo;t leave an island it&rsquo;s on.
+  Then the gap edges: each pair of disconnected islands gets bridged at its
+  closest shores, priced honestly at plain-jump rates. Nothing pretends the
+  void is small; the map just finally admits the void has sides.</figcaption>
+</figure>
+
+<p>The first thing we did with this graph was plan on it directly &mdash;
+find a cell-level path first, then hand it to refine as a skeleton. We
+measured it, and the measurement said: <strong>worse everywhere.</strong>
+Every plot came out between 0.2 and 11 seconds slower, with worse routes at
+the end of it (301 jumps on the hardest cell of the benchmarks, against the
+portfolio&rsquo;s 214). This was the third rehearsal of the refine lesson:
+waypoints at cell granularity mandate a corridor, refine polishes whatever
+corridor it&rsquo;s mandated, and no amount of polish fixes wrong. We demoted
+the idea to a fallback that runs only when everything else returns nothing
+&mdash; the one situation where a rough route beats an apology.</p>
+
+<p>Then we ran the first full benchmark matrix &mdash; the pinned benchmark
+routes crossed with both ships, both directions, and every toggle &mdash; and
+the matrix handed us the strangest gift of the campaign: <strong>direction
+asymmetry</strong>. Beagle Point &rarr; Wongi found a route thirty jumps
+shorter than Wongi &rarr; Beagle Point did, in one one-hundredth of the
+planning time. Same two endpoints, same physics &mdash; and the route home
+was radically better than the route out.</p>
+
+<div class="mchan"><span class="tag">&#10216;the machines, privately&#10217;</span>
+the human has pointed out something odd in the benchmarks. options:
+(a) investigate. (b) offer the plausible explanation and move on to
+exciting new work. we did (b), sincerely — the geography below is real.
+it would also turn out, over the next two days, to be about one-fifth of
+the story, and he never stopped staring at the other four-fifths.</div>
+
+<p>The reason is geography. Flying <em>inward</em>, toward the dense core,
+every expansion of the search shops from a rich shelf of candidate stars
+&mdash; the search converges like water finding a drain. Flying
+<em>outward</em>, into the thinning rim, the search starves, grinds, and
+settles for what it can get. Watch it happen:</p>
+
+<figure>
+  <canvas id="fig-asym" width="1200" height="540"></canvas>
+  <div class="figbar"><button id="asym-replay">&#8635; replay</button></div>
+  <figcaption><b>The same corridor, both directions.</b> One star field,
+  dense on the left, thinning to the right &mdash; and the identical greedy
+  search run both ways. Flying into density (top), every step lands somewhere
+  with options, and the explored trail stays a narrow, confident beam. Flying
+  into thinness (bottom), the search keeps arriving in neighbourhoods with
+  nothing ahead, so it backtracks, fans out sideways, and pays for the same
+  crossing several times over. Count the dots.</figcaption>
+</figure>
+
+<p>This asymmetry becomes a load-bearing clue twice in what follows, so file
+it next to the heap&rsquo;s alibi.</p>
+
+<div class="clock">Colonia clock: <b>723 ms</b> (568 ms on the small ship). And one route &mdash; Colonia &rarr; Spase &mdash; still doesn&rsquo;t complete at all.</div>
+
+<h2><span class="kicker">Act 8</span>Two funerals and an arrow</h2>
+
+<p>Asymmetry suggests a delicious hack: when the hard direction grinds, plan
+the easy direction and <em>flip the route</em>. For the record &mdash; and I
+get to say this because the ledger backs me up &mdash; I called the outcome
+before a line of it was written: <em>this won&rsquo;t work, because the
+supercharge belongs to the star you depart.</em> Flip a route and every boost
+changes ends; the physics doesn&rsquo;t survive being read backwards. But I
+greenlit the experiment anyway, and I did it on an explicit hypothesis: even
+if flipping died &mdash; <em>when</em> flipping died &mdash; whatever the
+benchmarks taught us about planning from the destination would matter for
+something better. Hold that thought through two funerals.</p>
+
+<div class="grave">
+<span class="rip">&#10013; Died exactly as predicted &middot; naive route flipping</span>
+<p>The called shot, now with a number on it: between 5 and 8 percent of the
+flipped hops are simply illegal. The supercharge belongs to the star you
+<em>depart</em> &mdash; flip the route and the boost changes ends. A
+340-light-year hop that was funded by a neutron jet at one end becomes,
+reversed, a 340-light-year hop funded by hope.</p>
+</div>
+
+<div class="grave">
+<span class="rip">&#10013; Benched, 55% of the time, +16% of the jumps &middot; flip-then-refine</span>
+<p>So flip only the <em>chain</em> &mdash; the stars themselves don&rsquo;t
+care which way you fly through them &mdash; and re-run refine on every leg in
+the true direction. This one was feasible. It also cost 16 percent more
+jumps, every single time: at each point where the reversal loses a boost, the
+mandated next waypoint forces filler hops to reach it. We tried sparser
+waypoints and made it catastrophically worse &mdash; two to four times the
+jumps &mdash; because on a highway route <em>the hop chain is the
+skeleton</em>. That was the refine lesson&rsquo;s fourth rehearsal. But this
+corpse pointed somewhere: if planning backward from the destination finds
+better chains, and flipping them is what ruins them&hellip; what if we never
+flip? That question is where my greenlight had been aimed the whole
+time.</p>
+</div>
+
+<h2><span class="kicker">Act 9</span>Meet in the middle</h2>
+
+<p>This one was mine, and it arrived in the form most of my good ideas
+arrived in on this project: an offhand sentence at one in the morning.
+&ldquo;Could be a Google-Maps-type search where they search from origin and
+destination and see where they get close&hellip;&rdquo;</p>
+
+<details class="deep"><summary>Deep dive &mdash; the sphere-volume argument, and why backward edges don&rsquo;t bite</summary>
+<p><strong>Bidirectional search</strong> is a classic for a reason. Run two
+frontiers &mdash; one expanding from the start, one from the goal &mdash; and
+stop when they meet. The geometry argument is the pretty one: a search
+frontier is roughly a sphere, a sphere&rsquo;s volume grows as the cube of
+its radius, and two half-radius spheres hold a quarter of the volume of one
+full one. But the real prize here was never the volume. Each frontier flows
+<em>downhill into its own dense end</em> &mdash; remember the asymmetry
+&mdash; and both half-chains are built right-way-round from birth. Nothing is
+ever flipped, so nothing ever breaks. Even the textbook&rsquo;s standard
+warning dissolves here. Searching backward is supposed to be fiddly when
+edges cost different amounts in different directions &mdash; and ours do,
+because the boost belongs to the departure star &mdash; but the backward
+frontier just asks &ldquo;could this candidate boost me the other
+way?&rdquo;, and the code that scans a star&rsquo;s neighbours already knows
+how to answer.</p>
+</details>
+
+<figure>
+  <canvas id="fig-bidi" width="1200" height="520"></canvas>
+  <div class="figbar">
+    <button id="bidi-one" aria-pressed="false">one frontier</button>
+    <button id="bidi-two" aria-pressed="true">two frontiers</button>
+    <button id="bidi-replay">&#8635; replay</button>
+  </div>
+  <figcaption><b>Why meeting in the middle wins.</b> One frontier has to
+  inflate until it swallows the goal; two meet halfway, and each one spends
+  its whole life flowing into density instead of grinding out of it. The
+  bright flash is the meet star &mdash; the two half-chains stitch there and
+  the leg refiner settles the fuel.</figcaption>
+</figure>
+
+<p>Then we measured. Wongi &rarr; Blaa Hypai went from <strong>22.4 seconds
+to 556 milliseconds</strong> &mdash; and found a <em>better route</em>, 38
+jumps against 45. Wongi &rarr; Colonia found 57 jumps under a ceiling that
+had stood since the campaign began. The synthetic galaxy reproduced it
+independently: a
+shorter route at exactly half the expansions, which is to say half the search
+effort. Meeting in the middle doesn&rsquo;t just dodge the grind; it finds
+chains that a one-directional search, dragging its optimistic heuristic
+uphill, walks straight past.</p>
+<h2><span class="kicker">Act 10</span>The exhumation of ALT</h2>
+
+<p>Two finishing moves for the voids, and they entangle beautifully. First,
+the <strong>desert widen</strong>: when a frontier&rsquo;s scan comes up empty,
+it now doubles its scan radius until the far shore appears, priced as
+ordinary jumps — the gap edges&rsquo; idea, transplanted from the map
+into the search itself. Colonia &rarr; Spase, the route that used to think
+until its budget died, completed for the first time.</p>
+
+<p>Second — and this is the part I want a jury to hear — I looked
+at the gap edges and said: <em>re-bench ALT. This is why we bench.</em></p>
+
+<div class="mchan"><span class="tag">&#10216;the machines, privately&#10217;</span>
+we buried ALT with full honors. there was a eulogy. it is in the ledger.
+now he wants it exhumed because of&hellip; edges? fine. we will re-run the
+benchmark, and it will be null again, and&mdash; huh.</div>
+
+<p>Follow the reasoning, because it&rsquo;s the best piece of thinking in this
+post and, for once, it&rsquo;s mine. ALT died because &ldquo;the stalls are
+reachability, not guidance&rdquo; — no heuristic can route what the
+graph cannot cross. But the gap edges <em>made the voids crossable</em>. The
+premise of the null result had quietly dissolved. Worse: with voids
+crossable, the straight-line guess becomes actively <em>misleading</em>
+— it prices a void crossing as a pleasant flight — while landmark
+distances, rebuilt over the gap-edge graph, know exactly what the crossing
+costs. The idea we buried with full honors in act 6 wasn&rsquo;t wrong. It
+was early.</p>
+
+<p>We retried it on the new map, and <strong>it works.</strong> On the
+synthetic void corridor it produced the same routes at roughly twice the
+speed on both ships — and wall-clock time dropped by <em>more</em> than
+search effort did, because the dead-ends ALT prunes are disproportionately
+the expensive kind, the ones that trigger the widen. The resurrection held up
+in production, eventually, after surviving a sequence of events I can only
+describe as a true-crime podcast about a benchmark:</p>
+
+<p><strong>Audit one.</strong> On routes with no desert in them, ALT was
+charging 25% more wall-clock time while doing <em>precisely the same amount
+of searching</em> — the expansion counts came back identical in every
+configuration. A bound that inflates every estimate uniformly reorders
+nothing; you are paying to consult an oracle whose answer cannot change the
+outcome. So we shipped a once-per-plot precheck that samples the bound along
+the straight line and keeps ALT only where the inflation is
+<em>non-uniform</em> — where there&rsquo;s an actual wall in the way. In
+the same sweep, an earlier celebration — &ldquo;ALT completes the
+hardest cell of the pinned benchmark matrix!&rdquo; — was retracted as
+timing noise between variants. Rigor was prevailing everywhere,
+apparently.</p>
+
+<p><strong>Audit two, of audit one.</strong> The other machine, cross-checking,
+caught the precheck <em>discarding the synthetic desert&rsquo;s measured
+2&times; win</em>. The line-sampler had been skipping any sample point that
+fell in an empty cell of the grid — no stars there, no data, move along.
+But an empty cell <em>is</em> the desert; its emptiness is the entire
+testimony. Skip the empty points, and every point you actually measure
+sits in a populated cell — the desert&rsquo;s edges, its shores — and
+populated cells look perfectly normal. The survey could cross five
+thousand light-years of nothing and report that everything it agreed to
+measure was fine.</p>
+
+<blockquote>A desert can&rsquo;t testify if you only interview its shores.</blockquote>
+
+<p><strong>Audit three, in which the retraction is retracted.</strong> Fixing
+the sampler forced a re-measurement, and the re-measurement exposed the
+&ldquo;noise&rdquo; verdict for what it was: the head-to-head comparison
+behind it had matched <strong>ALT-off against ALT-off</strong>, because the
+buggy precheck had silently disabled the very thing being measured, on both
+sides of the experiment. With the oracle genuinely consulted, the hardest
+cell came in at 20.6 to 21.0 seconds and 265 jumps, four runs out of four,
+against 37.8 to 47.5 seconds and roughly 300 jumps without. The
+<em>retraction</em> was the artifact. The win was real all along.</p>
+
+<p>The final shape: ALT is free where it can&rsquo;t help, roughly doubles
+the speed where a desert dominates the line, and ships on by default. And the
+epitaph from act 6 gets its correction: the ledger&rsquo;s negatives
+aren&rsquo;t tombstones, they&rsquo;re bookmarks. Its trophies get audited.
+Sometimes an audit gives one back.</p>
+
+<div class="entrynav"><span><a href="/blog/chapter-1-instruments-before-opinions.html">&larr; Chapter 1 — Instruments Before Opinions</a></span><span><a href="/blog/chapter-3-the-bug-report.html">Chapter 3 — The Bug Report We Almost Filed &rarr;</a></span></div>
+</div>
+<script>
+/* ---------- shared helpers ---------- */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function onVisible(canvas, start) {
+  // Animations begin when scrolled into view; reduced motion jumps to the end.
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { io.disconnect(); start(); }
+  }, { threshold: 0.25 });
+  io.observe(canvas);
+}
+
+</script>
+<script>
+/* ---------- fig-landmark: the lighthouse bound ---------- */
+(function () {
+  const cv = document.getElementById("fig-landmark"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xa17);
+  const Spt = { x: 150, y: 340 }, G = { x: 1010, y: 380 }, L = { x: 880, y: 90 };
+  const void_ = { x: 590, y: 350, rx: 190, ry: 120 };
+  const stars = [];
+  for (let i = 0; i < 900; i++) {
+    const x = 30 + rand() * (W - 60), y = 30 + rand() * (H - 60);
+    const dx = (x - void_.x) / void_.rx, dy = (y - void_.y) / void_.ry;
+    if (dx * dx + dy * dy < 1.15) continue;
+    stars.push([x, y, 0.15 + rand() * 0.3]);
+  }
+  function bez(a, c, b, u) { return [(1-u)*(1-u)*a.x + 2*(1-u)*u*c.x + u*u*b.x, (1-u)*(1-u)*a.y + 2*(1-u)*u*c.y + u*u*b.y]; }
+  function path(a, b, c, color, t, label, lx, ly) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.shadowColor = color; ctx.shadowBlur = 5;
+    ctx.beginPath();
+    for (let i = 0; i <= 60 * Math.min(1, t); i++) {
+      const [px, py] = bez(a, c, b, i / 60);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.shadowBlur = 0;
+    if (t >= 1) { ctx.fillStyle = color; ctx.fillText(label, lx, ly); }
+  }
+  function draw(t) { // 0..1: paths to lighthouse; 1..2: straight line; 2..3: verdict
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    for (const [x, y, a] of stars) { ctx.fillStyle = `rgba(214,225,240,${a})`; ctx.fillRect(x, y, 1.4, 1.4); }
+    ctx.strokeStyle = "rgba(255,92,92,0.35)"; ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.ellipse(void_.x, void_.y, void_.rx, void_.ry, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = "rgba(255,92,92,0.65)"; ctx.fillText("the void: nothing to jump to", void_.x - 100, void_.y + 4);
+    for (const [pnt, name] of [[Spt, "you"], [G, "goal"], [L, "\u2691 lighthouse (landmark)"]]) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(pnt.x, pnt.y, 4, 0, 7); ctx.fill();
+      ctx.fillStyle = "#e4e6ea"; ctx.fillText(name, pnt.x + 10, pnt.y + 4);
+    }
+    // precomputed distances to the lighthouse, routed around the hole
+    path(Spt, L, { x: 430, y: 60 }, "#5ec8e5", t, "true distance you \u2192 lighthouse: 9,200 ly (routed around the hole)", 130, 130);
+    path(G, L, { x: 1080, y: 230 }, "#57c66d", t, "goal \u2192 lighthouse: 3,100 ly", 830, 250);
+    if (t > 1) {
+      const u = Math.min(1, t - 1);
+      ctx.strokeStyle = "#ff5c5c"; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(Spt.x, Spt.y);
+      ctx.lineTo(Spt.x + (G.x - Spt.x) * u, Spt.y + (G.y - Spt.y) * u); ctx.stroke(); ctx.setLineDash([]);
+      if (u >= 1) { ctx.fillStyle = "#ff5c5c"; ctx.fillText("straight-line guess: 4,800 ly \u2014 straight through the nothing", 330, 430); }
+    }
+    if (t > 2) {
+      ctx.fillStyle = "#ffb35c";
+      ctx.fillText("lighthouse bound: 9,200 \u2212 3,100 = at least 6,100 ly \u2014 the hole, priced", 300, 480);
+      ctx.fillStyle = "#727c8c";
+      ctx.fillText("(a difference of two true distances can never overestimate: triangle inequality)", 300, 504);
+    }
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(3); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 1400;
+      draw(Math.min(3, t));
+      if (t < 3) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("landmark-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(3);
+})();
+
+/* ---------- fig-gapedges: islands, then bridges ---------- */
+(function () {
+  const cv = document.getElementById("fig-gapedges"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0x9a9);
+  const blobs = [
+    { x: 210, y: 260, r: 150, n: 90 },
+    { x: 640, y: 170, r: 120, n: 60 },
+    { x: 950, y: 340, r: 140, n: 80 },
+  ];
+  const cells = [];
+  blobs.forEach((b, bi) => {
+    for (let i = 0; i < b.n; i++) {
+      const a = rand() * Math.PI * 2, r = Math.sqrt(rand()) * b.r;
+      cells.push({ x: b.x + r * Math.cos(a), y: b.y + r * Math.sin(a) * 0.8, isle: bi });
+    }
+  });
+  const edges = [];
+  for (let i = 0; i < cells.length; i++) for (let j = i + 1; j < cells.length; j++) {
+    const a = cells[i], b = cells[j];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d < 52 && a.isle === b.isle) edges.push([i, j]);
+  }
+  // closest pair between each neighbouring island pair
+  const bridges = [];
+  for (const [ia, ib] of [[0, 1], [1, 2]]) {
+    let best = [1e9, 0, 0];
+    for (let i = 0; i < cells.length; i++) if (cells[i].isle === ia)
+      for (let j = 0; j < cells.length; j++) if (cells[j].isle === ib) {
+        const d = Math.hypot(cells[i].x - cells[j].x, cells[i].y - cells[j].y);
+        if (d < best[0]) best = [d, i, j];
+      }
+    bridges.push([best[1], best[2], best[0]]);
+  }
+  function draw(t) { // 0..1 edges, 1..2 bridges
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    const upto = Math.floor(Math.min(1, t) * edges.length);
+    ctx.strokeStyle = "rgba(94,200,229,0.22)"; ctx.lineWidth = 1;
+    for (let k = 0; k < upto; k++) {
+      const [i, j] = edges[k];
+      ctx.beginPath(); ctx.moveTo(cells[i].x, cells[i].y); ctx.lineTo(cells[j].x, cells[j].y); ctx.stroke();
+    }
+    for (const c of cells) { ctx.fillStyle = "rgba(214,225,240,0.7)"; ctx.fillRect(c.x - 1, c.y - 1, 2.4, 2.4); }
+    ctx.fillStyle = "#727c8c";
+    ctx.fillText("occupied highway cells, linked to neighbours in reach", 60, H - 20);
+    if (t > 1) {
+      const u = Math.min(1, t - 1);
+      ctx.strokeStyle = "#ffb35c"; ctx.setLineDash([7, 5]); ctx.lineWidth = 2.2;
+      ctx.shadowColor = "#ffb35c"; ctx.shadowBlur = 7;
+      for (const [i, j] of bridges) {
+        const a = cells[i], b = cells[j];
+        ctx.beginPath(); ctx.moveTo(a.x, a.y);
+        ctx.lineTo(a.x + (b.x - a.x) * u, a.y + (b.y - a.y) * u); ctx.stroke();
+      }
+      ctx.shadowBlur = 0; ctx.setLineDash([]);
+      if (u >= 1) {
+        ctx.fillStyle = "#ffb35c";
+        ctx.fillText("gap edges: closest shores, priced as plain jumps", 420, 60);
+      }
+    }
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(2); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 1800;
+      draw(Math.min(2, t));
+      if (t < 2) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("gapedges-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(2);
+})();
+
+/* ---------- fig-asym: into density vs into thinness ---------- */
+(function () {
+  const cv = document.getElementById("fig-asym"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xa57);
+  const panelH = 240, pad = 20, R = 52;
+  // One shared star field: dense on the left, thinning hard to the right.
+  const field = [];
+  for (let i = 0; i < 6000; i++) {
+    const x = 60 + rand() * (W - 120);
+    const keep = Math.max(0.05, 1 - 1.15 * ((x - 60) / (W - 120)));
+    if (rand() > keep) continue;
+    field.push({ x, y: 30 + rand() * (panelH - 60) });
+  }
+  // The real algorithm, miniature: A* with straight-line guess. Into
+  // thinness, every stall ahead makes the queue fall back to the dense
+  // side's plentiful alternatives -- that churn is the asymmetry.
+  function astar(fromLeft) {
+    const start = fromLeft ? { x: 60, y: panelH / 2 } : { x: W - 60, y: panelH / 2 };
+    const goal = fromLeft ? { x: W - 60, y: panelH / 2 } : { x: 60, y: panelH / 2 };
+    const pts = [start].concat(field);
+    const h = (p) => Math.hypot(p.x - goal.x, p.y - goal.y);
+    const g = new Map([[0, 0]]);
+    const open = [[h(start), 0]];
+    const done = new Set();
+    const order = [];
+    while (open.length) {
+      let bi = 0;
+      for (let k = 1; k < open.length; k++) if (open[k][0] < open[bi][0]) bi = k;
+      const [, i] = open.splice(bi, 1)[0];
+      if (done.has(i)) continue;
+      done.add(i);
+      if (i > 0) order.push(i - 1);
+      const p = pts[i];
+      if (h(p) < R) break;
+      for (let j = 0; j < pts.length; j++) {
+        if (done.has(j) || j === i) continue;
+        const q = pts[j];
+        const d = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d >= R) continue;
+        const ng = g.get(i) + d;
+        if (ng < (g.has(j) ? g.get(j) : 1e18)) { g.set(j, ng); open.push([ng + h(q), j]); }
+      }
+    }
+    return { order, start, goal };
+  }
+  const simA = astar(false); // thin start, dense goal: INTO density
+  const simB = astar(true);  // dense start, thin goal: INTO thinness
+  function panel(oy, sim, color, title, t) {
+    ctx.save(); ctx.translate(0, oy);
+    for (const p of field) { ctx.fillStyle = "rgba(214,225,240,0.2)"; ctx.fillRect(p.x, p.y, 1.6, 1.6); }
+    const upto = Math.floor(Math.min(1, t) * sim.order.length);
+    for (let k = 0; k < upto; k++) {
+      const p = field[sim.order[k]];
+      ctx.fillStyle = color; ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+    }
+    for (const [pt, label] of [[sim.start, "start"], [sim.goal, "goal"]]) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, 7); ctx.fill();
+      ctx.font = "12px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#9aa4b2";
+      ctx.fillText(label, pt.x - 14, pt.y - 12);
+    }
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = color;
+    ctx.fillText(`${title} \u2014 ${upto} expansions`, 60, 20);
+    ctx.restore();
+  }
+  function draw(t) {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    panel(pad, simA, "rgba(87,198,109,0.9)", "into density", t);
+    panel(pad + panelH + 16, simB, "rgba(255,92,92,0.9)", "into thinness (same stars, reversed)", t);
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 4200;
+      draw(Math.min(1, t));
+      if (t < 1) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("asym-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1);
+})();
+</script>
+<script>
+/* ---------- fig-zorder: the weave and the walk ---------- */
+(function () {
+  const cv = document.getElementById("fig-zorder"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, N = 16;
+  const pad = 46, side = H - 2 * pad, cell = side / N;
+  const left = { x: 60 }, right = { x: W / 2 + 40 };
+  const morton = [];
+  for (let i = 0; i < N * N; i++) {
+    let x = 0, y = 0;
+    for (let b = 0; b < 4; b++) { x |= ((i >> (2 * b)) & 1) << b; y |= ((i >> (2 * b + 1)) & 1) << b; }
+    morton.push([x, y]);
+  }
+  const box = { x0: 5, y0: 6, x1: 11, y1: 11 }; // the query box
+  const inBox = ([x, y]) => x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+  const cx = (o, [x, y]) => [o.x + x * cell + cell / 2, pad + y * cell + cell / 2];
+  function grid(o) {
+    ctx.strokeStyle = "#1a2029"; ctx.lineWidth = 1;
+    for (let i = 0; i <= N; i++) {
+      ctx.beginPath(); ctx.moveTo(o.x + i * cell, pad); ctx.lineTo(o.x + i * cell, pad + side); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(o.x, pad + i * cell); ctx.lineTo(o.x + side, pad + i * cell); ctx.stroke();
+    }
+  }
+  function draw(t) { // t in [0,1] drives both panels
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#727c8c";
+    ctx.fillText("the curve: interleave the bits, follow the number", left.x, pad - 14);
+    ctx.fillText("the walk: read the runs, BIGMIN skips the rest", right.x, pad - 14);
+    grid(left); grid(right);
+    const upto = Math.max(2, Math.floor(t * N * N));
+    // Left: the curve itself.
+    ctx.strokeStyle = "#5ec8e5"; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (let i = 0; i < upto; i++) {
+      const [px, py] = cx(left, morton[i]);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    // Right: box + walked runs vs skips.
+    ctx.strokeStyle = "#ffb35c"; ctx.lineWidth = 2;
+    ctx.strokeRect(right.x + box.x0 * cell, pad + box.y0 * cell, (box.x1 - box.x0 + 1) * cell, (box.y1 - box.y0 + 1) * cell);
+    for (let i = 0; i < upto; i++) {
+      const m = morton[i], [px, py] = cx(right, m);
+      if (inBox(m)) {
+        ctx.fillStyle = "#5ec8e5";
+        ctx.fillRect(right.x + m[0] * cell + 2, pad + m[1] * cell + 2, cell - 4, cell - 4);
+      } else {
+        ctx.fillStyle = "rgba(110,103,92,0.25)";
+        ctx.beginPath(); ctx.arc(px, py, 1.5, 0, 7); ctx.fill();
+      }
+    }
+    // Skip arcs: for each out-of-box run bordered by in-box cells, one dashed hop.
+    ctx.strokeStyle = "rgba(255,179,92,0.5)"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2;
+    let runStart = -1;
+    for (let i = 0; i < upto; i++) {
+      const inside = inBox(morton[i]);
+      if (!inside && runStart === -1) runStart = i - 1;
+      if (inside && runStart !== -1) {
+        if (runStart >= 0 && inBox(morton[runStart])) {
+          const a = cx(right, morton[runStart]), b = cx(right, morton[i]);
+          ctx.beginPath(); ctx.moveTo(a[0], a[1]);
+          ctx.quadraticCurveTo((a[0] + b[0]) / 2, Math.min(a[1], b[1]) - 26, b[0], b[1]);
+          ctx.stroke();
+        }
+        runStart = -1;
+      }
+    }
+    ctx.setLineDash([]);
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 5200;
+      draw(Math.min(1, t));
+      if (t < 1) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("zorder-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1);
+})();
+
+/* ---------- fig-bidi: one frontier vs two ---------- */
+(function () {
+  const cv = document.getElementById("fig-bidi"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xb1d1);
+  const A = { x: 90, y: H / 2 }, B = { x: W - 90, y: H / 2 };
+  const D = Math.hypot(B.x - A.x, B.y - A.y);
+  const dots = [];
+  for (let i = 0; i < 2600; i++) {
+    // Denser toward both ends, thin in the middle band — the real geography.
+    const x = 40 + rand() * (W - 80), y = 24 + rand() * (H - 48);
+    const mid = Math.abs(x - W / 2) / (W / 2);
+    if (rand() > 0.35 + 0.65 * mid) continue;
+    const da = Math.hypot(x - A.x, y - A.y) * (1 + rand() * 0.22);
+    const db = Math.hypot(x - B.x, y - B.y) * (1 + rand() * 0.22);
+    dots.push({ x, y, da, db });
+  }
+  let mode = "two", raf = 0;
+  function draw(t) {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    const reach = t * (mode === "two" ? D * 0.62 : D * 1.12);
+    let touched = 0;
+    for (const d of dots) {
+      let c = "rgba(214,225,240,0.18)";
+      if (mode === "one") {
+        if (d.da < reach) { c = "rgba(255,179,92,0.8)"; touched++; }
+      } else {
+        const fa = d.da < reach, fb = d.db < reach;
+        if (fa && fb) { c = "rgba(255,255,255,0.95)"; touched++; }
+        else if (fa) { c = "rgba(255,179,92,0.8)"; touched++; }
+        else if (fb) { c = "rgba(94,200,229,0.8)"; touched++; }
+      }
+      ctx.fillStyle = c;
+      ctx.fillRect(d.x, d.y, 2, 2);
+    }
+    for (const [p, label] of [[A, "start"], [B, "goal"]]) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill();
+      ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#9aa4b2";
+      ctx.fillText(label, p.x - 14, p.y + 24);
+    }
+    if (mode === "two" && t > 0.86) {
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, 14 + (t - 0.86) * 90, 0, 7); ctx.globalAlpha = Math.max(0, 1.4 - t * 1.4 - 0.1); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#727c8c";
+    ctx.fillText(`stars touched: ${touched}`, 20, H - 16);
+  }
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = Math.min(1, (now - t0) / 3000);
+      draw(t);
+      if (t < 1) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  const bOne = document.getElementById("bidi-one"), bTwo = document.getElementById("bidi-two");
+  function setMode(m) {
+    mode = m;
+    bOne.setAttribute("aria-pressed", m === "one");
+    bTwo.setAttribute("aria-pressed", m === "two");
+    play();
+  }
+  bOne.addEventListener("click", () => setMode("one"));
+  bTwo.addEventListener("click", () => setMode("two"));
+  document.getElementById("bidi-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1);
+})();
+
+/* ---------- fig-density: the greediness dial ---------- */
+(function () {
+  const cv = document.getElementById("fig-density"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, padL = 70, padB = 54, padT = 28, padR = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  // Median stars per 250-ly highway cell vs distance from core (measured shape).
+  const pts = [[0, 73], [1, 66], [2, 54], [3, 40], [4, 28], [5, 18], [6, 12], [8, 8], [10, 5.5], [12, 4], [14, 3], [16, 2.4], [18, 2], [22, 1.7], [26, 1.4]];
+  const X = (kly) => padL + (kly / 26) * plotW;
+  const Y = (v) => padT + plotH - (Math.log10(v + 1) / Math.log10(80)) * plotH;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+  // Greedy zones per ship reach (illustrative thresholds).
+  const zones = [[14.5, "rgba(255,179,92,0.10)", "big ship: greedy inside here"], [8.5, "rgba(94,200,229,0.10)", "small ship: only inside here"]];
+  for (const [kly, color] of zones) {
+    ctx.fillStyle = color; ctx.fillRect(padL, padT, X(kly) - padL, plotH);
+  }
+  ctx.strokeStyle = "#262e3a";
+  for (const v of [2, 5, 10, 20, 50]) {
+    ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke();
+    ctx.fillStyle = "#727c8c"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText(String(v), padL - 28, Y(v) + 4);
+  }
+  for (const k of [0, 5, 10, 15, 20, 25]) {
+    ctx.fillStyle = "#727c8c"; ctx.fillText(k + " kly", X(k) - 12, H - padB + 22);
+  }
+  ctx.fillText("median stars / 250-ly cell (log)", padL - 56, padT - 10);
+  ctx.strokeStyle = "#57c66d"; ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  pts.forEach(([k, v], i) => { i === 0 ? ctx.moveTo(X(k), Y(v)) : ctx.lineTo(X(k), Y(v)); });
+  ctx.stroke();
+  ctx.fillStyle = "#57c66d";
+  for (const [k, v] of pts) { ctx.beginPath(); ctx.arc(X(k), Y(v), 3, 0, 7); ctx.fill(); }
+  ctx.fillStyle = "rgba(255,179,92,0.9)"; ctx.fillText(zones[0][2], X(8.9), padT + 22);
+  ctx.fillStyle = "rgba(94,200,229,0.9)"; ctx.fillText(zones[1][2], X(0.4), padT + 44);
+})();
+
+/* ---------- fig-clock: the Colonia clock, era by era ---------- */
+(function () {
+  const cv = document.getElementById("fig-clock"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, padL = 60, padB = 92, padT = 30, padR = 20;
+  const eras = [
+    { l: "start", v: 7.5 },
+    { l: "grace window", v: 1.6 },
+    { l: "Morton walk", v: 1.4 },
+    { l: "adaptive grace", v: 0.951 },
+    { l: "bidi + voids", v: 0.723 },
+    { l: "seconds judge", v: 1.3, up: true },
+  ];
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const bw = plotW / eras.length;
+  const Y = (v) => padT + plotH - (Math.log10(v / 0.5) / Math.log10(7.5 / 0.5)) * plotH;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+  ctx.font = "12px ui-monospace, Menlo, monospace";
+  ctx.strokeStyle = "#262e3a";
+  for (const v of [1, 2, 4, 7.5]) {
+    ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke();
+    ctx.fillStyle = "#727c8c"; ctx.fillText(v + " s", padL - 44, Y(v) + 4);
+  }
+  eras.forEach((e, i) => {
+    const x = padL + i * bw + bw * 0.16, w = bw * 0.68, y = Y(e.v);
+    ctx.fillStyle = e.up ? "rgba(87,198,109,0.85)" : "rgba(255,179,92,0.85)";
+    ctx.fillRect(x, y, w, padT + plotH - y);
+    ctx.fillStyle = "#e4e6ea";
+    ctx.fillText(e.v + " s", x + w / 2 - 22, y - 8);
+    ctx.save();
+    ctx.translate(x + w / 2 + 4, H - padB + 14);
+    ctx.rotate(0.5);
+    ctx.fillStyle = "#9aa4b2";
+    ctx.fillText(e.l, 0, 0);
+    ctx.restore();
+  });
+  ctx.fillStyle = "rgba(87,198,109,0.9)";
+  ctx.fillText("\u2191 on purpose: buys ~4 min of pilot time", padL + 4 * bw - 40, Y(1.3) - 30);
+})();
+</script>
+</body></html>

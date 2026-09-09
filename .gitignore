@@ -1,0 +1,44 @@
+/target
+/crates/*/target
+/frontend/node_modules
+/frontend/dist
+/src-tauri/gen
+/src-tauri/target
+.DS_Store
+/.data
+/.dev-live
+/.bench-*
+/.first-run-test-*
+/.onboarding-test-*
+/.claude/worktrees
+
+# Real-data fixture bundle pulled from the gaming PC (personal journals, DB slices)
+.data-fixtures/
+
+# Local service environment (copy of .env.example)
+/.env
+census.csv
+census.csv.gz
+voxels.csv
+/notes.json
+
+# Open-sourcing scrub (2026-09-09): local state, editor files, generated stores.
+/.claude/
+target/
+*.log
+logs/
+*.sqlite3
+*.sqlite3-*
+*.db
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+Thumbs.db
+.idea/
+*.swp
+knobsearch.db
+scoop_voxels.csv
+report.html
+docs/benches/flamegraphs/runs/**/*.svg

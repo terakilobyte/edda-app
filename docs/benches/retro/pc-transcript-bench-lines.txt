@@ -1,0 +1,468 @@
+# Recovered from transcript, pre-archive era (before sweep2, 2026-09-01).
+# Bench-format lines recovered from pre-archive development notes on
+# 2026-09-02; some lines truncated where the transcript cut them. The
+# 21939-straight rows are real-galaxy Wongi<->Colonia. Notable A/B for the
+# eager-vs-lean dispute (2026-08-28): eager up to 91j/35 stops and the
+# 100-118j/19-31 stop family vs lean 55j/3 stops -- no 60+ stop row exists;
+# 'stops in the 60s' likely collides with jumps-in-the-60s rows (60-66j).
+# columns: timestamp  session  line
+2026-08-26T04:02  260d96ed  1 jumps, 3 min, age 118h/101h
+2026-08-26T04:02  260d96ed  1 jumps, 3 min, age 118h/391h
+2026-08-26T04:02  260d96ed  1 jumps, 3 min, age 118h/429h
+2026-08-26T04:02  260d96ed  1 jumps, 3 min, age 118h/585h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/110h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/245h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/370h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/493h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/577h
+2026-08-26T04:02  260d96ed  2 jumps, 3 min, age 118h/81h
+2026-08-26T04:02  260d96ed  2 jumps, 4 min, age 118h/248h
+2026-08-26T04:02  260d96ed  3 jumps, 4 min, age 118h/95h
+2026-08-26T13:30  260d96ed  1 jumps, 4 min, age 127h/111h
+2026-08-26T13:30  260d96ed  2 jumps, 4 min, age 127h/4h
+2026-08-26T13:30  260d96ed  3 jumps, 5 min, age 127h/105h
+2026-08-26T15:48  260d96ed  5 jumps, 164.8 ly flown (157.3 ly straight), 0 boosted, 35 expansions, 1 ms
+2026-08-26T15:49  260d96ed  5 jumps, 164.8 ly) in 1ms. I need to fix a commit that accidentally included the research agent's worktree directory, then I'll start the full-galaxy stream.
+2026-08-26T16:29  260d96ed  4 jumps, 146.8 ly flown (142.8 ly straight), 0 boosted, 4 expansions, 0 ms
+2026-08-26T16:32  260d96ed  4 jumps, but afaict we aren't using boosted jumps and the game is for some reason
+2026-08-26T16:34  260d96ed  4 jumps, 146.8 ly flown (142.8 ly straight), 0 boosted, 18 expansions, 2 ms
+2026-08-26T16:36  260d96ed  4 jumps, 146.8 ly flown (142.8 ly straight), 0 boosted, 4 expansions, 0 ms
+2026-08-26T16:46  260d96ed  4 jumps, 146.8 ly flown (142.8 ly straight), 0 boosted, 4 expansions, 0 ms
+2026-08-26T16:47  260d96ed  4 jumps, 146.5 ly flown (142.8 ly straight), 0 boosted, 18 expansions, 1 ms
+2026-08-26T16:47  260d96ed  4 jumps, 146.8 ly flown (142.8 ly straight), 0 boosted, 4 expansions, 0 ms
+2026-08-26T16:47  260d96ed  4 jumps, but weighted A* stops at the first 4-jump goal rather than comparing boost counts. I'll fix this by baking the boost preference into the cost function itself, making boosted legs slightly cheaper so t
+2026-08-26T16:48  260d96ed  4 jumps, 146.5 ly flown (142.8 ly straight), 0 boosted, 18 expansions, 1 ms
+2026-08-26T21:15  260d96ed  4 jumps, neutron sub-index, phase-tagged progress. Then the tab-state/flavour-text frontend batch.
+2026-08-26T21:53  260d96ed  4 jumps, weighted refinement, phase-tagged progress
+2026-08-26T22:12  260d96ed  84 jumps, 77 boosted
+2026-08-26T22:13  260d96ed  84 jumps, 77 boosted, from Muth — in 383 s (6.4 min), 140 k expansions.
+2026-08-26T22:13  260d96ed  94 jumps, 85 neutron arrivals, **22 refuel stops** at scoopable stars, 23,220 ly.
+2026-08-26T22:13  260d96ed  94 jumps, neutron arrivals 85, scoopable 22, refuel stops 22, total 23220 ly, longest 285 ly, max normal jump 67.4
+2026-08-26T22:33  260d96ed  89 jumps, 78 neutron arrivals, 12 scoop stops, 23,575 ly**, ~50 ly normal hops and ~316 ly boosted (×6 ✓). Two big caveats on their side, one on ours:
+2026-08-26T22:45  260d96ed  94 jumps, 22 scoop stops) and `spansh_colonia_caspian.json` (89 jumps, 12 stops, unengineered build).
+2026-08-28T05:34  260d96ed  2 jumps, 149 ly flown (143 straight), 1 boosted, 1 refuel stops, 1562 expansions, 1342 ms (wall 1346 ms)
+2026-08-28T05:36  260d96ed  2 jumps, 149 ly flown (143 straight), 1 boosted, 1 refuel stops, 324 expansions, 349 ms (wall 357 ms)
+2026-08-28T05:36  260d96ed  2 jumps, 149 ly flown (143 straight), 1 boosted, 1 refuel stops, 324 expansions, 350 ms (wall 358 ms)
+2026-08-28T05:41  260d96ed  77 jumps, 23043 ly flown (21939 straight), 51 boosted, 17 refuel stops, 6082 expansions, 26140 ms (wall 26149 ms)
+2026-08-28T05:41  260d96ed  77 jumps, 23043 ly flown (21939 straight), 51 boosted, 17 refuel stops, 6082 expansions, 27903 ms (wall 27911 ms)
+2026-08-28T05:43  260d96ed  83 jumps, 23044 ly flown (21939 straight), 51 boosted, 16 refuel stops, 7372 expansions, 16983 ms (wall 16991 ms)
+2026-08-28T05:45  260d96ed  68 jumps, 23029 ly flown (21939 straight), 53 boosted, 8 refuel stops, 7389 expansions, 12888 ms (wall 12896 ms)
+2026-08-28T05:45  260d96ed  68 jumps, 8 refuel stops, 12.9 s. Now the remaining time is mostly the coarse neutron search (~6 s) plus a few bridging legs; looking at those.
+2026-08-28T05:46  260d96ed  72 jumps, 23066 ly flown (21939 straight), 53 boosted, 18 refuel stops, 3844 expansions, 7214 ms (wall 7221 ms)
+2026-08-28T05:47  260d96ed  2 jumps, 149 ly flown (143 straight), 1 boosted, 1 refuel stops, 324 expansions, 155 ms (wall 158 ms)
+2026-08-28T05:47  260d96ed  66 jumps, 23142 ly flown (21939 straight), 54 boosted, 11 refuel stops, 875 expansions, 1260 ms (wall 1268 ms)
+2026-08-28T05:47  260d96ed  72 jumps, 23066 ly flown (21939 straight), 53 boosted, 18 refuel stops, 3844 expansions, 6194 ms (wall 6201 ms)
+2026-08-28T05:47  260d96ed  72 jumps, 23066 ly flown (21939 straight), 53 boosted, 18 refuel stops, 3844 expansions, 6727 ms (wall 6733 ms)
+2026-08-28T05:47  260d96ed  75 jumps, 23107 ly flown (21939 straight), 53 boosted, 18 refuel stops, 342 expansions, 651 ms (wall 657 ms)
+2026-08-28T05:48  260d96ed  10 jumps, 2078 ly flown (1682 straight), 5 boosted, 4 refuel stops, 23 expansions, 21 ms (wall 21 ms)
+2026-08-28T05:48  260d96ed  3 jumps, 174 ly flown (174 straight), 0 boosted, 2 refuel stops, 241 expansions, 85 ms (wall 86 ms)
+2026-08-28T05:48  260d96ed  66 jumps, 23142 ly flown (21939 straight), 54 boosted, 11 refuel stops, 875 expansions, 1083 ms (wall 1092 ms)
+2026-08-28T05:50  260d96ed  69 jumps, 23117 ly flown (21939 straight), 53 boosted, 13 refuel stops, 6736 expansions, 3478 ms (wall 3487 ms)
+2026-08-28T05:50  260d96ed  89 jumps, 27946 ly flown (25802 straight), 65 boosted, 19 refuel stops, 1779 expansions, 520 ms (wall 522 ms)
+2026-08-28T05:51  260d96ed  69 jumps, 23117 ly flown (21939 straight), 53 boosted, 13 refuel stops, 6736 expansions, 3212 ms (wall 3219 ms)
+2026-08-28T05:52  260d96ed  64 jumps, 23106 ly flown (21939 straight), 53 boosted, 7 refuel stops, 3979 expansions, 1443 ms (wall 1449 ms)
+2026-08-28T05:52  260d96ed  89 jumps, 27941 ly flown (25802 straight), 64 boosted, 19 refuel stops, 1818 expansions, 317 ms (wall 320 ms)
+2026-08-28T05:53  260d96ed  72 jumps, 23089 ly flown (21939 straight), 53 boosted, 17 refuel stops, 1585 expansions, 1147 ms (wall 1154 ms)
+2026-08-28T05:53  260d96ed  81 jumps, 28100 ly flown (25802 straight), 68 boosted, 10 refuel stops, 2048 expansions, 816 ms (wall 818 ms)
+2026-08-28T06:05  260d96ed  10 jumps, 2078 ly flown (1682 straight), 5 boosted, 4 refuel stops, 22 expansions, 23 ms (wall 23 ms)
+2026-08-28T06:05  260d96ed  2 jumps, 149 ly flown (143 straight), 1 boosted, 1 refuel stops, 324 expansions, 147 ms (wall 150 ms)
+2026-08-28T06:05  260d96ed  269 jumps, 70924 ly flown (65182 straight), 154 boosted, 109 refuel stops, 51024 expansions, 5992 ms (wall 5999 ms)
+2026-08-28T06:05  260d96ed  72 jumps, 23089 ly flown (21939 straight), 53 boosted, 17 refuel stops, 1585 expansions, 1111 ms (wall 1117 ms)
+2026-08-28T06:05  260d96ed  81 jumps, 28100 ly flown (25802 straight), 68 boosted, 10 refuel stops, 2048 expansions, 780 ms (wall 783 ms)
+2026-08-28T06:14  260d96ed  94 jumps, 22 scoop stops) and `spansh_colonia_caspian.json` (89 jumps, 12 stops, unengineered build).
+2026-08-28T13:04  260d96ed  69 jumps, 22955 ly flown (21939 straight), 53 boosted, 14 refuel stops, 2974 expansions, 4675 ms (wall 4684 ms)
+2026-08-28T13:04  260d96ed  72 jumps, 23089 ly flown (21939 straight), 53 boosted, 17 refuel stops, 1585 expansions, 1403 ms (wall 1418 ms)
+2026-08-28T13:04  260d96ed  75 jumps, 23087 ly flown (21939 straight), 54 boosted, 12 refuel stops, 23200 expansions, 65269 ms (wall 65295 ms)
+2026-08-28T13:04  260d96ed  88 jumps, 23193 ly flown (21939 straight), 54 boosted, 12 refuel stops, 26740 expansions, 36287 ms (wall 36303 ms)
+2026-08-28T13:05  260d96ed  253 jumps, 72439 ly flown (65182 straight), 166 boosted, 81 refuel stops, 90989 expansions, 13761 ms (wall 13761 ms)
+2026-08-28T13:05  260d96ed  62 jumps, 23134 ly flown (21939 straight), 54 boosted, 6 refuel stops, 1939 expansions, 13013 ms (wall 13013 ms)
+2026-08-28T13:05  260d96ed  72 jumps, 23089 ly flown (21939 straight), 53 boosted, 17 refuel stops, 1585 expansions, 1403 ms (wall 1415 ms)
+2026-08-28T13:22  260d96ed  70 jumps, 23002 ly flown (21939 straight), 52 boosted, 17 refuel stops, 2279 expansions, 3400 ms (wall 3413 ms)
+2026-08-28T13:22  260d96ed  72 jumps, 23089 ly flown (21939 straight), 53 boosted, 17 refuel stops, 1585 expansions, 1385 ms (wall 1401 ms)
+2026-08-28T13:22  260d96ed  78 jumps, 23148 ly flown (21939 straight), 53 boosted, 23 refuel stops, 1951 expansions, 2445 ms (wall 2468 ms)
+2026-08-28T13:33  260d96ed  61 jumps, 5 scoop stops, under 8 seconds, from 121.6 t at a scoopable star (so the first hop is 
+2026-08-28T15:28  260d96ed  62 jumps, two scoop stops, the model within a tonne the whole way — and the one hiccup was the planner shaving its margins too fine, which is the first thing I'll fix.
+2026-08-28T15:34  260d96ed  66 jumps, 23132 ly flown (21939 straight), 54 boosted, 11 refuel stops, 4472 expansions, 5215 ms (wall 5215 ms)
+2026-08-28T15:34  260d96ed  70 jumps, 23291 ly flown (21939 straight), 54 boosted, 15 refuel stops, 792 expansions, 1223 ms (wall 1230 ms)
+2026-08-28T15:34  260d96ed  72 jumps, 23376 ly flown (21939 straight), 55 boosted, 13 refuel stops, 2617 expansions, 5483 ms (wall 5498 ms)
+2026-08-28T15:34  260d96ed  85 jumps, 23164 ly flown (21939 straight), 53 boosted, 28 refuel stops, 1743 expansions, 2127 ms (wall 2141 ms)
+2026-08-28T15:34  260d96ed  91 jumps, 23151 ly flown (21939 straight), 53 boosted, 35 refuel stops, 1510 expansions, 1485 ms (wall 1498 ms)
+2026-08-28T15:34  260d96ed  98 jumps, 27469 ly flown (25802 straight), 63 boosted, 31 refuel stops, 1444 expansions, 1429 ms (wall 1433 ms)
+2026-08-28T15:35  260d96ed  106 jumps, 27798 ly flown (25802 straight), 65 boosted, 37 refuel stops, 1042 expansions,
+2026-08-28T15:35  260d96ed  81 jumps, 28100 ly flown (25802 straight), 68 boosted, 10 refuel stops, 2048 expansions, 1
+2026-08-28T15:35  260d96ed  83 jumps, 27200 ly flown (25802 straight), 62 boosted, 13 refuel stops, 1432 expansions, 7
+2026-08-28T15:35  260d96ed  87 jumps, 27290 ly flown (25802 straight), 62 boosted, 18 refuel stops, 1689 expansions, 7
+2026-08-28T15:35  260d96ed  98 jumps, 27469 ly flown (25802 straight), 63 boosted, 31 refuel stops, 1444 expansions, 6
+2026-08-28T15:36  260d96ed  262 jumps, 69448 ly flown (65182 straight), 152 boosted, 98 refuel stops, 48811 expansions, 7439 ms (wall 7439
+2026-08-28T15:36  260d96ed  262 jumps, 69448 ly flown (65182 straight), 152 boosted, 98 refuel stops, 48811 expansions, 8043 ms (wall 8043
+2026-08-28T15:36  260d96ed  60 jumps, 23198 ly flown (21939 straight), 54 boosted, 5 refuel stops, 4037 expansions, 3728 ms (wall 3728 ms)
+2026-08-28T15:36  260d96ed  66 jumps, 23132 ly flown (21939 straight), 54 boosted, 11 refuel stops, 2191 expansions, 2518 ms (wall 2518 ms
+2026-08-28T15:36  260d96ed  66 jumps, 23132 ly flown (21939 straight), 54 boosted, 11 refuel stops, 4472 expansions, 4938 ms (wall 4938 ms
+2026-08-28T15:36  260d96ed  82 jumps, 27893 ly flown (25802 straight), 65 boosted, 10 refuel stops, 1529 expansions, 2635 ms (wall 2635 ms
+2026-08-28T15:36  260d96ed  90 jumps, 27416 ly flown (25802 straight), 64 boosted, 21 refuel stops, 3026 expansions, 1842 ms (wall 1842 ms
+2026-08-28T15:36  260d96ed  90 jumps, 27433 ly flown (25802 straight), 63 boosted, 24 refuel stops, 1756 expansions, 1906 ms (wall 1906 ms
+2026-08-28T15:36  260d96ed  90 jumps, 27434 ly flown (25802 straight), 63 boosted, 24 refuel stops, 1953 expansions, 1344 ms (wall 1344 ms
+2026-08-28T15:37  260d96ed  253 jumps, 69327 ly flown (65182 straight), 153 boosted, 86 refuel stops, 57118 expansions, 8896 ms (wall 8896
+2026-08-28T15:37  260d96ed  60 jumps, 23198 ly flown (21939 straight), 54 boosted, 5 refuel stops, 4037 expansions, 3368 ms (wall 3368 ms)
+2026-08-28T15:37  260d96ed  87 jumps, 27346 ly flown (25802 straight), 63 boosted, 13 refuel stops, 1754 expansions, 1890 ms (wall 1890 ms
+2026-08-28T15:40  260d96ed  253 jumps, 69327 ly flown (65182 straight), 153 boosted, 86 refuel stops, 5
+2026-08-28T15:40  260d96ed  267 jumps, 69129 ly flown (65182 straight), 149 boosted, 104 refuel stops, 
+2026-08-28T15:40  260d96ed  60 jumps, 23198 ly flown (21939 straight), 54 boosted, 5 refuel stops, 4037
+2026-08-28T15:40  260d96ed  61 jumps, 23057 ly flown (21939 straight), 54 boosted, 5 refuel stops, 1241
+2026-08-28T15:40  260d96ed  85 jumps, 27540 ly flown (25802 straight), 63 boosted, 7 refuel stops, 3677
+2026-08-28T15:40  260d96ed  87 jumps, 27346 ly flown (25802 straight), 63 boosted, 13 refuel stops, 175
+2026-08-28T15:47  260d96ed  71 jumps, more than it took to get from wongi to colonia. And the star density out here is higher so it should take less jumps
+2026-08-28T15:54  260d96ed  71 jumps, more than it took to get from wongi to colonia. And the star density out here is higher so it should take less jumps
+2026-08-28T15:55  260d96ed  56 jumps, 22801 ly flown (21939 straight), 53 boosted, 3 refuel stops, 5736 expansions, 12082 ms (wa
+2026-08-28T15:55  260d96ed  71 jumps, 22666 ly flown (21939 straight), 53 boosted, 13 refuel stops, 2898 expansions, 8036 ms (wa
+2026-08-28T15:55  260d96ed  72 jumps, 22784 ly flown (21939 straight), 53 boosted, 12 refuel stops, 3723 expansions, 6083 ms (wa
+2026-08-28T15:56  260d96ed  56 jumps, 22801 ly flown (21939 straight), 53 boosted, 3 refuel stops, 5736 expansions, 12305 ms (wall 12305 ms)
+2026-08-28T15:57  260d96ed  234 jumps, 70062 ly flown (65182 straight), 154 boosted, 75 refuel stops, 59197 expansions, 946
+2026-08-28T15:57  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 7986 ms
+2026-08-28T15:57  260d96ed  60 jumps, 23137 ly flown (21939 straight), 54 boosted, 5 refuel stops, 2926 expansions, 2699 ms
+2026-08-28T15:57  260d96ed  71 jumps, 27194 ly flown (25802 straight), 62 boosted, 8 refuel stops, 1753 expansions, 2308 ms
+2026-08-28T16:16  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expa
+2026-08-28T16:18  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 39037 expansions, 31656 ms (wall 31656 ms)
+2026-08-28T16:18  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8920 ms (wall 8920 ms)
+2026-08-28T16:20  260d96ed  106 jumps, 23037 ly flown (21939 straight), 76 boosted, 23 refuel stops, 22069 expansions, 40651 ms (wall 40651 ms)
+2026-08-28T16:20  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 39037 expansions, 41493 ms (wall 41493 ms)
+2026-08-28T16:20  260d96ed  118 jumps, 23032 ly flown (21939 straight), 74 boosted, 31 refuel stops, 104904 expansions, 45692 ms (wall 45692 ms)
+2026-08-28T16:22  260d96ed  112 jumps, 23050 ly flown (21939 straight), 76 boosted, 23 refuel stops, 14803 expansions, 39490 ms (wall 39490 ms)
+2026-08-28T16:22  260d96ed  115 jumps, 22982 ly flown (21939 straight), 76 boosted, 25 refuel stops, 30140 expansions, 36170 ms (wall 36170 ms)
+2026-08-28T16:22  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8226 ms (wall 8226 ms)
+2026-08-28T16:25  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 39037 expansions, 35462 ms (wall 35462 ms)
+2026-08-28T16:25  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 9059 ms (wall 9059 ms)
+2026-08-28T16:26  260d96ed  106 jumps, 23037 ly flown (21939 strai
+2026-08-28T16:26  260d96ed  108 jumps, 23008 ly flown (21939 strai
+2026-08-28T16:28  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 39037 expansions, 30272 ms (wall 30272 ms)
+2026-08-28T16:28  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 7693 ms (wall 7693 ms)
+2026-08-28T16:29  260d96ed  108 jumps, 22765 ly flown (21939 straight), 75 boosted, 25 refuel stops, 39588 expansions, 29823 ms (wall 29823 ms)
+2026-08-28T16:29  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7187 expansions, 6694 ms (wall 6694 ms)
+2026-08-28T16:31  260d96ed  106 jumps, 23037 ly flown (21939 straight), 76 boosted, 23 refuel stops, 22069 expansions, 46089 ms (wall 4608
+2026-08-28T16:31  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8456 ms (wall 8456 ms)
+2026-08-28T17:02  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 39037 expansions, 32073 ms
+2026-08-28T17:02  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 7700 ms (wal
+2026-08-28T17:41  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expa
+2026-08-28T17:55  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 30731 expansions, 31516 ms (wall 3151
+2026-08-28T17:55  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8368 ms (wall 8368 ms)
+2026-08-28T18:00  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 30731 expansions, 29983 ms (wall 29983 ms)
+2026-08-28T18:01  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 21035 expansions, 31976 ms (wall 31976 ms)
+2026-08-28T18:03  260d96ed  112 jumps, 23251 ly flown (21939 straight), 77 boosted, 23 refuel stops, 8602 expansions, 30774 ms (wall 30774 ms)
+2026-08-28T18:03  260d96ed  249 jumps, 69232 ly flown (65182 straight), 149 boosted, 93 refuel stops, 30192 expansions, 7334 ms (wall 7334 ms)
+2026-08-28T18:03  260d96ed  58 jumps, 22647 ly flown (21939 straight), 53 boosted, 5 refuel stops, 631 expansions, 17406 ms (wall 17406 ms)
+2026-08-28T18:03  260d96ed  60 jumps, 23266 ly flown (21939 straight), 54 boosted, 6 refuel stops, 318 expansions, 1828 ms (wall 1828 ms)
+2026-08-28T18:03  260d96ed  71 jumps, 27194 ly flown (25802 straight), 62 boosted, 8 refuel stops, 514 expansions, 1309 ms (wall 1309 ms)
+2026-08-28T18:05  260d96ed  112 jumps, 23251 ly flown (21939 straight), 77 boosted, 23 refuel stops, 8602 expansions, 24038 ms (wall 24038 ms)
+2026-08-28T18:08  260d96ed  112 jumps, 23251 ly flown (21939 straight), 77 boosted, 23 refuel stops, 8602 expansions, 17616 ms (wall 17616 ms)
+2026-08-28T18:08  260d96ed  249 jumps, 69232 ly flown (65182 straight), 149 boosted, 93 refuel stops, 30192 expansions, 4696 ms (wall 4696 ms)
+2026-08-28T18:08  260d96ed  58 jumps, 22647 ly flown (21939 straight), 53 boosted, 5 refuel stops, 631 expansions, 3323 ms (wall 3323 ms)
+2026-08-28T18:08  260d96ed  60 jumps, 23266 ly flown (21939 straight), 54 boosted, 6 refuel stops, 318 expansions, 1003 ms (wall 1003 ms)
+2026-08-28T18:08  260d96ed  71 jumps, 27194 ly flown (25802 straight), 62 boosted, 8 refuel stops, 514 expansions, 1502 ms (wall 1502 ms)
+2026-08-28T18:10  260d96ed  10 jumps, so another change is responsible. I'll make the goal-settle window overridable and test both fixes.
+2026-08-28T18:10  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 21035 expansions, 29094 ms (wall 29094 ms)
+2026-08-28T18:10  260d96ed  110 jumps, 22968 ly flown (21939 straight), 77 boosted, 22 refuel stops, 6085 expansions, 10431 ms (wall 10431 ms)
+2026-08-28T18:10  260d96ed  113 jumps, 23086 ly flown (21939 straight), 77 boosted, 28 refuel stops, 9430 expansions, 15360 ms (wall 15360 ms)
+2026-08-28T18:10  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 4827 ms (wall 4827 ms)
+2026-08-28T18:10  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 5234 ms (wall 5234 ms)
+2026-08-28T18:10  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 7548 ms (wall 7548 ms)
+2026-08-28T18:10  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 7606 ms (wall 7606 ms)
+2026-08-28T18:10  260d96ed  56 jumps, 22942 ly flown (21939 straight), 52 boosted, 3 refuel stops, 5399 expansions, 4003 ms (wall 4003 ms)
+2026-08-28T18:10  260d96ed  58 jumps, 22735 ly flown (21939 straight), 53 boosted, 5 refuel stops, 2571 expansions, 2167 ms (wall 2167 ms)
+2026-08-28T18:11  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 21035 expansions, 27864 ms (wall 27864 ms)
+2026-08-28T18:11  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 5408 ms (wall 5408 ms)
+2026-08-28T18:11  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 5892 ms (wall 5892 ms)
+2026-08-28T18:11  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8205 ms (wall 8205 ms)
+2026-08-28T18:13  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 21035 expansions, 32482 ms (wall 32482 ms)
+2026-08-28T18:13  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 5560 ms (wall 5560 ms)
+2026-08-28T18:13  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8095 ms (wall 8095 ms)
+2026-08-28T18:13  260d96ed  60 jumps, 23137 ly flown (21939 straight), 54 boosted, 5 refuel stops, 2926 expansions, 2161 ms (wall 2161 ms)
+2026-08-28T18:13  260d96ed  71 jumps, 27194 ly flown (25802 straight), 62 boosted, 8 refuel stops, 1753 expansions, 1602 ms (wall 1602 ms)
+2026-08-28T18:14  260d96ed  107 jumps, 22969 ly flown (21939 straight), 76 boosted, 22 refuel stops, 30731 expansions, 28313 ms (wall 28313 ms)
+2026-08-28T18:14  260d96ed  244 jumps, 69617 ly flown (65182 straight), 151 boosted, 91 refuel stops, 30165 expansions, 5555 ms (wall 5555 ms)
+2026-08-28T18:15  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5181 expansions, 15816 ms (wall 15816 ms)
+2026-08-28T18:15  260d96ed  244 jumps, 69300 ly flown (65182 straight), 150 boosted, 93 refuel stops, 30126 expansions, 4017 ms (wall 4017 ms)
+2026-08-28T18:15  260d96ed  57 jumps, 22965 ly flown (21939 straight), 54 boosted, 3 refuel stops, 3035 expansions, 18717 ms (wall 18717 ms)
+2026-08-28T18:15  260d96ed  60 jumps, 23263 ly flown (21939 straight), 54 boosted, 6 refuel stops, 556 expansions, 6032 ms (wall 6032 ms)
+2026-08-28T18:15  260d96ed  71 jumps, 27458 ly flown (25802 straight), 63 boosted, 7 refuel stops, 1297 expansions, 845 ms (wall 845 ms)
+2026-08-28T18:16  260d96ed  57 jumps, 22965 ly flown (21939 straight), 54 boosted, 3 refuel stops, 3035 expansions, 1913 ms (wall 1913 ms)
+2026-08-28T18:17  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5181 expansions, 15109 ms (wall 15109 ms)
+2026-08-28T18:17  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5181 expansions, 18076 ms (wall 18076 ms)
+2026-08-28T18:17  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5181 expansions, 22768 ms (wall 22768 ms)
+2026-08-28T18:17  260d96ed  57 jumps, 22965 ly flown (21939 straight), 54 boosted, 3 refuel stops, 3035 expansions, 1787 ms (wall 1787 ms)
+2026-08-28T18:17  260d96ed  60 jumps, 23263 ly flown (21939 straight), 54 boosted, 6 refuel stops, 556 expansions, 5171 ms (wall 5171 ms)
+2026-08-28T18:19  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5096 expansions, 1697 ms (wall 1697 ms)
+2026-08-28T18:19  260d96ed  244 jumps, 69300 ly flown (65182 straight), 150 boosted, 93 refuel stops, 30126 expansions, 3843 ms (wall 3843 ms)
+2026-08-28T18:19  260d96ed  3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 413 expansions, 69 ms (wall 69 ms)
+2026-08-28T18:19  260d96ed  57 jumps, 22965 ly flown (21939 straight), 54 boosted, 3 refuel stops, 3035 expansions, 1732 ms (wall 1732 ms)
+2026-08-28T18:19  260d96ed  60 jumps, 23263 ly flown (21939 straight), 54 boosted, 6 refuel stops, 556 expansions, 1614 ms (wall 1614 ms)
+2026-08-28T18:19  260d96ed  7 jumps, 479 ly flown (468 straight), 0 boosted, 7 refuel stops, 7 expansions, 6 ms (wall 6 ms)
+2026-08-28T18:19  260d96ed  71 jumps, 27458 ly flown (25802 straight), 63 boosted, 7 refuel stops, 1297 expansions, 736 ms (wall 736 ms)
+2026-08-28T18:20  260d96ed  103 jumps, 22947 ly flown (21939 straight), 77 boosted, 24 refuel stops, 9520 expansions, 3004 ms (wall 3004 ms)
+2026-08-28T18:20  260d96ed  106 jumps, 23494 ly flown (21939 straight), 81 boosted, 23 refuel stops, 6058 expansions, 9102 ms (wall 9102 ms)
+2026-08-28T18:20  260d96ed  107 jumps, 22970 ly flown (21939 straight), 76 boosted, 23 refuel stops, 20745 expansions, 27878 ms (wall 27878 ms)
+2026-08-28T18:20  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8128 ms (wall 8128 ms)
+2026-08-28T18:20  260d96ed  56 jumps, 22833 ly flown (21939 straight), 53 boosted, 3 refuel stops, 4222 expansions, 4514 ms (wall 4514 ms)
+2026-08-28T18:20  260d96ed  57 jumps, 22864 ly flown (21939 straight), 53 boosted, 3 refuel stops, 2513 expansions, 2772 ms (wall 2772 ms)
+2026-08-28T18:20  260d96ed  60 jumps, 23137 ly flown (21939 straight), 54 boosted, 5 refuel stops, 2926 expansions, 2098 ms (wall 2098 ms)
+2026-08-28T18:20  260d96ed  61 jumps, 23054 ly flown (21939 straight), 54 boosted, 5 refuel stops, 1053 expansions, 2604 ms (wall 2604 ms)
+2026-08-28T18:20  260d96ed  61 jumps, 23218 ly flown (21939 straight), 55 boosted, 5 refuel stops, 6024 expansions, 6695 ms (wall 6695 ms)
+2026-08-28T18:21  260d96ed  103 jumps, 23265 ly flown (21939 straight), 78 boosted, 21 refuel stops, 6432 expansions, 10182 ms (wall 10182 ms)
+2026-08-28T18:21  260d96ed  106 jumps, 23457 ly flown (21939 straight), 80 boosted, 19 refuel stops, 5096 expansions, 2710 ms (wall 2710 ms)
+2026-08-28T18:21  260d96ed  243 jumps, 69102 ly flown (65182 straight), 151 boosted, 90 refuel stops, 30130 expansions, 5775 ms (wall 5775 ms)
+2026-08-28T18:21  260d96ed  57 jumps, 22944 ly flown (21939 straight), 53 boosted, 3 refuel stops, 2003 expansions, 3054 ms (wall 3054 ms)
+2026-08-28T18:21  260d96ed  57 jumps, 22965 ly flown (21939 straight), 54 boosted, 3 refuel stops, 3035 expansions, 3032 ms (wall 3032 ms)
+2026-08-28T18:21  260d96ed  60 jumps, 23263 ly flown (21939 straight), 54 boosted, 6 refuel stops, 556 expansions, 3852 ms (wall 3852 ms)
+2026-08-28T18:21  260d96ed  60 jumps, 23263 ly flown (21939 straight), 54 boosted, 6 refuel stops, 556 expansions, 4039 ms (wall 4039 ms)
+2026-08-28T18:21  260d96ed  71 jumps, 27393 ly flown (25802 straight), 63 boosted, 7 refuel stops, 1221 expansions, 1743 ms (wall 1743 ms)
+2026-08-28T18:22  260d96ed  100 jumps, 22966 ly flown (21939 straight), 78 boosted, 20 refuel stops, 9213 expansions, 5471 ms (wall 5471 ms)
+2026-08-28T18:22  260d96ed  102 jumps, 23379 ly flown (21939 straight), 80 boosted, 20 refuel stops, 5513 expansions, 4202 ms (wall 4202 ms)
+2026-08-28T18:22  260d96ed  244 jumps, 69362 ly flown (65182 straight), 150 boosted, 90 refuel stops, 30187 expansions, 5879 ms (wall 5879 ms)
+2026-08-28T18:22  260d96ed  57 jumps, 22856 ly flown (21939 straight), 52 boosted, 3 refuel stops, 6075 expansions, 6019 ms (wall 6019 ms)
+2026-08-28T18:22  260d96ed  57 jumps, 22953 ly flown (21939 straight), 52 boosted, 3 refuel stops, 4233 expansions, 5460 ms (wall 5460 ms)
+2026-08-28T18:22  260d96ed  60 jumps, 23137 ly flown (21939 straight), 54 boosted, 5 refuel stops, 2739 expansions, 1986 ms (wall 1986 ms)
+2026-08-28T18:22  260d96ed  70 jumps, 27380 ly flown (25802 straight), 63 boosted, 6 refuel stops, 2056 expansions, 2053 ms (wall 2053 ms)
+2026-08-28T18:23  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 9952 ms (wall 9952 ms)
+2026-08-28T18:23  260d96ed  55 jumps, 3 stops, 8999 ms
+2026-08-28T18:23  260d96ed  56 jumps, 3 stops, 7917 ms
+2026-08-28T18:23  260d96ed  57 jumps, 22856 ly flown (21939 straight), 52 boosted, 3 refuel stops, 6075 expansions, 5881 ms (wall 5881 ms)
+2026-08-28T18:23  260d96ed  57 jumps, 3 stops, 4116 ms
+2026-08-28T18:23  260d96ed  57 jumps, 3 stops, 5499 ms
+2026-08-28T18:23  260d96ed  57 jumps, 3 stops, 5868 ms
+2026-08-28T18:23  260d96ed  57 jumps, 3 stops, 9929 ms
+2026-08-28T18:23  260d96ed  57 jumps, 3 stops, 9930 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 1638 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 2974 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 3247 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 3638 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 4266 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 4267 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 4771 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 4793 ms
+2026-08-28T18:23  260d96ed  58 jumps, 3 stops, 789 ms
+2026-08-28T18:23  260d96ed  58 jumps, 4 stops, 2368 ms
+2026-08-28T18:23  260d96ed  59 jumps, 4 stops, 632 ms
+2026-08-28T18:23  260d96ed  59 jumps, 4 stops, 657 ms
+2026-08-28T18:26  260d96ed  56 jumps, 22925 ly flown (21939 straight), 52 boosted, 3 refuel stops, 15586 expansions, 22741 ms (wall 22741 ms)
+2026-08-28T18:26  260d96ed  57 jumps, 22787 ly flown (21939 straight), 52 boosted, 3 refuel stops, 10457 expansions, 14600 ms (wall 14600 ms)
+2026-08-28T18:36  260d96ed  100 jumps, 22966 ly flown (21939 straight), 78 boosted, 20 refuel stops, 9213 expansions, 40321 ms (wall 40321 ms);
+2026-08-28T18:36  260d96ed  237 jumps, 70388 ly flown (65182 straight), 157 boosted, 76 refuel stops, 27936 expansions, 9276 ms (wall 9276 ms);
+2026-08-28T18:36  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 11399 ms (wall 11399 ms);
+2026-08-28T18:36  260d96ed  60 jumps, 23137 ly flown (21939 straight), 54 boosted, 5 refuel stops, 2739 expansions, 4034 ms (wall 4034 ms);
+2026-08-28T18:36  260d96ed  70 jumps, 27379 ly flown (25802 straight), 63 boosted, 6 refuel stops, 4170 expansions, 3772 ms (wall 3772 ms);
+2026-08-28T18:49  260d96ed  100 jumps, 20 stops, 6591 ms
+2026-08-28T18:49  260d96ed  100 jumps, 22966 ly flown (21939 straight), 78 boosted, 20 refuel stops, 9213 expansions, 37749 ms (wall 37749 ms)
+2026-08-28T18:49  260d96ed  101 jumps, 18 stops, 2679 ms
+2026-08-28T18:49  260d96ed  102 jumps, 20 stops, 3109 ms
+2026-08-28T18:49  260d96ed  103 jumps, 18 stops, 3209 ms
+2026-08-28T18:49  260d96ed  105 jumps, 22 stops, 4142 ms
+2026-08-28T18:49  260d96ed  107 jumps, 23 stops, 23814 ms
+2026-08-28T18:49  260d96ed  107 jumps, 24 stops, 27200 ms
+2026-08-28T18:49  260d96ed  108 jumps, 21 stops, 3148 ms
+2026-08-28T18:49  260d96ed  108 jumps, 26 stops, 3945 ms
+2026-08-28T18:49  260d96ed  108 jumps, 26 stops, 6095 ms
+2026-08-28T18:49  260d96ed  109 jumps, 24 stops, 3286 ms
+2026-08-28T18:49  260d96ed  111 jumps, 28 stops, 14532 ms
+2026-08-28T18:49  260d96ed  115 jumps, 28 stops, 4632 ms
+2026-08-28T18:49  260d96ed  125 jumps, 39 stops, 28517 ms
+2026-08-28T18:49  260d96ed  222 jumps, 59 stops, 19398 ms
+2026-08-28T18:49  260d96ed  222 jumps, 59 stops, 19713 ms
+2026-08-28T18:49  260d96ed  222 jumps, 70081 ly flown (65182 straight), 158 boosted, 59 refuel stops, 120153 expansions, 120175 ms (wall 120175 ms)
+2026-08-28T18:49  260d96ed  223 jumps, 58 stops, 19795 ms
+2026-08-28T18:49  260d96ed  223 jumps, 59 stops, 19643 ms
+2026-08-28T18:49  260d96ed  233 jumps, 75 stops, 20758 ms
+2026-08-28T18:49  260d96ed  233 jumps, 75 stops, 20901 ms
+2026-08-28T18:49  260d96ed  234 jumps, 74 stops, 21226 ms
+2026-08-28T18:49  260d96ed  234 jumps, 75 stops, 21962 ms
+2026-08-28T18:49  260d96ed  234 jumps, 75 stops, 22792 ms
+2026-08-28T18:49  260d96ed  237 jumps, 76 stops, 4380 ms
+2026-08-28T18:49  260d96ed  237 jumps, 77 stops, 20761 ms
+2026-08-28T18:49  260d96ed  243 jumps, 90 stops, 23354 ms
+2026-08-28T18:49  260d96ed  243 jumps, 90 stops, 24028 ms
+2026-08-28T18:49  260d96ed  244 jumps, 90 stops, 22397 ms
+2026-08-28T18:49  260d96ed  244 jumps, 90 stops, 4954 ms
+2026-08-28T18:49  260d96ed  244 jumps, 91 stops, 5154 ms
+2026-08-28T18:49  260d96ed  244 jumps, 91 stops, 5321 ms
+2026-08-28T18:49  260d96ed  244 jumps, 91 stops, 5775 ms
+2026-08-28T18:49  260d96ed  244 jumps, 91 stops, 5893 ms
+2026-08-28T18:49  260d96ed  245 jumps, 92 stops, 21888 ms
+2026-08-28T18:49  260d96ed  248 jumps, 93 stops, 4852 ms
+2026-08-28T18:49  260d96ed  250 jumps, 99 stops, 6625 ms
+2026-08-28T18:49  260d96ed  250 jumps, 99 stops, 6659 ms
+2026-08-28T18:49  260d96ed  251 jumps, 99 stops, 6068 ms
+2026-08-28T18:49  260d96ed  252 jumps, 101 stops, 6777 ms
+2026-08-28T18:49  260d96ed  254 jumps, 99 stops, 18650 ms
+2026-08-28T18:49  260d96ed  254 jumps, 99 stops, 6367 ms
+2026-08-28T18:49  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 18390 ms (wall 18390 ms)
+2026-08-28T18:49  260d96ed  55 jumps, 3 stops, 9149 ms
+2026-08-28T18:49  260d96ed  55 jumps, 3 stops, 9177 ms
+2026-08-28T18:49  260d96ed  56 jumps, 3 stops, 5525 ms
+2026-08-28T18:49  260d96ed  56 jumps, 3 stops, 5686 ms
+2026-08-28T18:49  260d96ed  56 jumps, 3 stops, 5732 ms
+2026-08-28T18:49  260d96ed  56 jumps, 3 stops, 5887 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 5123 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 5226 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 6672 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 6846 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 7033 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 7310 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 8209 ms
+2026-08-28T18:49  260d96ed  57 jumps, 3 stops, 8428 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 1093 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 1952 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 2040 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 3729 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 3874 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 4113 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 4278 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 4495 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 4614 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 4912 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 5056 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 5628 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 5702 ms
+2026-08-28T18:49  260d96ed  58 jumps, 3 stops, 969 ms
+2026-08-28T18:49  260d96ed  58 jumps, 4 stops, 2815 ms
+2026-08-28T18:49  260d96ed  58 jumps, 4 stops, 3065 ms
+2026-08-28T18:49  260d96ed  59 jumps, 4 stops, 1046 ms
+2026-08-28T18:49  260d96ed  59 jumps, 4 stops, 1047 ms
+2026-08-28T18:49  260d96ed  59 jumps, 4 stops, 778 ms
+2026-08-28T18:49  260d96ed  59 jumps, 4 stops, 817 ms
+2026-08-28T18:50  260d96ed  55 jumps, 22893 ly flown (21939 straight), 52 boosted, 3 refuel stops, 7362 expansions, 8364 ms (wall 8364 ms)
+2026-08-28T18:50  260d96ed  55 jumps, 3 stops, 8342 ms
+2026-08-28T18:50  260d96ed  56 jumps, 3 stops, 5140 ms
+2026-08-28T18:50  260d96ed  56 jumps, 3 stops, 5361 ms
+2026-08-28T18:50  260d96ed  57 jumps, 3 stops, 4825 ms
+2026-08-28T18:50  260d96ed  57 jumps, 3 stops, 6322 ms
+2026-08-28T18:50  260d96ed  57 jumps, 3 stops, 6658 ms
+2026-08-28T18:50  260d96ed  57 jumps, 3 stops, 7455 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 1877 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 3498 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 3871 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 4180 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 4459 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 5125 ms
+2026-08-28T18:50  260d96ed  58 jumps, 3 stops, 912 ms
+2026-08-28T18:50  260d96ed  58 jumps, 4 stops, 2687 ms
+2026-08-28T18:50  260d96ed  59 jumps, 4 stops, 742 ms
+2026-08-28T18:50  260d96ed  59 jumps, 4 stops, 745 ms
+2026-08-28T18:50  260d96ed  70 jumps, 27379 ly flown (25802 straight), 63 boosted, 6 refuel stops, 4170 expansions, 2846 ms (wall 2846 ms)
+2026-08-28T18:50  260d96ed  70 jumps, 6 stops, 1154 ms
+2026-08-28T18:50  260d96ed  70 jumps, 6 stops, 1225 ms
+2026-08-28T18:50  260d96ed  70 jumps, 6 stops, 2487 ms
+2026-08-28T18:50  260d96ed  70 jumps, 6 stops, 2833 ms
+2026-08-28T18:50  260d96ed  70 jumps, 7 stops, 2254 ms
+2026-08-28T18:50  260d96ed  71 jumps, 6 stops, 1147 ms
+2026-08-28T18:50  260d96ed  71 jumps, 7 stops, 1146 ms
+2026-08-28T18:50  260d96ed  71 jumps, 8 stops, 1132 ms
+2026-08-28T18:50  260d96ed  71 jumps, 8 stops, 1147 ms
+2026-08-28T18:50  260d96ed  71 jumps, 8 stops, 2030 ms
+2026-08-28T18:50  260d96ed  73 jumps, 5 stops, 1156 ms
+2026-08-28T18:50  260d96ed  73 jumps, 5 stops, 883 ms
+2026-08-28T18:58  260d96ed  57 jumps, 22953 ly flown (21939 straight), 52 boosted, 3 refuel stops, 4233 expansions, 5247 ms (wall 5247 ms)
+2026-08-28T18:58  260d96ed  57 jumps, 22953 ly flown (21939 straight), 52 boosted, 3 refuel stops, 4233 expansions, 5340 ms (wall 5340 ms)
+2026-08-28T18:58  260d96ed  70 jumps, 27380 ly flown (25802 straight), 63 boosted, 6 refuel stops, 2056 expansions, 1778 ms (wall 1778 ms)
+2026-08-28T21:13  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 2078 ms (wall 2078 ms)
+2026-08-28T21:13  260d96ed  54 jumps, and Mandalay comes in at 86 vs Spansh's 93, both in 2s. Now running the remaining baselines, both test suites, and the app restart check in parallel.
+2026-08-28T21:13  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7681 expansions, 1959 ms (wall 1959 ms)
+2026-08-28T21:15  260d96ed  226 jumps, 70456 ly flown (65182 straight), 157 boosted, 84 refuel stops, 112356 expansions, 120143 ms (wall 120143 ms)
+2026-08-28T21:15  260d96ed  58 jumps, 23182 ly flown (21939 straight), 55 boosted, 9 refuel stops, 102 expansions, 5799 ms (wall 5799 ms)
+2026-08-28T21:15  260d96ed  67 jumps, 27301 ly flown (25802 straight), 64 boosted, 7 refuel stops, 1006 expansions, 2400 ms (wall 2400 ms)
+2026-08-28T22:25  260d96ed  226 jumps, 70456 ly flown (65182 straight), 157 boosted, 84 refuel stops, 112356 expansions, 120117 ms (wall 120117 ms)
+2026-08-28T22:26  260d96ed  2 jumps, tail starts 492 ly out
+2026-08-28T22:26  260d96ed  208 jumps, boosted 160, refuels 52, refuel_every_scoopable=True
+2026-08-28T22:26  260d96ed  226 jumps, boosted 157, scoops(refuel to full) 23
+2026-08-28T22:26  260d96ed  229 jumps, 92 stops, 3246 ms
+2026-08-28T22:26  260d96ed  237 jumps, 98 stops, 2899 ms
+2026-08-28T22:29  260d96ed  226 jumps, 70456 ly flown (65182 straight), 157 boosted, 84 refuel stops, 112356 expansions, 120131 ms (wall 120131 ms)
+2026-08-28T22:29  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 479 ms (wall 479 ms)
+2026-08-28T22:29  260d96ed  67 jumps, 27301 ly flown (25802 straight), 64 boosted, 7 refuel stops, 1006 expansions, 2653 ms (wall 2653 ms)
+2026-08-28T22:29  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7681 expansions, 2189 ms (wall 2189 ms)
+2026-08-28T22:31  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463169 expansions, 120029 ms (wall 120029 ms)
+2026-08-28T22:31  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 481 ms (wall 481 ms)
+2026-08-28T22:31  260d96ed  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 8263 ms (wall 8263 ms)
+2026-08-28T22:31  260d96ed  69 jumps, 27428 ly flown (25802 straight), 64 boosted, 7 refuel stops, 930 expansions, 2034 ms (wall 2034 ms)
+2026-08-28T22:31  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7806 expansions, 1420 ms (wall 1420 ms)
+2026-08-28T22:34  260d96ed  246 jumps, 108 stops, 2990 ms
+2026-08-28T22:37  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463136 expansions, 120058 ms (wall 120058 ms)
+2026-08-28T22:37  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 480 ms (wall 480 ms)
+2026-08-28T22:37  260d96ed  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 9272 ms (wall 9272 ms)
+2026-08-28T22:37  260d96ed  69 jumps, 27428 ly flown (25802 straight), 64 boosted, 7 refuel stops, 930 expansions, 2569 ms (wall 2569 ms)
+2026-08-28T22:37  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7812 expansions, 1558 ms (wall 1558 ms)
+2026-08-28T22:41  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463136 expansions, 120048 ms (wall 120048 ms)
+2026-08-28T22:41  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 518 ms (wall 518 ms)
+2026-08-28T22:41  260d96ed  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 9656 ms (wall 9656 ms)
+2026-08-28T22:41  260d96ed  69 jumps, 27428 ly flown (25802 straight), 64 boosted, 7 refuel stops, 930 expansions, 2551 ms (wall 2551 ms)
+2026-08-28T22:41  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7812 expansions, 1537 ms (wall 1537 ms)
+2026-08-28T22:45  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463136 expansions, 120065 ms (wall 120065 ms)
+2026-08-28T22:47  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463136 expansions, 120058 ms (wall 120058 ms)
+2026-08-28T22:54  260d96ed  190 jumps, 71213 ly flown (65182 straight), 166 boosted, 40 refuel stops, 463169 expansions, 120057 ms (wall 120057 ms)
+2026-08-28T22:54  260d96ed  54 jumps, 22644 ly flown (21939 straight), 53 boosted, 6 refuel stops, 115 expansions, 525 ms (wall 525 ms)
+2026-08-28T22:54  260d96ed  86 jumps, 23026 ly flown (21939 straight), 79 boosted, 23 refuel stops, 7806 expansions, 1486 ms (wall 1486 ms)
+2026-08-30T14:06  8e3d7875  2 jumps, Sol -> Robigo
+2026-08-30T14:20  8e3d7875  182 jumps, 48687 ly flown (46241 straight), 101 boosted, 88 refuel stops, 30116 expansions, 2211 ms (wall 2211 ms)
+2026-08-30T14:20  8e3d7875  182 jumps, 48687 ly flown (46241 straight), 101 boosted, 88 refuel stops, 30116 expansions, 2264 ms (wall 2264 ms)
+2026-08-30T14:20  8e3d7875  57 jumps, 23178 ly flown (21939 straight), 56 boosted, 5 refuel stops, 354 expansions, 1208 ms (wall 1208 ms)
+2026-08-30T14:20  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 1320 ms (wall 1320 ms)
+2026-08-30T14:22  8e3d7875  66 jumps, 27427 ly flown (25900 straight), 65 boosted, 3 refuel stops, 1076 expansions, 310 ms (wall 310 ms)
+2026-08-30T14:22  8e3d7875  69 jumps, 27420 ly flown (25900 straight), 64 boosted, 7 refuel stops, 931 expansions, 596 ms (wall 596 ms)
+2026-08-30T14:23  8e3d7875  182 jumps, 88 refuels, 2,211 ms | 182 jumps (same route), 2,264 ms |
+2026-08-30T14:23  8e3d7875  58 jumps, 6 refuels, 1,320 ms | **57 jumps, 5 refuels, 1,208 ms** |
+2026-08-30T14:23  8e3d7875  69 jumps, 64 boosted, 7 refuels, 596 ms | **66 jumps, 65 boosted, 3 refuels, 310 ms** |
+2026-08-30T14:32  8e3d7875  112 jumps, 28460 ly flown (25900 straight), 101 boosted, 28 refuel stops, 2852 expansions, 2271 ms (wall 2271 ms)
+2026-08-30T14:32  8e3d7875  114 jumps, 28370 ly flown (25900 straight), 99 boosted, 32 refuel stops, 3268 expansions, 3021 ms (wall 3021 ms)
+2026-08-30T14:32  8e3d7875  2 jumps, -4 refuels, faster). The one regression is that single extra jump on Wongi->Colonia for Mandalay - which is exactly the case your note's item 2.2 (time as the tie-break) would settle, and the argument
+2026-08-30T14:32  8e3d7875  2 jumps, Sol→Robigo
+2026-08-30T14:32  8e3d7875  257 jumps, 48966 ly flown (46241 straight), 150 boosted, 138 refuel stops, 30153 expansions, 2598 ms (wall 2598 ms)
+2026-08-30T14:32  8e3d7875  257 jumps, 48971 ly flown (46241 straight), 150 boosted, 138 refuel stops, 30153 expansions, 1683 ms (wall 1683 ms)
+2026-08-30T14:32  8e3d7875  58 jumps, 1 h 42 m — Fastest: 60 jumps, 1 h 31 m
+2026-08-30T14:32  8e3d7875  93 jumps, 23903 ly flown (21939 straight), 84 boosted, 27 refuel stops, 249 expansions, 1285 ms (wall 1285 ms)
+2026-08-30T14:32  8e3d7875  94 jumps, 23920 ly flown (21939 straight), 85 boosted, 28 refuel stops, 577 expansions, 929 ms (wall 929 ms)
+2026-08-30T14:33  8e3d7875  57 jumps, plus add Sol→Sagittarius A* 66 jumps as a new full_ pin since it's the clearest win. Re-measure expansions for the pin names.
+2026-08-30T14:37  8e3d7875  66 jumps, 7 -> 3 refuels.
+2026-08-30T14:41  8e3d7875  57 jumps, 23178 ly, 56 boosted, 5 refuels, 3871 ms
+2026-08-30T14:44  8e3d7875  114 jumps, 32 refuels, 3021 ms -> 112, 28, 2271 ms
+2026-08-30T14:44  8e3d7875  182 jumps, 88 refuels, 2211 ms -> 182 (same), 2264 ms
+2026-08-30T14:44  8e3d7875  257 jumps, 138 refuels, 2598 ms -> 257 (same), 1683 ms
+2026-08-30T14:44  8e3d7875  58 jumps, 6 refuels, 1320 ms -> 57, 5, 1208 ms
+2026-08-30T14:44  8e3d7875  69 jumps, 7 refuels,  596 ms -> 66, 3, 310 ms
+2026-08-30T14:44  8e3d7875  93 jumps, 27 refuels, 1285 ms -> 94, 28, 929 ms
+2026-08-30T14:45  8e3d7875  57 jumps, 56 boosted, 5 refuel stops, white-dwarf hop at LAWD 68. Slide 18 of `docs/how-edda-thinks.html` replays it. Regenerate with `cargo run -p ed-galaxy --example trace_plot --release -- <index> Wongi Colo
+2026-08-30T14:59  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 1784 ms (wall 1784 ms)
+2026-08-30T14:59  8e3d7875  93 jumps, 23903 ly flown (21939 straight), 84 boosted, 27 refuel stops, 249 expansions, 2441 ms (wall 2441 ms)
+2026-08-30T15:00  8e3d7875  57 jumps, 23178 ly flown (21939 straight), 56 boosted, 5 refuel stops, 354 expansions, 1432 ms (wall 1432 ms)
+2026-08-30T15:00  8e3d7875  57 jumps, 23178 ly flown (21939 straight), 56 boosted, 5 refuel stops, 354 expansions, 1514 ms (wall 1514 ms)
+2026-08-30T15:00  8e3d7875  94 jumps, 23971 ly flown (21939 straight), 85 boosted, 28 refuel stops, 577 expansions, 1712 ms (wall 1712 ms)
+2026-08-30T15:01  8e3d7875  57 jumps, 23178 ly flown (21939 straight), 56 boosted, 5 refuel stops, 354 expansions, 1405 ms (wall 1405 ms)
+2026-08-30T15:01  8e3d7875  57 jumps, 23407 ly flown (21939 straight), 56 boosted, 4 refuel stops, 126 expansions, 7314 ms (wall 7314 ms)
+2026-08-30T15:01  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 1378 ms (wall 1378 ms)
+2026-08-30T15:01  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 5416 ms (wall 5416 ms)
+2026-08-30T15:07  8e3d7875  57 jumps, 4 scoop stops vs 58 / 6); I've handed the measurement to the Mac session for the routing notes, with 
+2026-08-30T15:13  8e3d7875  57 jumps, quick unchanged at ~1.4 s; Sol → Sagittarius A* and Colonia → Beagle Point not slower than today and same jumps. Pins updated accordingly. I'll keep ROUTING-NEXT.md current; nothing of mine overlaps w
+2026-08-30T15:14  8e3d7875  3 jumps, the opt-in one is 2 via MY Apodis. Test names should say which.
+2026-08-30T15:15  8e3d7875  3 jumps, the opt-in one is 2 via MY Apodis. Test names should say which.
+2026-08-30T15:15  8e3d7875  57 jumps, quick unchanged at ~1.4 s; Sol → Sagittarius A* and Colonia → Beagle Point not slower than today and same jumps. Pins updated accordingly. I'll keep ROUTING-NEXT.md current; nothing of mine overlaps w
+2026-08-30T15:16  8e3d7875  66 jumps, 7 -> 3 refuels.
+2026-08-30T15:33  8e3d7875  169 jumps, 49845 ly flown (46241 straight), 107 boosted, 68 refuel stops, 30486 expansions, 4785 ms (wall 4785 ms), variants 18/18
+2026-08-30T15:33  8e3d7875  169 jumps, 49845 ly flown (46241 straight), 107 boosted, 68 refuel stops, 30486 expansions, 4982 ms (wall 4982 ms), variants 16/18
+2026-08-30T15:33  8e3d7875  57 jumps, 23407 ly flown (21939 straight), 56 boosted, 4 refuel stops, 126 expansions, 1328 ms (wall 1328 ms), variants 11/18
+2026-08-30T15:33  8e3d7875  57 jumps, 23407 ly flown (21939 straight), 56 boosted, 4 refuel stops, 126 expansions, 9149 ms (wall 9149 ms), variants 18/18
+2026-08-30T15:33  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 1560 ms (wall 1576 ms), variants 10/18
+2026-08-30T15:33  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 332 expansions, 7456 ms (wall 7456 ms), variants 18/18
+2026-08-30T15:33  8e3d7875  58 jumps, 23302 ly flown (21939 straight), 55 boosted, 6 refuel stops, 334 expansions, 1557 ms (wall 1557 ms), variants 5/6
+2026-08-30T15:33  8e3d7875  69 jumps, 27420 ly flown (25900 straight), 64 boosted, 7 refuel stops, 931 expansions, 1463 ms (wall 1463 ms), variants 17/18
+2026-08-30T15:33  8e3d7875  69 jumps, 27420 ly flown (25900 straight), 64 boosted, 7 refuel stops, 931 expansions, 1995 ms (wall 1995 ms), variants 18/18
+2026-08-30T15:34  8e3d7875  58 jumps, under 4 s); frontend: the default query is
+2026-08-30T15:34  8e3d7875  58 jumps, variants 5/6
+2026-08-31T05:08  fde4262e  58 jumps, 1 h 42 m — Fastest: 60 jumps, 1 h 31 m
+2026-08-31T06:54  71404740  2 jumps, Sol→Robigo
+2026-08-31T06:54  71404740  58 jumps, 1 h 42 m — Fastest: 60 jumps, 1 h 31 m
+2026-08-31T07:08  71404740  66 jumps, 7 -> 3 refuels.
+2026-08-31T07:31  71404740  62 jumps, 13 stops, 153 ms
+2026-08-31T07:31  71404740  62 jumps, 13 stops, 154 ms
+2026-08-31T07:31  71404740  62 jumps, 13 stops, 155 ms
+2026-08-31T07:31  71404740  62 jumps, 17 stops, 220 ms
+2026-08-31T07:31  71404740  62 jumps, 17 stops, 222 ms
+2026-08-31T07:31  71404740  62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 223 ms (wall 223 ms), variants 6/6
+2026-08-31T07:33  71404740  62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 170 ms (wall 170 ms), variants 6/6
+2026-08-31T07:36  71404740  62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 173 ms (wall 173 ms), variants 6/6
+2026-08-31T07:38  71404740  62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 172 ms (wall 172 ms), variants 6/6

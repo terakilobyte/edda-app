@@ -1,0 +1,41 @@
+[Unit]
+Description=EDDA community API (serve; the EDDN feed is edda-eddn.service's once EDDA_API_EDDN_IN_SERVE=false)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=edda
+Group=edda
+EnvironmentFile=/etc/edda/api.env
+ExecStart=/usr/local/bin/ed-api serve
+Restart=always
+RestartSec=5
+# Hardening: the service owns only its state dir, speaks only TCP, and
+# has no path to privileges, kernel surfaces, or other users' memory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edda
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

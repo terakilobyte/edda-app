@@ -1,0 +1,11 @@
+# Market profit-search baseline, 2026-09-04, release harness (docs/benches/knobs/market_bench.ps1),
+# fresh-root DB after the identity hydrate + section sync. VERDICT: the identity fix CHANGED the
+# baseline honestly - this morning Wongi@120 saw 916 candidate stations in 7.2 s on a split-brain
+# pool; with identity hydrated the same search hits the 2,500-station cap in 34.3 s. The old
+# numbers measured a crippled pool; these measure reality. The 20-35 s wall at cap is the lane's
+# next performance target (candidate load + pairing; observed_at/index questions fold in here).
+ran_at,origin,radius_ly,cargo,age_h,cap,stations_considered,elapsed_s
+2026-09-04T20:21:17Z,Wongi,60,200,48,2500,821,3.57
+2026-09-04T20:21:52Z,Wongi,120,200,48,2500,2500,34.28
+2026-09-04T20:22:15Z,Sol,60,200,48,2500,2500,22.59
+2026-09-04T20:22:37Z,Sol,120,200,48,2500,2500,21.66

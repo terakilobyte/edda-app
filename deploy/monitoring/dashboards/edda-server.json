@@ -1,0 +1,1185 @@
+{
+  "uid": "edda-server",
+  "title": "EDDA Server",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "EDDN rows applied /s",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "rate(edda_eddn_rows_total[5m])",
+          "legendFormat": "rows/s"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Artifact + app bytes served /s",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "rate(edda_artifact_bytes_total[5m])",
+          "legendFormat": "data artifacts"
+        },
+        {
+          "expr": "rate(edda_app_release_bytes_total[5m])",
+          "legendFormat": "app releases"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Feedback by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "increase(edda_feedback_total[1h])",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP requests by route /s",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(edda_http_requests_total[5m]))",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "Downloads & updates",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "App downloads by file (24h)",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (file) (increase(edda_app_downloads_total[24h]))",
+          "legendFormat": "{{file}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Downloads (total, all versions)",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(edda_app_downloads_total)",
+          "legendFormat": "downloads"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Update checks /h",
+      "gridPos": {
+        "x": 18,
+        "y": 17,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_update_checks_total[1h]))",
+          "legendFormat": "checks/h"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Community delta build \u2014 nightly market (00:05 UTC)",
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Time since last successful build",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 90000
+              },
+              {
+                "color": "red",
+                "value": 93600
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "time() - max(edda_publish_last_complete_unix_seconds{product=\"market_daily\"})",
+          "legendFormat": "since last build"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Build cost \u2014 wall vs CPU (s)",
+      "gridPos": {
+        "x": 6,
+        "y": 26,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "max(edda_publish_build_seconds{product=\"market_daily\"})",
+          "legendFormat": "wall"
+        },
+        {
+          "expr": "max(edda_publish_cpu_seconds{product=\"market_daily\"})",
+          "legendFormat": "cpu"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Build phases (s)",
+      "gridPos": {
+        "x": 15,
+        "y": 26,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "max by (phase) (edda_publish_phase_seconds{product=\"market_daily\"})",
+          "legendFormat": "{{phase}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Rows published (nightly)",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "max(edda_publish_rows{product=\"market_daily\"})",
+          "legendFormat": "rows"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Bytes published",
+      "gridPos": {
+        "x": 6,
+        "y": 33,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "targets": [
+        {
+          "expr": "max(edda_publish_bytes{product=\"market_daily\"})",
+          "legendFormat": "bytes"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Market search \u2014 /v1/market/search",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Requests /s by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(edda_market_search_requests_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Latency p50 / p95 / p99 (s)",
+      "gridPos": {
+        "x": 12,
+        "y": 41,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_market_search_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_market_search_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(edda_market_search_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "Postgres",
+      "gridPos": {
+        "x": 0,
+        "y": 49,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Database size (edda)",
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1
+        }
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "pg_database_size_bytes{datname=\"edda\"}",
+          "legendFormat": "size"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Connections (used vs max)",
+      "gridPos": {
+        "x": 6,
+        "y": 50,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{datname=\"edda\"}",
+          "legendFormat": "backends"
+        },
+        {
+          "expr": "pg_settings_max_connections",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Transactions /s (commit / rollback)",
+      "gridPos": {
+        "x": 15,
+        "y": 50,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{datname=\"edda\"}[5m])",
+          "legendFormat": "commit"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{datname=\"edda\"}[5m])",
+          "legendFormat": "rollback"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Cache hit ratio (lifetime)",
+      "gridPos": {
+        "x": 0,
+        "y": 57,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_database_blks_hit{datname=\"edda\"} / clamp_min(pg_stat_database_blks_hit{datname=\"edda\"} + pg_stat_database_blks_read{datname=\"edda\"}, 1)",
+          "legendFormat": "hit ratio"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "row",
+      "title": "Route API \u2014 /v1/route",
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Route requests /s by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(edda_route_requests_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Route latency p50 / p95 / p99 (s)",
+      "gridPos": {
+        "x": 8,
+        "y": 65,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_route_wall_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_route_wall_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(edda_route_wall_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Route cache /s by result",
+      "gridPos": {
+        "x": 16,
+        "y": 65,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(edda_route_cache_total[5m]))",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "row",
+      "title": "Station board \u2014 /v1/market/station/{id}",
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Station board requests /s by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(edda_station_board_requests_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Station board latency p50 / p95 / p99 (s)",
+      "gridPos": {
+        "x": 12,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_station_board_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_station_board_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(edda_station_board_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Trade search \u2014 POST /v1/trade/search",
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Trade search requests /s by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 91,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(edda_trade_search_requests_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Trade search latency p50 / p95 / p99 (s)",
+      "gridPos": {
+        "x": 8,
+        "y": 91,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_trade_search_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_trade_search_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(edda_trade_search_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "stat",
+      "title": "Result-cache hit ratio (hit / all)",
+      "gridPos": {
+        "x": 16,
+        "y": 91,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "green",
+                "value": 0.6
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "expr": "sum(edda_trade_search_cache_total{result=\"hit\"}) / clamp_min(sum(edda_trade_search_cache_total), 1)",
+          "legendFormat": "hit ratio"
+        }
+      ],
+      "description": "hit over hit+miss+filter_miss. filter_miss (added with prod's 100M-row board) is a miss that shares a live entry's sphere under different knobs; once the superset-then-filter cache ships, count hit+filter_miss as hits here."
+    },
+    {
+      "id": 34,
+      "type": "stat",
+      "title": "Saturated /min (queue overflow)",
+      "gridPos": {
+        "x": 20,
+        "y": 91,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(edda_trade_search_requests_total{outcome=\"saturated\"}[5m])) * 60",
+          "legendFormat": "saturated/min"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "Trade search cache /s by result",
+      "gridPos": {
+        "x": 0,
+        "y": 99,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "hit / miss / filter_miss. A hot filter_miss share is the number that justifies the superset-then-filter cache design.",
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(edda_trade_search_cache_total[5m]))",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "Searches slower than 10 s (share, 1h)",
+      "gridPos": {
+        "x": 8,
+        "y": 99,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "Prod cold searches measured 13-23 s on the 100M-row board (2 vCPU); pre-registered p50<5 s cold was missed. This is the mass in the 10-60 s buckets that the ledger says to watch.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.2
+              },
+              {
+                "color": "red",
+                "value": 0.5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "1 - sum(increase(edda_trade_search_seconds_bucket{le=\"10\"}[1h])) / clamp_min(sum(increase(edda_trade_search_seconds_count[1h])), 1)",
+          "legendFormat": "share >10 s"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "Trade search latency buckets /h (10 s, 30 s, 60 s, +Inf)",
+      "gridPos": {
+        "x": 12,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_trade_search_seconds_bucket{le=\"10\"}[1h]))",
+          "legendFormat": "<= 10 s"
+        },
+        {
+          "expr": "sum(increase(edda_trade_search_seconds_bucket{le=\"30\"}[1h])) - sum(increase(edda_trade_search_seconds_bucket{le=\"10\"}[1h]))",
+          "legendFormat": "10-30 s"
+        },
+        {
+          "expr": "sum(increase(edda_trade_search_seconds_bucket{le=\"60\"}[1h])) - sum(increase(edda_trade_search_seconds_bucket{le=\"30\"}[1h]))",
+          "legendFormat": "30-60 s"
+        },
+        {
+          "expr": "sum(increase(edda_trade_search_seconds_bucket{le=\"+Inf\"}[1h])) - sum(increase(edda_trade_search_seconds_bucket{le=\"60\"}[1h]))",
+          "legendFormat": "> 60 s"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "row",
+      "title": "Knowledge: system by name \u2014 GET /v1/knowledge/system",
+      "gridPos": {
+        "x": 0,
+        "y": 107,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 39,
+      "type": "timeseries",
+      "title": "System lookups /s by outcome",
+      "gridPos": {
+        "x": 0,
+        "y": 108,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(edda_knowledge_system_requests_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "timeseries",
+      "title": "System lookup latency p50 / p95 (s)",
+      "gridPos": {
+        "x": 8,
+        "y": 108,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(edda_knowledge_system_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_knowledge_system_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(edda_edsm_proxy_seconds_bucket{endpoint=\"system\"}[5m])))",
+          "legendFormat": "upstream EDSM p95"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "stat",
+      "title": "Learned share: local \u00f7 (local + fetched), 24h",
+      "gridPos": {
+        "x": 16,
+        "y": 108,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "Should climb toward 1 as the fleet teaches the server. Flat = the learn step is broken and the EDSM call was merely moved, not removed (proxying vs relaying).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_knowledge_system_requests_total{outcome=\"local\"}[24h])) / clamp_min(sum(increase(edda_knowledge_system_requests_total{outcome=~\"local|fetched\"}[24h])), 1)",
+          "legendFormat": "learned"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "Errors + rate-limited /h",
+      "gridPos": {
+        "x": 20,
+        "y": 108,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(edda_knowledge_system_requests_total{outcome=~\"error|rate_limited\"}[1h]))",
+          "legendFormat": "errors"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "Route requests /s by lane and outcome (Phase A step 3: interactive 4 slots/30 s, long 2 slots/120 s)",
+      "gridPos": {
+        "x": 0,
+        "y": 73,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (lane, outcome) (rate(edda_route_requests_total[5m]))",
+          "legendFormat": "{{lane}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "timeseries",
+      "title": "Route latency p95 by lane (s) \u2014 long plots may legitimately run to 120 s",
+      "gridPos": {
+        "x": 12,
+        "y": 73,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (lane, le) (rate(edda_route_wall_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{lane}}"
+        }
+      ]
+    }
+  ]
+}

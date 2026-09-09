@@ -1,0 +1,23 @@
+[package]
+name = "ed-eddn"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+ed-domain = { path = "../ed-domain" }
+flate2 = "1.1.9"
+metrics = "0.24.6"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { optional = true,  version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing = "0.1.44"
+zeromq = { optional = true,  version = "0.6.0", default-features = false, features = ["tokio-runtime", "tcp-transport"] }
+
+[features]
+default = ["live"]
+# Transport is optional so the decoder can be tested and reused without
+# pulling in a runtime or opening a socket.
+live = ["dep:zeromq", "dep:tokio"]

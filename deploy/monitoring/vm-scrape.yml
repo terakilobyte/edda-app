@@ -1,0 +1,15 @@
+# What VictoriaMetrics scrapes. Loopback targets only — nothing here
+# can reach beyond the box.
+scrape_configs:
+  - job_name: edda-api
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["127.0.0.1:8787"]
+        labels:
+          service: edda-api
+  - job_name: edda-eddn
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["127.0.0.1:8788"]
+        labels:
+          service: edda-eddn

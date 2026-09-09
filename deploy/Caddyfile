@@ -1,0 +1,50 @@
+# TLS terminates here (automatic Let's Encrypt); ed-api stays loopback.
+{
+	# No local config plane: the admin API would let any local account
+	# rewrite routing for the public domain (audit M1).
+	admin off
+}
+# The public site: static files, no dynamic surface at all.
+edda-app.com {
+	encode zstd gzip
+	root * /var/www/edda-site
+	file_server
+	header {
+		-Server
+		-Via
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+	}
+}
+api.edda-app.com {
+	encode zstd gzip
+	# Operational surfaces stay private: scrape metrics from the box
+	# (curl 127.0.0.1:8787/metrics), never from the internet.
+	@internal path /metrics
+	respond @internal 404
+	# The site's download buttons read /v1/app/latest.json cross-origin;
+	# only the app routes get CORS, and only for our own apex.
+	@app path /v1/app/*
+	header @app Access-Control-Allow-Origin "https://edda-app.com"
+	# The web router (edda-app.com/route, 2026-09-09) posts a pasted
+	# loadout and a plot, and completes system names, from the browser.
+	# Same apex only; the preflight is answered here so it never reaches
+	# ed-api. Nothing else on the API is reachable cross-origin.
+	@web path /v1/route /v1/loadout/physics /v1/names/complete
+	header @web Access-Control-Allow-Origin "https://edda-app.com"
+	header @web Access-Control-Allow-Methods "GET, POST, OPTIONS"
+	header @web Access-Control-Allow-Headers "Content-Type"
+	header @web Access-Control-Max-Age "600"
+	@webpreflight {
+		path /v1/route /v1/loadout/physics /v1/names/complete
+		method OPTIONS
+	}
+	respond @webpreflight 204
+	header {
+		-Server
+		-Via
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+	}
+	reverse_proxy 127.0.0.1:8787
+}

@@ -1,0 +1,42 @@
+# Build the ed-api server binary for the box (Ubuntu 24.04, glibc 2.39)
+# on demand, from any ref: `gh workflow run build-api.yml --ref 0.3.0`.
+# The artifact is downloaded and staged by hand (deploy/README.md, "Swapping
+# the binary"); nothing here touches the box. Exists because a deploy
+# should not depend on which machine's SSH agent is awake (2026-09-09:
+# the WSL build was ready and could not be staged).
+name: build-api
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  build-api:
+    name: build (ed-api server, release)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: ed-api
+      - run: cargo build --release -p ed-api
+      - name: Fingerprint
+        run: |
+          file target/release/ed-api
+          sha256sum target/release/ed-api | tee ed-api.sha256
+          git rev-parse HEAD > ed-api.commit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ed-api-${{ github.sha }}
+          path: |
+            target/release/ed-api
+            ed-api.sha256
+            ed-api.commit
+          if-no-files-found: error
+          retention-days: 7

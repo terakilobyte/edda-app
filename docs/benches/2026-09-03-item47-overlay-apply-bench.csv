@@ -1,0 +1,15 @@
+base,systems,2500000
+base,bytes,156828772
+overlay,records,74968
+overlay,wire_bytes,1523819
+apply,wall_s,0.974
+apply,peak_rss_mb,1322
+apply,systems,2560000
+apply,adds,60000
+apply,updates,14983
+apply,out_bytes,160203316
+apply,throughput_systems_per_s,2629130
+determinism,byte_identical,1
+apply,child_peak_rss_mb,334
+crash,base_untouched,1
+crash,retry_ok,1

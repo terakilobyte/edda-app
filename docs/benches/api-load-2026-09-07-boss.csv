@@ -1,0 +1,39 @@
+# api-load OPEN, the maintainer's run (2026-09-07 ~07:06–07:24Z), same Mac, same binary and drop-in as -open.csv, offset ~6 min.
+# Same missing rows for the same reason (market-search pool deadlock); market_station c=64 p99 8.6 s = starved behind
+# the assistant's deadlocked market_search rung. See -open.csv header for the verdict.
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors
+box,load1=0.07,eddn_queue=0.0,pool_idle=3.0,pool_conns=3.0
+names_complete_system_so,1,155,5.2,188.2,198.5,211.8,155,0,0,0,1
+names_complete_station_jam,1,154,5.17,191.1,200.9,221.2,154,0,0,0,1
+knowledge_system_sol,1,154,5.17,190.4,201.8,226.1,154,0,0,0,1
+market_station,1,150,5.03,194.4,208.6,230.7,150,0,0,0,1
+market_search_gold_50ly,1,119,4.0,247.1,261.3,311.2,119,0,0,0,1
+trade_search_sol_40ly,1,150,5.03,194.4,204.3,226.3,150,0,0,0,1
+route_sol_deciat,1,154,5.17,191.6,201.0,234.3,154,0,0,0,1
+route_sol_colonia,1,152,5.1,193.4,203.8,221.3,152,0,0,0,1
+box,load1=0.35,eddn_queue=0.0,pool_idle=7.0,pool_conns=7.0
+names_complete_system_so,4,615,20.63,191.2,201.0,222.0,615,0,0,0,4
+names_complete_station_jam,4,610,20.46,192.6,202.4,207.4,610,0,0,0,4
+knowledge_system_sol,4,611,20.5,192.4,201.7,210.3,611,0,0,0,4
+market_station,4,603,20.23,195.3,204.9,212.4,603,0,0,0,4
+market_search_gold_50ly,4,474,15.93,247.9,262.5,315.4,474,0,0,0,4
+trade_search_sol_40ly,4,593,19.9,195.4,204.3,223.8,593,0,0,0,4
+route_sol_deciat,4,611,20.5,192.7,202.2,213.8,611,0,0,0,4
+route_sol_colonia,4,605,20.29,194.5,204.6,212.2,605,0,0,0,4
+box,load1=0.20,eddn_queue=0.0,pool_idle=10.0,pool_conns=10.0
+names_complete_system_so,16,2405,80.68,195.9,204.8,223.9,2405,0,0,0,16
+names_complete_station_jam,16,2385,80.02,197.2,204.5,213.5,2385,0,0,0,16
+knowledge_system_sol,16,2294,76.98,195.4,206.1,654.9,2294,0,0,0,16
+market_station,16,2363,79.28,198.9,208.3,238.0,2363,0,0,0,16
+trade_search_sol_40ly,16,2339,78.48,198.4,207.5,221.8,2339,0,0,0,16
+route_sol_deciat,16,2414,80.99,194.9,203.7,212.9,2414,0,0,0,16
+route_sol_colonia,16,2390,80.19,197.0,207.1,225.6,2390,0,0,0,16
+box,load1=0.53,eddn_queue=0.0,pool_idle=10.0,pool_conns=10.0
+names_complete_system_so,64,9509,319.03,197.8,206.8,223.3,9509,0,0,0,64
+names_complete_station_jam,64,8470,284.41,199.5,209.2,232.3,8470,0,0,0,64
+knowledge_system_sol,64,7830,263.09,198.7,208.7,241.5,7830,0,0,0,64
+market_station,64,5961,200.78,200.4,214.9,8629.6,5961,0,0,0,64
+trade_search_sol_40ly,64,9395,315.25,198.1,208.0,241.7,9395,0,0,0,64
+route_sol_deciat,64,9568,321.03,196.3,206.3,232.6,9568,0,0,0,64
+route_sol_colonia,64,9422,316.17,199.6,209.7,229.4,9422,0,0,0,64
+box,load1=0.59,eddn_queue=0.0,pool_idle=10.0,pool_conns=10.0

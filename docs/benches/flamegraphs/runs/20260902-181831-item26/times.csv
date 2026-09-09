@@ -1,0 +1,13 @@
+era,cell,jumps,stops,wall_ms,svg
+e1-pre-goal-field,sol-e,69,7,755,e1-pre-goal-field--sol-e.svg
+e1-pre-goal-field,cs-back-e,100,14,3717,e1-pre-goal-field--cs-back-e.svg
+e1-pre-goal-field,beagle-m,349,157,18976,e1-pre-goal-field--beagle-m.svg
+e2-seconds-judging,sol-e,69,7,1137,e2-seconds-judging--sol-e.svg
+e2-seconds-judging,cs-back-e,94,10,1462,e2-seconds-judging--cs-back-e.svg
+e2-seconds-judging,beagle-m,336,145,59157,e2-seconds-judging--beagle-m.svg
+e3-offramp-wavecost,sol-e,67,7,654,e3-offramp-wavecost--sol-e.svg
+e3-offramp-wavecost,cs-back-e,90,12,5820,e3-offramp-wavecost--cs-back-e.svg
+e3-offramp-wavecost,beagle-m,329,115,13837,e3-offramp-wavecost--beagle-m.svg
+e4-head,sol-e,67,7,643,e4-head--sol-e.svg
+e4-head,cs-back-e,90,12,5775,e4-head--cs-back-e.svg
+e4-head,beagle-m,329,115,13856,e4-head--beagle-m.svg

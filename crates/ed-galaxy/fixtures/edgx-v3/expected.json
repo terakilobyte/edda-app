@@ -1,0 +1,18 @@
+{
+  "stars.bin": {
+    "bytes": 119,
+    "sha256": "4f435417d2cfd915ed3a08defa18e155854760c094177e60a548775c80aeaeb6"
+  },
+  "cells.bin": {
+    "bytes": 48,
+    "sha256": "f00af6677e51e21e62d09df3b07806bcbad3f36ac2e06b1fbe802282aa0db3d8"
+  },
+  "names.bin": {
+    "bytes": 12,
+    "sha256": "f74104f88fa09acb720306e40cbc032e29cbcbf3b4da61d09278047b7ae8ce67"
+  },
+  "byname.bin": {
+    "bytes": 12,
+    "sha256": "0db201e8371010e5cd3b719cf6c131cea86e18ef7c5bdd394e23b352b8e54f9e"
+  }
+}

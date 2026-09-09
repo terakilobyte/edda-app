@@ -1,0 +1,1851 @@
+{
+  "source": "https://elite-dangerous.fandom.com/wiki/Synthesis (MediaWiki API, action=parse, wikitext)",
+  "fetched": "2026-09-07",
+  "note": "Community wiki, machine-extracted from the page's recipe tables; material names are the in-game display names (map to journal symbols through ed_journal's material catalog). Bonuses are the page's own wording. Re-fetch and re-run docs/benches/knobs is not the place for this; the extractor lives in the commit that vendored it. Recipes change rarely but do change. Recipe names, grades, bonus figures and material counts are game facts; the page's descriptive prose was removed for licensing (CC BY-SA) before open-sourcing — see THIRD-PARTY-NOTICES.md.",
+  "recipes": [
+    {
+      "name": "AX Explosive Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 3
+            },
+            {
+              "name": "Nickel",
+              "count": 3
+            },
+            {
+              "name": "Carbon",
+              "count": 4
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+5% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 6
+            },
+            {
+              "name": "Phosphorus",
+              "count": 6
+            },
+            {
+              "name": "Mercury",
+              "count": 2
+            },
+            {
+              "name": "Thargoid Organic Circuitry",
+              "count": 4
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+10% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Tungsten",
+              "count": 5
+            },
+            {
+              "name": "Mercury",
+              "count": 4
+            },
+            {
+              "name": "Polonium",
+              "count": 2
+            },
+            {
+              "name": "Bio-Mechanical Conduits",
+              "count": 5
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 5
+            },
+            {
+              "name": "Ship Flight Data",
+              "count": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AX Remote Flak Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Nickel",
+              "count": 4
+            },
+            {
+              "name": "Carbon",
+              "count": 3
+            },
+            {
+              "name": "Sulphur",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+5% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Tin",
+              "count": 2
+            },
+            {
+              "name": "Zinc",
+              "count": 3
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Thargoid Technology Components",
+              "count": 3
+            },
+            {
+              "name": "Wreckage Components",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+10% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Zinc",
+              "count": 8
+            },
+            {
+              "name": "Tungsten",
+              "count": 2
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Sensor Fragment",
+              "count": 3
+            },
+            {
+              "name": "Thargoid Technology Components",
+              "count": 4
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AX Small Calibre Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 1
+            },
+            {
+              "name": "Sulphur",
+              "count": 1
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+5% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Phosphorus",
+              "count": 2
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Sensor Fragment",
+              "count": 3
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+10% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 3
+            },
+            {
+              "name": "Phosphorus",
+              "count": 2
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Sensor Fragment",
+              "count": 4
+            },
+            {
+              "name": "Thargoid Carapace",
+              "count": 2
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Configurable Explosive Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 3
+            },
+            {
+              "name": "Nickel",
+              "count": 3
+            },
+            {
+              "name": "Carbon",
+              "count": 4
+            },
+            {
+              "name": "Sulphur",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "Munitions inflict Anti-Xeno damage",
+          "ingredients": [
+            {
+              "name": "Phosphorus",
+              "count": 6
+            },
+            {
+              "name": "Arsenic",
+              "count": 4
+            },
+            {
+              "name": "Mercury",
+              "count": 2
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 1
+            },
+            {
+              "name": "Guardian Power Conduit",
+              "count": 1
+            },
+            {
+              "name": "Guardian Technology Component",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Configurable Small Calibre Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 1
+            },
+            {
+              "name": "Sulphur",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "Munitions inflict Anti-Xeno damage",
+          "ingredients": [
+            {
+              "name": "Tin",
+              "count": 2
+            },
+            {
+              "name": "Zinc",
+              "count": 3
+            },
+            {
+              "name": "Phosphorus",
+              "count": 3
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 1
+            },
+            {
+              "name": "Guardian Power Conduit",
+              "count": 1
+            },
+            {
+              "name": "Guardian Technology Component",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Enzyme Missile Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 3
+            },
+            {
+              "name": "Lead",
+              "count": 2
+            },
+            {
+              "name": "Sulphur",
+              "count": 3
+            },
+            {
+              "name": "Bio-Mechanical Conduits",
+              "count": 4
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 3
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Lead",
+              "count": 4
+            },
+            {
+              "name": "Sulphur",
+              "count": 6
+            },
+            {
+              "name": "Tungsten",
+              "count": 4
+            },
+            {
+              "name": "Bio-Mechanical Conduits",
+              "count": 5
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 6
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Lead",
+              "count": 6
+            },
+            {
+              "name": "Phosphorus",
+              "count": 5
+            },
+            {
+              "name": "Tungsten",
+              "count": 4
+            },
+            {
+              "name": "Bio-Mechanical Conduits",
+              "count": 6
+            },
+            {
+              "name": "Propulsion Elements",
+              "count": 6
+            },
+            {
+              "name": "Weapon Parts",
+              "count": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Explosives Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 3
+            },
+            {
+              "name": "Nickel",
+              "count": 3
+            },
+            {
+              "name": "Carbon",
+              "count": 4
+            },
+            {
+              "name": "Sulphur",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 6
+            },
+            {
+              "name": "Phosphorus",
+              "count": 6
+            },
+            {
+              "name": "Arsenic",
+              "count": 4
+            },
+            {
+              "name": "Mercury",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Phosphorus",
+              "count": 5
+            },
+            {
+              "name": "Arsenic",
+              "count": 4
+            },
+            {
+              "name": "Niobium",
+              "count": 5
+            },
+            {
+              "name": "Mercury",
+              "count": 5
+            },
+            {
+              "name": "Polonium",
+              "count": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Flechette Launcher Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Boron",
+              "count": 2
+            },
+            {
+              "name": "Tungsten",
+              "count": 1
+            },
+            {
+              "name": "Electrochemical Arrays",
+              "count": 3
+            },
+            {
+              "name": "Mechanical Components",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+5% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Boron",
+              "count": 4
+            },
+            {
+              "name": "Tungsten",
+              "count": 4
+            },
+            {
+              "name": "Electrochemical Arrays",
+              "count": 6
+            },
+            {
+              "name": "Mechanical Components",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+10% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Boron",
+              "count": 6
+            },
+            {
+              "name": "Tungsten",
+              "count": 6
+            },
+            {
+              "name": "Electrochemical Arrays",
+              "count": 9
+            },
+            {
+              "name": "Mechanical Components",
+              "count": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Guardian Gauss Cannon Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Manganese",
+              "count": 3
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 2
+            },
+            {
+              "name": "Guardian Power Conduit",
+              "count": 2
+            },
+            {
+              "name": "Guardian Wreckage Components",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Manganese",
+              "count": 5
+            },
+            {
+              "name": "Heat Resistant Ceramics",
+              "count": 3
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 5
+            },
+            {
+              "name": "Guardian Power Conduit",
+              "count": 4
+            },
+            {
+              "name": "Guardian Sentinel Weapon Parts",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Manganese",
+              "count": 8
+            },
+            {
+              "name": "Guardian Technology Component",
+              "count": 6
+            },
+            {
+              "name": "Filament Composites",
+              "count": 6
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Guardian Plasma Charger Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Chromium",
+              "count": 3
+            },
+            {
+              "name": "Heat Dispersion Plate",
+              "count": 2
+            },
+            {
+              "name": "Guardian Power Conduit",
+              "count": 3
+            },
+            {
+              "name": "Guardian Wreckage Components",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Chromium",
+              "count": 4
+            },
+            {
+              "name": "Heat Exchangers",
+              "count": 2
+            },
+            {
+              "name": "Phase Alloys",
+              "count": 2
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 2
+            },
+            {
+              "name": "Guardian Technology Component",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Chromium",
+              "count": 6
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Heat Exchangers",
+              "count": 4
+            },
+            {
+              "name": "Phase Alloys",
+              "count": 6
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 4
+            },
+            {
+              "name": "Guardian Sentinel Weapon Parts",
+              "count": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Guardian Shard Cannon Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Carbon",
+              "count": 3
+            },
+            {
+              "name": "Vanadium",
+              "count": 2
+            },
+            {
+              "name": "Crystal Shards",
+              "count": 3
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 3
+            },
+            {
+              "name": "Guardian Wreckage Components",
+              "count": 5
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Crystal Shards",
+              "count": 4
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 2
+            },
+            {
+              "name": "Guardian Sentinel Weapon Parts",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Carbon",
+              "count": 8
+            },
+            {
+              "name": "Vanadium",
+              "count": 4
+            },
+            {
+              "name": "Crystal Shards",
+              "count": 8
+            },
+            {
+              "name": "Guardian Power Cell",
+              "count": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "High Velocity Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Vanadium",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 4
+            },
+            {
+              "name": "Vanadium",
+              "count": 3
+            },
+            {
+              "name": "Tungsten",
+              "count": 2
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Vanadium",
+              "count": 4
+            },
+            {
+              "name": "Tungsten",
+              "count": 4
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Yttrium",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Large Calibre Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Nickel",
+              "count": 4
+            },
+            {
+              "name": "Carbon",
+              "count": 3
+            },
+            {
+              "name": "Sulphur",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Tin",
+              "count": 2
+            },
+            {
+              "name": "Zinc",
+              "count": 3
+            },
+            {
+              "name": "Phosphorus",
+              "count": 3
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Zinc",
+              "count": 8
+            },
+            {
+              "name": "Tungsten",
+              "count": 2
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Mercury",
+              "count": 1
+            },
+            {
+              "name": "Antimony",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Plasma Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 3
+            },
+            {
+              "name": "Phosphorus",
+              "count": 4
+            },
+            {
+              "name": "Manganese",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Phosphorus",
+              "count": 5
+            },
+            {
+              "name": "Manganese",
+              "count": 3
+            },
+            {
+              "name": "Selenium",
+              "count": 1
+            },
+            {
+              "name": "Molybdenum",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Selenium",
+              "count": 5
+            },
+            {
+              "name": "Cadmium",
+              "count": 4
+            },
+            {
+              "name": "Molybdenum",
+              "count": 4
+            },
+            {
+              "name": "Technetium",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seismic Charge Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 2
+            },
+            {
+              "name": "Sulphur",
+              "count": 2
+            },
+            {
+              "name": "Phosphorus",
+              "count": 3
+            },
+            {
+              "name": "Mercury",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shock Cannon Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Lead",
+              "count": 2
+            },
+            {
+              "name": "Grid Resistors",
+              "count": 3
+            },
+            {
+              "name": "Heat Dispersion Plate",
+              "count": 2
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 2
+            },
+            {
+              "name": "Phase Alloys",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+5% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Lead",
+              "count": 3
+            },
+            {
+              "name": "Grid Resistors",
+              "count": 5
+            },
+            {
+              "name": "Heat Dispersion Plate",
+              "count": 3
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 4
+            },
+            {
+              "name": "Phase Alloys",
+              "count": 5
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+10% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Lead",
+              "count": 5
+            },
+            {
+              "name": "Grid Resistors",
+              "count": 7
+            },
+            {
+              "name": "Heat Dispersion Plate",
+              "count": 4
+            },
+            {
+              "name": "Focus Crystals",
+              "count": 6
+            },
+            {
+              "name": "Phase Alloys",
+              "count": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Small Calibre Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 1
+            },
+            {
+              "name": "Sulphur",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Zinc",
+              "count": 2
+            },
+            {
+              "name": "Phosphorus",
+              "count": 2
+            },
+            {
+              "name": "Selenium",
+              "count": 2
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Damage Boost",
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 2
+            },
+            {
+              "name": "Phosphorus",
+              "count": 2
+            },
+            {
+              "name": "Tungsten",
+              "count": 2
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Mercury",
+              "count": 2
+            },
+            {
+              "name": "Antimony",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sub-surface Displacement Munitions",
+      "category": "Hardpoint Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Nickel",
+              "count": 3
+            },
+            {
+              "name": "Carbon",
+              "count": 3
+            },
+            {
+              "name": "Sulphur",
+              "count": 3
+            },
+            {
+              "name": "Tungsten",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AFM Refill",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Nickel",
+              "count": 2
+            },
+            {
+              "name": "Zinc",
+              "count": 2
+            },
+            {
+              "name": "Chromium",
+              "count": 2
+            },
+            {
+              "name": "Vanadium",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+50% Repair Speed",
+          "ingredients": [
+            {
+              "name": "Tin",
+              "count": 1
+            },
+            {
+              "name": "Manganese",
+              "count": 2
+            },
+            {
+              "name": "Vanadium",
+              "count": 6
+            },
+            {
+              "name": "Molybdenum",
+              "count": 1
+            },
+            {
+              "name": "Zirconium",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+100% Repair Speed",
+          "ingredients": [
+            {
+              "name": "Zinc",
+              "count": 2
+            },
+            {
+              "name": "Chromium",
+              "count": 4
+            },
+            {
+              "name": "Vanadium",
+              "count": 6
+            },
+            {
+              "name": "Zirconium",
+              "count": 2
+            },
+            {
+              "name": "Tellurium",
+              "count": 1
+            },
+            {
+              "name": "Ruthenium",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chaff",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Compact Composites",
+              "count": 1
+            },
+            {
+              "name": "Filament Composites",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+1 Second Duration",
+          "ingredients": [
+            {
+              "name": "Compact Composites",
+              "count": 1
+            },
+            {
+              "name": "Filament Composites",
+              "count": 2
+            },
+            {
+              "name": "Thermic Alloys",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+2 Seconds Duration",
+          "ingredients": [
+            {
+              "name": "Compact Composites",
+              "count": 1
+            },
+            {
+              "name": "Filament Composites",
+              "count": 2
+            },
+            {
+              "name": "Thermic Alloys",
+              "count": 1
+            },
+            {
+              "name": "Proto Radiolic Alloys",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FSD Injection",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": "+25% Jump Range",
+          "ingredients": [
+            {
+              "name": "Carbon",
+              "count": 1
+            },
+            {
+              "name": "Vanadium",
+              "count": 1
+            },
+            {
+              "name": "Germanium",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+50% Jump Range",
+          "ingredients": [
+            {
+              "name": "Carbon",
+              "count": 1
+            },
+            {
+              "name": "Vanadium",
+              "count": 1
+            },
+            {
+              "name": "Germanium",
+              "count": 1
+            },
+            {
+              "name": "Cadmium",
+              "count": 1
+            },
+            {
+              "name": "Niobium",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+100% Jump Range",
+          "ingredients": [
+            {
+              "name": "Carbon",
+              "count": 1
+            },
+            {
+              "name": "Germanium",
+              "count": 1
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Niobium",
+              "count": 1
+            },
+            {
+              "name": "Yttrium",
+              "count": 1
+            },
+            {
+              "name": "Polonium",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Heat Sink",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Basic Conductors",
+              "count": 2
+            },
+            {
+              "name": "Heat Conduction Wiring",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% Heat Dissipation",
+          "ingredients": [
+            {
+              "name": "Basic Conductors",
+              "count": 2
+            },
+            {
+              "name": "Heat Conduction Wiring",
+              "count": 2
+            },
+            {
+              "name": "Heat Exchangers",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% Heat Dissipation",
+          "ingredients": [
+            {
+              "name": "Basic Conductors",
+              "count": 2
+            },
+            {
+              "name": "Heat Conduction Wiring",
+              "count": 2
+            },
+            {
+              "name": "Heat Exchangers",
+              "count": 2
+            },
+            {
+              "name": "Proto Heat Radiators",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caustic Sinks",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Chemical Storage Units",
+              "count": 1
+            },
+            {
+              "name": "Galvanising Alloys",
+              "count": 1
+            },
+            {
+              "name": "Caustic Shard",
+              "count": 4
+            },
+            {
+              "name": "Corrosive Mechanisms",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Life Support",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Limpets",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 10
+            },
+            {
+              "name": "Nickel",
+              "count": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SRV Ammo Restock",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 2
+            },
+            {
+              "name": "Phosphorus",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+15% damage boost",
+          "ingredients": [
+            {
+              "name": "Phosphorus",
+              "count": 1
+            },
+            {
+              "name": "Manganese",
+              "count": 1
+            },
+            {
+              "name": "Selenium",
+              "count": 1
+            },
+            {
+              "name": "Molybdenum",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+30% damage boost",
+          "ingredients": [
+            {
+              "name": "Phosphorus",
+              "count": 2
+            },
+            {
+              "name": "Selenium",
+              "count": 2
+            },
+            {
+              "name": "Molybdenum",
+              "count": 1
+            },
+            {
+              "name": "Technetium",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SRV Refuel",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 1
+            },
+            {
+              "name": "Phosphorus",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+100% fuel efficiency",
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 1
+            },
+            {
+              "name": "Phosphorus",
+              "count": 1
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Mercury",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+200% fuel efficiency",
+          "ingredients": [
+            {
+              "name": "Sulphur",
+              "count": 1
+            },
+            {
+              "name": "Arsenic",
+              "count": 1
+            },
+            {
+              "name": "Mercury",
+              "count": 1
+            },
+            {
+              "name": "Technetium",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SRV Repair",
+      "category": "Other Module Recipes",
+      "refills": "",
+      "grades": [
+        {
+          "grade": "Basic",
+          "bonus": null,
+          "ingredients": [
+            {
+              "name": "Iron",
+              "count": 2
+            },
+            {
+              "name": "Nickel",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Standard",
+          "bonus": "+50% hull strength",
+          "ingredients": [
+            {
+              "name": "Nickel",
+              "count": 3
+            },
+            {
+              "name": "Manganese",
+              "count": 1
+            },
+            {
+              "name": "Vanadium",
+              "count": 2
+            },
+            {
+              "name": "Molybdenum",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "grade": "Premium",
+          "bonus": "+100% hull strength",
+          "ingredients": [
+            {
+              "name": "Zinc",
+              "count": 1
+            },
+            {
+              "name": "Chromium",
+              "count": 2
+            },
+            {
+              "name": "Vanadium",
+              "count": 2
+            },
+            {
+              "name": "Tungsten",
+              "count": 1
+            },
+            {
+              "name": "Tellurium",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

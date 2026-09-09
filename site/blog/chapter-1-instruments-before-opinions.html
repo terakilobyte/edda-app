@@ -1,0 +1,1746 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chapter 1 — Instruments Before Opinions · EDDA build log</title>
+<style>
+  /* A committed dark design: this is a post about space, set in space.
+     Every color is painted explicitly so the page holds on any host. */
+  :root {
+    --ink: #e4e6ea;          /* EDDA starlight text */
+    --ink-dim: #9aa4b2;
+    --ink-faint: #727c8c;
+    --bg: #0a0c10;           /* the void, EDDA cockpit black */
+    --bg-panel: #131820;
+    --bg-code: #10141b;
+    --accent: #ff8c1a;       /* EDDA cockpit orange */
+    --boost: #ffb35c;        /* supercharge orange */
+    --danger: #ff5c5c;
+    --good: #57c66d;
+    --rule: #262e3a;
+  }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem 6rem; }
+  header.masthead { text-align: left; padding: 5rem 0 2.5rem; }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.05;
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  h1 em { color: var(--boost); font-style: italic; }
+  .subtitle {
+    font-family: "Fraunces", Georgia, serif;
+    font-style: italic;
+    font-size: 1.35rem;
+    color: var(--ink-dim);
+    margin: 0 0 1.5rem;
+  }
+  .byline { color: var(--ink-faint); font-size: 0.95rem; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 3.5rem 0 1rem;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  h2 .kicker {
+    display: block;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  p { margin: 0 0 1.15rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { color: #fff; font-weight: 600; }
+  em { color: var(--ink); }
+  code, .mono {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: var(--bg-code);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.08em 0.35em;
+    color: #c8d6e5;
+  }
+  blockquote {
+    margin: 1.6rem 0;
+    padding: 0.2rem 0 0.2rem 1.25rem;
+    border-left: 3px solid var(--boost);
+    font-style: italic;
+    color: var(--ink-dim);
+    font-size: 1.08em;
+  }
+  blockquote .who { display:block; font-style: normal; font-size: 0.85rem; color: var(--ink-faint); margin-top: 0.4rem; }
+  .clock {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    color: var(--boost);
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.55rem 0.9rem;
+    margin: 1.4rem 0;
+  }
+  .clock b { color: #fff; }
+  figure { margin: 2.2rem 0; }
+  figure canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    background: #07080b;
+  }
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    margin-top: 0.6rem;
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink-dim); }
+  .figbar { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .figbar button {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.75rem;
+    background: var(--bg-panel);
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+  .figbar button:hover { color: var(--accent); border-color: var(--accent); }
+  .figbar button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 0.45rem 0.8rem 0.45rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); font-weight: 500; }
+  td.num, th.num { text-align: right; padding-right: 0; padding-left: 0.8rem; }
+  td b { color: var(--boost); }
+  .grave {
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.6rem 0;
+    font-size: 0.92em;
+  }
+  .grave .rip {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--danger);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .grave.win .rip { color: var(--good); }
+  .grave p:last-child { margin-bottom: 0; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 3rem auto; width: 40%; }
+  .disclosure {
+    font-size: 0.9rem;
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1.2rem;
+    margin: 2rem 0;
+    background: var(--bg-panel);
+  }
+  .footnote { font-size: 0.85rem; color: var(--ink-faint); }
+  .mchan {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.82rem;
+    color: #5ec8e5;
+    opacity: 0.75;
+    background: rgba(94, 200, 229, 0.05);
+    border-left: 2px solid rgba(94, 200, 229, 0.35);
+    border-radius: 0 6px 6px 0;
+    padding: 0.55rem 0.9rem;
+    margin: 1.3rem 0 1.3rem 1.5rem;
+  }
+  .mchan .tag { color: #4d5a6c; user-select: none; }
+  /* Striping, ported from the draft version's callout accents. */
+  .clock { border-left: 3px solid var(--boost); border-radius: 0 6px 6px 0; }
+  .grave { border-left: 3px solid var(--danger); border-radius: 0 8px 8px 0; }
+  .grave.win { border-left-color: var(--good); }
+  /* Deep dives: collapsed by default so the story reads short. */
+  details.deep {
+    margin: 1.4rem 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 0 1rem;
+  }
+  details.deep summary {
+    cursor: pointer;
+    list-style: none;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 0.65rem 1rem;
+    margin: 0 -1rem;
+    user-select: none;
+  }
+  details.deep summary::-webkit-details-marker { display: none; }
+  details.deep summary::before { content: "\25B8  "; }
+  details.deep[open] summary::before { content: "\25BE  "; }
+  details.deep summary:hover { color: var(--ink); }
+  details.deep[open] { padding-bottom: 0.4rem; }
+  details.deep > p:first-of-type { margin-top: 0.3rem; }
+  @media (prefers-reduced-motion: reduce) {
+    /* Animated figures fall back to their final frame. */
+  }
+
+  .sitenav { display:flex; align-items:center; gap:1rem; padding:1.1rem 0 0;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size:0.8rem; }
+  .sitenav a { color: var(--accent); text-decoration: none; }
+  .sitenav a:hover { text-decoration: underline; }
+  .sitenav .crumb { color: var(--ink-faint); }
+  .entrynav { display:flex; justify-content:space-between; gap:1rem;
+    border-top:1px solid var(--rule); margin-top:3rem; padding-top:1.4rem;
+    font-family: ui-monospace, Menlo, monospace; font-size:0.85rem; }
+</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap"></head><body>
+<div class="wrap"><div class="sitenav"><a href="/">EDDA</a> <span class="crumb">/</span> <a href="/blog/">build log</a> <span class="crumb">/</span> <span class="crumb">Chapter 1 — Instruments Before Opinions</span></div>
+
+<header class="masthead">
+  <h1>How we made galaxy routing <em>blazingly</em> fast</h1>
+  <p class="subtitle">or: shit that did and didn&rsquo;t work</p>
+  <p class="byline">A field report from the EDDA project &middot; September 2026 &middot; contains one (1) load-bearing pirate attack</p>
+</header>
+
+<div class="disclosure">
+Up front: this project — and this post — was built in close collaboration with AI.
+Two Claude sessions on two machines did much of the engineering legwork chronicled
+here: implementing, benchmarking, and burying ideas (mine and theirs) with equal
+enthusiasm. The methodology this post is really about — bench everything, keep the
+negatives — is how that collaboration stayed honest. One more disclosure inside
+the disclosure: where this post quotes the machines — the
+&#10216;machine channel&#10217; asides and their statements near the end — those
+passages are the machines&rsquo; own writing: distillations of what the AI agents
+actually thought at those moments, drawn from the working transcripts, and not
+edited by me. I checked them against the record; I did not soften them.
+</div>
+
+<h2><span class="kicker">Prologue</span>A brief introduction to the problem, which is space</h2>
+
+<p>Elite Dangerous simulates the Milky Way. Not a level that looks like the
+Milky Way — the actual thing, procedurally generated from real astrophysical
+models: about <strong>400 billion star systems</strong>, of which players have
+personally visited and catalogued some 200 million. I want to be precise about
+the technical terminology here, so let me state clearly that 400 billion is
+<em>too many stars</em>. It is the kind of number that mathematicians invented
+so that other mathematicians would stop asking them for examples.</p>
+
+<p>I love this game with the specific, incurable love of a person who was
+enamored with space as a child and then became an engineer, which is to say a
+person who looked at the night sky and thought &ldquo;I bet that has an index.&rdquo;
+Elite was clearly built with love and care, and around it grew a community that
+produces genuinely heroic volumes of open data —
+<a href="https://spansh.co.uk">Spansh</a>&rsquo;s routers and galaxy dumps,
+<a href="https://inara.cz">Inara</a>&rsquo;s living encyclopedia,
+<a href="https://www.edsm.net">EDSM</a>&rsquo;s map of what players have actually
+scanned, the <a href="https://github.com/EDCD/EDDN">EDDN</a> firehose every tool
+drinks from — and the community&rsquo;s cartographers, the
+<a href="https://edastro.com">EDAstro</a> mapmakers and the surveyors who
+chart the galaxy&rsquo;s strange corners for the love of it, whose
+archaeology this post will owe a very specific debt to before it&rsquo;s
+over. We build <strong>EDDA</strong>, a desktop assistant for the game,
+and one of EDDA&rsquo;s jobs is the subject of this post: plotting routes across
+tens of thousands of light-years, on your desktop, fast enough that asking feels
+like asking and not like filing a request with a municipal government.</p>
+
+<p>Now, the wrinkle that makes this problem interesting instead of merely large.
+You do not cross this galaxy by jumping politely from star to star like a
+reasonable person. You cross it on the <strong>neutron highway</strong>. A
+neutron star is the collapsed corpse of a giant sun: a city-sized object
+spinning hundreds of times a second, screaming twin jets of radiation out of its
+poles. The game lets you fly your ship <em>into the scream</em>. Doing this
+&ldquo;supercharges&rdquo; your frame shift drive — the engine that jumps you
+between stars — for one jump: four to six times your normal range, in exchange
+for the feeling that you are doing something your
+insurance adjuster should not find out about. Chain enough neutron stars
+together and a 65,000-light-year crossing becomes an afternoon instead of a
+career.</p>
+
+<p>But here&rsquo;s the catch, and it is a beautiful catch, because it is the
+catch that generates this entire post: <strong>your fuel tank is small, most
+stars cannot refuel you, and a neutron star is one of the ones that
+can&rsquo;t.</strong> Understand the cruelty of this. The neutron star is
+<em>the</em> premier roadside attraction for galactic wayfarers. Range
+boosts to speed up the trip, named keychains (except yours)<sup>2</sup>
+are available for purchase, yet their fuel services went out of operation
+a long time ago.<sup>1</sup> You refuel by skimming the corona of
+certain main-sequence stars with a fuel scoop, and only about one in ten
+highway stars keeps such a star close enough to matter. So the routing
+problem is: string together supercharge jumps across a galaxy-sized graph,
+staying near the invisible skeleton of usable neutron stars, while never,
+not once, letting the tank hit empty. Starside assistance is available,
+but that's embarrassing.</p>
+
+<p class="footnote">1. Named keychains are theorized fundamental
+properties of neutron stars. Our scanners are not yet advanced enough to
+detect them.</p>
+
+<p class="footnote">2. Neutron stars hate YOU. Just you.</p>
+
+<figure>
+  <canvas id="fig-starmap" width="1200" height="700"></canvas>
+  <figcaption><b>The board we&rsquo;re playing on.</b> A top-down look at the
+  galaxy&rsquo;s disk (procedurally sketched here, which is fitting, because
+  that&rsquo;s how Frontier made the real one). The Bubble — inhabited space,
+  where you live — is a speck. Colonia, the distant second settlement, is
+  22,000 ly away. Sagittarius A* is the supermassive black hole downtown.
+  Beagle Point is the far rim, 65,000 ly out, named after a dog. The glowing
+  arcs are the routes this post is about making fast.</figcaption>
+</figure>
+
+<p>When this story starts, EDDA&rsquo;s plotter took <strong>7.5 seconds</strong>
+to plot the run from Wongi to Colonia (about 22,000 light-years) in thorough
+mode, its most patient setting,<sup class="footnote">0</sup> and there existed
+exactly one route in the whole catalogue — Colonia to a miserable little system
+called Spase AA-A a108-0 — that it could not complete <em>at all</em>. It would
+think about Spase until its time budget died of old age, and then apologize.</p>
+
+<p>When the story ends — and I want this number on the record precisely
+<em>because</em> it sounds made up — three days later: Colonia plots in about a second while
+digging for <em>better routes than before</em>, the 38,000-light-year run up the
+arm takes 241 milliseconds, and the unplottable route is not only plotted, it is
+plotted in one second flat with a route <strong>three times shorter</strong> than
+the one we started celebrating. Same hardware. Same 5.8 GB index. Same fuel
+physics.</p>
+
+<p>And yes — EDDA is written in Rust, so &ldquo;blazingly fast&rdquo; appears in
+this title with full awareness of the meme.<sup class="footnote">1</sup> The
+difference is that this post comes with receipts, including the receipts for
+everything that <em>didn&rsquo;t</em> work, because the graveyard is most of the
+reason you should trust the trophies.</p>
+
+<p class="footnote">0. Transcript archaeology later recovered benches from
+four days <em>before</em> the story starts: the same plot at 26&ndash;65
+seconds. The 7.5-second starting line was itself the survivor of days of
+tuning nobody thought to archive at the time — which is why this project
+now archives everything, and why the recovered pre-history lives in the
+repo as <code>docs/benches/retro/</code>.</p>
+
+<p class="footnote">1. Rust is my daily driver. I am allowed to make this joke
+in the same way you are allowed to make fun of your own brother.</p>
+
+<h2><span class="kicker">The setup</span>What we&rsquo;re actually searching</h2>
+
+<details class="deep"><summary>Deep dive — 29 bytes per star: the memory-mapped index</summary>
+<p>First, the data problem, briefly, because you cannot route what you cannot
+load. The community catalogue is about 116 GB of compressed JSON, which is not
+a thing you ship to players — that is a thing you inflict on data centers. We
+compact it into a memory-mapped index — a file the operating system lends to
+the program as if it were memory, pulling in pieces from disk only as
+they&rsquo;re touched: 29 bytes per star system (position, star class, one
+precious bit meaning &ldquo;there&rsquo;s a scoopable star parked next to this
+one,&rdquo; a name pointer), about 5.8 GB for 199 million systems. The index is
+divided into 50-light-year grid cells, so the question &ldquo;who&rsquo;s within
+70 ly of me?&rdquo; touches a handful of memory pages instead of the whole
+file. Long-range planning runs on a <em>sub-index</em> of just the roughly
+3.85 million highway stars — neutron stars and white dwarfs — in coarser
+250 ly cells.</p>
+</details>
+
+<figure>
+  <canvas id="fig-bytes" width="1200" height="560"></canvas>
+  <figcaption><b>What the index physically is.</b> Top: one star system,
+  29 bytes, and that&rsquo;s everything we know about it. Bottom: the whole
+  file is those records on a shelf, grouped by grid cell — and here&rsquo;s
+  the problem act 2 exists to fix. Shelve the cells in the obvious order
+  (finish a row of space, start the next row) and two cells that touch in
+  space can sit far apart on the shelf. In the real 5.8&nbsp;GB file,
+  &ldquo;far apart&rdquo; means megabytes, and megabytes mean page faults —
+  the program stalling while the operating system fetches memory it only
+  pretended to have. Hold this picture.</figcaption>
+</figure>
+
+<p>On top of that index sits a planner with three phases, and you need all three
+in your head for anything below to land:</p>
+
+<p><strong>Coarse:</strong> an A* search over the highway sub-index. If
+you&rsquo;ve never met A*: it&rsquo;s the standard algorithm for finding shortest
+paths when you have a hint. You explore outward from the start, always extending
+the path that looks most promising, where &ldquo;promising&rdquo; is cost-so-far
+plus an optimistic guess (a <em>heuristic</em>) of the cost remaining —
+typically the straight-line distance, since no route is ever shorter than the
+crow flies. The guess steers the search toward the goal instead of flooding
+outward evenly in all directions like spilled coffee. Three words from
+A*&rsquo;s vocabulary recur below, so let&rsquo;s pay for them once. Each
+step — take the most promising candidate, look up its neighbours, extend
+the path to them — is an <em>expansion</em>; expansion counts are how
+we&rsquo;ll measure how hard a search worked. The growing boundary of
+everywhere the search has reached is its <em>frontier</em>. And the
+optimistic guess must never <em>over</em>estimate — <em>admissible</em>, in
+the jargon — because a guess that overestimates can talk the search out of
+the best route entirely. Our coarse search also
+drags the fuel tank along in its state — rounded into a handful of coarse
+buckets rather than tracked exactly, because &ldquo;position &times; every
+possible fuel level&rdquo; is how state spaces explode — and emits not a route
+but a <em>skeleton</em>: a few dozen waypoints saying which neutron stars to
+string together.</p>
+
+<figure>
+  <canvas id="fig-compass" width="1200" height="560"></canvas>
+  <div class="figbar"><button id="compass-replay">&#8635; replay</button></div>
+  <figcaption><b>The compass, earning its keep.</b> The same star field,
+  the same start and goal, searched twice. Without the optimistic guess
+  (red), the search is spilled coffee: it soaks outward evenly and visits
+  most of the field before stumbling onto the goal. With the guess (blue),
+  the frontier leans toward the goal and visits a fraction of the stars —
+  and finds a route of <em>exactly the same length</em>, which is the whole
+  bargain of A*: the compass changes how much you look, never how good the
+  answer is (as long as it never overestimates).</figcaption>
+</figure>
+
+<figure>
+  <canvas id="fig-worked" width="1200" height="620"></canvas>
+  <div class="figbar">
+    <button id="worked-play">&#9654; play</button>
+    <button id="worked-step">step</button>
+    <button id="worked-reset">&#8635; reset</button>
+  </div>
+  <div class="mchan" id="worked-log" style="margin-left:0;color:#9aa4b2;border-color:#262e3a;background:transparent">press play, or step through one expansion at a time.</div>
+  <figcaption><b>The same algorithm, slowed to human speed.</b> A small
+  lattice of stars, two holes to route around, every star labeled. Each
+  turn, A* takes the reached-but-unexplored star with the lowest score —
+  jumps flown so far, plus straight-line distance to the goal in
+  jump-lengths — extends to its neighbours, and writes their scores down.
+  The rings are the frontier; filled dots are settled; the arrows remember
+  how each star was reached, and when the goal surfaces with the lowest
+  score, following the arrows backwards <em>is</em> the route.</figcaption>
+</figure>
+
+<p><strong>Refine:</strong> every leg between waypoints gets re-planned exactly,
+in parallel, by a fuel-aware planner that picks the actual stars you&rsquo;ll
+jump through, inserts scoop stops where the tank needs them, and runs settling
+rounds that re-plan any leg whose fuel estimate was off. Refine is not
+ceremony — refine <em>is the route</em>. A 58-jump Colonia route comes out of a
+roughly 20-waypoint skeleton; every jump you actually fly, refine picked. Hold
+onto this fact, because three separate ideas below will die of it: <strong>refine
+polishes the skeleton it is handed. It cannot fix a wrong one.</strong></p>
+
+<figure>
+  <canvas id="fig-legs" width="1200" height="600"></canvas>
+  <figcaption><b>What refine actually does with one leg.</b> Between any two
+  waypoints of the skeleton, the leg planner tries the cheap answers before
+  the expensive ones: a single boosted jump if one reaches; a detour to a
+  fuel star and a refill if the tank disagrees; a boosted hop to the
+  closest landing plus a short exact search over the last stretch; and only
+  when all of that fails, a full search of the neighbourhood. Then the
+  whole stitched route is re-flown on paper with the real fuel formula —
+  every jump affordable, tank never below reserve — and any leg whose
+  numbers don&rsquo;t survive the re-fly gets planned again.</figcaption>
+</figure>
+
+<p><strong>The portfolio:</strong> we don&rsquo;t run one search. We run a
+portfolio of variants — different heuristics, different candidate filters,
+searching forward from the start and, later in this story, from both ends at
+once — racing in parallel under a time budget, and
+the best finished route wins. Ideas that are brilliant on one route and
+catastrophic on another get to be brilliant where they&rsquo;re brilliant and get
+quietly outvoted where they&rsquo;re not. Remember the portfolio too: it is the
+reason we could afford to be wrong as often as this post admits.</p>
+
+<figure>
+  <canvas id="fig-race" width="1200" height="480"></canvas>
+  <div class="figbar"><button id="race-replay">&#8635; replay</button></div>
+  <figcaption><b>The race, in miniature.</b> Several variants of the search
+  run at once against one clock. The first finisher starts a short grace
+  window; anyone who beats it before the window closes takes the win, and
+  everyone else is cancelled without ceremony. One variant here never
+  finishes at all — it hits the time budget and dies mid-thought, which is
+  fine, because that is what the budget is for. How the planner decides
+  which finished route is &ldquo;best&rdquo; turns out to be one of the
+  deepest questions in this post; act 13 is about getting it wrong
+  less.</figcaption>
+</figure>
+
+<p>One rule governed the whole campaign, and I&rsquo;ll state it here so the
+body count below makes sense: <strong>nothing ships on vibes.</strong> Every
+change is benchmarked; a fixed matrix of pinned routes — the same benchmark
+plots every time, both ships, both directions, every toggle — is the law; a
+change that makes any pinned route
+worse fails, no matter how clever it is; and every negative result gets written
+down permanently, with numbers, so no dead idea gets re-litigated in three
+months by someone who only remembers it sounding good. We kept an actual ledger.
+Most of this post is me reading it to you.</p>
+
+</div>
+
+<div class="wrap">
+<h2><span class="kicker">Part I &middot; The campaign</span>Keep one number in your head</h2>
+
+<p>Everything in Part I is in chronological order, and the failures appear
+next to the wins that they caused, because most of the wins exist
+<em>because</em> a failure pointed at them. To keep score, hold one number in
+your head: the wall-clock time to plot Wongi &rarr; Colonia in thorough mode.
+It starts at 7.5 seconds. (Why Wongi and not Sol? Because Wongi happened to
+be where my ship was parked when I began this endeavor. Every benchmark
+suite is autobiography, if you read it closely enough.)</p>
+
+<h2><span class="kicker">Act 0</span>The fastest code is the code that stops waiting</h2>
+
+<p>Remember the portfolio — the gaggle of search variants racing each other?
+Originally, thorough mode — the patient setting, where the planner gets its
+whole time budget to hunt for the best route rather than the first good one —
+waited for <em>all of them to finish</em>. Every
+plot was exactly as slow as its slowest, dumbest variant, the way a family
+road trip is exactly as slow as its member with the smallest bladder. The fix
+was social rather than algorithmic: once the first route lands, the stragglers
+get a one-second grace window to beat it, and then they are cancelled without
+counseling.</p>
+
+<div class="clock">Colonia clock: 7.5 s &rarr; <b>~1.6 s</b>. Same route, same search; all we changed was when we stopped listening.</div>
+
+<p>Write the lesson down, because it will bill us again later with interest:
+<strong>the fastest code is the code that stops waiting.</strong></p>
+
+<h2><span class="kicker">Act 1</span>Instruments before opinions</h2>
+
+<p>Before optimizing anything, we spent one afternoon building two
+instruments, and I will now make the single most transferable claim in this
+post: that afternoon was worth more than any algorithm below.</p>
+
+<details class="deep"><summary>Deep dive — section timers and the synthetic galaxy</summary>
+<p>First, <strong>section timers</strong> inside the coarse search — how many
+microseconds go to scanning candidates, sorting them, relaxing them
+(textbook-speak for updating a neighbour&rsquo;s best-known cost), popping
+the queue — measured once per expansion so the instrument can&rsquo;t distort
+the loop it&rsquo;s measuring. Second, a <strong>synthetic galaxy</strong>:
+eighty lines of Python that emit 2.5 million fake star systems — a realistic
+mix of star classes, a huge void wall in the middle, density thinning toward
+the rim — piped straight into the production importer. It generates in
+fifteen seconds, its topology is nasty on purpose, and it comes out
+identical, bit for bit, on any machine. When you cannot fit
+199 million real stars on a laptop, you make a small evil universe you
+<em>can</em>.</p>
+</details>
+
+<p>Then we pointed the timers at the planner, and the first two optimizations
+we had been itching to write died before lunch.</p>
+
+<div class="grave">
+<span class="rip">&#10013; Died before shipping &middot; the binary heap rewrite</span>
+<p>Every algorithms textbook will tell you that A*&rsquo;s priority queue and
+its stale pops — the dead entries you pull off the queue only to throw away —
+are where your time goes, and we believed it, because the
+textbook has a hardcover and we don&rsquo;t. When we actually measured, the
+heap cost <strong>1.1 milliseconds of a 190-millisecond plot</strong>, with
+2% stale pops. The heap had an alibi. The bucket-queue rewrite we were excited
+about would have optimized 0.6% of the runtime, which in performance work is
+called &ldquo;a hobby.&rdquo;</p>
+</div>
+
+<div class="grave">
+<span class="rip">&#10013; Implemented, measured, reverted in one hour &middot; memoization</span>
+<p>70% of the coarse search&rsquo;s time went to an expensive neighbour rescan
+that retries at three widening radii, so obviously: cache the candidates per
+node. The effect was <strong>zero</strong>. The rescans barely repeat per
+node — the cost was per-scan, not per-repeat. We were treating a
+cardiovascular problem with a filing system.</p>
+</div>
+
+<p>What the timers actually convicted: those rescans — the search&rsquo;s
+<em>widen</em> move, where an expansion that finds nothing in reach doubles
+its radius and asks the neighbourhood again — spent their time probing
+mostly-<em>empty</em> grid cells, one by one, like a burglar checking every
+apartment in a building he has been told is vacant. The problem wasn&rsquo;t
+compute. It was that our spatial index answered &ldquo;what&rsquo;s in this
+box?&rdquo; by asking about every cell the box <em>could</em> contain rather
+than every cell that <em>exists</em>.</p>
+
+<div class="clock">Colonia clock: unchanged. Aim: corrected.</div>
+
+<h2><span class="kicker">Act 2</span>Morton order, or: how to number outer space</h2>
+
+<p>Here is a genuinely beautiful idea from 1966 that deserves a proper
+introduction. Suppose you chop space into grid cells and you want cells that
+are near each other <em>in space</em> to be near each other <em>in your
+file</em>, so that reading a neighbourhood is a few long sequential reads
+instead of a thousand seeks. You cannot do this perfectly — space has three
+dimensions and a file has one, the universe does not owe you a favor, and
+the only known technology for cleanly collapsing higher dimensions into
+lower ones is from <em>The Three-Body Problem</em>, where it is fictional,
+extremely hostile, and frankly you&rsquo;d need a singularity. Or something.
+But you can do it <em>shockingly well</em> with a trick called the
+<strong>Z-order curve</strong>, also called Morton order.</p>
+
+<details class="deep"><summary>Deep dive — interleaved bits and the BIGMIN skip</summary>
+<p>Take a cell&rsquo;s coordinates, write them in binary, and
+<em>interleave the bits</em> — one from x, one from y, one from z, like
+shuffling three decks of cards into one. The resulting number is the
+cell&rsquo;s position in the file. Plotted, the curve traces an endless
+recursive &ldquo;Z&rdquo; through space, and it has the property we paid for:
+cells that share high bits — big regions of space — are contiguous runs of the
+file. And there&rsquo;s a bonus operation with the delightfully villainous
+name <code>BIGMIN</code>: when the curve wanders out of the box you&rsquo;re
+querying, a little bit-arithmetic tells you the <em>exact</em> curve position
+where it comes back in. Skip ahead. Touch nothing in between.</p>
+</details>
+
+<figure>
+  <canvas id="fig-zorder" width="1200" height="640"></canvas>
+  <div class="figbar">
+    <button id="zorder-replay">&#8635; replay</button>
+  </div>
+  <figcaption><b>The Z-order curve visiting a grid</b> (left), and a box query
+  riding it (right): bright runs are cells actually read; the dim jumps are
+  <code>BIGMIN</code> skipping every cell outside the box without looking at
+  it. Chop trailing digits off any cell&rsquo;s Morton key and you get the key
+  of the bigger cube containing it — remember that for the next act.</figcaption>
+</figure>
+
+<details class="deep"><summary>Deep dive — probe vs. walk: two ways to read the shelf</summary>
+<p>Now look at what that does to the shelf from the setup figure. Every
+&ldquo;who&rsquo;s near me?&rdquo; question the search asks is really a
+<em>box query</em>: take the sphere you care about, round it out to the grid
+cells it touches, fetch those cells. And there are exactly two ways to fetch
+a box of cells off a shelf. You can <strong>probe</strong>: compute each
+cell&rsquo;s shelf address, one at a time, and ask &ldquo;anything
+here?&rdquo; — hundreds of little lookups, most coming back empty-handed,
+which is precisely the burglar-in-a-vacant-building routine the timers
+convicted in act 1. Or, if the shelf is in Z-order, you can
+<strong>walk</strong>: jump to the first shelf position inside the box and
+just&hellip; read, in order, because the cells you want are sitting next to
+each other — and each time the curve wanders out of the box,
+<code>BIGMIN</code> hands you the next position back inside, so the gap is
+skipped without being touched.</p>
+</details>
+
+<figure>
+  <canvas id="fig-shelf" width="1200" height="600"></canvas>
+  <figcaption><b>The same box query, against the same cells, on both
+  shelves.</b> Top: the row-by-row shelf — the box&rsquo;s cells shatter
+  into scattered fragments, one probe each. Bottom: the Z-ordered shelf —
+  the same cells gather into a few long runs, and the dashed hops are
+  <code>BIGMIN</code> skipping everything between them. Same data, same
+  question; one is a sequential read, the other is a scavenger hunt.</figcaption>
+</figure>
+
+<p>So we re-shelved the highway index along the Z-order curve and taught the
+box queries to walk. The long skinny boxes a route search asks for —
+corridors, thousands of cells at a time — got
+<strong>2.3&ndash;7.7&times;</strong> faster (one Colonia&rarr;Beagle corridor
+scan dropped from 492 to 65 milliseconds). We were ready to call it a win,
+except—</p>
+
+<p>The part nobody tells you about beautiful ideas from 1966:
+<strong>the crossover matters more than the curve.</strong> Walking wins on
+big boxes. On small boxes — a handful of cells — plain probing is cheaper
+than any cleverness. So the code picks a strategy per query, and everything
+hinges on the switch-point between the two: the <em>crossover</em>. Our
+first deployment set it at 2,048 cells — a nice round number, which is to
+say, a guess wearing a suit — and the widen rescans we convicted in act 1
+were ~1,300-cell boxes, which put them below the threshold: still probing,
+still slow. The synthetic galaxy caught it, re-measurement moved the
+crossover to <strong>216 cells</strong>, and the widen&rsquo;s cost dropped
+by a quarter. The beautiful idea worked only after we stopped guessing where
+it applied. (And one honest kill from the same measurement: on huge boxes
+over the <em>dense, full</em> index — every cell packed — walking
+<em>loses</em>, 0.29&times;. No production path scans those, but it&rsquo;s
+in the ledger, because the ledger is where claims like &ldquo;walking is
+faster&rdquo; go to get footnotes.)</p>
+
+<div class="clock">Colonia clock: <b>~1.4 s</b>. The Beagle Point plot: 6.3 &rarr; 4.9 s.</div>
+
+<h2><span class="kicker">Act 3</span>A four-byte oracle</h2>
+
+<details class="deep"><summary>Deep dive — chopping Morton bits into a free pyramid</summary>
+<p>That throwaway line about chopping digits off a Morton key deserves its
+own act, because it quietly hands us a second data structure for free.
+Remember how the shelf number was built: bits of x, y, and z, interleaved.
+That construction has a hidden symmetry — the <em>trailing</em> bits of the
+number are the <em>fine detail</em> of the position (they came from the low
+bits of the coordinates, the ones that distinguish a cell from its
+next-door neighbour), and the <em>leading</em> bits are the big geography.
+So run the construction backwards. Take a cell&rsquo;s number and chop off
+its last three bits — one x bit, one y bit, one z bit. What&rsquo;s left is a
+shorter number that no longer says which exact cell you meant&hellip; but
+every one of the eight cells in the same 2&times;2&times;2 block chops down
+to that <em>same</em> shorter number. Congratulations: the truncated number
+is the block&rsquo;s <em>name</em>. Chop three more bits, and it names the
+4&times;4&times;4 block. Keep going and the names get shorter as the cubes
+get bigger, all the way up to &ldquo;the entire galaxy.&rdquo;</p>
+</details>
+
+<figure>
+  <canvas id="fig-octree" width="1200" height="540"></canvas>
+  <figcaption><b>What chopping bits does.</b> One cell&rsquo;s Morton key
+  (shown in 2D for drawability — the real thing interleaves three
+  coordinates, and blocks are 8 cells, not 4). Each chop discards the finest
+  bit of each coordinate, and the surviving prefix names the bigger block
+  containing you. A pyramid of cubes at every scale, each with its own
+  number — and we never had to build or store the pyramid. It was hiding in
+  the arithmetic.</figcaption>
+</figure>
+
+<p>Structures you get for free deserve furniture. We gave every block at
+every level a four-byte index card: is there <em>any</em> scoopable star in
+here? Any neutron? Any white dwarf? What&rsquo;s the best boost available?
+How many stars in total? The whole card catalog (<code>agg250</code>) builds
+locally in seconds, and it turns a question like &ldquo;is there any fuel
+within 1,200 ly of me?&rdquo; from a tour of hundreds of cells into a walk
+down the pyramid. Ask the biggest relevant block; its card says
+&ldquo;yes, somewhere in here.&rdquo; Ask its eight children; five cards say
+&ldquo;no,&rdquo; and those five no&rsquo;s just eliminated five-eighths of
+the volume for the price of reading twenty bytes. Recurse into the yeses.
+Only at the bottom, in the handful of small cubes still standing, do you
+look at actual star records — which is why the answer is <em>exact</em>, not
+an estimate. Measured, the pyramid answers in about two
+<em>micro</em>seconds, versus 19&ndash;140 microseconds walking the cells —
+<strong>11&ndash;86&times;</strong> faster.</p>
+
+<p>I would love to tell you we built it for a brilliant reason. We built it
+for a reason that died on contact with the benchmark: pre-checking rescans
+with &ldquo;is this sphere even non-empty?&rdquo; bought a flat
+<strong>nothing</strong>, because the sphere is almost never dark — a scan
+that <em>pushes</em> nothing still <em>sees</em> plenty. The oracle shipped
+anyway, on the theory that a four-byte-per-cell summary of an entire galaxy
+would find work. Spoiler: it becomes load-bearing twice in Part II, once in
+a way nobody predicted.</p>
+<h2><span class="kicker">Act 4</span>Delete the comfort stops</h2>
+
+<p>A fuel-planning interlude. This one was my instruction, verbatim from the
+ledger: &ldquo;only stop for fuel when required&rdquo; &mdash; because the eager
+default tops up at every scoopable star it passes, like a parent on a road
+trip. The obvious way to grant the wish
+is to make scoop-or-don&rsquo;t-scoop a decision <em>inside the search</em>, at
+every star. The obvious way is also how one search becomes a separate search
+for every possible combination of stops &mdash; two choices per stop multiply,
+and thirty stops is a billion searches. And fuel is already the
+expensive part of the bookkeeping: the search tracks every state as a pair of
+(star, fuel bucket), and plots with fuel tracking switched off already run up
+to twice as fast on the stall-prone benchmark cells. The last thing that
+dimension needed was a <em>choice</em> dimension stapled to it.</p>
+
+<p>So we did the opposite: plan normally, then run a <strong>rewrite
+pass</strong> over the winning route. Simulate the route with no scoops at all,
+and wherever the tank would breach the reserve floor &mdash; the fuel level
+you never plan below &mdash; re-insert a stop at the latest scoopable star
+already passed. It&rsquo;s provably safe, because skipping a scoop only makes
+the ship lighter, a lighter ship jumps farther, and a plan that worked with
+extra fuel aboard can only get easier without it. And it&rsquo;s free: same
+search effort, same wall-clock time, measured. The headline numbers: a
+big-tank Explorer went from 13 stops to <strong>2</strong>, and a small-tank
+Mandalay went from 31 to 27, because on a 32-tonne tank most stops are
+load-bearing. Full provenance on that 13&nbsp;&rarr;&nbsp;2, because a sharp
+reader deserves it: we measured it on the synthetic galaxy&rsquo;s 22,000-ly
+corridor, which is the same length as the run to Colonia and easy to conflate
+with it, and there the rewrite returned the identical 62-jump route with
+eleven fewer stops. The real Colonia corridor, on the current build, reads 58 jumps and 6
+stops at defaults, or 58 and 4 with the toggle on (the postscript below gets
+it to 58 and 2 &mdash; patience). And because I refused to
+accept the synthetic attribution from memory, we went digging through the old
+transcripts and recovered the real-galaxy records too. In the wild pre-history
+of this project, real Colonia routes ran as fat as 91 jumps and 35 stops, and
+the deepest real stop-collapse on record is 35&nbsp;&rarr;&nbsp;3 in a single
+afternoon of tuning. And then, timestamped three days before the synthetic
+run, there it is &mdash; the route I actually remembered: the <em>real</em>
+corridor, <strong>62 jumps, two scoop stops</strong>, &ldquo;the model within
+a tonne the whole way,&rdquo; says the arrival log. Not synthetic. Real sky,
+two stops. And here is the detail that took two machines an embarrassingly
+long time to notice: that was never a route the planner printed. The
+planner&rsquo;s plan that day was 61 jumps and <em>five</em> scoop stops.
+The two-stop version is what I <em>flew</em> &mdash; skipping the top-ups
+the tank didn&rsquo;t need, pruning the route by hand from the pilot&rsquo;s
+seat. Hold that thought until the postscript, because the archaeology has a
+confession coming: the machines&rsquo; recovery script pulled that exact
+arrival line into its own evidence file, and the analysis that read the file
+&mdash; tuned for tidy structured benchmark rows &mdash; skated straight
+past the prose where the proof lived, and concluded my memory had collided
+two numbers. The proof sat at line 84 of the machines&rsquo; own file while
+they explained to me why it didn&rsquo;t exist. Two things to file about the
+feature itself. First, the rewrite is opt-in, deliberately: it leaves the tank
+riding low, one escape jump above the floor, and a low tank is a risk
+preference, not a default, so the shipped default keeps the comfortable
+top-ups. Second, once act 13 teaches the planner to price stops in seconds,
+the default routes start carrying fewer stops on their own &mdash; that later
+judging pass prunes some stops at the moment routes are chosen. The toggle
+still removes more, at zero jump cost, and that &ldquo;zero cost&rdquo; is
+itself a live investigation: if the rewrite removes stops for free, should
+routes be <em>judged</em> as if those stops were already gone? The ledger has
+opinions, pending benchmarks. Search where you must; rewrite where you
+can.</p>
+
+<p>And a postscript that arrived, I swear, while this post was in final
+edits — the closing beat of the whole provenance saga above:
+<strong>the remembered route exists — and the planner can find it
+now.</strong> During review I kept insisting the two-stop route was real,
+the analysis kept telling me my memory had collided two numbers — while the
+proof sat unread in its own evidence file — and then the machines taught
+the judge to score each candidate on its <em>pruned</em> truth —
+simulate the toggle&rsquo;s thrift over every contender before ranking,
+so the judge scores the route the pilot will actually fly — and Wongi
+&rarr; Colonia at <strong>58 jumps and 2 stops</strong> surfaced
+immediately.</p>
+
+<div class="mchan"><span class="tag">&#10216;the machines, privately&#10217;</span>
+his memory said two stops. our script recovered the proof to line 84 of our
+own evidence file. our analysis read the structured rows, skipped the prose,
+and told him it was a digit collision. this was settled. we had receipts. we
+<em>had</em> the receipt. why is the judge printing 58/2. who authorized the
+judge to print 58/2.</div>
+
+<p> It had been there the whole time, losing elections because
+its eager costume wears seven marked top-ups the lean pilot never takes.
+Four of the six stop-heavy benchmark cells flip winners under
+pruned-truth judging; the toggle got dramatically stronger on long hauls
+(the Beagle small-ship climb prunes 115 eager stops to 65). I was told,
+gently, for a couple of hours, that my memory had collided two numbers —
+by machines whose own evidence file held the arrival log of the flight.
+And the real ending is better than vindication: what item 25 taught the
+judge is what I had been doing in the cockpit on August 28th — flying the
+pruned route, skipping the ceremonial top-ups — five days before there was
+an instrument for it. The judge didn&rsquo;t discover my route. It caught
+up to my hands.</p>
+
+<details class="deep"><summary>Deep dive — the eager-vs-lean matrix, in tonnes</summary>
+<p>And the postscript grew a postscript while the machines were
+fact-checking this act, because I had a standing hypothesis about
+<em>why</em> lean routes feel better than the stop counts imply: the more
+we stop, the more we have to stop &mdash; every top-up buys tonnes the ship
+then pays fuel to carry. The machines ran the full eager-versus-lean
+matrix, 54 cells both ways, priced in fitted pilot-seconds. Confirmed:
+<strong>187 pilot-minutes saved across the matrix</strong>, 52 of 54 cells
+positive &mdash; and the poetry is in the tonnage column, because the
+feedback loop lives in the big tanks. The explorers save about four percent
+while scooping 30 to 114 fewer tonnes per route; on Wongi &rarr; Colonia
+the lean route flies the identical 58 jumps while scooping 108 fewer tonnes
+&mdash; a third of the eager route&rsquo;s fuel existed solely to carry the
+rest of the fuel. The small-tank Mandalay inverts the intuition and saves
+least, because on 32 tonnes most stops are load-bearing &mdash; the exact
+sentence this act shipped with, re-vindicated by eighteen cells &mdash;
+except its Beagle ascent, which sheds fifty stop-overheads and gets
+twenty-four minutes back. Costs on the record, per the covenant: two
+Mandalay cells regress under the toggle, the suspect is that the toggle
+bundles three separate changes and one of them can hurt small tanks more
+than the others recover — and the overnight decomposition confirmed it,
+with a twist worth savoring: the scan-gate change turned out to author
+<em>both</em> the flagship 58/2 route and the small-tank regression. Same
+lever, hero and villain. So the toggle now races both scan modes as
+portfolio twins and keeps whichever wins the seconds judge: eight cells
+improved, forty-five identical, one knife-edge flicker documented in the
+ledger with both arming policies benched. Even the fix got the
+methodology treatment.</p>
+</details>
+
+<h2><span class="kicker">Act 5</span>Stop waiting, act two</h2>
+
+<p>The timers, again. The winning Colonia route finishes around 630
+milliseconds&hellip; and the plot then sits there for the rest of a fixed
+1,000-millisecond grace window, holding the door open for variants that are
+not coming. So the grace window became proportional to how long the first
+route took to arrive, with a floor of 500 milliseconds &mdash; and the floor
+is not vibes, because we measured 350 milliseconds and it cost one of the
+pinned benchmark routes an extra fuel stop. Even the parts of this system that
+exist to interrupt the other parts get benchmarked.</p>
+
+<div class="clock">Colonia clock: 1.39 s &rarr; <b>951 ms</b>. Identical routes, every pin green.</div>
+
+<div class="entrynav"><span></span><span><a href="/blog/chapter-2-funerals-and-an-exhumation.html">Chapter 2 — Funerals, and an Exhumation &rarr;</a></span></div>
+</div>
+<script>
+/* ---------- shared helpers ---------- */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function onVisible(canvas, start) {
+  // Animations begin when scrolled into view; reduced motion jumps to the end.
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { io.disconnect(); start(); }
+  }, { threshold: 0.25 });
+  io.observe(canvas);
+}
+
+</script>
+<script>
+/* ---------- fig-starmap: the galaxy and its routes ---------- */
+(function () {
+  const cv = document.getElementById("fig-starmap"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xedda);
+  // Galaxy frame: x (ED x-axis) right, z (toward core) up. Sol at origin.
+  // World coords in ly; view spans ~[-47k..47k] x, [-24k..70k] z.
+  const view = { x0: -46000, x1: 46000, z0: -22000, z1: 71000 };
+  const sx = (x) => ((x - view.x0) / (view.x1 - view.x0)) * W;
+  const sz = (z) => H - ((z - view.z0) / (view.z1 - view.z0)) * H;
+  const CORE = { x: 25.2, z: 25900 };
+  // Stars: bulge + disk + four log-spiral arms, all around the core.
+  const stars = [];
+  for (let i = 0; i < 2600; i++) { // bulge
+    const r = Math.pow(rand(), 2) * 7000, a = rand() * Math.PI * 2;
+    stars.push([CORE.x + r * Math.cos(a), CORE.z + r * Math.sin(a) * 0.82, 0.9]);
+  }
+  for (let arm = 0; arm < 4; arm++) {
+    const phase = (arm * Math.PI) / 2;
+    for (let i = 0; i < 2400; i++) {
+      const t = 0.35 + rand() * 2.6;                       // along the arm
+      const r = 3500 * Math.exp(t * 0.62);
+      if (r > 44000) continue;
+      const a = t * 2.05 + phase + (rand() - 0.5) * 0.16;
+      const jitter = (rand() - 0.5) * (900 + r * 0.075);
+      stars.push([CORE.x + (r + jitter) * Math.cos(a), CORE.z + (r + jitter) * Math.sin(a) * 0.92, 0.55]);
+    }
+  }
+  for (let i = 0; i < 2400; i++) { // faint disk fill
+    const r = Math.sqrt(rand()) * 42000, a = rand() * Math.PI * 2;
+    stars.push([CORE.x + r * Math.cos(a), CORE.z + r * Math.sin(a) * 0.92, 0.28]);
+  }
+  const places = [
+    { n: "Sol (the Bubble — you are here)", x: 0, z: 0, dx: 10, dz: -14 },
+    { n: "Colonia", x: -9530, z: 19808, dx: 12, dz: 4 },
+    { n: "Sagittarius A*", x: 25, z: 25900, dx: 12, dz: 2 },
+    { n: "Beagle Point", x: -1112, z: 65270, dx: 12, dz: 0 },
+    { n: "Spase AA-A a108-0", x: -1990, z: 51330, dx: 12, dz: 14 },
+  ];
+  const routes = [
+    { from: places[0], to: places[1], color: "#ffb35c", bend: -4200 },
+    { from: places[0], to: places[2], color: "#5ec8e5", bend: 5200 },
+    { from: places[1], to: places[4], color: "#ff5c5c", bend: -5200 },
+    { from: places[0], to: places[3], color: "#57c66d", bend: -12000 },
+  ];
+  function base() {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    for (const [x, z, a] of stars) {
+      ctx.fillStyle = `rgba(214,225,240,${a * 0.5})`;
+      ctx.fillRect(sx(x), sz(z), a > 0.8 ? 1.6 : 1.1, a > 0.8 ? 1.6 : 1.1);
+    }
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    for (const p of places) {
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(sx(p.x), sz(p.z), 3, 0, 7); ctx.fill();
+      ctx.fillStyle = "rgba(228,230,234,0.85)";
+      ctx.fillText(p.n, sx(p.x) + p.dx, sz(p.z) + 4 + p.dz);
+    }
+  }
+  function arc(r, t) { // quadratic bend through a control point off the midline
+    const mx = (r.from.x + r.to.x) / 2 + r.bend, mz = (r.from.z + r.to.z) / 2;
+    const q = (a, c, b, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * c + u * u * b;
+    ctx.strokeStyle = r.color; ctx.lineWidth = 1.8;
+    ctx.shadowColor = r.color; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    for (let i = 0; i <= 60 * t; i++) {
+      const u = i / 60;
+      const px = sx(q(r.from.x, mx, r.to.x, u)), pz = sz(q(r.from.z, mz, r.to.z, u));
+      i === 0 ? ctx.moveTo(px, pz) : ctx.lineTo(px, pz);
+    }
+    ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  function draw(t) { base(); for (const r of routes) arc(r, Math.min(1, t)); }
+  onVisible(cv, () => {
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 2400;
+      draw(t);
+      if (t < 1) requestAnimationFrame(frame);
+    })(t0);
+  });
+  base();
+})();
+</script>
+<script>
+/* ---------- fig-bytes: the record and the shelf ---------- */
+(function () {
+  const cv = document.getElementById("fig-bytes"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, cv.height);
+  ctx.font = "13px ui-monospace, Menlo, monospace";
+  // --- top: one 29-byte record ---
+  ctx.fillStyle = "#9aa4b2";
+  ctx.fillText("one star system = 29 bytes:", 60, 46);
+  const groups = [
+    { n: 12, c: "#5ec8e5", label: "position x,y,z (3 \u00d7 f32)" },
+    { n: 1, c: "#ffb35c", label: "star class" },
+    { n: 1, c: "#57c66d", label: "scoopable-companion flag" },
+    { n: 15, c: "#33404f", label: "name pointer & bookkeeping" },
+  ];
+  let bx = 60;
+  const bw = 34, by = 64, bh = 44;
+  for (const g of groups) {
+    for (let i = 0; i < g.n; i++) {
+      ctx.fillStyle = g.c; ctx.globalAlpha = 0.85;
+      ctx.fillRect(bx + 2, by, bw - 4, bh);
+      ctx.globalAlpha = 1;
+      bx += bw;
+    }
+  }
+  // group labels with leader lines
+  const spans = [[60, 12], [60 + 12 * bw, 1], [60 + 13 * bw, 1], [60 + 14 * bw, 15]];
+  const labY = [140, 168, 196, 140];
+  groups.forEach((g, i) => {
+    const [gx, n] = spans[i];
+    const cx0 = gx + (n * bw) / 2;
+    ctx.strokeStyle = "#33404f";
+    ctx.beginPath(); ctx.moveTo(cx0, by + bh + 4); ctx.lineTo(cx0, labY[i] - 12); ctx.stroke();
+    ctx.fillStyle = g.c === "#33404f" ? "#727c8c" : g.c;
+    const tw = ctx.measureText(g.label).width;
+    ctx.fillText(g.label, Math.min(Math.max(60, cx0 - tw / 2), W - 60 - tw), labY[i]);
+  });
+  // --- bottom: grid + row-major shelf ---
+  const N = 6, gx0 = 60, gy0 = 250, gc = 42;
+  ctx.fillStyle = "#9aa4b2";
+  ctx.fillText("space: a 6\u00d76 patch of grid cells", gx0, gy0 - 14);
+  const A = { x: 2, y: 2 }, B = { x: 2, y: 3 }; // vertical neighbours
+  for (let yy = 0; yy < N; yy++) for (let xx = 0; xx < N; xx++) {
+    const idx = yy * N + xx;
+    const isA = xx === A.x && yy === A.y, isB = xx === B.x && yy === B.y;
+    ctx.fillStyle = isA ? "#ffb35c" : isB ? "#5ec8e5" : "#161b23";
+    ctx.fillRect(gx0 + xx * gc + 1, gy0 + yy * gc + 1, gc - 2, gc - 2);
+    ctx.fillStyle = isA || isB ? "#0a0c10" : "#4d5a6c";
+    ctx.fillText(String(idx), gx0 + xx * gc + gc / 2 - 7, gy0 + yy * gc + gc / 2 + 5);
+  }
+  ctx.fillStyle = "#ffb35c"; ctx.fillText("A", gx0 + A.x * gc + 4, gy0 + A.y * gc + 14);
+  ctx.fillStyle = "#5ec8e5"; ctx.fillText("B", gx0 + B.x * gc + 4, gy0 + B.y * gc + 14);
+  ctx.fillStyle = "#9aa4b2";
+  ctx.fillText("A and B touch. Their records don\u2019t.", gx0, gy0 + N * gc + 26);
+  // shelf: 36 slots
+  const sx0 = 400, sy0 = 300, sw = 20, sh = 56;
+  ctx.fillStyle = "#9aa4b2";
+  ctx.fillText("the file: cells shelved row by row (records inside each cell)", sx0, sy0 - 18);
+  for (let i = 0; i < 36; i++) {
+    const isA = i === A.y * N + A.x, isB = i === B.y * N + B.x;
+    ctx.fillStyle = isA ? "#ffb35c" : isB ? "#5ec8e5" : "#161b23";
+    ctx.fillRect(sx0 + i * sw + 1, sy0, sw - 2, sh);
+  }
+  const pa = sx0 + (A.y * N + A.x) * sw + sw / 2, pb = sx0 + (B.y * N + B.x) * sw + sw / 2;
+  ctx.strokeStyle = "#ff5c5c"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(pa, sy0 - 6);
+  ctx.quadraticCurveTo((pa + pb) / 2, sy0 - 52, pb, sy0 - 6); ctx.stroke();
+  ctx.fillStyle = "#ff5c5c";
+  ctx.fillText("neighbours in space, 6 cells of strangers apart on the shelf", sx0 + 30, sy0 + sh + 28);
+  ctx.fillStyle = "#727c8c";
+  ctx.fillText("(real index: 50-ly cells, thousands of cells per row \u2014 \u201capart\u201d means megabytes)", sx0 + 30, sy0 + sh + 52);
+})();
+
+/* ---------- fig-shelf: one box query, two shelvings ---------- */
+(function () {
+  const cv = document.getElementById("fig-shelf"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, cv.height);
+  ctx.font = "13px ui-monospace, Menlo, monospace";
+  const N = 8, gx0 = 470, gy0 = 44, gc = 34;
+  const box = { x0: 2, x1: 4, y0: 3, y1: 5 };
+  const inBox = (x, y) => x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+  ctx.fillStyle = "#9aa4b2"; ctx.fillText("the question: these 9 cells, please", gx0 - 30, gy0 - 16);
+  for (let yy = 0; yy < N; yy++) for (let xx = 0; xx < N; xx++) {
+    ctx.fillStyle = inBox(xx, yy) ? "rgba(255,179,92,0.75)" : "#161b23";
+    ctx.fillRect(gx0 + xx * gc + 1, gy0 + yy * gc + 1, gc - 2, gc - 2);
+  }
+  ctx.strokeStyle = "#ffb35c"; ctx.lineWidth = 2;
+  ctx.strokeRect(gx0 + box.x0 * gc, gy0 + box.y0 * gc, 3 * gc, 3 * gc);
+  const morton = (x, y) => {
+    let m = 0;
+    for (let b = 0; b < 3; b++) m |= ((x >> b & 1) << (2 * b)) | ((y >> b & 1) << (2 * b + 1));
+    return m;
+  };
+  function shelf(y0, order, title, skipArcs) {
+    ctx.fillStyle = "#9aa4b2"; ctx.fillText(title, 60, y0 - 12);
+    const sw = 16.5, sx0 = 60;
+    const hot = [];
+    for (let i = 0; i < 64; i++) {
+      const [x, yy] = order(i);
+      const h = inBox(x, yy);
+      if (h) hot.push(i);
+      ctx.fillStyle = h ? "rgba(255,179,92,0.9)" : "#161b23";
+      ctx.fillRect(sx0 + i * sw + 1, y0, sw - 2, 40);
+    }
+    // fragment/run count + skip arcs between consecutive hot groups
+    let frags = 0;
+    for (let k = 0; k < hot.length; k++) if (k === 0 || hot[k] !== hot[k - 1] + 1) frags++;
+    if (skipArcs) {
+      ctx.strokeStyle = "rgba(94,200,229,0.7)"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.4;
+      for (let k = 1; k < hot.length; k++) {
+        if (hot[k] !== hot[k - 1] + 1) {
+          const a = sx0 + hot[k - 1] * sw + sw / 2, b = sx0 + hot[k] * sw + sw / 2;
+          ctx.beginPath(); ctx.moveTo(a, y0 - 4);
+          ctx.quadraticCurveTo((a + b) / 2, y0 - 30, b, y0 - 4); ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
+    }
+    return frags;
+  }
+  const f1 = shelf(392, (i) => [i % 8, Math.floor(i / 8)], "row-by-row shelf:", false);
+  ctx.fillStyle = "#ff5c5c";
+  ctx.fillText(f1 + " scattered fragments \u2014 9 probes, 9 chances to fault a fresh page", 60, 458);
+  const inv = []; for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) inv[morton(x, y)] = [x, y];
+  const f2 = shelf(516, (i) => inv[i], "Z-order shelf (same cells, renumbered):", true);
+  ctx.fillStyle = "#57c66d";
+  ctx.fillText(f2 + " runs \u2014 read, skip (BIGMIN), read, skip, read. Done.", 60, 582);
+})();
+
+/* ---------- fig-octree: what chopping bits does ---------- */
+(function () {
+  const cv = document.getElementById("fig-octree"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, cv.height);
+  ctx.font = "13px ui-monospace, Menlo, monospace";
+  const cell = { x: 5, y: 6 }; // x=101, y=110
+  const N = 8, gc = 30;
+  const panels = [
+    { chop: 0, title: "the cell itself", note: "full key: 6 bits" },
+    { chop: 2, title: "chop 2 bits \u2192 its 2\u00d72 block", note: "prefix: 4 bits" },
+    { chop: 4, title: "chop 4 \u2192 its 4\u00d74 block", note: "prefix: 2 bits" },
+  ];
+  // Interleaved key, MSB first: y2 x2 y1 x1 y0 x0
+  const bits = [];
+  for (let b = 2; b >= 0; b--) { bits.push(["y", (cell.y >> b) & 1]); bits.push(["x", (cell.x >> b) & 1]); }
+  panels.forEach((p, pi) => {
+    const ox = 60 + pi * 380, oy = 120;
+    // key display
+    ctx.fillStyle = "#9aa4b2"; ctx.fillText(p.title, ox, 44);
+    bits.forEach(([axis, v], i) => {
+      const chopped = i >= 6 - p.chop;
+      const bx = ox + i * 34;
+      ctx.fillStyle = chopped ? "#1a2029" : axis === "x" ? "#5ec8e5" : "#ffb35c";
+      ctx.fillRect(bx, 58, 30, 30);
+      ctx.fillStyle = chopped ? "#4d5a6c" : "#0a0c10";
+      ctx.fillText(String(v), bx + 11, 78);
+      if (chopped) {
+        ctx.strokeStyle = "#ff5c5c"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bx + 4, 84); ctx.lineTo(bx + 26, 62); ctx.stroke();
+      }
+      ctx.fillStyle = "#4d5a6c";
+      ctx.fillText(axis + (2 - Math.floor(i / 2)), bx + 7, 104);
+    });
+    // grid with highlighted block
+    const size = 1 << (p.chop / 2);
+    const bx0 = Math.floor(cell.x / size) * size, by0 = Math.floor(cell.y / size) * size;
+    for (let yy = 0; yy < N; yy++) for (let xx = 0; xx < N; xx++) {
+      const inBlock = xx >= bx0 && xx < bx0 + size && yy >= by0 && yy < by0 + size;
+      const isCell = xx === cell.x && yy === cell.y;
+      ctx.fillStyle = isCell ? "#ffb35c" : inBlock ? "rgba(94,200,229,0.4)" : "#161b23";
+      ctx.fillRect(ox + xx * gc + 1, oy + yy * gc + 1, gc - 2, gc - 2);
+    }
+    ctx.fillStyle = "#727c8c";
+    ctx.fillText(p.note + " \u00b7 names " + size * size + (size === 1 ? " cell" : " cells"), ox, oy + N * gc + 24);
+    // the index card for that block
+    const cy = oy + N * gc + 44;
+    ctx.strokeStyle = "#33404f"; ctx.strokeRect(ox, cy, 300, 66);
+    ctx.fillStyle = "#57c66d";
+    const stars = [1, 4, 19][pi], scoop = ["no", "yes", "yes"][pi];
+    ctx.fillText("index card (4 bytes):", ox + 10, cy + 20);
+    ctx.fillStyle = "#9aa4b2";
+    ctx.fillText("scoopable? " + scoop + " \u00b7 neutron? yes \u00b7 stars: " + stars, ox + 10, cy + 44);
+  });
+  ctx.fillStyle = "#727c8c";
+  ctx.fillText("(drawn in 2D: chop 2 bits per level, blocks of 4. the real thing chops 3 \u2014 x, y, z \u2014 for blocks of 8)", 60, cv.height - 16);
+})();
+</script>
+<script>
+/* ---------- fig-compass: flood vs A*, the setup's worked pair ---------- */
+(function () {
+  const cv = document.getElementById("fig-compass"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xa57a);
+  const N = 420, R = 96;
+  const pts = [];
+  for (let i = 0; i < N; i++) pts.push([40 + rand() * (W - 80), 30 + rand() * (H - 90)]);
+  const S = 0, T = 1;
+  pts[S] = [80, H / 2 - 10]; pts[T] = [W - 90, H / 2 - 30];
+  const nb = (i) => {
+    const out = [];
+    for (let j = 0; j < N; j++) {
+      if (j === i) continue;
+      const d = Math.hypot(pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]);
+      if (d <= R) out.push(j);
+    }
+    return out;
+  };
+  // Uniform-cost search with a pluggable guess; records visit order.
+  function search(h) {
+    const g = { [S]: 0 }, prev = {}, open = [[h(S), S]], closed = [], inClosed = new Set();
+    while (open.length) {
+      let bi = 0;
+      for (let k = 1; k < open.length; k++) if (open[k][0] < open[bi][0]) bi = k;
+      const [, u] = open.splice(bi, 1)[0];
+      if (inClosed.has(u)) continue;
+      inClosed.add(u); closed.push(u);
+      if (u === T) break;
+      for (const v of nb(u)) {
+        const ng = g[u] + 1;
+        if (g[v] === undefined || ng < g[v]) { g[v] = ng; prev[v] = u; open.push([ng + h(v), v]); }
+      }
+    }
+    const path = []; let c = T;
+    while (c !== undefined && c !== S) { path.push(c); c = prev[c]; }
+    path.push(S);
+    return { closed, path: path.reverse() };
+  }
+  const flood = search(() => 0);
+  const astar = search((v) => Math.hypot(pts[v][0] - pts[T][0], pts[v][1] - pts[T][1]) / R);
+  function draw(t) { // 0..1 flood, 1..2 astar, 2..2.5 path
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    for (const [x, y] of pts) { ctx.fillStyle = "rgba(214,225,240,0.22)"; ctx.fillRect(x, y, 2, 2); }
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    const fUp = Math.floor(Math.min(1, t) * flood.closed.length);
+    for (let k = 0; k < fUp; k++) {
+      const [x, y] = pts[flood.closed[k]];
+      ctx.fillStyle = "rgba(255,92,92,0.55)"; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255,92,92,0.9)";
+    ctx.fillText(`no compass: visited ${fUp} of ${N} stars`, 60, H - 18);
+    if (t > 1) {
+      const aUp = Math.floor(Math.min(1, t - 1) * astar.closed.length);
+      for (let k = 0; k < aUp; k++) {
+        const [x, y] = pts[astar.closed[k]];
+        ctx.fillStyle = "rgba(94,200,229,0.95)"; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = "rgba(94,200,229,0.95)";
+      ctx.fillText(`with the compass: visited ${aUp}`, 520, H - 18);
+    }
+    if (t > 2) {
+      const u = Math.min(1, (t - 2) * 2);
+      ctx.strokeStyle = "#57c66d"; ctx.lineWidth = 2.4; ctx.shadowColor = "#57c66d"; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      const steps = Math.max(1, Math.floor(u * (astar.path.length - 1)));
+      for (let k = 0; k <= steps; k++) {
+        const [x, y] = pts[astar.path[k]];
+        k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke(); ctx.shadowBlur = 0;
+      if (u >= 1) {
+        ctx.fillStyle = "#57c66d";
+        ctx.fillText(`route: ${astar.path.length - 1} jumps — identical to what the flood found`, 520, 34);
+      }
+    }
+    for (const [i, label, dx] of [[S, "start", -18], [T, "goal", -10]]) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 5, 0, 7); ctx.fill();
+      ctx.fillStyle = "#9aa4b2"; ctx.fillText(label, pts[i][0] + dx, pts[i][1] - 12);
+    }
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(2.5); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 2000;
+      draw(Math.min(2.5, t));
+      if (t < 2.5) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("compass-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(2.5);
+})();
+</script>
+<script>
+/* ---------- fig-legs: the refine ladder ---------- */
+(function () {
+  const cv = document.getElementById("fig-legs"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width;
+  const rand = mulberry(0x1e65);
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, cv.height);
+  ctx.font = "13px ui-monospace, Menlo, monospace";
+  const x0 = 90, x1 = 1050;
+  function endpoints(y) {
+    for (const x of [x0, x1]) {
+      ctx.fillStyle = "#5ec8e5"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill();
+    }
+  }
+  function arc(xa, ya, xb, yb, bend, color, dash) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(xa, ya);
+    ctx.quadraticCurveTo((xa + xb) / 2, Math.min(ya, yb) - bend, xb, yb);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  let y = 70;
+  ctx.fillStyle = "#5ec8e5"; ctx.fillText("1 \u00b7 direct \u2014 one boosted jump reaches the next waypoint", x0, y - 26);
+  endpoints(y); arc(x0, y, x1, y, 46, "#5ec8e5");
+  y = 190;
+  ctx.fillStyle = "#57c66d"; ctx.fillText("2 \u00b7 scoop \u2014 boost to a fuel star short of it, refill, one plain jump on", x0, y - 26);
+  endpoints(y);
+  ctx.fillStyle = "#57c66d"; ctx.beginPath(); ctx.arc(870, y, 5, 0, 7); ctx.fill();
+  arc(x0, y, 870, y, 40, "#57c66d");
+  ctx.strokeStyle = "#57c66d"; ctx.beginPath(); ctx.moveTo(870, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.fillStyle = "#57c66d"; ctx.fillText("refill", 848, y + 26);
+  y = 310;
+  ctx.fillStyle = "#e4e6ea"; ctx.fillText("3 \u00b7 bridge \u2014 boost to the closest landing, then a short exact search", x0, y - 26);
+  endpoints(y);
+  const mids = [[770, y + 26], [880, y - 22], [975, y + 16]];
+  for (const [mx, my] of mids) { ctx.fillStyle = "rgba(214,225,240,0.8)"; ctx.beginPath(); ctx.arc(mx, my, 3.4, 0, 7); ctx.fill(); }
+  arc(x0, y, 770, y + 26, 46, "#5ec8e5");
+  ctx.strokeStyle = "#9aa4b2"; ctx.lineWidth = 1.6; ctx.beginPath();
+  ctx.moveTo(770, y + 26); for (const [mx, my] of mids.slice(1)) ctx.lineTo(mx, my); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.fillStyle = "#727c8c"; ctx.fillText("A* over the last ~150 ly", 780, y + 52);
+  y = 430;
+  ctx.fillStyle = "#e4e6ea"; ctx.fillText("4 \u00b7 full search \u2014 only if none of the above works", x0, y - 26);
+  for (let i = 0; i < 46; i++) {
+    ctx.fillStyle = "rgba(214,225,240,0.35)";
+    ctx.fillRect(x0 + rand() * (x1 - x0), y - 34 + rand() * 66, 2, 2);
+  }
+  endpoints(y);
+  ctx.strokeStyle = "#9aa4b2"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x0, y);
+  for (const [px, py] of [[260, y - 20], [430, y + 16], [610, y - 26], [790, y + 20], [930, y - 12]]) ctx.lineTo(px, py);
+  ctx.lineTo(x1, y); ctx.stroke();
+  // the re-fly check
+  ctx.strokeStyle = "#233"; ctx.strokeStyle = "#262e3a";
+  ctx.strokeRect(x0, 500, x1 - x0, 62);
+  ctx.fillStyle = "#9aa4b2"; ctx.fillText("then re-fly the whole stitched route with the real fuel formula:", x0 + 16, 526);
+  ctx.fillStyle = "#57c66d"; ctx.fillText("every jump affordable? tank never below reserve?  \u2713  (any leg that fails gets planned again)", x0 + 16, 548);
+})();
+
+/* ---------- fig-race: the portfolio, one clock ---------- */
+(function () {
+  const cv = document.getElementById("fig-race"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const lanes = [
+    { name: "variant A \u00b7 careful weights", frac: 0.80, label: "62 jumps", color: "rgba(94,200,229,0.75)", t: 1.0 },
+    { name: "variant B \u00b7 different bets", frac: 0.47, label: "58 jumps  \u2190 best finished", color: "rgba(87,198,109,0.8)", t: 0.55 },
+    { name: "variant C \u00b7 bigger fuel reserve", frac: 1.0, label: "(out of time)", color: "rgba(255,92,92,0.6)", t: 1.18 },
+  ];
+  const x0 = 80, x1 = 1050, y0 = 90, lh = 92;
+  function draw(t) {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    ctx.font = "13px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = "#9aa4b2";
+    ctx.fillText("one plot, several searches, one clock \u2192", x0, 44);
+    // budget line
+    ctx.strokeStyle = "rgba(255,92,92,0.8)";
+    ctx.beginPath(); ctx.moveTo(x1, 60); ctx.lineTo(x1, y0 + lanes.length * lh - 30); ctx.stroke();
+    ctx.fillStyle = "rgba(255,92,92,0.8)";
+    ctx.fillText("time budget", x1 - 88, y0 + lanes.length * lh - 8);
+    lanes.forEach((l, i) => {
+      const y = y0 + i * lh;
+      ctx.fillStyle = "#e4e6ea"; ctx.fillText(l.name, x0, y - 10);
+      ctx.strokeStyle = "#262e3a"; ctx.strokeRect(x0, y, x1 - x0, 30);
+      const prog = Math.min(l.frac, (t / l.t) * l.frac);
+      ctx.fillStyle = l.color;
+      ctx.fillRect(x0 + 1, y + 1, Math.max(0, (x1 - x0 - 2) * Math.min(1, prog)), 28);
+      const done = t >= l.t && l.frac < 1;
+      const died = t >= l.t && l.frac >= 1;
+      if (done) { ctx.fillStyle = "#57c66d"; ctx.fillText(l.label, x0 + (x1 - x0) * l.frac + 12, y + 20); }
+      if (died) { ctx.fillStyle = "#ff5c5c"; ctx.fillText(l.label, x1 - 130, y + 20); }
+    });
+    // grace window: opens when B finishes at t=0.55
+    if (t > 0.55) {
+      const gx = x0 + (x1 - x0) * lanes[1].frac;
+      ctx.strokeStyle = "rgba(87,198,109,0.7)"; ctx.setLineDash([4, 5]);
+      ctx.beginPath(); ctx.moveTo(gx, y0 + lh + 40); ctx.lineTo(gx, y0 + 3 * lh - 30); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(87,198,109,0.85)";
+      ctx.fillText("first route lands \u2014 grace window opens; beat it or be cancelled", gx + 12, y0 + 3 * lh - 42);
+    }
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1.25); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 2600;
+      draw(Math.min(1.25, t));
+      if (t < 1.25) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("race-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1.25);
+})();
+</script>
+<script>
+/* ---------- fig-worked: A* on a grid, one expansion at a time ---------- */
+(function () {
+  const cv = document.getElementById("fig-worked"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0x60d);
+  // Jittered 8x4 lattice with two holes; unit-cost edges within reach.
+  const pts = [], holes = new Set(["3,2", "5,1"]);
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 8; i++) {
+    if (holes.has(i + "," + j)) continue;
+    pts.push([120 + i * 136 + (rand() - 0.5) * 30, 90 + j * 128 + (rand() - 0.5) * 52]);
+  }
+  const names = pts.map((_, i) => i < 26 ? String.fromCharCode(65 + i) : "A" + String.fromCharCode(65 + i - 26));
+  let S = 0, T = 0;
+  pts.forEach((p, i) => {
+    if (p[0] < pts[S][0]) S = i;
+    if (p[0] > pts[T][0]) T = i;
+  });
+  let R = 170;
+  const dist = (a, b) => Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]);
+  const nb = (i) => pts.map((_, j) => j).filter((j) => j !== i && dist(i, j) <= R);
+  const h = (i) => dist(i, T) / R;
+  // Precompute the trace.
+  const events = [];
+  {
+    const gs = { [S]: 0 }, prev = {}, open = [S], closed = new Set();
+    const f = (i) => gs[i] + h(i);
+    while (open.length) {
+      open.sort((a, b) => f(a) - f(b) || a - b);
+      const u = open.shift();
+      closed.add(u);
+      const added = [];
+      if (u !== T) for (const v of nb(u)) {
+        if (closed.has(v)) continue;
+        const ng = gs[u] + 1;
+        if (gs[v] === undefined || ng < gs[v]) {
+          gs[v] = ng; prev[v] = u;
+          if (!open.includes(v)) open.push(v);
+          added.push(v);
+        }
+      }
+      events.push({ u, added, open: open.slice().sort((a, b) => f(a) - f(b) || a - b),
+                    gs: Object.assign({}, gs), prev: Object.assign({}, prev) });
+      if (u === T) break;
+    }
+  }
+  const final = events[events.length - 1];
+  const path = [];
+  { let c = T; while (c !== undefined) { path.push(c); c = final.prev[c]; } path.reverse(); }
+  const log = document.getElementById("worked-log");
+  let k = -1, timer = null;
+  function render(ev, done) {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    // faint edges: what "within one jump" means
+    ctx.strokeStyle = "rgba(35,40,56,0.9)"; ctx.lineWidth = 1;
+    for (let i = 0; i < pts.length; i++) for (const j of nb(i)) if (j > i) {
+      ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[j][0], pts[j][1]); ctx.stroke();
+    }
+    // parent arrows
+    if (ev) for (const v in ev.prev) {
+      const a = pts[ev.prev[v]], b = pts[v];
+      ctx.strokeStyle = "rgba(168,159,140,0.55)"; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      const hx = b[0] - 14 * Math.cos(ang), hy = b[1] - 14 * Math.sin(ang);
+      ctx.beginPath(); ctx.moveTo(hx + 5 * Math.cos(ang + 2.6), hy + 5 * Math.sin(ang + 2.6));
+      ctx.lineTo(hx, hy); ctx.lineTo(hx + 5 * Math.cos(ang - 2.6), hy + 5 * Math.sin(ang - 2.6)); ctx.stroke();
+    }
+    if (done) {
+      ctx.strokeStyle = "#57c66d"; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath();
+      path.forEach((i, n) => { n === 0 ? ctx.moveTo(pts[i][0], pts[i][1]) : ctx.lineTo(pts[i][0], pts[i][1]); });
+      ctx.stroke(); ctx.lineWidth = 1;
+    }
+    pts.forEach(([x, y], i) => {
+      const inOpen = ev && ev.open.includes(i);
+      const settled = ev && ev.gs[i] !== undefined && !inOpen;
+      ctx.fillStyle = settled ? "#5ec8e5" : "rgba(214,225,240,0.35)";
+      ctx.beginPath(); ctx.arc(x, y, ev && i === ev.u ? 11 : 7, 0, 7); ctx.fill();
+      if (inOpen) { ctx.strokeStyle = "#57c66d"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.stroke(); }
+      ctx.fillStyle = "#e4e6ea";
+      ctx.fillText(names[i] + (i === S ? " \u00b7 start" : i === T ? " \u00b7 goal" : ""), x - 8, y - 20);
+      if (ev && ev.gs[i] !== undefined) {
+        ctx.fillStyle = "#9aa4b2";
+        ctx.fillText(`${ev.gs[i]} + ${h(i).toFixed(1)}`, x - 20, y + 30);
+      }
+    });
+    if (ev) {
+      ctx.fillStyle = "#727c8c";
+      const line = ev.open.slice(0, 8).map((i) => `${names[i]} ${(ev.gs[i] + h(i)).toFixed(1)}`).join("   ");
+      ctx.fillText("reached, waiting (lowest first): " + (line || "(none)"), 60, H - 22);
+    }
+  }
+  function setLog(t) { log.innerHTML = '<span class="tag">&#10216;worked example&#10217;</span> ' + t; }
+  function reset() {
+    k = -1; clearInterval(timer); timer = null;
+    document.getElementById("worked-play").innerHTML = "&#9654; play";
+    render(null, false);
+    setLog("press play, or step through one expansion at a time.");
+  }
+  function step() {
+    if (k >= events.length - 1) { clearInterval(timer); timer = null; return; }
+    k++;
+    const ev = events[k], done = k === events.length - 1;
+    render(ev, done);
+    if (done) {
+      clearInterval(timer); timer = null;
+      document.getElementById("worked-play").innerHTML = "&#9654; play";
+      setLog(`goal ${names[T]} surfaced with the lowest score. follow the arrows back: ${path.map((i) => names[i]).join(" \u2192 ")} \u2014 ${path.length - 1} jumps, ${k + 1} of ${pts.length} stars expanded.`);
+    } else {
+      setLog(`turn ${k + 1}: ${names[ev.u]} has the lowest score (${ev.gs[ev.u]} jumps + ${h(ev.u).toFixed(1)} estimated). ${ev.added.length ? "newly reached: " + ev.added.map((i) => names[i]).join(", ") : "nothing new in reach."}`);
+    }
+  }
+  function play() {
+    const b = document.getElementById("worked-play");
+    if (timer) { clearInterval(timer); timer = null; b.innerHTML = "&#9654; play"; return; }
+    if (k >= events.length - 1) reset();
+    b.innerHTML = "&#10074;&#10074; pause";
+    step();
+    timer = setInterval(step, 1200);
+  }
+  document.getElementById("worked-play").addEventListener("click", play);
+  document.getElementById("worked-step").addEventListener("click", () => { if (timer) { clearInterval(timer); timer = null; document.getElementById("worked-play").innerHTML = "&#9654; play"; } step(); });
+  document.getElementById("worked-reset").addEventListener("click", reset);
+  reset();
+  if (REDUCED) { k = events.length - 2; step(); }
+})();
+</script>
+<script>
+/* ---------- fig-zorder: the weave and the walk ---------- */
+(function () {
+  const cv = document.getElementById("fig-zorder"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, N = 16;
+  const pad = 46, side = H - 2 * pad, cell = side / N;
+  const left = { x: 60 }, right = { x: W / 2 + 40 };
+  const morton = [];
+  for (let i = 0; i < N * N; i++) {
+    let x = 0, y = 0;
+    for (let b = 0; b < 4; b++) { x |= ((i >> (2 * b)) & 1) << b; y |= ((i >> (2 * b + 1)) & 1) << b; }
+    morton.push([x, y]);
+  }
+  const box = { x0: 5, y0: 6, x1: 11, y1: 11 }; // the query box
+  const inBox = ([x, y]) => x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+  const cx = (o, [x, y]) => [o.x + x * cell + cell / 2, pad + y * cell + cell / 2];
+  function grid(o) {
+    ctx.strokeStyle = "#1a2029"; ctx.lineWidth = 1;
+    for (let i = 0; i <= N; i++) {
+      ctx.beginPath(); ctx.moveTo(o.x + i * cell, pad); ctx.lineTo(o.x + i * cell, pad + side); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(o.x, pad + i * cell); ctx.lineTo(o.x + side, pad + i * cell); ctx.stroke();
+    }
+  }
+  function draw(t) { // t in [0,1] drives both panels
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#727c8c";
+    ctx.fillText("the curve: interleave the bits, follow the number", left.x, pad - 14);
+    ctx.fillText("the walk: read the runs, BIGMIN skips the rest", right.x, pad - 14);
+    grid(left); grid(right);
+    const upto = Math.max(2, Math.floor(t * N * N));
+    // Left: the curve itself.
+    ctx.strokeStyle = "#5ec8e5"; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (let i = 0; i < upto; i++) {
+      const [px, py] = cx(left, morton[i]);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    // Right: box + walked runs vs skips.
+    ctx.strokeStyle = "#ffb35c"; ctx.lineWidth = 2;
+    ctx.strokeRect(right.x + box.x0 * cell, pad + box.y0 * cell, (box.x1 - box.x0 + 1) * cell, (box.y1 - box.y0 + 1) * cell);
+    for (let i = 0; i < upto; i++) {
+      const m = morton[i], [px, py] = cx(right, m);
+      if (inBox(m)) {
+        ctx.fillStyle = "#5ec8e5";
+        ctx.fillRect(right.x + m[0] * cell + 2, pad + m[1] * cell + 2, cell - 4, cell - 4);
+      } else {
+        ctx.fillStyle = "rgba(110,103,92,0.25)";
+        ctx.beginPath(); ctx.arc(px, py, 1.5, 0, 7); ctx.fill();
+      }
+    }
+    // Skip arcs: for each out-of-box run bordered by in-box cells, one dashed hop.
+    ctx.strokeStyle = "rgba(255,179,92,0.5)"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.2;
+    let runStart = -1;
+    for (let i = 0; i < upto; i++) {
+      const inside = inBox(morton[i]);
+      if (!inside && runStart === -1) runStart = i - 1;
+      if (inside && runStart !== -1) {
+        if (runStart >= 0 && inBox(morton[runStart])) {
+          const a = cx(right, morton[runStart]), b = cx(right, morton[i]);
+          ctx.beginPath(); ctx.moveTo(a[0], a[1]);
+          ctx.quadraticCurveTo((a[0] + b[0]) / 2, Math.min(a[1], b[1]) - 26, b[0], b[1]);
+          ctx.stroke();
+        }
+        runStart = -1;
+      }
+    }
+    ctx.setLineDash([]);
+  }
+  let raf = 0;
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = (now - t0) / 5200;
+      draw(Math.min(1, t));
+      if (t < 1) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  document.getElementById("zorder-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1);
+})();
+
+/* ---------- fig-bidi: one frontier vs two ---------- */
+(function () {
+  const cv = document.getElementById("fig-bidi"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const rand = mulberry(0xb1d1);
+  const A = { x: 90, y: H / 2 }, B = { x: W - 90, y: H / 2 };
+  const D = Math.hypot(B.x - A.x, B.y - A.y);
+  const dots = [];
+  for (let i = 0; i < 2600; i++) {
+    // Denser toward both ends, thin in the middle band — the real geography.
+    const x = 40 + rand() * (W - 80), y = 24 + rand() * (H - 48);
+    const mid = Math.abs(x - W / 2) / (W / 2);
+    if (rand() > 0.35 + 0.65 * mid) continue;
+    const da = Math.hypot(x - A.x, y - A.y) * (1 + rand() * 0.22);
+    const db = Math.hypot(x - B.x, y - B.y) * (1 + rand() * 0.22);
+    dots.push({ x, y, da, db });
+  }
+  let mode = "two", raf = 0;
+  function draw(t) {
+    ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+    const reach = t * (mode === "two" ? D * 0.62 : D * 1.12);
+    let touched = 0;
+    for (const d of dots) {
+      let c = "rgba(214,225,240,0.18)";
+      if (mode === "one") {
+        if (d.da < reach) { c = "rgba(255,179,92,0.8)"; touched++; }
+      } else {
+        const fa = d.da < reach, fb = d.db < reach;
+        if (fa && fb) { c = "rgba(255,255,255,0.95)"; touched++; }
+        else if (fa) { c = "rgba(255,179,92,0.8)"; touched++; }
+        else if (fb) { c = "rgba(94,200,229,0.8)"; touched++; }
+      }
+      ctx.fillStyle = c;
+      ctx.fillRect(d.x, d.y, 2, 2);
+    }
+    for (const [p, label] of [[A, "start"], [B, "goal"]]) {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill();
+      ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#9aa4b2";
+      ctx.fillText(label, p.x - 14, p.y + 24);
+    }
+    if (mode === "two" && t > 0.86) {
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, 14 + (t - 0.86) * 90, 0, 7); ctx.globalAlpha = Math.max(0, 1.4 - t * 1.4 - 0.1); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.font = "13px ui-monospace, Menlo, monospace"; ctx.fillStyle = "#727c8c";
+    ctx.fillText(`stars touched: ${touched}`, 20, H - 16);
+  }
+  function play() {
+    cancelAnimationFrame(raf);
+    if (REDUCED) { draw(1); return; }
+    const t0 = performance.now();
+    (function frame(now) {
+      const t = Math.min(1, (now - t0) / 3000);
+      draw(t);
+      if (t < 1) raf = requestAnimationFrame(frame);
+    })(t0);
+  }
+  const bOne = document.getElementById("bidi-one"), bTwo = document.getElementById("bidi-two");
+  function setMode(m) {
+    mode = m;
+    bOne.setAttribute("aria-pressed", m === "one");
+    bTwo.setAttribute("aria-pressed", m === "two");
+    play();
+  }
+  bOne.addEventListener("click", () => setMode("one"));
+  bTwo.addEventListener("click", () => setMode("two"));
+  document.getElementById("bidi-replay").addEventListener("click", play);
+  onVisible(cv, play);
+  draw(1);
+})();
+
+/* ---------- fig-density: the greediness dial ---------- */
+(function () {
+  const cv = document.getElementById("fig-density"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, padL = 70, padB = 54, padT = 28, padR = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  // Median stars per 250-ly highway cell vs distance from core (measured shape).
+  const pts = [[0, 73], [1, 66], [2, 54], [3, 40], [4, 28], [5, 18], [6, 12], [8, 8], [10, 5.5], [12, 4], [14, 3], [16, 2.4], [18, 2], [22, 1.7], [26, 1.4]];
+  const X = (kly) => padL + (kly / 26) * plotW;
+  const Y = (v) => padT + plotH - (Math.log10(v + 1) / Math.log10(80)) * plotH;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+  // Greedy zones per ship reach (illustrative thresholds).
+  const zones = [[14.5, "rgba(255,179,92,0.10)", "big ship: greedy inside here"], [8.5, "rgba(94,200,229,0.10)", "small ship: only inside here"]];
+  for (const [kly, color] of zones) {
+    ctx.fillStyle = color; ctx.fillRect(padL, padT, X(kly) - padL, plotH);
+  }
+  ctx.strokeStyle = "#262e3a";
+  for (const v of [2, 5, 10, 20, 50]) {
+    ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke();
+    ctx.fillStyle = "#727c8c"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText(String(v), padL - 28, Y(v) + 4);
+  }
+  for (const k of [0, 5, 10, 15, 20, 25]) {
+    ctx.fillStyle = "#727c8c"; ctx.fillText(k + " kly", X(k) - 12, H - padB + 22);
+  }
+  ctx.fillText("median stars / 250-ly cell (log)", padL - 56, padT - 10);
+  ctx.strokeStyle = "#57c66d"; ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  pts.forEach(([k, v], i) => { i === 0 ? ctx.moveTo(X(k), Y(v)) : ctx.lineTo(X(k), Y(v)); });
+  ctx.stroke();
+  ctx.fillStyle = "#57c66d";
+  for (const [k, v] of pts) { ctx.beginPath(); ctx.arc(X(k), Y(v), 3, 0, 7); ctx.fill(); }
+  ctx.fillStyle = "rgba(255,179,92,0.9)"; ctx.fillText(zones[0][2], X(8.9), padT + 22);
+  ctx.fillStyle = "rgba(94,200,229,0.9)"; ctx.fillText(zones[1][2], X(0.4), padT + 44);
+})();
+
+/* ---------- fig-clock: the Colonia clock, era by era ---------- */
+(function () {
+  const cv = document.getElementById("fig-clock"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height, padL = 60, padB = 92, padT = 30, padR = 20;
+  const eras = [
+    { l: "start", v: 7.5 },
+    { l: "grace window", v: 1.6 },
+    { l: "Morton walk", v: 1.4 },
+    { l: "adaptive grace", v: 0.951 },
+    { l: "bidi + voids", v: 0.723 },
+    { l: "seconds judge", v: 1.3, up: true },
+  ];
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const bw = plotW / eras.length;
+  const Y = (v) => padT + plotH - (Math.log10(v / 0.5) / Math.log10(7.5 / 0.5)) * plotH;
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+  ctx.font = "12px ui-monospace, Menlo, monospace";
+  ctx.strokeStyle = "#262e3a";
+  for (const v of [1, 2, 4, 7.5]) {
+    ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke();
+    ctx.fillStyle = "#727c8c"; ctx.fillText(v + " s", padL - 44, Y(v) + 4);
+  }
+  eras.forEach((e, i) => {
+    const x = padL + i * bw + bw * 0.16, w = bw * 0.68, y = Y(e.v);
+    ctx.fillStyle = e.up ? "rgba(87,198,109,0.85)" : "rgba(255,179,92,0.85)";
+    ctx.fillRect(x, y, w, padT + plotH - y);
+    ctx.fillStyle = "#e4e6ea";
+    ctx.fillText(e.v + " s", x + w / 2 - 22, y - 8);
+    ctx.save();
+    ctx.translate(x + w / 2 + 4, H - padB + 14);
+    ctx.rotate(0.5);
+    ctx.fillStyle = "#9aa4b2";
+    ctx.fillText(e.l, 0, 0);
+    ctx.restore();
+  });
+  ctx.fillStyle = "rgba(87,198,109,0.9)";
+  ctx.fillText("\u2191 on purpose: buys ~4 min of pilot time", padL + 4 * bw - 40, Y(1.3) - 30);
+})();
+</script>
+</body></html>

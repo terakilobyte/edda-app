@@ -1,0 +1,108 @@
+{
+  "uid": "edda-host",
+  "title": "Host Health",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "CPU utilization",
+      "gridPos": { "x": 0, "y": 0, "w": 5, "h": 5 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 0, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 } ] } } },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))", "legendFormat": "cpu" }]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Load (1m)",
+      "gridPos": { "x": 5, "y": 0, "w": 4, "h": 5 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 6 }, { "color": "red", "value": 8 } ] } } },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "node_load1", "legendFormat": "load1" }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Memory used",
+      "gridPos": { "x": 9, "y": 0, "w": 5, "h": 5 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 0, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 92 } ] } } },
+      "options": { "colorMode": "background", "graphMode": "area" },
+      "targets": [{ "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)", "legendFormat": "mem" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Disk used (/)",
+      "gridPos": { "x": 14, "y": 0, "w": 5, "h": 5 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 0, "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 90 } ] } } },
+      "options": { "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "expr": "100 * (1 - node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})", "legendFormat": "disk" }]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Uptime",
+      "gridPos": { "x": 19, "y": 0, "w": 5, "h": 5 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 1 } },
+      "options": { "colorMode": "none", "graphMode": "none" },
+      "targets": [{ "expr": "time() - node_boot_time_seconds", "legendFormat": "uptime" }]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "CPU utilization %",
+      "gridPos": { "x": 0, "y": 5, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
+      "targets": [{ "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))", "legendFormat": "cpu" }]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Load average",
+      "gridPos": { "x": 12, "y": 5, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "none" } },
+      "targets": [
+        { "expr": "node_load1", "legendFormat": "1m" },
+        { "expr": "node_load5", "legendFormat": "5m" },
+        { "expr": "node_load15", "legendFormat": "15m" }
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Memory (used / total)",
+      "gridPos": { "x": 0, "y": 13, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "targets": [
+        { "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "legendFormat": "used" },
+        { "expr": "node_memory_MemTotal_bytes", "legendFormat": "total" }
+      ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Disk space / and swap (used / total)",
+      "gridPos": { "x": 12, "y": 13, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "targets": [
+        { "expr": "node_filesystem_size_bytes{mountpoint=\"/\"} - node_filesystem_avail_bytes{mountpoint=\"/\"}", "legendFormat": "disk used" },
+        { "expr": "node_filesystem_size_bytes{mountpoint=\"/\"}", "legendFormat": "disk total" },
+        { "expr": "node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes", "legendFormat": "swap used" }
+      ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Network I/O (eth0)",
+      "gridPos": { "x": 0, "y": 21, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "Bps" } },
+      "targets": [
+        { "expr": "rate(node_network_receive_bytes_total{device=\"eth0\"}[5m])", "legendFormat": "rx" },
+        { "expr": "rate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])", "legendFormat": "tx" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Disk I/O",
+      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 8 },
+      "datasource": { "uid": "edda-vm" },
+      "fieldConfig": { "defaults": { "unit": "Bps" } },
+      "targets": [
+        { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "read" },
+        { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "written" }
+      ]
+    }
+  ]
+}

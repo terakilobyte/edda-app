@@ -1,0 +1,27 @@
+# VERDICT: of 4,605 frames in 300 s (15.3/s) the writer decodes only commodity/outfitting/shipyard (6.6%) and, of journal (53.2%), Docked + FSDJump/Location system fields (~14%). Dropped: journal Scan (37% of ALL frames: star classes, bodies, rings, materials, landable), fssbodysignals 9.5% (bio/geo), navroute 4.0% (StarClass+StarPos for every routed system), SAASignalsFound (hotspots) 1.5%, fssdiscoveryscan/allbodiesfound/scanbarycentre/codexentry. That is what the daily dump has been supplying instead.
+# EDDN firehose sample, 300 s, 4605 frames, 2026-09-09T13:50:50Z
+kind,name,frames,share_pct
+schema,journal,2448,53.16
+schema,fssbodysignals,437,9.49
+schema,fsssignaldiscovered,374,8.12
+schema,fssdiscoveryscan,240,5.21
+schema,dockinggranted,196,4.26
+schema,navroute,185,4.02
+schema,commodity,166,3.60
+schema,scanbarycentre,154,3.34
+schema,fssallbodiesfound,132,2.87
+schema,outfitting,93,2.02
+schema,shipyard,46,1.00
+schema,codexentry,43,0.93
+schema,approachsettlement,40,0.87
+schema,dockingdenied,31,0.67
+schema,scanorganic,10,0.22
+schema,navbeaconscan,5,0.11
+schema,fcmaterials_capi,3,0.07
+schema,fcmaterials_journal,2,0.04
+journal_event,Scan,1712,37.18
+journal_event,FSDJump,404,8.77
+journal_event,Docked,197,4.28
+journal_event,SAASignalsFound,68,1.48
+journal_event,Location,64,1.39
+journal_event,CarrierJump,3,0.07

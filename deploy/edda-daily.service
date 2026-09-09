@@ -1,0 +1,37 @@
+[Unit]
+Description=EDDA daily enrichment + publishes (galaxy_1day hydrate, reconcile-routing, market_daily)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=edda
+EnvironmentFile=/etc/edda/api.env
+# galaxy_1day hydrate, then routing (cheap when nothing changed), then
+# the daily window - see edda-daily.sh (maintainer, 2026-09-08: daily dailies).
+ExecStart=/usr/local/bin/edda-daily.sh
+# Same containment as the API (audit M4: the oneshots scored 8.3
+# EXPOSED against the API's 1.6 with only the short block).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/edda
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077

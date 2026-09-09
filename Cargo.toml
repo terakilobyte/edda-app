@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ed-domain",
+    "crates/ed-journal",
+    "crates/ed-engineering",
+    "crates/ed-store",
+    "crates/ed-sync",
+    "crates/ed-ebex",
+    "crates/ed-eddn",
+    "crates/ed-route",
+    "crates/ed-voice",
+    "crates/ed-galaxy",
+    "crates/ed-input",
+    "crates/ed-listen",
+    "crates/ed-api",
+    "src-tauri",
+]
+
+[workspace.package]
+authors = ["Nathan Leniz <nathan.leniz@gmail.com>"]
+edition = "2021"
+license = "MIT"
+
+# `cargo tauri dev` builds the dev profile; keep the app itself quick to
+# rebuild but optimise everything that parses or crunches data, or the dump
+# importers and the router run 10-30x slower than they should.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.ed-store]
+opt-level = 3
+
+[profile.dev.package.ed-galaxy]
+opt-level = 3
+
+[profile.dev.package.ed-route]
+opt-level = 3
+
+[profile.dev.package.ed-journal]
+opt-level = 3
+
+[profile.dev.package.ed-engineering]
+opt-level = 3

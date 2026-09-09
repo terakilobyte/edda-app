@@ -1,0 +1,47 @@
+# api-load ROTATED-QUERY (2026-09-07 ~00:45-01:06Z, review, from WSL on the PC, ~185 ms RTT floor on every row).
+# Live prod binary 5fb643cb (0e340ec), production limits restored (2,500/h route/market/knowledge, 600/min completion).
+# WHY THIS RUN: the -open/-maintainer ladders pinned every query, so their route p50 1 ms and trade p50 1 ms were CACHE HITS
+# (see api-load-2026-09-07-open.csv header). This run rotates origins/destinations/commodities per request so nothing
+# is served warm. c = 4/16/50, 30 s per rung, six routes. Ladders: names/knowledge/market vs route/trade.
+# HARNESS GAP (doctrine 3, mine): this ladder was driven inline in WSL rather than from a file under knobs/, so the
+# exact script did not survive the run. The CSV is the record; knobs/api-load.sh + api-peak.sh cover the pinned shape.
+# Re-running the rotated shape needs the harness written down first.
+#
+# VERDICT: the API is TWO SERVICES with two different capacities, and the split is the API-first decision.
+#  - Lookups scale: names/complete and knowledge/system hold 253 rps at c=50 with p50 flat at the RTT floor (193 ms
+#    wire, ~8 ms server) and ZERO failures at any rung. market/search holds 178 rps at 251 ms p50, 3 x 404 in 5,419.
+#    These are ready for API-first today; the box never noticed them.
+#  - Planning is RATIONED BY DESIGN, not by capacity: plot.rs CONCURRENCY=2, QUEUE=8, BUDGET_MS=30_000. Bubble plots
+#    serve ~8/s and refuse the rest with 503 - 100% served at c=4, 25% at c=16, 6% at c=50. Long plots (route_long)
+#    cost ~4 CPU-seconds each: 0.51 rps and p50 7.9 s at c=4, and from c=16 up they are effectively all refused.
+#  - trade/search is the narrowest thing we serve: Semaphore(1) at trade_search.rs:109, 2.6 rps and 15.2 s p50 at
+#    c=50, and the first 429s of the whole run (76 of 112) because the 15 s gate timeout starts refusing.
+# CORRECTION (review, after the reviewer's server-side read, ledger aeda09b): my first header here said the refusals
+# were admission control and "NOT the box bending", citing 14.2 % peak CPU. That 14.2 % came from the PINNED ladder,
+# where the route rungs were cache hits - the same invalidity this run exists to fix, and I quoted it anyway.
+# Server-side during THESE route rungs: CPU busy 99.5 %. Two fresh plots genuinely saturate eight cores, and served
+# plots FELL as load rose (249 -> 416 -> 364 across c=4/16/50). CONCURRENCY=2 is a measured ceiling, not a guess made
+# in ignorance of the box; raising it needs cheaper plots or more cores, not just a bigger constant.
+# Consequence for trade/search: its 15.2 s is NOT the Postgres query (253 ms server-side) - it is the line, and the
+# line waits for CPU behind plots. Trade search inherits the planner's CPU scarcity.
+# NOTE (data, not load): route_long returned 1,749 x 422 at c=50 and 246 at c=16 - unprocessable, not refused.
+# Those are rotated endpoints the planner could not answer at all. Worth a look on its own; it is not a capacity result.
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors,codes
+names_complete_rotating,4,625,20.73,189.6,199.0,208.8,625,0,0,0,0,200:625
+knowledge_system_rotating,4,626,20.78,188.6,198.1,212.7,626,0,0,0,0,200:626
+market_search_rotating,4,476,15.79,230.9,330.7,805.4,476,0,0,0,0,200:476
+trade_search_rotating,4,60,1.83,2332.3,3462.7,4151.9,60,0,0,0,0,200:60
+route_bubble_rotating,4,249,8.06,429.5,919.5,1594.8,249,0,0,0,0,200:249
+route_long_rotating,4,19,0.51,7890.8,15070.5,15070.5,18,0,0,1,0,200:18;422:1
+names_complete_rotating,16,2485,82.36,190.6,199.1,210.8,2485,0,0,0,0,200:2485
+knowledge_system_rotating,16,2457,81.38,192.6,200.0,232.9,2457,0,0,0,0,200:2457
+market_search_rotating,16,1986,65.66,231.7,287.8,335.7,1985,0,0,1,0,200:1985;404:1
+trade_search_rotating,16,65,1.69,8811.1,11702.2,12721.5,65,0,0,0,0,200:65
+route_bubble_rotating,16,1637,53.31,192.8,957.9,1233.9,416,0,1221,0,0,200:416;503:1221
+route_long_rotating,16,1003,16.3,193.3,203.7,662.4,8,0,746,246,3,0:3;200:8;422:246;503:746
+names_complete_rotating,50,7640,253.09,192.8,201.4,228.4,7640,0,0,0,0,200:7640
+knowledge_system_rotating,50,7631,252.73,193.5,201.3,213.9,7631,0,0,0,0,200:7631
+market_search_rotating,50,5419,178.3,250.6,431.6,702.5,5416,0,0,3,0,200:5416;404:3
+trade_search_rotating,50,112,2.6,15215.8,15773.5,16591.7,36,76,0,0,0,200:36;429:76
+route_bubble_rotating,50,6298,204.86,193.5,661.4,1130.4,364,0,5934,0,0,200:364;503:5934
+route_long_rotating,50,6824,112.26,194.3,204.6,640.3,8,0,5067,1749,0,200:8;422:1749;503:5067

@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDDA · Route planner</title>
+<meta name="description" content="Plot a galaxy-spanning Elite Dangerous route in your browser: paste your ship from EDSY or Coriolis, pick origin and destination, get the jumps and the map. No install.">
+<link rel="icon" href="../assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script type="importmap">{"imports": {"three": "../assets/three/three.module.min.js"}}</script>
+<style>
+  :root {
+    --bg: #0a0c10; --panel: #131820; --line: #262e3a; --text: #e4e6ea; --muted: #8b95a5;
+    --accent: #ff8c1a; --accent-2: #ffa54d; --cyan: #5ec8e5; --ok: #57c66d; --bad: #e5645e;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  /* The site's mast, as on the front page. */
+  header { padding: 1.4rem 1.4rem 0; max-width: 1500px; margin: 0 auto; }
+  .mast { display: flex; align-items: center; gap: 1rem; }
+  .mast img { width: 44px; height: 44px; border-radius: 9px; }
+  .mast .name { font-family: var(--display); font-weight: 800; font-size: 1.3rem; letter-spacing: 0.02em; color: var(--text); text-decoration: none; }
+  .mast nav { margin-left: auto; font-family: var(--mono); font-size: 0.82rem; }
+  .mast nav a { color: var(--muted); text-decoration: none; margin-left: 1.2rem; }
+  .mast nav a:hover, .mast nav a[aria-current] { color: var(--text); }
+  main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 1.2rem; padding: 1.2rem 1.4rem 2.4rem; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; }
+  h1 { font-family: var(--display); font-weight: 750; font-size: 1.55rem; margin: 0 0 0.3rem; letter-spacing: -0.015em; }
+  h2 { font-family: var(--display); font-weight: 700; font-size: 1.05rem; margin: 1.1rem 0 0.45rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sub { color: var(--muted); margin: 0 0 0.6rem; font-size: 0.95rem; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.65rem 0 0.25rem; }
+  input[type=text], textarea { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 0.55rem 0.65rem; font: inherit; }
+  textarea { font: 12.5px/1.4 var(--mono); min-height: 7.5rem; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .row { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.8rem; margin-top: 0.6rem; }
+  .toggles label { display: flex; align-items: center; gap: 0.45rem; margin: 0.2rem 0; color: var(--text); font-size: 0.92rem; }
+  .btn { display: inline-block; background: var(--accent); color: #111; border: 0; border-radius: 8px; padding: 0.65rem 1.1rem; font: inherit; font-weight: 700; cursor: pointer; margin-top: 0.9rem; }
+  .btn:hover { background: var(--accent-2); }
+  .btn[disabled] { opacity: 0.45; cursor: default; }
+  .ship { font: 13px/1.5 var(--mono); color: var(--muted); margin-top: 0.6rem; min-height: 1.2rem; white-space: pre-wrap; }
+  .ship b { color: var(--text); font-weight: 500; }
+  .status { font: 13px/1.5 var(--mono); margin-top: 0.7rem; min-height: 1.2rem; color: var(--muted); }
+  .status.bad { color: var(--bad); }
+  .status.ok { color: var(--ok); }
+  /* The galaxy, as the app draws it. */
+  .galaxy { position: relative; width: 100%; height: 560px; background: #06080c; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; outline: none; }
+  .galaxy canvas { display: block; width: 100%; height: 100%; }
+  .galaxy .hover { position: absolute; top: 0.5rem; left: 0.6rem; font: 12.5px/1.5 var(--mono); background: rgba(6, 8, 12, 0.8); padding: 0.2rem 0.5rem; border-radius: 4px; pointer-events: none; }
+  .galaxy .label { position: absolute; transform: translate(10px, -50%); font-size: 0.8rem; font-weight: 600; color: #e4e6ea; text-shadow: 0 0 4px #000, 0 0 8px #000; pointer-events: none; white-space: nowrap; }
+  .galaxy .label.start { color: #ffffff; }
+  .galaxy .label.end { color: #ff8c1a; }
+  .galaxy .label.sol { color: #fff1a8; font-weight: 400; font-size: 0.72rem; }
+  .galaxy .hint { position: absolute; bottom: 0.4rem; right: 0.6rem; font-size: 0.72rem; color: var(--muted); pointer-events: none; }
+  .galaxy .loading { position: absolute; top: 0.5rem; right: 0.6rem; font: 12px/1.5 var(--mono); color: var(--muted); pointer-events: none; }
+  .summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; font: 13.5px/1.5 var(--mono); color: var(--muted); margin: 0.7rem 0 0.2rem; }
+  .summary b { color: var(--text); font-weight: 500; }
+  .tablewrap { overflow-x: auto; margin-top: 0.8rem; }
+  table { border-collapse: collapse; width: 100%; font: 13px/1.45 var(--mono); }
+  th, td { text-align: left; padding: 0.3rem 0.55rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.boost td:first-child { border-left: 3px solid var(--cyan); }
+  tr.refuel td:first-child { border-left: 3px solid var(--accent); }
+  .pill { display: inline-block; padding: 0 0.4rem; border-radius: 4px; font-size: 11.5px; line-height: 1.5; }
+  .pill.boost { background: #5ec8e522; color: var(--cyan); }
+  .pill.scoop { background: #ff8c1a22; color: var(--accent); }
+  .pill.dry { background: #e5645e22; color: var(--bad); }
+  .legend { display: flex; gap: 1.2rem; font: 12px/1.5 var(--mono); color: var(--muted); margin-top: 0.5rem; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.35rem; vertical-align: -1px; }
+  .hint { font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
+  footer { color: var(--muted); font-size: 0.85rem; padding: 0 1.4rem 2rem; max-width: 1500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header>
+  <div class="mast">
+    <a href="/"><img src="../assets/icon.png" alt="" width="44" height="44"></a>
+    <a class="name" href="/">EDDA</a>
+    <nav><a href="/">download</a><a href="/route/" aria-current="page">route planner</a><a href="/blog/">build log</a></nav>
+  </div>
+</header>
+<main>
+  <section class="panel" aria-labelledby="plan">
+    <h1 id="plan">Route planner</h1>
+    <p class="sub">The desktop app's router, in a tab. Paste your ship, name two systems, plot.</p>
+
+    <label for="paste">Ship — paste an SLEF export from <a href="https://edsy.org" rel="noopener">EDSY</a> or <a href="https://coriolis.io" rel="noopener">Coriolis</a> (or a journal Loadout event)</label>
+    <textarea id="paste" spellcheck="false" placeholder='[{"header": {...}, "data": {"event": "Loadout", ...}}]'></textarea>
+    <div class="ship" id="ship">No ship yet. Without one the plot uses a plain jump range.</div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label for="from">Origin</label>
+        <input type="text" id="from" list="from-names" autocomplete="off" placeholder="Sol">
+        <datalist id="from-names"></datalist>
+      </div>
+      <div style="flex:1">
+        <label for="to">Destination</label>
+        <input type="text" id="to" list="to-names" autocomplete="off" placeholder="Colonia">
+        <datalist id="to-names"></datalist>
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label for="range">Jump range, ly (only without a ship)</label>
+        <input type="text" id="range" inputmode="decimal" placeholder="30">
+      </div>
+      <div style="flex:1">
+        <label for="cargo">Cargo aboard, t</label>
+        <input type="text" id="cargo" inputmode="numeric" placeholder="0">
+      </div>
+    </div>
+
+    <div class="toggles">
+      <label title="Supercharge the drive at neutron stars on the way."><input type="checkbox" id="supercharge" checked> neutrons</label>
+      <label title="Supercharge at white dwarfs too (×1.5, ×3 on an SCO Mk II). Off by default: a white-dwarf boost takes about twice as long to line up."><input type="checkbox" id="white_dwarfs"> white dwarfs</label>
+      <label title="Plan every jump with 2 tonnes of fuel in hand instead of flying the drive's true reach. A jump or two longer on big trips."><input type="checkbox" id="safe_margins"> safe margins</label>
+      <label title="Fuel to keep in hand: no jump is planned that would go below it.">reserve <input type="text" id="reserve" inputmode="numeric" placeholder="0" style="width:4rem"> t</label>
+    </div>
+
+    <button class="btn" id="plot">Plot route</button>
+    <div class="status" id="status"></div>
+    <p class="hint">Plots run on EDDA's community server, the same one the app uses. It knows nothing about you: two names, a ship, an answer. Limits apply per address.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="map">
+    <h2 id="map" style="margin-top:0">Galaxy map</h2>
+    <div class="galaxy" id="galaxy" role="application" tabindex="0" aria-label="Interactive 3D galaxy map with the plotted route; press Enter to frame the route">
+      <div class="loading" id="loading">loading the galaxy…</div>
+      <div class="hint">drag to orbit · right-drag to pan · scroll to zoom · double-click to re-frame</div>
+    </div>
+    <div class="legend"><span><i style="background:#9ad9ff"></i>supercharged jump</span><span><i style="background:#ffa348"></i>ordinary jump</span><span><i style="background:#ffffff"></i>start</span><span><i style="background:var(--accent)"></i>destination</span><span><i style="background:#55d98a"></i>inhabited space</span></div>
+    <div class="summary" id="summary"></div>
+    <h2>Jumps</h2>
+    <div class="tablewrap"><table id="hops"><thead><tr><th>#</th><th>System</th><th>Star</th><th class="num">Jump ly</th><th class="num">Total ly</th><th class="num">Fuel after</th><th></th></tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+<footer>EDDA is free, open, and not a surveillance tool: this page sends the server the two system names and the ship's physics, nothing else. <a href="../privacy/">Privacy</a>. Map rendered with <a href="https://threejs.org" rel="noopener">three.js</a>.</footer>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "../assets/three/controls/OrbitControls.js";
+import { Line2 } from "../assets/three/lines/Line2.js";
+import { LineGeometry } from "../assets/three/lines/LineGeometry.js";
+import { LineMaterial } from "../assets/three/lines/LineMaterial.js";
+
+const API = "https://api.edda-app.com";
+const $ = (id) => document.getElementById(id);
+const status = (text, kind) => { const s = $("status"); s.textContent = text; s.className = "status" + (kind ? " " + kind : ""); };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+
+// ---------------------------------------------------------------- ship
+let physics = null, pasteTimer = null;
+async function derive() {
+  const text = $("paste").value.trim();
+  if (!text) { physics = null; $("ship").textContent = "No ship yet. Without one the plot uses a plain jump range."; return; }
+  try {
+    const cargo = parseFloat($("cargo").value) || 0;
+    const r = await fetch(API + "/v1/loadout/physics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paste: text, cargo_t: cargo }) });
+    const v = await r.json();
+    if (!r.ok) { physics = null; $("ship").innerHTML = "<b>Not a loadout:</b> " + esc(v.error || r.status); return; }
+    physics = v;
+    const name = v.ship_name ? esc(v.ship_name) + " · " : "";
+    $("ship").innerHTML = "<b>" + name + esc(v.ship) + "</b>\n" + esc(v.summary) + "\nfull tank " + v.full_tank_range_ly.toFixed(2) + " ly · one jump's fuel " + v.one_jump_range_ly.toFixed(2) + " ly" + (cargo ? " · with " + cargo + " t aboard" : "");
+  } catch (e) { physics = null; $("ship").innerHTML = "<b>Could not reach the server.</b>"; }
+}
+$("paste").addEventListener("input", () => { clearTimeout(pasteTimer); pasteTimer = setTimeout(derive, 350); });
+$("cargo").addEventListener("input", () => { clearTimeout(pasteTimer); pasteTimer = setTimeout(derive, 350); });
+
+// ---------------------------------------------------------- completion
+function complete(inputId, listId) {
+  let timer = null;
+  $(inputId).addEventListener("input", () => {
+    clearTimeout(timer);
+    const prefix = $(inputId).value.trim();
+    if (prefix.length < 2) return;
+    timer = setTimeout(async () => {
+      try {
+        const r = await fetch(API + "/v1/names/complete?kind=system&prefix=" + encodeURIComponent(prefix) + "&limit=8");
+        if (!r.ok) return;
+        const hits = await r.json();
+        $(listId).innerHTML = hits.map((h) => "<option value=\"" + esc(typeof h === "string" ? h : h.name) + "\">").join("");
+      } catch (e) { /* completion is a convenience */ }
+    }, 150);
+  });
+}
+complete("from", "from-names");
+complete("to", "to-names");
+
+// ---------------------------------------------------------------- plot
+async function plot() {
+  const from = $("from").value.trim(), to = $("to").value.trim();
+  if (!from || !to) { status("Origin and destination are both needed.", "bad"); return; }
+  // Fewest scoop stops is the app's default and not a knob (maintainer, 2026-09-09).
+  const body = { from, to, supercharge: $("supercharge").checked, white_dwarfs: $("white_dwarfs").checked, min_fuel: true };
+  if (physics) {
+    const model = Object.assign({}, physics.fuel_model);
+    model.headroom_t = $("safe_margins").checked ? 2.0 : 0.0;
+    model.reserve = Math.max(0, parseFloat($("reserve").value) || 0);
+    body.fuel_model = model; body.boost = physics.boost; body.start_fuel = physics.capacity;
+  } else {
+    const range = parseFloat($("range").value);
+    if (!(range > 0)) { status("Paste a ship, or give a jump range.", "bad"); return; }
+    body.range_ly = range;
+  }
+  $("plot").disabled = true;
+  // Clear what was there and show the work (maintainer, 2026-09-09): a far
+  // plot can take a minute on the long lane, and a stale route under a
+  // spinner reads as an answer.
+  $("summary").innerHTML = "";
+  $("hops").querySelector("tbody").innerHTML = "";
+  map.setRoute(null);
+  const t0 = performance.now();
+  const ticker = setInterval(() => status("Plotting… " + Math.round((performance.now() - t0) / 1000) + " s (far routes can take up to two minutes)"), 500);
+  status("Plotting…");
+  try {
+    const r = await fetch(API + "/v1/route", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const ms = Math.round(performance.now() - t0);
+    if (r.status === 429) { status("The route server is busy — try again in a moment.", "bad"); return; }
+    const v = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const why = v.error === "unknown_system" ? "Unknown system: " + (v.system || "") : (v.error || v.message || ("HTTP " + r.status));
+      status(String(why), "bad"); return;
+    }
+    render(v, ms);
+    status("Plotted in " + ms + " ms.", "ok");
+  } catch (e) {
+    status("Could not reach the route server.", "bad");
+  } finally { clearInterval(ticker); $("plot").disabled = false; }
+}
+$("plot").addEventListener("click", plot);
+for (const id of ["from", "to"]) $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") plot(); });
+
+// -------------------------------------------------------------- table
+function render(route, wireMs) {
+  const hops = route.hops || [];
+  $("summary").innerHTML = [
+    ["jumps", route.jumps], ["boosted", route.boosted_jumps], ["scoop stops", route.refuel_stops],
+    ["route", (route.total_ly || 0).toFixed(1) + " ly"], ["straight line", (route.straight_ly || 0).toFixed(1) + " ly"],
+    ["range", (route.range_ly || 0).toFixed(1) + " ly"], ["planner", (route.elapsed_ms || 0) + " ms"], ["wire", wireMs + " ms"],
+  ].map(([k, v]) => k + " <b>" + esc(String(v)) + "</b>").join("<span></span>");
+  const tbody = $("hops").querySelector("tbody");
+  tbody.innerHTML = hops.map((h, i) => {
+    // The bolt is departure-framed, as in the app (item 44): a hop's
+    // `boosted` says the jump INTO it was supercharged, so the star that
+    // wears the bolt is the one you leave — the previous row.
+    const boostsNext = !!(hops[i + 1] && hops[i + 1].boosted);
+    const cls = boostsNext ? "boost" : (h.refuel ? "refuel" : "");
+    const tags = [boostsNext ? "<span class=\"pill boost\">boost here</span>" : "", h.refuel ? "<span class=\"pill scoop\">scoop</span>" : "", (h.scoopable === false && !boostsNext) ? "<span class=\"pill dry\">no scoop</span>" : ""].join(" ");
+    return "<tr class=\"" + cls + "\"><td class=\"num\">" + i + "</td><td>" + esc(h.name) + "</td><td>" + esc(String(h.class || "").replace("_", " ").toUpperCase()) + "</td><td class=\"num\">" + (h.distance_ly || 0).toFixed(2) + "</td><td class=\"num\">" + (h.total_ly || 0).toFixed(1) + "</td><td class=\"num\">" + (h.fuel_after == null ? "" : h.fuel_after.toFixed(1)) + "</td><td>" + tags + "</td></tr>";
+  }).join("");
+  map.setRoute(route);
+}
+
+// ---------------------------------------------------------------- map
+// A port of the app's GalaxyView: the same star cloud, layers, colours,
+// fat lines, markers, framing and controls, minus the app-only parts
+// (follow cursor, live-activity heat, Ctrl+click identification).
+const CLASS_COLOR = {
+  neutron: 0x7ec8ff, white_dwarf: 0xc9d6ff, black_hole: 0xff5c5c,
+  o: 0x9fb4ff, b: 0xaac4ff, a: 0xe0e8ff, f: 0xfff4d6, g: 0xffe59a, k: 0xffc36b, m: 0xff8c5a,
+  l: 0xb06b4a, t: 0x8a5a55, y: 0x6a4a55, proto: 0xffb3e6, exotic: 0xc0a0ff, unknown: 0x8b95a5,
+};
+// Star class codes as the index stores them (ed_galaxy::StarClass::code).
+const CODE_COLOR = [0x8b95a5, 0x9fb4ff, 0xaac4ff, 0xe0e8ff, 0xfff4d6, 0xffe59a, 0xffc36b, 0xff8c5a, 0xb06b4a, 0x8a5a55, 0x6a4a55, 0xffb3e6, 0xc0a0ff, 0xc9d6ff, 0x7ec8ff, 0xff5c5c];
+// Galactic coordinates: x east, y up, z toward the core. three.js is
+// right-handed with y up, so z is negated to keep east on the right.
+const toScene = (p) => new THREE.Vector3(p[0], p[1], -p[2]);
+
+const map = (() => {
+  const host = $("galaxy");
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setClearColor(0x06080c, 1);
+  host.insertBefore(renderer.domElement, host.firstChild);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, 1, 1, 200000);
+  // Sol south, coreward up — the screen axes align with the galactic
+  // axes, matching the in-game galaxy map. Scene -Z is galactic +Z.
+  camera.up.set(0, 0, -1);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.zoomSpeed = 1.2;
+  controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+  const lineMaterials = new Set();
+  let route = null, routeGroup = null, backdrop = null, populated = null;
+  const labelEls = [];
+  const hoverEl = document.createElement("div"); hoverEl.className = "hover"; hoverEl.hidden = true; host.appendChild(hoverEl);
+
+  function fatLine(points, color, width, opacity) {
+    const geo = new LineGeometry();
+    geo.setPositions(points.flatMap((p) => [p.x, p.y, p.z]));
+    const mat = new LineMaterial({ color, linewidth: width, transparent: true, opacity, depthTest: false, depthWrite: false, worldUnits: false });
+    mat.resolution.set(host.clientWidth || 800, host.clientHeight || 400);
+    lineMaterials.add(mat);
+    const line = new Line2(geo, mat);
+    line.computeLineDistances();
+    line.renderOrder = 10;
+    return line;
+  }
+
+  async function loadStars(url, size, dim, popSpan, opacity, { hidePopulated = false, populatedLayer = false } = {}) {
+    const buf = await (await fetch(url)).arrayBuffer();
+    const n = Math.floor(buf.byteLength / 16);
+    const view = new DataView(buf);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    const c = new THREE.Color(), inhabitedGreen = new THREE.Color(0x55d98a);
+    for (let i = 0; i < n; i++) {
+      const o = i * 16;
+      pos[i * 3] = view.getFloat32(o, true);
+      pos[i * 3 + 1] = view.getFloat32(o + 4, true);
+      pos[i * 3 + 2] = -view.getFloat32(o + 8, true);
+      const classCode = view.getUint8(o + 12);
+      // Byte 13 is population on a log scale (0 = none).
+      const pop = view.getUint8(o + 13) / 255;
+      if (hidePopulated && pop > 0) { col[i * 3] = 0; col[i * 3 + 1] = 0; col[i * 3 + 2] = 0; continue; }
+      c.setHex(CODE_COLOR[classCode] ?? 0x8b95a5);
+      if (populatedLayer || pop > 0) c.lerp(inhabitedGreen, 0.38 + 0.32 * pop);
+      const exploredScale = !populatedLayer && classCode === 0 ? 0.5 : 1;
+      c.multiplyScalar((dim + popSpan * pop) * exploredScale);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    // Additive: dense regions pile up towards white, so the per-point
+    // contribution stays small where thousands of points overlap.
+    const mat = new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: false, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });
+    return new THREE.Points(geo, mat);
+  }
+
+  function buildRoute() {
+    if (routeGroup) { scene.remove(routeGroup); routeGroup.traverse((o) => { o.geometry?.dispose(); if (o.material) { lineMaterials.delete(o.material); o.material.dispose?.(); } }); routeGroup = null; }
+    if (!route?.hops?.length) return;
+    routeGroup = new THREE.Group();
+    const hops = route.hops;
+    const pts = hops.map((h) => toScene(h.pos));
+    // Path: ordinary segments orange, supercharged segments blue, drawn
+    // as fat lines on top of everything so the backdrop never hides them.
+    for (let i = 1; i < hops.length; i++) routeGroup.add(fatLine([pts[i - 1], pts[i]], hops[i].boosted ? 0x9ad9ff : 0xffa348, 2.5, 1.0));
+    // Hop markers: colour by star class.
+    const pos = new Float32Array(hops.length * 3), col = new Float32Array(hops.length * 3);
+    const c = new THREE.Color();
+    hops.forEach((h, i) => {
+      pos[i * 3] = pts[i].x; pos[i * 3 + 1] = pts[i].y; pos[i * 3 + 2] = pts[i].z;
+      c.setHex(CLASS_COLOR[h.class] ?? 0x8b95a5);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const markers = new THREE.Points(geo, new THREE.PointsMaterial({ size: 7, vertexColors: true, sizeAttenuation: false, depthWrite: false, depthTest: false }));
+    markers.renderOrder = 11;
+    markers.name = "hops";
+    routeGroup.add(markers);
+    const ball = (p, color, r) => { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 12), new THREE.MeshBasicMaterial({ color })); s.position.copy(p); return s; };
+    const span = Math.max(1, route.straight_ly ?? 100);
+    routeGroup.add(ball(pts[0], 0xffffff, span * 0.004));
+    routeGroup.add(ball(pts[pts.length - 1], 0xff8c1a, span * 0.004));
+    scene.add(routeGroup);
+  }
+
+  // No route yet: the whole galaxy, seen from above the bubble's side.
+  function frameGalaxy() {
+    const center = toScene([0, 0, 15000]);
+    camera.position.copy(center).add(new THREE.Vector3(0, 60000, 0));
+    camera.near = 30; camera.far = 400000; camera.updateProjectionMatrix();
+    controls.target.copy(center); controls.update();
+  }
+  function frameRoute() {
+    if (!route?.hops?.length) { frameGalaxy(); return; }
+    const box = new THREE.Box3();
+    route.hops.forEach((h) => box.expandByPoint(toScene(h.pos)));
+    const center = box.getCenter(new THREE.Vector3());
+    const size = Math.max(box.getSize(new THREE.Vector3()).length(), 60);
+    camera.position.copy(center).add(new THREE.Vector3(0, size, 0));
+    camera.near = Math.max(0.5, size / 2000); camera.far = 200000; camera.updateProjectionMatrix();
+    controls.target.copy(center); controls.update();
+  }
+  function reframe() { camera.up.set(0, 0, -1); frameRoute(); }
+
+  function resize() {
+    const w = host.clientWidth, h = host.clientHeight;
+    renderer.setSize(w, h, false);
+    for (const m of lineMaterials) m.resolution.set(w, h);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  resize();
+  new ResizeObserver(resize).observe(host);
+
+  // Sol, Colonia, Sagittarius A*: the three fixed points of the map.
+  const landmarks = [[[0, 0, 0], "Sol"], [[-9530.5, -910.28, 19808.125], "Colonia"], [[25.21875, -20.90625, 25899.96875], "Sagittarius A*"]];
+  for (const [p] of landmarks) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 10), new THREE.MeshBasicMaterial({ color: 0xfff1a8 }));
+    m.position.copy(toScene(p)); scene.add(m);
+  }
+
+  // Screen-space labels for the ends of the route and the landmarks.
+  function updateLabels() {
+    const w = host.clientWidth, h = host.clientHeight;
+    const wanted = [];
+    const place = (p, text, kind) => {
+      const v = p.clone().project(camera);
+      if (v.z > 1 || v.z < -1) return;
+      const x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
+      if (x < -40 || x > w + 40 || y < -20 || y > h + 20) return;
+      wanted.push({ x, y, text, kind });
+    };
+    if (route?.hops?.length) {
+      const hops = route.hops;
+      place(toScene(hops[0].pos), hops[0].name, "start");
+      place(toScene(hops[hops.length - 1].pos), hops[hops.length - 1].name, "end");
+    }
+    for (const [p, name] of landmarks) place(toScene(p), name, "sol");
+    while (labelEls.length < wanted.length) { const el = document.createElement("div"); host.appendChild(el); labelEls.push(el); }
+    labelEls.forEach((el, i) => {
+      const l = wanted[i];
+      if (!l) { el.hidden = true; return; }
+      el.hidden = false; el.className = "label " + l.kind; el.textContent = l.text; el.style.left = l.x + "px"; el.style.top = l.y + "px";
+    });
+  }
+
+  // Hover over a hop marker: name, class, jump, fuel.
+  const raycaster = new THREE.Raycaster();
+  raycaster.params.Points.threshold = 0;
+  host.addEventListener("mousemove", (e) => {
+    if (!routeGroup || !route) { hoverEl.hidden = true; return; }
+    const rect = host.getBoundingClientRect();
+    const m = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(m, camera);
+    raycaster.params.Points.threshold = camera.position.distanceTo(controls.target) * 0.012;
+    const hit = raycaster.intersectObject(routeGroup.getObjectByName("hops"), false)[0];
+    if (hit) {
+      const h = route.hops[hit.index];
+      hoverEl.textContent = hit.index + ": " + h.name + " · " + String(h.class).replace("_", " ") + " · " + h.distance_ly.toFixed(1) + " ly" + (h.boosted ? " ⚡" : "") + (h.fuel_after != null ? " · " + h.fuel_after.toFixed(0) + " t" : "");
+      hoverEl.hidden = false;
+    } else { hoverEl.hidden = true; }
+  });
+  host.addEventListener("dblclick", reframe);
+  host.addEventListener("keydown", (e) => { if (e.key === "Enter") reframe(); });
+
+  let tick = 0;
+  const loop = () => { controls.update(); renderer.render(scene, camera); if (++tick % 2 === 0) updateLabels(); requestAnimationFrame(loop); };
+  frameGalaxy();
+  loop();
+  (async () => {
+    try {
+      [backdrop, populated] = await Promise.all([
+        loadStars("../assets/galaxy-stars.bin", 1.2, 0.10, 0, 0.6, { hidePopulated: true }),
+        loadStars("../assets/galaxy-populated.bin", 1.4, 0.12, 0.52, 0.3, { populatedLayer: true }),
+      ]);
+      scene.add(backdrop); scene.add(populated);
+      $("loading").remove();
+    } catch (e) {
+      $("loading").textContent = "the galaxy backdrop did not load";
+    }
+  })();
+
+  return {
+    setRoute(r) {
+      const ends = r?.hops?.length ? r.hops[0].name + ">" + r.hops[r.hops.length - 1].name : "";
+      const framed = route?.hops?.length ? route.hops[0].name + ">" + route.hops[route.hops.length - 1].name : "";
+      route = r; buildRoute();
+      if (ends !== framed) frameRoute();
+    },
+  };
+})();
+</script>
+</body>
+</html>

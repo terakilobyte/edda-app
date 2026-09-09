@@ -1,0 +1,28 @@
+== Wongi -> Colonia [explorer]
+   58 jumps, 6 stops, 23298 ly, 313 t scooped
+   predicted pilot time: fitted 79.3 min (4759 s)  |  public-default 70.0 min
+   min tank: 9.3 t at Nyeajaae YF-V d3-13
+   longest throws: 456.4 ly -> Eol Prou GL-Y e1744, 452.8 ly -> Dryooe Flyou GH-C d13-917, 448.8 ly -> Dryio Flyuae CH-U d3-54
+   scheduled drinks: Nyeajaae WA-M d8-83, Skaude RE-O d7-271, Nuekuae JI-A d1-241, Colonia
+
+== Colonia -> Wongi [explorer]
+   54 jumps, 7 stops, 22891 ly, 300 t scooped
+   predicted pilot time: fitted 74.8 min (4489 s)  |  public-default 68.0 min
+   min tank: 11.1 t at PSR J1752-2806
+   longest throws: 459.9 ly -> PSR J1752-2806, 454.9 ly -> Col 359 Sector VZ-G d10-45, 453.3 ly -> Bleia Eohn FC-B d1-79
+   scheduled drinks: Dryooe Flyou WY-I d9-2019, Blua Eaec NH-V d2-66, Stuelou UY-I d9-140, Clooku OE-H d10-155, Prua Phoe LM-M d7-55, Nyeajaae OC-V d2-3, Wongi
+
+== Wongi -> Colonia [explorer min-fuel]
+   58 jumps, 3 stops, 23093 ly, 210 t scooped
+   predicted pilot time: fitted 76.1 min (4568 s)  |  public-default 64.0 min
+   min tank: 15.4 t at Nyeajaae NC-C d75
+   longest throws: 452.8 ly -> Dryooe Flyou GH-C d13-917, 448.8 ly -> Dryio Flyuae CH-U d3-54, 448.8 ly -> Dryooe Flyou HB-N d7-871
+   scheduled drinks: HIP 68348, Nyeajaae CW-U d3-86, Nuekuae JI-A d1-241
+
+== Colonia -> Wongi [explorer min-fuel]
+   54 jumps, 2 stops, 22891 ly, 202 t scooped
+   predicted pilot time: fitted 70.5 min (4230 s)  |  public-default 58.0 min
+   min tank: 8.4 t at Wongi
+   longest throws: 459.9 ly -> PSR J1752-2806, 454.9 ly -> Col 359 Sector VZ-G d10-45, 453.3 ly -> Bleia Eohn FC-B d1-79
+   scheduled drinks: Clooku OE-H d10-155, Nyeajaae OC-V d2-3
+

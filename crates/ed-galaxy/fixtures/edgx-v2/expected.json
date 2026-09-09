@@ -1,0 +1,48 @@
+{
+  "files": {
+    "stars.bin": {
+      "bytes": 119,
+      "sha256": "a271f1a0bc46fa72966092ea62dee2895e0ed771cfbd5022925d56149df01258"
+    },
+    "cells.bin": {
+      "bytes": 48,
+      "sha256": "a2e68f2269211118d4c4a17fbc553612ea3da35b7f711bde8727ed8dfcff2353"
+    },
+    "names.bin": {
+      "bytes": 12,
+      "sha256": "a4a226e38e6aec6823b3a12517ad2a3cfa6afb79034cf2088ff23f0282bbd1ea"
+    },
+    "byname.bin": {
+      "bytes": 12,
+      "sha256": "0db201e8371010e5cd3b719cf6c131cea86e18ef7c5bdd394e23b352b8e54f9e"
+    }
+  },
+  "cell_ly": 50.0,
+  "records": [
+    {
+      "index": 0,
+      "id64": 3,
+      "name": "beta",
+      "position": [-60.0, 0.0, 0.0],
+      "class_code": 14,
+      "flags": 1
+    },
+    {
+      "index": 1,
+      "id64": 10477373803,
+      "name": "Sol",
+      "position": [0.0, 0.0, 0.0],
+      "class_code": 5,
+      "flags": 1
+    },
+    {
+      "index": 2,
+      "id64": 2,
+      "name": "Alpha",
+      "position": [60.0, 0.0, 0.0],
+      "class_code": 6,
+      "flags": 1
+    }
+  ],
+  "byname_indices": [2, 0, 1]
+}

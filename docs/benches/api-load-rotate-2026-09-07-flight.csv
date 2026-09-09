@@ -1,0 +1,29 @@
+# api-load-rotate on the FLIGHT binary (api-only-server c78cc24, sha 02246ca4…), 2026-09-07 21:5x–22:0xZ, one Mac
+# (~185 ms RTT inside every number), c = 4 / 16, all four limiters open via drop-in (restored after). Two new rungs:
+# trade_report_rotating (the API-only client's `ship` body → full ProfitReport) and stations_near_rotating (/v1/stations
+# near+service). READ WITH THE CODES COLUMN. route_long's `0:` codes at c=16 are the HARNESS's 60 s client timeout
+# against the lane's 120 s budget, not server errors. Zero 5xx other than 503 admission; zero 429.
+# VERDICT: everything scales except the trade endpoints, which share TradeService's ONE-runner gate — trade_report p50
+# 484 ms at c=4 (≈300 ms server, all 200) but 1.76 s p50 / 26 s p95 at c=16 (the line behind one runner); legacy
+# trade_search 2.65 s → 8.8 s p50 the same way. stations near: 1,944 req at c=16, p50 228 ms (≈45 ms server), all 200.
+# market search 2,016 / lookups 2,465 / completion 2,457 at c=16, all 200. Bubble plots 745 served / 209 × 503 (22 %)
+# = the gate-4 row; long lane 14 served, 0 × 504. Trade behind two plots: wire 0.70–1.37 s (= step-1 AFTER).
+# NEXT (measure, don't guess): the trade gate was sized at 1 when the query cost ~3 s; the report now costs ~160 ms
+# server-side — sweep the gate 1/2/3 with this harness's trade_report rung before raising it.
+route,concurrency,requests,rps,p50_ms,p95_ms,p99_ms,http_2xx,http_429,http_5xx,http_other,transport_errors,codes
+names_complete_rotating,4,596,19.75,193.7,212.6,603.0,596,0,0,0,0,200:596
+knowledge_system_rotating,4,642,21.36,184.5,191.8,216.5,642,0,0,0,0,200:642
+market_search_rotating,4,456,15.08,243.8,290.7,745.9,456,0,0,0,0,200:456
+trade_search_rotating,4,50,1.53,2654.0,4217.9,5106.7,50,0,0,0,0,200:50
+trade_report_rotating,4,233,7.69,483.6,795.0,1240.2,233,0,0,0,0,200:233
+stations_near_rotating,4,513,16.97,221.3,308.9,330.9,513,0,0,0,0,200:513
+route_bubble_rotating,4,369,12.05,299.5,617.3,811.4,369,0,0,0,0,200:369
+route_long_rotating,4,34,0.47,4339.6,44138.6,44948.7,34,0,0,0,0,200:34
+names_complete_rotating,16,2457,81.39,191.9,202.5,230.0,2457,0,0,0,0,200:2457
+knowledge_system_rotating,16,2465,81.66,192.6,201.7,208.0,2465,0,0,0,0,200:2465
+market_search_rotating,16,2016,66.64,232.0,271.1,296.7,2016,0,0,0,0,200:2016
+trade_search_rotating,16,64,1.64,8806.0,11241.8,11783.4,64,0,0,0,0,200:64
+trade_report_rotating,16,87,2.51,1758.3,26033.7,34663.7,87,0,0,0,0,200:87
+stations_near_rotating,16,1944,64.22,227.8,326.2,647.9,1944,0,0,0,0,200:1944
+route_bubble_rotating,16,954,30.88,496.1,983.8,1242.2,745,0,209,0,0,200:745;503:209
+route_long_rotating,16,49,0.73,208.4,46619.7,46711.8,14,0,26,0,9,0:9;200:14;503:26

@@ -1,0 +1,84 @@
+# Recovered bench-format lines from the Mac session transcript (pre-archive era onward).
+# Context (which galaxy, which route, which flags) is NOT captured by this recovery —
+# lines are deduplicated with occurrence counts; consult the transcript for surroundings.
+# Known: 22000-straight rows are the SYNTHETIC corridor (SynthStart->SynthGoal);
+# 8990-straight rows are the synthetic dense pair. Real-galaxy rows have other straights.
+
+[x2] 100 jumps, 25770 ly flown (22000 straight), 96 boosted, 26 refuel stops, 336 expansions, 102 ms (wall 102 ms), variants 9/9
+[x4] 2 jumps, 118 ly flown (118 straight), 0 boosted, 2 refuel stops, 16 expansions, 1 ms (wall 1 ms)
+[x12] 2 jumps, 118 ly flown (118 straight), 0 boosted, 2 refuel stops, 16 expansions, 2 ms (wall 2 ms)
+[x14] 2 jumps, 132 ly flown (131 straight), 0 boosted, 2 refuel stops, 2 expansions, 0 ms (wall 0 ms)
+[x2] 2 jumps, 172 ly flown (157 straight), 1 boosted, 1 refuel stops, 4 expansions, 28 ms (wall 28 ms)
+[x10] 23 jumps, 9187 ly flown (8990 straight), 22 boosted, 2 refuel stops, 823 expansions, 150 ms (wall 150 ms), variants 7/7
+[x10] 23 jumps, 9187 ly flown (8990 straight), 22 boosted, 2 refuel stops, 823 expansions, 150 ms (wall 150 ms), variants 9/9
+[x4] 23 jumps, 9187 ly flown (8990 straight), 22 boosted, 2 refuel stops, 823 expansions, 152 ms (wall 152 ms), variants 9/9
+[x4] 23 jumps, 9187 ly flown (8990 straight), 22 boosted, 2 refuel stops, 823 expansions, 153 ms (wall 153 ms), variants 9/9
+[x2] 24 jumps, 9170 ly flown (8990 straight), 23 boosted, 4 refuel stops, 824 expansions, 140 ms (wall 140 ms), variants 9/9
+[x2] 24 jumps, 9170 ly flown (8990 straight), 23 boosted, 4 refuel stops, 824 expansions, 142 ms (wall 142 ms), variants 9/9
+[x2] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 32 ms (wall 32 ms)
+[x8] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 44 ms (wall 44 ms)
+[x2] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 45 ms (wall 45 ms)
+[x2] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 45 ms (wall 46 ms)
+[x2] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 47 ms (wall 47 ms)
+[x2] 3 jumps, 158 ly flown (157 straight), 0 boosted, 3 refuel stops, 402 expansions, 49 ms (wall 49 ms)
+[x2] 5 jumps, 460 ly flown (437 straight), 1 boosted, 3 refuel stops, 281 expansions, 5 ms (wall 5 ms)
+[x4] 56 jumps, 22593 ly flown (22000 straight), 53 boosted, 16 refuel stops, 79 expansions, 15 ms (wall 15 ms), variants 6/6
+[x2] 56 jumps, 22593 ly flown (22000 straight), 53 boosted, 16 refuel stops, 79 expansions, 16 ms (wall 16 ms), variants 6/6
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 818 ms (wall 818 ms), variants 1/7
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 824 ms (wall 824 ms), variants 1/7
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 832 ms (wall 832 ms), variants 3/9
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 838 ms (wall 838 ms), variants 3/9
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 844 ms (wall 844 ms), variants 3/9
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 847 ms (wall 847 ms), variants 3/9
+[x2] 57 jumps, 23279 ly flown (22000 straight), 56 boosted, 20 refuel stops, 1814 expansions, 850 ms (wall 850 ms), variants 3/9
+[x2] 57 jumps, 23625 ly flown (22000 straight), 56 boosted, 11 refuel stops, 6091 expansions, 896 ms (wall 896 ms), variants 4/9
+[x2] 6 jumps, 728 ly flown (437 straight), 1 boosted, 5 refuel stops, 37 expansions, 4 ms (wall 4 ms)
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1016 expansions, 63 ms (wall 63 ms), variants 9/9
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 240 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 76 ms
+[x4] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 77 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 77 ms (wall 77 ms), variants 7/7
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 78 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 78 ms (wall 78 ms), variants 9/9
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1033 expansions, 87 ms (wall 87 ms), variants 9/9
+[x4] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 164 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 166 ms (wall 166 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 168 ms
+[x4] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 172 ms
+[x4] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 174 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 174 ms (wall 174 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 189 ms (wall 189 ms
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 316 ms (wall 317 ms), variants 7/7
+[x2] 61 jumps, 24205 ly flown (22000 straight), 60 boosted, 16 refuel stops, 1249 expansions, 327 ms
+[x2] 62 jumps, 24396 ly flown (22000 straight), 59 boosted, 16 refuel stops, 2378 expansions, 125 ms (wall 125 ms), variants 7/7
+[x2] 62 jumps, 24396 ly flown (22000 straight), 59 boosted, 16 refuel stops, 2378 expansions, 137 ms (wall 137 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 166 ms (wall 166 ms), variants 6/6
+[x6] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 167 ms (wall 167 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 171 ms (wall 171 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 174 ms (wall 174 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 175 ms (wall 175 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 200 ms (wall 200 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 299 ms (wall 299 ms), variants 6/6
+[x6] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 341 ms (wall 341 ms), variants 6/6
+[x4] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 13 refuel stops, 2497 expansions, 344 ms (wall 344 ms), variants 6/6
+[x8] 62 jumps, 24604 ly flown (22000 straight), 61 boosted, 2 refuel stops, 2499 expansions, 165 ms (wall 165 ms), variants 6/6
+[x12] 7 jumps, 492 ly flown (485 straight), 0 boosted, 7 refuel stops, 7 expansions, 1 ms (wall 1 ms)
+[x6] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 27 refuel stops, 4636 expansions, 171 ms (wall 171 ms), variants 6/6
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2462 expansions, 88 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2462 expansions, 89 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2462 expansions, 89 ms (wall 89 ms), variants 7/7
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2462 expansions, 89 ms (wall 89 ms), variants 9/9
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2462 expansions, 90 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2464 expansions, 106 ms (wall 106 ms), variants 9/9
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2464 expansions, 136 ms (wall 136 ms), variants 21/21
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 2464 expansions, 265 ms (wall 265 ms), variants 9/9
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 172 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 174 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 177 ms (wall 177 ms), variants 6/6
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 177 ms (wall 177 ms), variants 7/7
+[x4] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 180 ms (wall 180 ms), variants 6/6
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 182 ms (wall 182 ms), variants 6/6
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 184 ms
+[x2] 97 jumps, 25159 ly flown (22000 straight), 94 boosted, 31 refuel stops, 4636 expansions, 185 ms (wall 185 ms), variants 6/6
+[x2] 98 jumps, 25584 ly flown (22000 straight), 95 boosted, 34 refuel stops, 2412 expansions, 83 ms (wall 83 ms), variants 7/7
+[x2] 98 jumps, 25584 ly flown (22000 straight), 95 boosted, 34 refuel stops, 2412 expansions, 88 ms (wall 88 ms), variants 6/6

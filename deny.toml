@@ -1,0 +1,76 @@
+# cargo-deny configuration (format for cargo-deny 0.16+).
+#
+# CI does not run this yet. To run it locally:
+#
+#     cargo install cargo-deny --locked
+#     cargo deny check            # licenses + advisories + bans + sources
+#     cargo deny check licenses   # just the licence allow list
+#
+# `[graph] targets` is left empty on purpose: the licence audit recorded in
+# THIRD-PARTY-NOTICES.md could only read crates present on a macOS host, so
+# the check must cover every target's platform-specific crates as well.
+
+[graph]
+targets = []
+all-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+
+# Unmaintained crates are flagged only when the workspace depends on them
+# directly; the transitive ones (proc-macro-error, the unic-* family under
+# tauri-utils, checked 2026-09-09) are upstream's to move off. Vulnerable
+# crates are always errors.
+unmaintained = "workspace"
+db-path = "$CARGO_HOME/advisory-dbs"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+
+[licenses]
+# Every expression in the workspace graph resolves to one of these; `OR`
+# expressions pass when any branch is allowed. MPL-2.0 covers the symphonia
+# family, cssparser, cssparser-macros, dtoa-short, selectors and option-ext,
+# all used unmodified from crates.io (see THIRD-PARTY-NOTICES.md section 7).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "BSL-1.0",
+    "Unlicense",
+    "0BSD",
+    "MIT-0",
+]
+confidence-threshold = 0.8
+exceptions = []
+
+[licenses.private]
+# Workspace crates inherit `license = "MIT"` from the root Cargo.toml.
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+allow = []
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

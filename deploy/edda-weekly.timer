@@ -1,0 +1,9 @@
+[Unit]
+Description=EDDA weekly enrichment, Sundays 01:00 UTC (before Monday's daily)
+
+[Timer]
+OnCalendar=Sun *-*-* 01:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

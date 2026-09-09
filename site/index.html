@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDDA — a copilot for Elite Dangerous</title>
+<meta name="description" content="The galaxy is trying to kill you. EDDA is trying to help. Galaxy-spanning routes in seconds, voice callouts before the hazards, markets minus the lies. Free forever. Windows and Linux.">
+<meta property="og:title" content="EDDA — a copilot for Elite Dangerous">
+<meta property="og:description" content="The galaxy is trying to kill you. EDDA is trying to help. Galaxy-spanning routes in seconds, voice callouts before the hazards, markets minus the lies. Free forever. Windows and Linux.">
+<meta property="og:image" content="https://edda-app.com/assets/route_planner.png">
+<meta property="og:url" content="https://edda-app.com/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* EDDA's own cockpit palette (frontend/src/app.css): the site is the
+     product's world, committed dark. */
+  :root {
+    --bg: #0a0c10;
+    --bg-2: #10141b;
+    --panel: #131820;
+    --line: #262e3a;
+    --text: #e4e6ea;
+    --muted: #8b95a5;
+    --accent: #ff8c1a;
+    --accent-2: #ffb35c;
+    --cyan: #5ec8e5;
+    --ok: #57c66d;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 500px at 75% -10%, #1a2029cc, transparent 65%),
+      var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 66rem; margin: 0 auto; padding: 0 1.4rem; }
+  a { color: var(--cyan); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+  /* Star speckle: two tiled layers drifting very slowly. */
+  .stars, .stars.far {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(1px 1px at 21px 33px, #e4e6ea77, transparent),
+      radial-gradient(1px 1px at 132px 88px, #5ec8e544, transparent),
+      radial-gradient(1.5px 1.5px at 200px 21px, #e4e6ea55, transparent),
+      radial-gradient(1px 1px at 77px 149px, #ffb35c33, transparent),
+      radial-gradient(1px 1px at 173px 181px, #e4e6ea44, transparent);
+    background-size: 230px 230px;
+    animation: drift 240s linear infinite;
+  }
+  .stars.far { background-size: 340px 340px; opacity: 0.5; animation-duration: 400s; }
+  @keyframes drift { to { background-position: 230px 460px; } }
+  @media (prefers-reduced-motion: reduce) { .stars, .stars.far { animation: none; } }
+  main { position: relative; z-index: 1; }
+
+  .kicker {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  /* ── Hero ── */
+  header { padding: 5.5rem 0 3.5rem; }
+  .mast { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.2rem; }
+  .mast img { width: 44px; height: 44px; border-radius: 9px; }
+  .mast .name { font-family: var(--display); font-weight: 800; font-size: 1.3rem; letter-spacing: 0.02em; }
+  h1 {
+    font-family: var(--display); font-weight: 800;
+    font-size: clamp(2.3rem, 6vw, 3.9rem); line-height: 1.04;
+    letter-spacing: -0.015em; margin: 0.7rem 0 1rem; max-width: 24ch;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .sub { color: var(--muted); font-size: 1.12rem; max-width: 54ch; margin: 0 0 2.2rem; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .dl { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    font-family: var(--display); font-weight: 700; font-size: 1rem;
+    background: var(--accent); color: #1a1200; border: none; border-radius: 8px;
+    padding: 0.8rem 1.4rem; cursor: pointer; text-decoration: none;
+  }
+  .btn:hover { background: var(--accent-2); }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .btn.ghost:hover { background: #ff8c1a14; }
+  .btn[aria-disabled="true"] { opacity: 0.45; cursor: default; pointer-events: none; }
+  .verpill {
+    font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.25rem 0.7rem;
+    background: var(--bg-2);
+  }
+  .verpill .v { color: var(--ok); }
+
+  /* ── HUD frame for screenshots ── */
+  .shot {
+    position: relative; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 10;
+  }
+  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shot .ph {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--mono); font-size: 0.8rem; color: var(--muted);
+    background:
+      linear-gradient(135deg, transparent 48%, #262e3a55 49%, transparent 51%),
+      var(--bg-2);
+  }
+  .shot::before, .shot::after,
+  .shot .tick::before, .shot .tick::after {
+    content: ""; position: absolute; width: 16px; height: 16px;
+    border: 2px solid var(--accent); z-index: 2;
+  }
+  .shot::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+  .shot::after { top: 8px; right: 8px; border-left: 0; border-bottom: 0; }
+  .shot .tick::before { bottom: 8px; left: 8px; border-right: 0; border-top: 0; }
+  .shot .tick::after { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
+
+  header .shot { margin-top: 3rem; }
+  .shot.contain img { object-fit: contain; background: var(--bg-2); }
+
+  /* ── Feature strips ── */
+  section { padding: 3.4rem 0; border-top: 1px solid var(--line); }
+  .strip { display: grid; grid-template-columns: 1fr 1fr; gap: 2.6rem; align-items: center; }
+  .strip:nth-of-type(even) .copy { order: 2; }
+  @media (max-width: 760px) { .strip { grid-template-columns: 1fr; } .strip:nth-of-type(even) .copy { order: 0; } }
+  h2 {
+    font-family: var(--display); font-weight: 700; font-size: 1.7rem;
+    line-height: 1.15; margin: 0.5rem 0 0.9rem; text-wrap: balance;
+  }
+  .copy p { color: var(--muted); margin: 0 0 0.9rem; }
+  .copy p b { color: var(--text); font-weight: 600; }
+  .copy .num { color: var(--accent-2); font-family: var(--mono); }
+
+  /* ── Numbers band ── */
+  .band {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; margin-top: 1rem;
+  }
+  .band div { background: var(--panel); padding: 1.1rem 1.2rem; }
+  .band .n { font-family: var(--mono); font-size: 1.35rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .band .l { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+  footer { border-top: 1px solid var(--line); padding: 2.6rem 0 3.4rem; color: var(--muted); font-size: 0.88rem; }
+  footer p { max-width: 70ch; }
+  .quiet { color: #667081; }
+</style>
+</head>
+<body>
+<div class="stars far"></div>
+<div class="stars"></div>
+<main>
+  <div class="wrap">
+
+    <header>
+      <div class="mast">
+        <img src="assets/icon.png" alt="" width="44" height="44">
+        <span class="name">EDDA</span>
+        <nav style="margin-left:auto; font-family:var(--mono); font-size:0.82rem"><a href="/route/">route planner</a><a href="/blog/" style="margin-left:1.2rem">build log</a></nav>
+      </div>
+      <p class="kicker">For Elite Dangerous commanders</p>
+      <h1>The galaxy is trying to kill you. <em>EDDA is trying to help.</em></h1>
+      <p class="sub">Elite Dangerous simulates 400 billion star systems, and approximately none of them care about you. EDDA plans <b>galaxy-spanning routes in seconds</b>, finds trade routes that will make <b>treasure goblins envy you</b>, and will do its best to protect you against yourself.</p>
+      <p class="sub">Voice integration comes standard, optional AI integration makes it an <b>alt-tab-free experience</b>, and the whole thing runs on your machine off your own journal — the only cloud involved is the one you scoop fuel from.</p>
+
+      <div class="dl" id="dl">
+        <a class="btn" id="dl-win" href="#" aria-disabled="true">Download for Windows</a>
+        <a class="btn ghost" id="dl-linux" href="#" aria-disabled="true" title="Alpha build">Linux — Alpha build</a>
+        <span class="verpill" id="verpill">checking latest version…</span>
+        <a href="/notes/" style="font-family:var(--mono); font-size:0.8rem; color:var(--accent-2); align-self:center">what's new →</a>
+      </div>
+      <p style="font-family:var(--mono); font-size:0.8rem; color:var(--ok); margin:0.9rem 0 0">100% free. Free forever.</p>
+      <p style="font-family:var(--mono); font-size:0.74rem; color:var(--muted); margin:0.4rem 0 0">*EDDA is still in development and there may be bugs. <span id="deb-alt"></span></p>
+
+      <div class="shot" style="aspect-ratio:1600/753"><span class="tick"></span><img src="assets/route_planner.png" alt="EDDA's route planner: Sol to Colonia, 23,204 light years — 58 jumps, 55 supercharged, plotted in 889 ms, drawn as a blue neutron highway across the galaxy."></div>
+    </header>
+
+    <section>
+      <div class="strip">
+        <div class="copy">
+          <p class="kicker">Routing</p>
+          <h2>The long way, computed before you finish the thought.</h2>
+          <p><span class="num">199,000,000</span> charted systems live on your disk. Ask for Colonia — <span class="num">22,000 ly</span>, past deserts that eat ships — and the route is there in seconds (technically the route is probably calculated before your measly eyes register the beautiful button click effect; displaying it takes more time). It is fuel-exact. It knows your ship. It marks the stops you need and none you don't.</p>
+          <p>Follow mode targets each hop in-game, calls each supercharge, and replots when you wander. We flew it with a stopwatch. <b>The math held.</b></p>
+        </div>
+        <div class="shot contain"><span class="tick"></span><img src="assets/hud_route.png" alt="The in-game overlay after plotting: the jump chain and a spoken Route plotted confirmation, while docked."></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="strip">
+        <div class="copy">
+          <p class="kicker">Voice</p>
+          <h2>It speaks when it matters. Otherwise, silence.</h2>
+          <p>A neutron star boosts your range — 6× — if you ride its cone, and a short, poignant lesson in astrophysics if you arrive at full throttle. EDDA says <b>"throttle down"</b> eighteen seconds early, out loud. It knows which stars won't feed your scoop, and it does the fuel arithmetic <b>before</b> the jump — the only time that arithmetic has ever been useful to anyone.</p>
+          <p>On plan, it trusts the plan. Fuel it accounted for is fuel it won't mention. <b>Silence is a feature.</b></p>
+        </div>
+        <div class="shot contain"><span class="tick"></span><img src="assets/hud_warning.png" alt="Mid-flight at a neutron star: the throttle-down hazard warning, delivered with personality."></div>
+      </div>
+    </section>
+
+    
+    <section>
+      <div class="strip">
+        <div class="copy">
+          <p class="kicker">Trade</p>
+          <h2>Markets, minus the lies.</h2>
+          <p>Community market data is a miracle with a few crime scenes in it. EDDA fences out carrier price manipulation, drops the stations that would confiscate your cargo, and treats depth honestly: <b>a route is only as good as the tonnage waiting at both ends.</b></p>
+          <p>Get market updates that are smaller than the YouTube video you watched on how to outfit a hauler.</p>
+        </div>
+        <div class="shot" style="aspect-ratio:1600/753"><span class="tick"></span><img src="assets/trade_finder.png" alt="The profit finder: 100 round trips up to 152M credits per hour, 1,788 stations searched in 19.6 seconds, with carrier and confiscation exclusions counted in the summary."></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="kicker">Receipts</p>
+      <h2>Built with love. And benchmarks.</h2>
+      <p class="sub" style="margin-bottom:0.4rem">Every feature was meticulously, maniacally optimized — from a route planner that nearly breaks mathematical laws to a custom file format <span class="num">90%</span> smaller than the raw community data dumps. If you find anything wrong, report it in the app.</p>
+      <div class="band">
+        <div><div class="n">199 M</div><div class="l">star systems living on your disk, rent-free</div></div>
+        <div><div class="n">0.7 s</div><div class="l">to plot 22,000 ly (drawing it takes longer)</div></div>
+        <div><div class="n">~1.5 MB</div><div class="l">a week of galactic change; the hauler video was bigger</div></div>
+        <div><div class="n">18 s</div><div class="l">of warning before the astrophysics lesson</div></div>
+        <div><div class="n">0 cr</div><div class="l">now, and at every price check forever</div></div>
+      </div>
+    </section>
+
+
+    <footer>
+      <p>EDDA stands on the shoulders of the Elite Dangerous community's data commons:
+        <a href="https://spansh.co.uk">Spansh</a>, <a href="https://www.edsm.net">EDSM</a>,
+        <a href="https://github.com/EDCD/EDDN">EDDN</a>, <a href="https://inara.cz">Inara</a>,
+        <a href="https://edastro.com">EDAstro</a> and the <a href="https://github.com/EDCD">EDCD</a> standards work.
+        Thank you, commanders.</p>
+      <p><a href="/privacy/">What EDDA collects</a> — the whole list, in plain words. Short version: nothing that identifies you.</p>
+      <p class="quiet">EDDA is an unofficial third-party tool. Elite Dangerous © Frontier Developments plc. All trademarks are the property of their respective owners.</p>
+    </footer>
+
+  </div>
+</main>
+
+<script>
+  // The download buttons read the updater's own manifest, so the page can
+  // never offer a version the API isn't serving.
+  const API = "https://api.edda-app.com";
+  (async () => {
+    const pill = document.getElementById("verpill");
+    const win = document.getElementById("dl-win");
+    const linux = document.getElementById("dl-linux");
+    try {
+      const latest = await (await fetch(`${API}/v1/app/latest.json`, { cache: "no-store" })).json();
+      const p = latest.platforms ?? {};
+      if (p["windows-x86_64"]) {
+        win.href = p["windows-x86_64"].url ?? `${API}/v1/app/EDDA_${latest.version}_x64-setup.exe`;
+        win.removeAttribute("aria-disabled");
+      }
+      if (p["linux-x86_64"]) {
+        linux.href = p["linux-x86_64"].url;
+        linux.removeAttribute("aria-disabled");
+        document.getElementById("deb-alt").innerHTML = `Prefer a <a href="${API}/v1/app/EDDA_${latest.version}_amd64.deb">.deb</a>? We have one of those too.`;
+      }
+      pill.innerHTML = `latest <span class="v">v${latest.version}</span>`;
+    } catch {
+      pill.textContent = "version check unavailable — try again shortly";
+    }
+  })();
+</script>
+</body>
+</html>

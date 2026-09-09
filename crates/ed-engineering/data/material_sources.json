@@ -1,0 +1,82 @@
+[
+  {
+    "site": "Jameson Memorial crash site",
+    "system": "HIP 12099",
+    "body": "HIP 12099 1 B",
+    "method": "Scan the four data points on the crashed Cobra with the SRV; relog to repeat",
+    "materials": ["Adaptive Encryptors Capture", "Modified Embedded Firmware", "Divergent Scan Data", "Cracked Industrial Firmware", "Atypical Encryption Archives"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Dav's Hope abandoned settlement",
+    "system": "Hyades Sector DR-V c2-23",
+    "body": "Hyades Sector DR-V c2-23 A 5",
+    "method": "Drive the loop of debris piles with the SRV; relog to respawn",
+    "materials": ["Chemical Manipulators", "Conductive Polymers", "Configurable Components", "Heat Exchangers", "Mechanical Components", "Phase Alloys", "Focus Crystals", "Heat Vanes", "Polymer Capacitors", "Compound Shielding", "Chemical Processors", "Heat Dispersion Plate", "Mechanical Equipment", "Refined Focus Crystals", "Conductive Ceramics", "High Density Composites", "Galvanising Alloys", "Shielding Sensors", "Electrochemical Arrays", "Hybrid Capacitors", "Worn Shield Emitters", "Chemical Distillery", "Salvaged Alloys", "Grid Resistors", "Heat Conduction Wiring", "Mechanical Scrap", "Basic Conductors", "Chemical Storage Units", "Crystal Shards", "Shield Emitters", "Conductive Components", "Flawed Focus Crystals", "Heat Resistant Ceramics", "Tempered Alloys", "Filament Composites", "Thermic Alloys"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crashed Anaconda (\"Bug Killer\")",
+    "system": "Orrere",
+    "body": "Orrere 2 B",
+    "method": "Shoot the cargo racks with the SRV; relog to repeat",
+    "materials": ["Chemical Manipulators", "Conductive Polymers", "Heat Exchangers", "Mechanical Components", "Compound Shielding", "Refined Focus Crystals", "Chemical Processors", "Phase Alloys", "Heat Dispersion Plate", "Mechanical Equipment", "Focus Crystals", "Galvanising Alloys", "Shielding Sensors", "Chemical Distillery", "Heat Conduction Wiring", "Mechanical Scrap", "Salvaged Alloys", "Grid Resistors", "Conductive Components", "Basic Conductors", "Shield Emitters", "Heat Resistant Ceramics", "Conductive Ceramics"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Polonium)",
+    "system": "HIP 36601",
+    "body": "HIP 36601 C 1 a",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Polonium"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Ruthenium)",
+    "system": "HIP 36601",
+    "body": "HIP 36601 C 1 d",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Ruthenium"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Tellurium)",
+    "system": "HIP 36601",
+    "body": "HIP 36601 C 3 b",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Tellurium"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Technetium)",
+    "system": "HIP 36601",
+    "body": "HIP 36601 C 5 a",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Technetium"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Yttrium)",
+    "system": "Outotz LS-K d8-3",
+    "body": "Outotz LS-K d8-3 B 5 a",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Yttrium"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "Crystal shards (Antimony)",
+    "system": "Outotz LS-K d8-3",
+    "body": "Outotz LS-K d8-3 B 5 c",
+    "method": "Land at the biological crystal shards and shoot them with the SRV; relog to respawn",
+    "materials": ["Antimony"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  },
+  {
+    "site": "High-grade emissions (grade 5 manufactured)",
+    "system": null,
+    "body": null,
+    "method": "Drop into High Grade Emissions signal sources in systems with the matching state: Outbreak → Pharmaceutical Isolators; War/Civil War → Military Grade Alloys, Military Supercapacitors; Boom → Proto Light Alloys, Proto Radiolic Alloys, Proto Heat Radiators; Civil Unrest → Improvised Components; Federation systems → Core Dynamics Composites; Empire systems → Imperial Shielding; Election → Exquisite Focus Crystals. Fly out and back in to respawn",
+    "materials": ["Pharmaceutical Isolators", "Military Grade Alloys", "Military Supercapacitors", "Proto Light Alloys", "Proto Radiolic Alloys", "Proto Heat Radiators", "Improvised Components", "Core Dynamics Composites", "Imperial Shielding", "Exquisite Focus Crystals", "Biotech Conductors", "Datamined Wake Exceptions"],
+    "source": "community (Wanderer's Toolbox / Inara)"
+  }
+]

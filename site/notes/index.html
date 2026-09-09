@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDDA release notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg:#0a0c10; --panel:#131820; --line:#262e3a; --text:#e4e6ea;
+    --muted:#8b95a5; --accent:#ff8c1a; --accent-2:#ffb35c;
+    --display:"Bricolage Grotesque",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:var(--display); line-height:1.55 }
+  main { max-width:46rem; margin:0 auto; padding:2.5rem 1.2rem 4rem }
+  .top { display:flex; align-items:baseline; gap:0.8rem;
+         font-family:var(--mono); font-size:0.85rem }
+  .top a { color:var(--muted); text-decoration:none }
+  .top a:hover { color:var(--accent-2) }
+  h1 { font-size:2rem; margin:1.2rem 0 0.2rem }
+  .sub { color:var(--muted); margin:0 0 2rem }
+  section { border-top:1px solid var(--line); padding:1.4rem 0 0.6rem }
+  h2 { font-family:var(--mono); color:var(--accent); font-size:1.05rem;
+       margin:0 0 0.6rem }
+  p { margin:0.6rem 0 }
+  strong { color:var(--accent-2) }
+  details { margin:0.2rem 0 0.6rem }
+  summary { cursor:pointer; color:var(--accent); font-family:var(--mono); font-size:0.85rem; user-select:none }
+  summary::marker { color:var(--muted) }
+  details p { padding-left:0.9rem; border-left:2px solid var(--line) }
+  .quiet { color:var(--muted); font-family:var(--mono); font-size:0.85rem }
+</style>
+</head>
+<body>
+<main>
+  <nav class="top"><a href="/">&larr; edda-app.com</a><a href="/blog/">build log</a><a href="/privacy">privacy</a></nav>
+  <h1>Release notes</h1>
+  <p class="sub">What each EDDA update brought, the short version first. Open "Full notes" under a version for the rest — the app shows the same notes after it updates, and under Settings &rarr; Application &rarr; What's new.</p>
+  <div id="notes"><p class="quiet">Loading release notes…</p></div>
+</main>
+<script>
+  // The notes come from the same feed the updater publishes, so this page
+  // can never announce a release the API is not serving — and nobody
+  // regenerates it by hand.
+  const API = "https://api.edda-app.com";
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Markdown bold leads only; everything else is text.
+  const inline = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  (async () => {
+    const host = document.getElementById("notes");
+    try {
+      const notes = await (await fetch(`${API}/v1/app/notes.json`, { cache: "no-store" })).json();
+      if (!Array.isArray(notes) || !notes.length) throw new Error("empty feed");
+      host.innerHTML = notes.map((n) => {
+        const long = Array.isArray(n.longNotes) && n.longNotes.length
+          ? `<details><summary>Full notes</summary>${n.longNotes.map((p) => `<p>${inline(p)}</p>`).join("")}</details>`
+          : "";
+        return `<section id="v${esc(n.version)}"><h2>${esc(n.version)}</h2><p>${inline(n.shortNotes ?? "")}</p>${long}</section>`;
+      }).join("");
+      if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+    } catch (e) {
+      host.innerHTML = `<p class="quiet">Release notes are unavailable right now (${esc(e.message)}). The app carries them under Settings &rarr; Application &rarr; What's new.</p>`;
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+[package]
+name = "market-snapshot-bench"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Nathan Leniz <nathan.leniz@gmail.com>"]
+
+[workspace]
+
+[dependencies]
+anyhow = "1.0"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+zstd = "0.13"

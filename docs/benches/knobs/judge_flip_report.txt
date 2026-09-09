@@ -1,0 +1,53 @@
+6/54 cells identical under both judges; 48 flips
+
+cell                                                           sec_judge      fuel_judge  cost_s  saved_t
+Beagle Point->Wongi [explorer]                             196j/43s/884t   202j/52s/848t     738       37
+Beagle Point->Wongi [explorer86]                           170j/36s/766t   171j/43s/737t     303       29
+Beagle Point->Wongi [mandalay]                            325j/107s/834t  338j/121s/800t    1276       34
+Blaa Hypai AA-A a9->Wongi [explorer]                         36j/5s/174t     37j/9s/146t     196       27
+Blaa Hypai AA-A a9->Wongi [explorer86]                       32j/6s/147t     32j/7s/145t      34        3
+Blaa Hypai AA-A a9->Wongi [mandalay]                        58j/14s/174t    64j/17s/174t     492        0
+Byoomao AA-A c1->Sol [explorer]                              62j/5s/343t    65j/10s/307t     373       36
+Byoomao AA-A c1->Sol [explorer86]                            55j/5s/311t    57j/12s/271t     368       40
+Byoomao AA-A c1->Sol [mandalay]                            101j/26s/326t   110j/26s/310t     549       16
+Colonia->Spase AA-A a108-0 [explorer]                        89j/9s/409t    96j/13s/360t     622       49
+Colonia->Spase AA-A a108-0 [explorer86]                     84j/10s/394t     93j/8s/323t     537       71
+Colonia->Wongi [explorer]                                    54j/6s/301t    55j/18s/227t     446       75
+Colonia->Wongi [explorer86]                                  49j/5s/275t    50j/18s/192t     475       83
+Colonia->Wongi [mandalay]                                   86j/25s/272t    88j/34s/241t     399       31
+Pheia Auscs AA-A d->Spase AA-A a108-0 [explorer]             37j/1s/114t      38j/4s/76t     151       39
+Pheia Auscs AA-A d->Spase AA-A a108-0 [mandalay]            63j/10s/170t    64j/13s/163t     159        7
+Plielou RN-R d5-27->Wongi [explorer]                         36j/5s/168t     36j/6s/158t      28       10
+Plielou RN-R d5-27->Wongi [explorer86]                       31j/3s/154t     33j/5s/145t     212       10
+Sagittarius A*->Sol [explorer]                              72j/18s/322t    73j/20s/314t     139        8
+Sagittarius A*->Sol [explorer86]                             64j/9s/334t    66j/16s/300t     372       34
+Sagittarius A*->Sol [mandalay]                             112j/28s/358t   112j/38s/313t     281       45
+Sol->Byoomao AA-A c1 [explorer]                              64j/9s/331t    67j/13s/300t     342       30
+Sol->Byoomao AA-A c1 [explorer86]                            59j/8s/293t    60j/11s/287t     177        6
+Sol->Byoomao AA-A c1 [mandalay]                            108j/31s/319t   108j/37s/302t     187       17
+Sol->Sagittarius A* [explorer]                               67j/7s/252t     68j/7s/239t      64       13
+Sol->Sagittarius A* [explorer86]                             62j/8s/296t    63j/12s/230t     165       65
+Sol->Sagittarius A* [mandalay]                             112j/30s/344t   114j/36s/321t     305       22
+Spase AA-A a108-0->Colonia [explorer]                       90j/12s/448t    93j/18s/418t     414       30
+Spase AA-A a108-0->Colonia [explorer86]                     87j/11s/415t    88j/17s/400t     278       15
+Spase AA-A a108-0->Pheia Auscs AA-A d [explorer]             37j/3s/183t     37j/6s/168t      96       15
+Spase AA-A a108-0->Pheia Auscs AA-A d [explorer86]           32j/5s/160t     33j/7s/134t     126       25
+Spase AA-A a108-0->Pheia Auscs AA-A d [mandalay]            60j/10s/200t    66j/12s/188t     434       13
+Spase AA-A a108-0->Wongi [explorer]                        102j/12s/497t   102j/20s/460t     258       37
+Spase AA-A a108-0->Wongi [explorer86]                       89j/10s/453t    92j/11s/451t     256        2
+Spase AA-A a108-0->Wongi [mandalay]                        166j/36s/504t   173j/40s/498t     583        5
+Wongi->Beagle Point [explorer]                             193j/42s/873t   229j/92s/801t    4406       72
+Wongi->Beagle Point [explorer86]                           170j/29s/784t   175j/31s/783t     441        1
+Wongi->Beagle Point [mandalay]                            329j/115s/841t  354j/163s/782t    3225       59
+Wongi->Blaa Hypai AA-A a9 [explorer]                         38j/5s/150t     41j/6s/146t     254        5
+Wongi->Blaa Hypai AA-A a9 [explorer86]                       33j/4s/140t      35j/6s/82t     173       58
+Wongi->Colonia [explorer]                                    58j/6s/313t    59j/10s/284t     194       29
+Wongi->Colonia [explorer86]                                  52j/8s/267t    55j/16s/222t     474       44
+Wongi->Colonia [mandalay]                                   93j/23s/300t    97j/36s/239t     617       61
+Wongi->Plielou RN-R d5-27 [explorer]                         37j/6s/172t     38j/7s/157t      97       16
+Wongi->Plielou RN-R d5-27 [explorer86]                       33j/4s/148t     32j/6s/147t      -3        2
+Wongi->Spase AA-A a108-0 [explorer]                        102j/10s/475t   104j/20s/425t     468       49
+Wongi->Spase AA-A a108-0 [explorer86]                        92j/9s/423t    94j/11s/391t     195       32
+Wongi->Spase AA-A a108-0 [mandalay]                        175j/40s/493t   177j/43s/487t     224        7
+
+fuel judge total: +22604 fitted seconds for +1417 tonnes across the flips

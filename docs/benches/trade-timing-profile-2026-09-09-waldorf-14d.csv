@@ -1,0 +1,18 @@
+# trade timing profile, the maintainer's own journal (EDDA event store, read-only), last 14 days to 2026-09-09
+# VERDICT (maintainer-corrected): a WIDE walk over all flying, not trade following - it shows the constants are far from how this pilot has been flying while building the app, and it is NOT the sampling method. Sampling is follow-only, per ship (trade_timing.rs). Wide numbers: constants - jump 2.5-2.9x, supercruise ~3x, market 2-2.9x, undock ~1.5x, docking ~1.05x.
+# A one-jump leg prices at ~213 s by the constants vs ~420 s measured; jump-heavy legs are under-priced most, so ranking can change. Send constraints.timing with measured:true.
+# RETRACTION 2026-09-09 (the assistant session): the supercruise 'constant' column is the BASE (45 s) only; the model's term is 45 + 22*ln(1+ls), i.e. 174 s at 357 ls and 234 s at 5,392 ls - the model OVER-prices this pilot's supercruise. The ratio column for supercruise is therefore meaningless; the fit rows (base ~148 s, ~0.5 s/kls) are the honest comparison and say the SHAPE differs, not the magnitude. Jump/undock/docking/market comparisons stand.
+# knob: docs/benches/knobs/trade_timing_profile.py; constants from ed_route::cost::Timing defaults (ab91e7b).
+phase,n,median_s,p25_s,p75_s,mean_s,constant_s,median_over_constant
+jump,19,45.0,44.0,53.0,49.2,18.0,2.50
+undock,88,90.5,78.0,116.0,107.6,60.0,1.51
+docking,112,67.0,54.2,82.8,71.5,60.0,1.12
+market,42,62.0,44.0,101.8,137.0,30.0,2.07
+supercruise,110,130.5,99.0,154.8,135.8,45.0,2.90
+end_to_end,90,234.0,202.2,270.5,275.5,,
+supercruise_fit_base,108,109.1,,,,45,2.43
+supercruise_fit_slope_s_per_kls,108,6.35,,,,,
+supercruise_ls_lt100,26,68.0,,,,,
+supercruise_ls_lt500,22,143.0,,,,,
+supercruise_ls_lt2000,7,140.0,,,,,
+supercruise_ls_ge2000,53,137.0,,,,,

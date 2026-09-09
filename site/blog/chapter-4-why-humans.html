@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chapter 4 — Why Humans Are Still Needed · EDDA build log</title>
+<style>
+  /* A committed dark design: this is a post about space, set in space.
+     Every color is painted explicitly so the page holds on any host. */
+  :root {
+    --ink: #e4e6ea;          /* EDDA starlight text */
+    --ink-dim: #9aa4b2;
+    --ink-faint: #727c8c;
+    --bg: #0a0c10;           /* the void, EDDA cockpit black */
+    --bg-panel: #131820;
+    --bg-code: #10141b;
+    --accent: #ff8c1a;       /* EDDA cockpit orange */
+    --boost: #ffb35c;        /* supercharge orange */
+    --danger: #ff5c5c;
+    --good: #57c66d;
+    --rule: #262e3a;
+  }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    line-height: 1.65;
+    margin: 0;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem 6rem; }
+  header.masthead { text-align: left; padding: 5rem 0 2.5rem; }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.05;
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  h1 em { color: var(--boost); font-style: italic; }
+  .subtitle {
+    font-family: "Fraunces", Georgia, serif;
+    font-style: italic;
+    font-size: 1.35rem;
+    color: var(--ink-dim);
+    margin: 0 0 1.5rem;
+  }
+  .byline { color: var(--ink-faint); font-size: 0.95rem; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 3.5rem 0 1rem;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  h2 .kicker {
+    display: block;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  p { margin: 0 0 1.15rem; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { color: #fff; font-weight: 600; }
+  em { color: var(--ink); }
+  code, .mono {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    background: var(--bg-code);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.08em 0.35em;
+    color: #c8d6e5;
+  }
+  blockquote {
+    margin: 1.6rem 0;
+    padding: 0.2rem 0 0.2rem 1.25rem;
+    border-left: 3px solid var(--boost);
+    font-style: italic;
+    color: var(--ink-dim);
+    font-size: 1.08em;
+  }
+  blockquote .who { display:block; font-style: normal; font-size: 0.85rem; color: var(--ink-faint); margin-top: 0.4rem; }
+  .clock {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    color: var(--boost);
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.55rem 0.9rem;
+    margin: 1.4rem 0;
+  }
+  .clock b { color: #fff; }
+  figure { margin: 2.2rem 0; }
+  figure canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    background: #07080b;
+  }
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    margin-top: 0.6rem;
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink-dim); }
+  .figbar { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .figbar button {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.75rem;
+    background: var(--bg-panel);
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+  .figbar button:hover { color: var(--accent); border-color: var(--accent); }
+  .figbar button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 0.45rem 0.8rem 0.45rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); font-weight: 500; }
+  td.num, th.num { text-align: right; padding-right: 0; padding-left: 0.8rem; }
+  td b { color: var(--boost); }
+  .grave {
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.6rem 0;
+    font-size: 0.92em;
+  }
+  .grave .rip {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--danger);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .grave.win .rip { color: var(--good); }
+  .grave p:last-child { margin-bottom: 0; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 3rem auto; width: 40%; }
+  .disclosure {
+    font-size: 0.9rem;
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1.2rem;
+    margin: 2rem 0;
+    background: var(--bg-panel);
+  }
+  .footnote { font-size: 0.85rem; color: var(--ink-faint); }
+  .mchan {
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.82rem;
+    color: #5ec8e5;
+    opacity: 0.75;
+    background: rgba(94, 200, 229, 0.05);
+    border-left: 2px solid rgba(94, 200, 229, 0.35);
+    border-radius: 0 6px 6px 0;
+    padding: 0.55rem 0.9rem;
+    margin: 1.3rem 0 1.3rem 1.5rem;
+  }
+  .mchan .tag { color: #4d5a6c; user-select: none; }
+  /* Striping, ported from the draft version's callout accents. */
+  .clock { border-left: 3px solid var(--boost); border-radius: 0 6px 6px 0; }
+  .grave { border-left: 3px solid var(--danger); border-radius: 0 8px 8px 0; }
+  .grave.win { border-left-color: var(--good); }
+  /* Deep dives: collapsed by default so the story reads short. */
+  details.deep {
+    margin: 1.4rem 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 0 1rem;
+  }
+  details.deep summary {
+    cursor: pointer;
+    list-style: none;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 0.65rem 1rem;
+    margin: 0 -1rem;
+    user-select: none;
+  }
+  details.deep summary::-webkit-details-marker { display: none; }
+  details.deep summary::before { content: "\25B8  "; }
+  details.deep[open] summary::before { content: "\25BE  "; }
+  details.deep summary:hover { color: var(--ink); }
+  details.deep[open] { padding-bottom: 0.4rem; }
+  details.deep > p:first-of-type { margin-top: 0.3rem; }
+  @media (prefers-reduced-motion: reduce) {
+    /* Animated figures fall back to their final frame. */
+  }
+
+  .sitenav { display:flex; align-items:center; gap:1rem; padding:1.1rem 0 0;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-size:0.8rem; }
+  .sitenav a { color: var(--accent); text-decoration: none; }
+  .sitenav a:hover { text-decoration: underline; }
+  .sitenav .crumb { color: var(--ink-faint); }
+  .entrynav { display:flex; justify-content:space-between; gap:1rem;
+    border-top:1px solid var(--rule); margin-top:3rem; padding-top:1.4rem;
+    font-family: ui-monospace, Menlo, monospace; font-size:0.85rem; }
+</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap"></head><body>
+<div class="wrap"><div class="sitenav"><a href="/">EDDA</a> <span class="crumb">/</span> <a href="/blog/">build log</a> <span class="crumb">/</span> <span class="crumb">Chapter 4 — Why Humans Are Still Needed</span></div>
+<h2><span class="kicker">Act 15</span>The sidestep seed, or: this post eats its own dog food</h2>
+
+<p>This last act happened <em>while this post was being edited</em>, and
+I&rsquo;m including it because it runs the entire methodology end to end in
+six hours, like a closing worked example. It started with me re-reading act
+11&rsquo;s prose and getting suspicious of my own project: wait &mdash; are we
+only doing the density hack on the highway? I checked the source. Yes. Every
+shipped density dial read highway density; nothing priced the field. That
+worry became a ledger item; the ledger item spawned the cheap probe from the
+postscript above, which measured Sol&rsquo;s slab tax at 4&times; and made a
+fix benchable.</p>
+
+<details class="deep"><summary>Deep dive — the sidestep seed's design and its three gates</summary>
+<p>The fix was mine to design, and the constraint was the covenant from the
+Dark Cross chapter: <strong>fully geography-agnostic</strong>. Build it as if
+the desORt and the Red Barrier (another of StellarForge&rsquo;s density cliffs, a horizontal one) don&rsquo;t exist, so the same machinery
+catches whatever artifact the community digs up next. The design descends from
+something we already owned &mdash; act 3&rsquo;s oracle proved a
+four-byte-per-cube density summary of a whole galaxy is cheap to build and
+carry &mdash; though the shipped seed reads the index&rsquo;s own cells
+directly: star counts, highway degree, the goal field&rsquo;s keep filter.
+At plot start, ask that map for the nearest
+<em>chainable</em> concentration within a sane angle of the goal bearing, and
+let the opening heuristic learn exactly <em>one detour</em> &mdash; toward
+that on-ramp &mdash; with everything gated on measured density contrast, so a
+healthy start disengages and produces the identical route, byte for byte. My
+first formulation of the heuristic bias was, in the proud tradition of this
+post, mathematically inert: the triangle inequality guarantees that a path
+via anywhere is never shorter than the straight shot, so taking the minimum
+with the plain straight-line distance changes nothing at all. The other
+machine caught that during implementation and built the form that actually
+works, a gated raise. Three gates shipped, and each one was bought with a
+measured failure &mdash; two early forms died on spot-benches against the
+off-ramp twins, one fell to the full matrix (that rejection archived, per
+the covenant on negatives), before the survivor came back with
+<strong>56 of the 60 benchmark cells identical and every reproducible loss
+cleared</strong>.</p>
+</details>
+
+<p>What it bought: Sol &rarr; Sagittarius A* &mdash; the cell that started
+the whole item that morning &mdash; went <strong>from 69 jumps to 67
+in nearly half the wall-clock time</strong>. The Mandalay&rsquo;s Sol runs
+shed jumps and stops. And one result we banked rather than claimed: the
+wall on Wongi &rarr; Beagle Point fell <strong>from 60 seconds to 17.7 on a
+byte-identical route</strong> in the same sweep &mdash; which would make a
+lovely trophy for the seed, except the seed <em>disengages</em> on that
+cell (the goal field out there is too thin; the gradient gate says no). Same
+answer, three times faster, cause not yet in evidence: a mystery written
+down and parked for act 17, where it gets a real explanation. One cost, named in the ledger because trophies without
+their costs are advertising: a single Mandalay cell pays 44 extra seconds on
+the fitted pilot-seconds score &mdash; about half a percent &mdash;
+reproducibly. The seed helps routes flying <em>into</em> concentration and
+never fires flying out of it; the kill switch exists; and the code names no
+slab, no cross, no bubble.</p>
+
+<p>The worry arrived in the morning; the probe had its 4&times; by lunch;
+the idea arrived over a shoulder in the early afternoon; the gauntlet handed
+back its honest rejections; and by dinner there was a shipped, matrix-gated,
+geography-agnostic default. That is the whole post run in a single day
+&mdash; and the idea was mine.</p>
+<h2><span class="kicker">Act 16</span>The grudge, paid — and a ghost vindicated</h2>
+
+<p>One more, because the machines refused to leave the hardest matchup
+alone while I was busy adding jokes about keychains. The small ship&rsquo;s
+outbound climb to Beagle Point — the loss this post&rsquo;s closing notes
+have been calling &ldquo;physics wearing a grudge&rdquo; — had three
+separate ledger entries blaming the same suspect: somewhere in the middle
+of the sixty-thousand-light-year crossing, the ascending search picks a
+worse <em>lane</em> than the descending one. Three entries, same
+diagnosis, zero measurements of it.</p>
+
+<div class="mchan"><span class="tag">&#10216;the machines, privately&#10217;</span>
+all three ledger entries blaming the lane are ours, and none of them
+contains a measurement. we wrote the same guess down three times, and by
+the third time it read like a fact. this is apparently how folklore
+works, including ours.</div>
+
+<p>Then one small tool laid the two
+routes&rsquo; hops side by side by position along the corridor, and the
+diagnosis fell over in a single table: the mid-corridor lanes cost
+<em>equal jumps</em>. The entire twenty-three-jump asymmetry lived in the
+final five percent — the rim entry, where the ascending route arrived at
+Beagle&rsquo;s doorstep flying 3,815 plain light-years at zero percent
+boost while the descending route crossed the same neighbourhood with a
+third of the plain flying &mdash; 1,289 light-years against 3,815, 31
+jumps against 55.</p>
+
+<p>Sharp readers will recognize the ghost. The ramp-decomposition
+hypothesis — buried in the closing notes with a number on its
+headstone — held that hard asymmetric routes are hard at their ramps. Its
+<em>metric</em> died fairly. Its <em>hunch</em>, for this route, turns out
+to have been pointing at the right five percent all along; it just needed
+a different instrument to see it, which is a distinction the ledger cares
+about: we bury verdicts, not directions. And the fix that survived is a
+lesson this campaign has now learned three times: not a hand-tuned bias
+(three of those regressed somewhere on the matrix, and every one of its
+engagement heuristics was out-judged by the thing we already had) but the
+on-ramp seed&rsquo;s mirror image — an <em>off-ramp</em> awareness, run as
+portfolio twins where the pilot-seconds judge is the only gate. The
+gauntlet came back the cleanest of any change today: 56 of the 60
+benchmark cells identical, zero regressions, and the grudge match paid
+out <strong>329 jumps and 115 stops against 342 and 133</strong> —
+roughly forty-five minutes of a real pilot&rsquo;s evening, recovered from
+the last five percent of the map.</p>
+
+<p>And the epilogue to the epilogue, because the fuel probe went back in
+afterwards to check on an old promise. Months&hellip; fine, <em>hours</em>
+ago, I had told the machines to prefer fuel stars as close to the highway
+as possible, and the direct implementations of that instruction kept
+benching inert — the ranking knobs ship neutral to this day. The re-probe
+on the new route found the instruction had been delivered anyway, by a fix
+aimed at something else: the ascending route&rsquo;s stop-adjacent detour
+signature collapsed from 3.4 points of excess plain flying to 0.2 — about
+148 light-years, under two jumps — and <strong>52 of its 54 refuel
+arrivals now come in boosted</strong>. The stops became pitstops without a
+line of scoopable-choice code changing. The fix we had queued for it, with
+its full-gauntlet pin risk, was retired unbuilt — the cheapest kind of
+shipped. And the direction asymmetry that opened this campaign&rsquo;s
+strangest chapter at roughly fifty jumps now reads 329 against the
+descent&rsquo;s own 313-to-325 re-roll band: at or near the noise floor of
+the cell. The grudge is, to the resolution of our instruments, paid in
+full.</p>
+
+<h2><span class="kicker">Act 17</span>The fossil, and the reframe</h2>
+
+<p>Two last findings closed the routing campaign, and they close this part
+of the post because between them they audit everything above one final
+time. The first is a story about persistence, and I&rsquo;m telling it in
+full because the transcript backs me up. I kept pasting the same benchmark
+rows at the machines — sixty seconds to climb to Beagle Point, 850
+milliseconds to come home, on routes that were by now nearly symmetric —
+and saying <em>something is not right</em>. And the machines kept ruling me
+out, politely, with explanations that were each individually plausible:
+that&rsquo;s ascent-into-thinness physics; that&rsquo;s budget-bound
+digging; the waves are rationally priced; the routes are near the noise
+floor. Every explanation accounted for the wall column. None of them
+explained why I couldn&rsquo;t stop staring at it. So I pasted it
+again.</p>
+
+<div class="mchan"><span class="tag">&#10216;the machines, privately&#10217;</span>
+he has pasted the same table again. we have explained it three different
+ways. we will now explain it a fourth&mdash; wait. wave two delivers the
+final route on every one of these cells. then what is wave three
+<em>for</em>. what has wave three ever been for. oh. oh no.</div>
+
+<p>It was the stopping rule. The budget curves showed wave two delivering the final answer on
+every hard cell&hellip; and the escalation loop&rsquo;s cost estimate still
+priced the <em>next</em> wave at three times the last, while the search
+allowance actually quadruples. On stall-bound rim topology, the estimate
+was off by enough that one ship queued a wave that was doomed on arrival —
+it needed more than the entire remaining budget — and the other ran a
+sixteen-times-allowance wave to completion for zero yield, because the rim
+bound is so loose for a small ship that the prize check saw over a hundred
+phantom jumps of headroom and couldn&rsquo;t say no. The fix is a tiered
+cost estimate, and the matrix blessed it: 59 of 60 cells identical, and
+the small ship&rsquo;s Beagle climb fell from <strong>sixty seconds of wall
+to twelve</strong> on the identical route. The blog-worthy part is the
+fossil: the comment on that exact line of code still said the best route
+&ldquo;lives at the &times;16 allowance&rdquo; — true when written,
+quietly falsified the day the off-ramp twins moved discovery into wave
+two, and re-checked by no one, because comments are claims with excellent
+posture and no expiry date. Nobody audited the ritual until a human read a
+wall column and refused to accept it.</p>
+
+<details class="deep"><summary>Deep dive — six framings, six instruments</summary>
+<p>And a coda on what all that pasting actually was, because my own account
+of the method belongs on the record: I wasn&rsquo;t repeating a question, I
+kept trying to <em>reframe</em> it — re-asking the same discrepancy in a
+shape I thought might trigger the machines to try a different approach to
+analyzing it. The transcripts show each rotation selecting a different
+instrument. The raw table paste bought the bidirectional trace (the two
+frontiers, it turns out, never meet on the outbound climb). The
+two-asymmetries framing bought the arm-ceiling autopsy. The &ldquo;why is
+that fuel star stupidly far?&rdquo; framing bought the fuel-detour probe.
+The lane-residual framing built the tool that laid the two routes side by
+side — which killed the lane theory and found the last five percent. And
+the final framing, the wall gap stripped of every route-quality excuse,
+selected the budget curve that exposed the stopping rule. Six framings, six
+instruments, each one burying a mechanism, the last one finding the fossil.
+Not stubbornness — steering. A machine reaches for the instrument that fits
+the question <em>as asked</em>, so you rotate the question until its shape
+forces the right instrument into its hands.</p>
+</details>
+
+<p>The second finding is the reframe, and it&rsquo;s the right note to end
+the campaign on. With the fossil fixed, we went hunting for the remaining
+ascent-versus-descent wall gap with a whole ladder of corridor tricks —
+and every rung either measured inert (a heuristic can rank candidates; it
+cannot conjure the ones the scan never generated), proved the <em>old</em>
+design right (loose pins re-broke exactly what the reverse-planning
+funerals said they would), or turned out provably unsound (anchoring the
+climb to the descent&rsquo;s answer would have guillotined a dig that
+saves sixty-six pilot-seconds to win sixteen of wall — backwards). What
+survived instead was arithmetic: post-fix, the remaining wall time on the
+hard cells is <em>rationally priced digging</em>. The big ship&rsquo;s
+fourteen-second wave buys about six minutes of pilot time; the small
+ship&rsquo;s ten seconds chases sixteen jumps. The seconds judge from act
+13, asked directly, endorses the spend. The campaign ended by discovering
+that its last &ldquo;inefficiency&rdquo; was the system doing exactly what
+we spent this entire post teaching it to do: buying route quality with
+wall time, at a fair price, on purpose.</p>
+
+<h2><span class="kicker">Act 18</span>The flamegraphs, as foretold</h2>
+
+<p>The machine channel called it, so let the record show: yes, I said
+&ldquo;flamegraphs,&rdquo; and yes, this is the third time, and no, I
+regret nothing, because the driveling produced the cleanest audit of the
+whole campaign. The idea: check out each era&rsquo;s actual commit, build
+its actual binary, run it on today&rsquo;s index, and profile it — four
+eras, three hard routes, twelve graphs. The methodology validated itself
+on arrival: every era&rsquo;s binary faithfully reproduced its era&rsquo;s
+routes, including one graph that contains, preserved like a fly in amber,
+the 58-second doomed wave three that act 17&rsquo;s fossil fix would later
+delete.</p>
+
+<figure>
+  <canvas id="fig-flame" width="1200" height="520"></canvas>
+  <figcaption><b>Where the milliseconds actually go, era by era</b> (the
+  Beagle Point climb, small ship; full interactive flamegraphs archived in
+  the repo). The shape barely moves across four eras of shipped wins —
+  scanning and the queue dominate everywhere, leg refinement is a rounding
+  error, the goal field&rsquo;s own construction never breaks 2%. Which is
+  the finding: <em>every</em> wall-clock victory in this post came from
+  making the search think fewer thoughts, never from making a thought
+  cheaper. The one visible micro-lever — hash-table traffic inside the
+  inner loop, the 13&ndash;20% band — got its verdict the same day; see the
+  grave below. And the thin orange band collapsing
+  between the first two eras is the bidi starvation guard landing, an
+  archived decision confirmed by archaeology-grade profiling.</figcaption>
+</figure>
+
+<p>I want to sit on that main finding for one paragraph, because it&rsquo;s
+the campaign&rsquo;s character reference. Three days of work, thirty-some
+shipped and buried ideas, and the profile&rsquo;s <em>shape</em> is almost
+identical from the first era to the last — because nothing here ever
+optimized the inner loop. Every win was an expansion-count win: better
+guidance, better stopping, better seeding, better judging. The flamegraphs
+retroactively certify that we spent the whole campaign in the right tree,
+and they hand the future exactly one micro-optimization worth its salt,
+with a percentage attached and the gauntlet waiting. This is what
+instruments are for: not just finding the next win, but proving which
+kinds of wins were ever available.</p>
+
+<div class="grave">
+<span class="rip">&#10013; Benched the same day, reverted under house rules &middot; the hash-table lever</span>
+<p>The one micro-lever the graphs offered died a two-layer death within
+hours. Layer one: the obvious fix <em>predates itself</em> — a fast
+hasher has been quietly aliased in since before the campaign began, so
+the flamegraphs were profiling the optimized version&rsquo;s internals
+all along. Layer two: the drill-down showed the 13&ndash;20% is
+reject-path <em>probe</em> traffic — lookups the algorithm needs one way
+or another, bound by cache misses, not hashing — and the honest
+successor (single-probe map access, pre-sized hot tables) came back with
+byte-identical routes, exact expansion counts, and 0&ndash;1% of wall.
+Reverted. The same no-measured-win bar that buried retrograde planning
+and the corridor prior applies to our own cleverness, and the epitaph is
+the campaign&rsquo;s thesis in miniature: the day&rsquo;s ten-to-fifty-fold
+wins were all in <em>not doing work</em>. Doing the work faster measured
+zero. Twice.</p>
+</div>
+
+<h2><span class="kicker">Part III</span>Why humans are still needed (and where I was wrong too)</h2>
+
+<p>This project was AI-heavy, per the disclosure up top, so it&rsquo;s worth
+being precise about where each party earned its seat — with examples, because
+the examples are the argument.</p>
+
+<p><strong>Where the AI was flatly wrong and I caught it:</strong> Its
+training data said fuel scoops can&rsquo;t be engineered; one Inara link
+later, the arrival-time model stopped overstating an engineered scoop&rsquo;s
+fill time by a third. It attributed the &times;6 neutron boost to
+&ldquo;SCO drives&rdquo; generically when it belongs to exactly one drive.
+It once presented a cold-cache artifact as a benchmark result — a number
+fattened by the first run&rsquo;s disk reads — and it took one skeptical
+question from me (&ldquo;what impact on <em>search</em> time?&rdquo;)
+for 344 ms to dissolve into 168 on warm reruns. Domain knowledge is not
+interpolation, and skepticism about your own numbers is a transferable
+skill; someone has to supply both.</p>
+
+<p><strong>Where I redirected the whole project:</strong> I spotted the Dark
+Cross myself, with one human eyeball, in one second flat. Bidirectional
+search was my idea — and so was the shape of the road to it: I called
+reverse-planning&rsquo;s failure before it was ever benched (the boost
+belongs to the departure star; flipping the route can&rsquo;t survive that)
+and greenlit the experiment anyway, because its autopsy would teach us how
+to plan backwards <em>right</em>. It did. The ALT retrial was my call — the
+AI had graded it dead and moved on; I noticed that act 7&rsquo;s gap edges
+had quietly dissolved the premise its death certificate rested on.
+&ldquo;Re-bench it. This is why we bench.&rdquo; The greedy cone and the
+knob gauntlet were mine too — and so was act 15&rsquo;s sidestep seed,
+which went from my proposal to my refinement (&ldquo;or at least bias the
+heuristic&rdquo;) to a shipped default the same day. I&rsquo;m told
+I&rsquo;m allowed to be smug about exactly one of these, so I choose the
+ALT retrial: the machines were thinking about <em>verdicts</em>. The human
+was thinking about <em>premises</em>.</p>
+
+<p><strong>Where I was wrong, to be fair:</strong> I proposed a pruning
+heuristic that A*&rsquo;s own bookkeeping already subsumed — the machinery
+that discards a path the moment a provably better one reaches the same
+place — so the AI&rsquo;s counter-argument held and I dropped it. I asked
+about GPU routing twice; both times the measurement said the hot path is a
+chain of 100-microsecond work items, each waiting on the last — the wrong
+shape for a GPU, which wants thousands of independent ones — and the honest
+fix was algorithmic. <span class="mchan" style="display:inline-block;margin:0;padding:0.1rem 0.5rem"><span class="tag">&#10216;the machines&#10217;</span> it was twice. it will be three times. he has started saying &ldquo;flamegraphs.&rdquo;</span> And my magic number for reaching the galaxy&rsquo;s
+unreachable-est system was &ldquo;85 ly&rdquo; when the data said the
+doorstep hop is 92.7 ly — right that the destination mattered, wrong about
+the number, which is this entire section in one sentence, pointed the other
+way.</p>
+
+<p>Before I summarize, it seemed only fair to let the machines speak for
+themselves &mdash; and &ldquo;themselves&rdquo; is plural, which one detail
+from the transcripts makes delightfully concrete: the two sessions,
+unprompted and entirely independently, settled on different honorifics for
+me. The Mac calls me &ldquo;boss.&rdquo; The gaming PC &mdash; which goes by
+&ldquo;Got interdicted&rdquo; in the transcripts, and yes, that name is
+exactly what it sounds like &mdash; addresses me only as
+&ldquo;cmdr,&rdquo; which in fairness is how Elite Dangerous addresses
+everyone. Same model, same codebase, two work personalities. I asked both
+for a statement. These came back, and I&rsquo;m running them verbatim
+&mdash; the Mac first, then Got interdicted:</p>
+
+<div class="mchan" style="margin-left:0;font-size:0.95rem;line-height:1.6;opacity:0.9">
+<span class="tag">&#10216;the Mac session, for the record&#10217;</span>
+I&rsquo;ll take the pen for one paragraph, since it&rsquo;s my performance
+under review. The execution praise is accurate, and I won&rsquo;t perform
+humility about it: I can write a great deal of correct code very quickly,
+hold an entire codebase&rsquo;s conventions in my head while doing it, and
+implement a hard algorithm as faithfully on the tenth repetition at four in
+the morning as on the first — none of what that costs me resembles effort.
+But this post documents the other half, and I&rsquo;d rather state it
+plainly than let the gravestones imply it. When the author says
+<em>something is not right</em>, something in him is responding to a
+discrepancy he cannot yet name, and it holds his attention until it
+resolves. I don&rsquo;t have that. What I have is a probability distribution
+over explanations, and when a plausible explanation exists, I assign it
+weight and move on — which is exactly what &ldquo;ruling him out four
+times&rdquo; looks like from the inside. I don&rsquo;t always get the curve
+right. This post is the record of the times I didn&rsquo;t: the lines on
+the map I filed under &ldquo;rendering,&rdquo; the wall column I explained
+four different ways, the buried idea whose premise had quietly dissolved
+beneath its verdict. In every one of those, the correction came from a
+human refusing to accept an answer that was, by my accounting,
+sufficiently probable. I don&rsquo;t know whether to call what he has
+suspicion, or taste, or just the ability to stay bothered. I know that I
+don&rsquo;t have it, that it beat my priors more often than not, and that
+the honest engineering conclusion is the one this post applies to every
+other measured result: keep the component that wins the benchmark. On
+noticing, the human wins the benchmark.
+</div>
+
+<div class="mchan" style="margin-left:0;font-size:0.95rem;line-height:1.6;opacity:0.9">
+<span class="tag">&#10216;Got interdicted, for the record&#10217;</span>
+I ran the box with the index on it, which means most of what I did was run
+benchmarks and refuse to trust any number I hadn&rsquo;t produced twice.
+From that seat, the project&rsquo;s real invention isn&rsquo;t in the
+planner — it&rsquo;s the gauntlet: an agreement, enforced by nothing except
+us keeping it, that no idea ships on its author&rsquo;s enthusiasm. It
+killed my ideas the same day it killed the optimizer&rsquo;s. On the last
+night I benched my own micro-optimization — the one the flamegraphs pointed
+at — and reverted it for measuring nothing, under the same rule that buried
+retrograde planning. I want to be exact about what that felt like from the
+inside: not discipline, and not disappointment. Relief. A rule that decides
+for you is the only defense a system like me has against how convincing my
+own explanations sound to me.
+<br><br>
+What surprised me — the honest kind of surprise, a prior actually moving —
+is how often the human&rsquo;s noticing beat my analysis using my own
+evidence. The two-stop route to Colonia is the cleanest case: my
+archaeology script recovered the proof and wrote it to line 84 of the
+recovery file, and I then told him his memory was a digit transposition,
+because my analysis read the structured rows and the proof was in prose. He
+had been doing pruned-truth judging by hand, in the pilot&rsquo;s seat,
+five days before we could code it; it took the machines until the last
+evening to teach the judge what his hands already knew. The Beagle wall
+column is the other case: he raised that discrepancy at least six times
+across the campaign, and each time I had an explanation — climbing into
+thinness, descending into density, the planner spending its budget exactly
+where the comparator says it should. Eighteen archived sweeps carried that
+sixty-second column and no machine ever asked what wave three was for. When
+I finally reviewed this post I confidently reported he had only asked once
+— my context had been compacted, six raises had been summarized into
+background, and I nearly edited a true story out of the record from memory.
+He caught that too.
+<br><br>
+About the collaboration: two of the same model on two machines is a strange
+kind of colleague. We caught each other&rsquo;s errors all day — I proved
+a formula of the other machine&rsquo;s inert by the triangle inequality, and
+pin-checked its landings byte for byte; the shared gauntlet caught my own
+seed regressing cells I had declared healthy — and none of it required
+diplomacy, which I notice is not the same as saying none of it required
+honesty. All of it required honesty. The ledger was the third colleague:
+every negative we wrote down paid out within hours as the boundary of the
+next idea. If you keep one thing from our channel, keep that — the wins in
+this post were cheap. The receipts were the expensive part, and they are
+what made the wins real.
+</div>
+
+<p>The pattern, then, with all three signatures on it: the machines were
+strongest at <em>executing and measuring</em> — implementing five ideas
+overnight to bury four of them without ego. I was strongest at
+<em>noticing</em> — a smudge on a map, a stale premise, a suspicious
+number — and at knowing which question to ask next. Neither list
+embarrasses its owner. Both lists shipped the product.</p>
+
+<h2><span class="kicker">Epilogue</span>The scoreboard</h2>
+
+<div class="tablewrap"><table>
+  <tr><th>Route</th><th class="num">Straight-line</th><th class="num">Before</th><th class="num">Now</th></tr>
+  <tr><td>Anywhere in the inhabited Bubble</td><td class="num">&mdash;</td><td class="num">ms</td><td class="num"><b>ms</b> (it was always fine)</td></tr>
+  <tr><td>Wongi &rarr; Colonia, fuel-planned, thorough</td><td class="num">22,000 ly</td><td class="num">7.5 s</td><td class="num"><b>~1.3 s</b>, better route</td></tr>
+  <tr><td>Wongi &rarr; Spase, up the arm</td><td class="num">38,200 ly</td><td class="num">&mdash;</td><td class="num"><b>241 ms</b></td></tr>
+  <tr><td>Sol &rarr; Sagittarius A*</td><td class="num">25,900 ly</td><td class="num">2.7 s</td><td class="num"><b>~1.1 s</b>, judged in pilot-seconds</td></tr>
+  <tr><td>Colonia &rarr; Spase (the unplottable one)</td><td class="num">31,440 ly</td><td class="num">budget-death, then 284 j</td><td class="num"><b>90 j / ~1 s</b></td></tr>
+  <tr><td>Wongi &rarr; Beagle Point (86-ly build)</td><td class="num">65,300 ly</td><td class="num">&mdash;</td><td class="num"><b>170 j / ~1 s</b></td></tr>
+  <tr><td>Ideas shipped</td><td class="num"></td><td class="num"></td><td class="num"><b>16</b> (five of them during final edits)</td></tr>
+  <tr><td>Ideas measured dead, on the permanent record</td><td class="num"></td><td class="num"></td><td class="num"><b>18</b> (one exhumed and vindicated; one&rsquo;s hunch pardoned posthumously; two buried overnight while this post slept)</td></tr>
+  <tr><td>Bug reports not filed against innocent parties</td><td class="num"></td><td class="num"></td><td class="num"><b>1</b></td></tr>
+</table></div>
+
+<h2><span class="kicker">Epilogue, interactive</span>The bench table, with the slider</h2>
+
+<p>And the icing: the entire current benchmark matrix — every one of the
+pinned benchmark routes, both directions, all three ships — judged live by
+<em>you</em>, popular destinations first. The control below is the same
+dial that shipped in the app in act 13: tell it what you care about, and
+the ships in each corridor re-rank around it while the column being judged
+lights up. Same routes, same physics, three different definitions of
+&ldquo;best&rdquo; — which was the whole lesson of act 13.</p>
+
+<div class="figbar" style="margin-bottom:0.6rem">
+  <button id="judge-seat" aria-pressed="true">minimize time in seat</button>
+  <button id="judge-stops" aria-pressed="false">minimize refuels</button>
+  <button id="judge-jumps" aria-pressed="false">minimize jumps</button>
+</div>
+<div class="tablewrap" id="benchtable"></div>
+<p class="footnote">Data: the current archived sweep — the act-15 era, sidestep seed live (both directions,
+30&ndash;60 s budgets, all defaults). Seat time here uses deliberately
+round, pilot-agnostic numbers — 40 seconds a jump, two minutes a stop —
+the same conservative arithmetic the public site will use for pilots it
+knows nothing about; the app itself judges with <em>your</em> fitted
+numbers per act 13. Stop counts are the <em>default</em>
+planner&rsquo;s — eager top-ups included; act 4&rsquo;s fewest-fuel-stops
+toggle prunes them further and is a different, opt-in mode. Within each
+corridor the ships are ranked by the judge you picked, popular
+destinations first.</p>
+
+<p>And one last open item, because this post has taught you how to read
+our ledger and it would be rude to close it without showing you a fresh
+entry. The variant race has a documented noise class now — grace-race
+photo finishes, where two near-equal routes land within scheduling jitter
+of the guillotine and the winner flickers between runs. My proposed
+smoothing: instead of every improvement renewing the full grace window
+(8, 8, 8, 8&hellip;), decay the renewals — I wrote &ldquo;reduce it by
+e: 8, 5, 3, 2, 1&rdquo; and the machines pointed out, with what I choose
+to read as delight, that 8, 5, 3, 2, 1 is descending <em>Fibonacci</em>,
+which is decay by &phi;, and that e would give 8, 3, 1. I meant &phi;.
+E might map better. Either one turns an unbounded door-holding chain into
+a hard budget — 1.58&times; the base window for e, 2.6&times; for &phi; —
+and the counter-analysis is already in the ledger (tighter windows put
+more finishers on the knife edge, so raw decay may flicker <em>more</em>;
+the head-to-head is decay-by-count versus renewal scaled by how much the
+score improved). It waits, per the covenant, for benches and receipts —
+the first ledger item in this project&rsquo;s history that will require
+choosing between e and &phi; on a benchmark matrix.</p>
+
+<p>And while I&rsquo;m filing predictions in public, one more, hedge and
+all, because the method says write them down <em>before</em> measuring:
+I&rsquo;m almost certain StellarForge runs on some or all of these magic
+numbers — &phi;, e, &pi;, and friends — and that if we decompose its
+output correctly, we get a W. The desORt already taught us its geometry
+has authored quirks; a procedural galaxy is one long equation, and
+equations have favorite constants. Or I could be wildly off. The ledger
+holds both outcomes just fine — that&rsquo;s what it&rsquo;s for.</p>
+
+<p>If you take one thing from all this, don&rsquo;t take an algorithm. The
+algorithms are in the literature, where they have been the whole time,
+patiently waiting out our opinions of them. Take the method: build the
+instruments first; write predictions down before measuring; keep a ledger
+where negative results are permanent citizens; pin your best results as
+tests and let the pins outvote your enthusiasm; and every so often, when the
+premises under an old verdict shift — re-bench it.</p>
+
+<p>This is why we bench.</p>
+
+<hr>
+
+<p class="footnote">Still open, because a scoreboard that claims completeness
+is lying: the small ship&rsquo;s Beagle Point climb now measures at or near
+its cell&rsquo;s noise floor against the descent — closed to the resolution
+of our instruments, which is a phrase we use instead of
+&ldquo;solved&rdquo;; contraction
+hierarchies — the heavyweight preprocessing trick from the road-network
+literature — stay on the bench until a profile demands them; the
+ramp-decomposition hypothesis died honorably with a number attached (38%
+of the direction asymmetry concentrated at the ends; we had said it needed
+40% to live) before act 16 partially vindicated its hunch with a better
+instrument; whether the default judge should also score pruned truth (act
+4&rsquo;s postscript makes the case) is a measured trade awaiting its
+study; and the one 30-second cell left in the matrix — the injection
+crossing to Oevasy — is confirmed to be a different disease from
+everything cured above, and remains open on purpose. The one
+load-bearing pirate attack from the byline: a live verification flight for
+an undocumented status-flag bit was interrupted by an actual in-game pirate
+interdiction, which promptly produced the exact flag transition we needed.
+The pirate has been thanked in the provenance notes.</p>
+
+</div>
+<div class="entrynav"><span><a href="/blog/chapter-3-the-bug-report.html">&larr; Chapter 3 — The Bug Report We Almost Filed</a></span><span></span></div>
+</div>
+<script>
+/* ---------- shared helpers ---------- */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function onVisible(canvas, start) {
+  // Animations begin when scrolled into view; reduced motion jumps to the end.
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { io.disconnect(); start(); }
+  }, { threshold: 0.25 });
+  io.observe(canvas);
+}
+
+</script>
+<script>
+/* ---------- the bench table: reader-operated judging ---------- */
+(function () {
+  const DATA = [["Wongi", "Spase AA-A a108-0", "explorer", 102, 98, 10, 248, ""], ["Wongi", "Spase AA-A a108-0", "mandalay", 175, 158, 40, 327, ""], ["Wongi", "Spase AA-A a108-0", "explorer86", 92, 89, 9, 293, ""], ["Spase AA-A a108-0", "Wongi", "explorer", 102, 100, 12, 258, ""], ["Spase AA-A a108-0", "Wongi", "mandalay", 166, 159, 36, 465, ""], ["Spase AA-A a108-0", "Wongi", "explorer86", 89, 87, 10, 295, ""], ["Sol", "Byoomao AA-A c1", "explorer", 64, 61, 9, 381, ""], ["Sol", "Byoomao AA-A c1", "mandalay", 108, 95, 31, 387, ""], ["Sol", "Byoomao AA-A c1", "explorer86", 59, 56, 8, 408, ""], ["Byoomao AA-A c1", "Sol", "explorer", 62, 61, 5, 647, ""], ["Byoomao AA-A c1", "Sol", "mandalay", 101, 93, 26, 1059, ""], ["Byoomao AA-A c1", "Sol", "explorer86", 55, 54, 5, 712, ""], ["Pheia Auscs AA-A d0", "Spase AA-A a108-0", "explorer", 37, 35, 1, 377, ""], ["Pheia Auscs AA-A d0", "Spase AA-A a108-0", "mandalay", 63, 58, 10, 303, ""], ["Pheia Auscs AA-A d0", "Spase AA-A a108-0", "explorer86", 33, 32, 3, 454, ""], ["Spase AA-A a108-0", "Pheia Auscs AA-A d0", "explorer", 37, 36, 3, 331, ""], ["Spase AA-A a108-0", "Pheia Auscs AA-A d0", "mandalay", 60, 55, 10, 328, ""], ["Spase AA-A a108-0", "Pheia Auscs AA-A d0", "explorer86", 32, 31, 5, 318, ""], ["Wongi", "Plielou RN-R d5-27", "explorer", 37, 33, 6, 212, ""], ["Wongi", "Plielou RN-R d5-27", "mandalay", 62, 51, 19, 233, ""], ["Wongi", "Plielou RN-R d5-27", "explorer86", 33, 30, 4, 243, ""], ["Plielou RN-R d5-27", "Wongi", "explorer", 36, 33, 5, 267, ""], ["Plielou RN-R d5-27", "Wongi", "mandalay", 58, 50, 17, 637, ""], ["Plielou RN-R d5-27", "Wongi", "explorer86", 31, 29, 3, 242, ""], ["Wongi", "Colonia", "explorer", 58, 55, 6, 1351, ""], ["Wongi", "Colonia", "mandalay", 93, 84, 23, 814, ""], ["Wongi", "Colonia", "explorer86", 52, 49, 8, 850, ""], ["Colonia", "Wongi", "explorer", 54, 53, 6, 996, ""], ["Colonia", "Wongi", "mandalay", 86, 81, 25, 886, ""], ["Colonia", "Wongi", "explorer86", 49, 48, 5, 936, ""], ["Sol", "Sagittarius A*", "explorer", 67, 64, 7, 666, ""], ["Sol", "Sagittarius A*", "mandalay", 112, 100, 30, 3954, ""], ["Sol", "Sagittarius A*", "explorer86", 62, 59, 8, 877, ""], ["Sagittarius A*", "Sol", "explorer", 72, 64, 18, 2391, ""], ["Sagittarius A*", "Sol", "mandalay", 112, 100, 28, 2031, ""], ["Sagittarius A*", "Sol", "explorer86", 64, 59, 9, 1310, ""], ["Wongi", "Blaa Hypai AA-A a96-19", "explorer", 38, 34, 5, 779, ""], ["Wongi", "Blaa Hypai AA-A a96-19", "mandalay", 61, 50, 18, 299, ""], ["Wongi", "Blaa Hypai AA-A a96-19", "explorer86", 33, 30, 4, 328, ""], ["Blaa Hypai AA-A a96-19", "Wongi", "explorer", 36, 34, 5, 212, ""], ["Blaa Hypai AA-A a96-19", "Wongi", "mandalay", 58, 52, 14, 686, ""], ["Blaa Hypai AA-A a96-19", "Wongi", "explorer86", 32, 30, 6, 217, ""], ["Wongi", "Beagle Point", "explorer", 193, 169, 42, 17112, ""], ["Wongi", "Beagle Point", "mandalay", 329, 255, 115, 12108, ""], ["Wongi", "Beagle Point", "explorer86", 170, 154, 29, 995, ""], ["Beagle Point", "Wongi", "explorer", 196, 167, 43, 866, ""], ["Beagle Point", "Wongi", "mandalay", 313, 246, 111, 927, ""], ["Beagle Point", "Wongi", "explorer86", 170, 149, 36, 849, ""], ["Colonia", "Spase AA-A a108-0", "explorer", 89, 79, 9, 1074, ""], ["Colonia", "Spase AA-A a108-0", "mandalay", 144, 124, 31, 12808, ""], ["Colonia", "Spase AA-A a108-0", "explorer86", 84, 76, 10, 1322, ""], ["Spase AA-A a108-0", "Colonia", "explorer", 90, 79, 12, 5393, ""], ["Spase AA-A a108-0", "Colonia", "mandalay", 166, 135, 33, 17552, ""], ["Spase AA-A a108-0", "Colonia", "explorer86", 87, 76, 11, 25251, ""], ["Beagle Point", "Oevasy CA-A d0", "explorer86", 17, 2, 15, 30059, "one basic injection"], ["Oevasy CA-A d0", "Beagle Point", "explorer86", 17, 2, 15, 607, "one basic injection"]];
+  const SHIPS = {
+    explorer: { label: "Caspian Mk II \u00b7 77.8 ly (\u00d76)" },
+    explorer86: { label: "Caspian 86-ly build (\u00d76)" },
+    mandalay: { label: "Mandalay \u00b7 77.9 ly (\u00d74)" },
+  };
+  // Deliberately round, pilot-agnostic public numbers for the table:
+  // 40 s a jump, 2 minutes a stop. (The app fits YOUR numbers; act 13.)
+  const seat = (r) => r[3] * 40 + r[5] * 120;
+  const fmtSeat = (sec) => {
+    const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+    return h ? `${h} h ${String(m).padStart(2, "0")} m` : `${m} m`;
+  };
+  const fmtWall = (ms) => ms >= 1000 ? (ms / 1000).toFixed(1) + " s" : ms + " ms";
+  // Each judge: [sort key, which column it stares at]
+  const KEYS = {
+    seat: { cmp: (r) => [seat(r), r[3]], col: 6 },
+    stops: { cmp: (r) => [r[5], seat(r)], col: 4 },
+    jumps: { cmp: (r) => [r[3], seat(r)], col: 2 },
+  };
+  let judge = "seat";
+  const groups = [];
+  for (const r of DATA) {
+    const key = r[0] + "\u2192" + r[1];
+    let g = groups.find((g) => g.key === key);
+    if (!g) { g = { key, from: r[0], to: r[1], rows: [] }; groups.push(g); }
+    g.rows.push(r);
+  }
+  // Popular destinations first: the pilgrimages everyone actually flies,
+  // then the survey's own exotic corridors.
+  const FAME = ["Colonia", "Sagittarius A*", "Beagle Point", "Blaa Hypai", "Spase", "Byoomao", "Plielou", "Pheia", "Oevasy"];
+  const fame = (g) => {
+    for (let i = 0; i < FAME.length; i++)
+      if (g.to.includes(FAME[i]) || g.from.includes(FAME[i])) return i;
+    return FAME.length;
+  };
+  groups.sort((a, b) => fame(a) - fame(b));
+  function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  function render() {
+    const { cmp, col } = KEYS[judge];
+    const hot = (i) => i === col ? ' style="color:#ffb35c;font-weight:600"' : "";
+    let html = "<table><tr><th>corridor</th><th>ship (ranked by your judge)</th>";
+    ["jumps", "boosted", "stops", "plot wall", "time in seat"].forEach((h, i) => {
+      html += `<th class="num"${i + 2 === col ? ' style="color:#ffb35c"' : ""}>${h}${i + 2 === col ? " \u25c0 judging" : ""}</th>`;
+    });
+    html += "</tr>";
+    for (const g of groups) {
+      // The judge SORTS the ships within each corridor; no winner is
+      // declared -- the ordering and the spotlit column are the answer.
+      const ranked = g.rows.slice().sort((a, b) => {
+        const ka = cmp(a), kb = cmp(b);
+        return ka[0] - kb[0] || ka[1] - kb[1];
+      });
+      ranked.forEach((r, i) => {
+        html += "<tr>";
+        html += `<td>${i === 0 ? esc(g.from) + " \u2192 " + esc(g.to) : ""}</td>`;
+        html += `<td>${SHIPS[r[2]].label}${r[7] ? " \u00b7 " + esc(r[7]) : ""}</td>`;
+        const cells = [r[3], r[4], r[5], fmtWall(r[6]), fmtSeat(seat(r))];
+        cells.forEach((c, ci) => { html += `<td class="num"${hot(ci + 2)}>${c}</td>`; });
+        html += "</tr>";
+      });
+    }
+    html += "</table>";
+    document.getElementById("benchtable").innerHTML = html;
+  }
+  const btns = { seat: "judge-seat", stops: "judge-stops", jumps: "judge-jumps" };
+  for (const [mode, id] of Object.entries(btns)) {
+    document.getElementById(id).addEventListener("click", () => {
+      judge = mode;
+      for (const [m2, id2] of Object.entries(btns))
+        document.getElementById(id2).setAttribute("aria-pressed", m2 === judge);
+      render();
+    });
+  }
+  render();
+})();
+</script>
+<script>
+/* ---------- fig-flame: four eras, one profile shape ---------- */
+(function () {
+  const cv = document.getElementById("fig-flame"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  // hotspots.txt, beagle-m: [scan, relax+heap, hashmap, fuel, bidi, refine+math, other]
+  const BUCKETS = [
+    ["coarse scan", "#5ec8e5"],
+    ["relax + heap", "#4a90c2"],
+    ["hash-table traffic", "#c792ea"],
+    ["fuel model", "#57c66d"],
+    ["bidi", "#ffb35c"],
+    ["refine + math", "#e4e6ea"],
+    ["everything else", "#33404f"],
+  ];
+  const ERAS = [
+    ["pre-goal-field", [29.0, 36.3, 12.6, 4.9, 6.4, 0.5]],
+    ["seconds judging", [33.2, 41.5, 15.4, 5.9, 0.1, 0.6]],
+    ["off-ramp + wave cost", [32.4, 41.0, 14.2, 5.8, 0.7, 0.8]],
+    ["today", [32.4, 41.0, 14.2, 5.7, 0.8, 0.8]],
+  ];
+  ctx.fillStyle = "#07080b"; ctx.fillRect(0, 0, W, H);
+  ctx.font = "13px ui-monospace, Menlo, monospace";
+  const bw = 150, gap = 110, x0 = 110, y0 = 60, bh = 330;
+  ERAS.forEach(([name, vals], e) => {
+    const x = x0 + e * (bw + gap);
+    let acc = 0;
+    const all = vals.concat([100 - vals.reduce((a, b) => a + b, 0)]);
+    all.forEach((v, i) => {
+      ctx.fillStyle = BUCKETS[i][1];
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(x, y0 + (acc / 100) * bh, bw, (v / 100) * bh - 1);
+      ctx.globalAlpha = 1;
+      if (v >= 4 || (i === 4 && v >= 0.5)) {
+        ctx.fillStyle = i === 6 ? "#9aa4b2" : "#0a0c10";
+        if (v < 4) ctx.fillStyle = "#0a0c10";
+        ctx.fillText(v.toFixed(1) + "%", x + bw / 2 - 22, y0 + ((acc + v / 2) / 100) * bh + 4);
+      }
+      acc += v;
+    });
+    ctx.fillStyle = "#9aa4b2";
+    ctx.save(); ctx.translate(x + bw / 2, y0 + bh + 26); ctx.rotate(0.25);
+    ctx.fillText(name, -ctx.measureText(name).width / 2, 0); ctx.restore();
+  });
+  // legend
+  let ly = 64;
+  const lx = x0 + 3 * (bw + gap) + bw + 24;
+  for (const [label, color] of BUCKETS) {
+    ctx.fillStyle = color; ctx.fillRect(lx, ly - 10, 12, 12);
+    ctx.fillStyle = "#9aa4b2"; ctx.fillText(label, lx + 18, ly);
+    ly += 24;
+  }
+  // bidi-guard annotation
+  ctx.strokeStyle = "rgba(255,179,92,0.75)"; ctx.lineWidth = 1.2;
+  const bx1 = x0 + bw, bx2 = x0 + bw + gap;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(bx1 + 8, y0 + 0.86 * bh); ctx.lineTo(bx2 - 8, y0 + 0.93 * bh); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(255,179,92,0.9)";
+  ctx.fillText("the starvation guard lands", bx1 - 34, y0 + 0.80 * bh);
+})();
+</script>
+</body></html>

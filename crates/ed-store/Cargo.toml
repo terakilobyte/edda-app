@@ -1,0 +1,40 @@
+[package]
+name = "ed-store"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+ed-domain = { path = "../ed-domain" }
+ed-eddn = { version = "0.1.0", path = "../ed-eddn", default-features = false }
+ed-journal = { version = "0.1.0", path = "../ed-journal" }
+ed-ebex = { path = "../ed-ebex" }
+flate2 = "1.1.9"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+rayon = "1.11.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls"], optional = true }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time"], optional = true }
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json", "fmt"] }
+metrics = "0.24.6"
+
+[dev-dependencies]
+notify = "8.2.0"
+tempfile = "3.27.0"
+
+[features]
+# Pulls in the EDDN transport and an async runtime. Off by default so the
+# store stays usable as a plain library with no socket and no async.
+live-feed = ["ed-eddn/live", "dep:tokio"]
+postgres = ["dep:sqlx", "dep:tokio"]
+
+[[example]]
+name = "watch"
+# Needs the socket and runtime; without this, `cargo test` tries to
+# build it with default features and fails.
+required-features = ["live-feed"]

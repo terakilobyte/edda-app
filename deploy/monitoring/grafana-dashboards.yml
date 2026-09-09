@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: EDDA
+    folder: EDDA
+    type: file
+    options:
+      path: /var/lib/edda/dashboards

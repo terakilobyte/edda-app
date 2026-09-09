@@ -1,0 +1,34 @@
+# 2026-09-01 sweep2: pre-goal-field baseline (commit 181591e era, lexicographic comparator), one direction
+# machine: user PC (Win11), index: .data/galaxy (v3 + agg/graph/alt sidecars)
+# ships: explorer=Caspian MkII 77.81x6, mandalay=77.86x4, explorer86=Caspian eng. 86x6; budgets 30s (60s crossings)
+route_from,route_to,ship,jumps,boosted,refuels,wall_ms,note
+Wongi,Spase AA-A a108-0,explorer,102,98,10,113,
+Wongi,Spase AA-A a108-0,mandalay,175,157,40,143,
+Wongi,Spase AA-A a108-0,explorer86,92,89,9,128,
+Sol,Byoomao AA-A c1,explorer,64,61,9,144,
+Sol,Byoomao AA-A c1,mandalay,107,95,32,232,
+Sol,Byoomao AA-A c1,explorer86,59,56,8,183,
+Pheia Auscs AA-A d0,Spase AA-A a108-0,explorer,37,35,1,331,
+Pheia Auscs AA-A d0,Spase AA-A a108-0,mandalay,63,57,11,192,
+Pheia Auscs AA-A d0,Spase AA-A a108-0,explorer86,33,32,2,474,
+Wongi,Plielou RN-R d5-27,explorer,37,33,6,91,
+Wongi,Plielou RN-R d5-27,mandalay,62,50,19,134,
+Wongi,Plielou RN-R d5-27,explorer86,32,29,6,113,
+Wongi,Colonia,explorer,57,54,10,740,
+Wongi,Colonia,mandalay,93,84,27,606,
+Wongi,Colonia,explorer86,52,49,8,629,
+Sol,Sagittarius A*,explorer,69,64,7,385,
+Sol,Sagittarius A*,mandalay,114,99,32,2898,
+Sol,Sagittarius A*,explorer86,62,58,8,605,
+Wongi,Blaa Hypai AA-A a96-19,explorer,38,34,5,610,
+Wongi,Blaa Hypai AA-A a96-19,mandalay,61,50,18,138,
+Wongi,Blaa Hypai AA-A a96-19,explorer86,33,30,4,123,
+Wongi,Beagle Point,explorer,190,166,40,52975,
+Wongi,Beagle Point,mandalay,336,230,148,41389,
+Wongi,Beagle Point,explorer86,178,148,44,658,
+Colonia,Spase AA-A a108-0,explorer,284,46,57,24167,
+Colonia,Spase AA-A a108-0,mandalay,242,97,106,60130,
+Colonia,Spase AA-A a108-0,explorer86,278,35,19,30230,
+Beagle Point,Oevasy CA-A d0,explorer,,,,,no route
+Beagle Point,Oevasy CA-A d0,mandalay,,,,,no route
+Beagle Point,Oevasy CA-A d0,explorer86,17,2,15,1077,one basic injection

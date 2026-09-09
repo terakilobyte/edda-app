@@ -1,0 +1,296 @@
+# A release is a TAG and nothing else (maintainer, 2026-09-07: "Never again...
+# We'll only release with tags"). Pushing `vX.Y.Z` runs, in order:
+#
+#   verify ── the tag names the version src-tauri/Cargo.toml carries and
+#             RELEASE-NOTES.md leads with; refuse anything else before a
+#             single expensive minute is spent
+#   tests  ── Linux AND Windows
+#   builds ── the signed Windows installer, the Linux AppImage/.deb, and
+#             the ed-api server binary (ubuntu-22.04: glibc 2.35 runs on
+#             the box's 24.04/2.39)
+#   deploy ── ed-api to the box, installers + latest.json (manifest LAST:
+#             the pointer flips only once everything it names is in
+#             place), the website, the Grafana dashboards; then verify
+#             from the outside, and cut a GitHub Release with the artifacts
+#
+# Secrets (repository → Settings → Secrets): TAURI_SIGNING_PRIVATE_KEY,
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD (may be empty), DEPLOY_SSH_KEY (a
+# dedicated ed25519 key for the deploy host (vars.DEPLOY_HOST)), EDDA_CAPI_CLIENT_ID
+# (0.3.0+; absent = the Frontier link is not compiled in).
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  EDDA_NO_EDDN: "1"
+  API_BASE: https://api.edda-app.com
+  BOX: root@${{ vars.DEPLOY_HOST }}
+
+jobs:
+  verify:
+    name: tag matches toml and notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      notes: ${{ steps.v.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          toml="$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          notes="$(grep -m1 '^## ' src-tauri/RELEASE-NOTES.md | sed 's/^## //')"
+          echo "tag=$tag toml=$toml notes=$notes"
+          [[ "$tag" == "$toml" ]]  || { echo "::error::tag v$tag but src-tauri/Cargo.toml says $toml — bump the toml, commit, then tag"; exit 1; }
+          [[ "$tag" == "$notes" ]] || { echo "::error::tag v$tag but RELEASE-NOTES.md leads with $notes — the newest section must be this version"; exit 1; }
+          # The manifest's one-line blurb is the feed's shortNotes for the
+          # newest version — same producer as notes.json, so they can't drift.
+          python3 site/build-notes.py --out "$RUNNER_TEMP/notes.json"
+          blurb="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[0]["shortNotes"])' "$RUNNER_TEMP/notes.json")"
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+          { echo "notes<<EOF"; echo "$blurb"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+  test:
+    name: test (${{ matrix.os }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev libdbus-1-dev pkg-config
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Binary fixtures are intact
+        run: node tools/verify-binary-fixtures.mjs
+      - name: Frontend tests
+        working-directory: frontend
+        run: |
+          npm ci
+          npx vitest run
+      - name: Rust tests
+        run: cargo test --workspace
+
+  build-windows:
+    name: build (windows installer, signed)
+    needs: [verify, test]
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build + sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          EDDA_CAPI_CLIENT_ID: ${{ secrets.EDDA_CAPI_CLIENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${TAURI_SIGNING_PRIVATE_KEY}" ]] || { echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is not set"; exit 1; }
+          npx --yes @tauri-apps/cli@2 build
+          mkdir -p out
+          exe="$(ls target/release/bundle/nsis/*-setup.exe | head -1)"
+          [[ -f "$exe.sig" ]] || { echo "::error::no signature beside $exe — signing did not run"; exit 1; }
+          cp "$exe" "out/EDDA_${{ needs.verify.outputs.version }}_x64-setup.exe"
+          cp "$exe.sig" "out/EDDA_${{ needs.verify.outputs.version }}_x64-setup.exe.sig"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/
+          if-no-files-found: error
+
+  build-linux:
+    name: build (linux AppImage + deb, signed)
+    needs: [verify, test]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+      - name: Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev libdbus-1-dev pkg-config patchelf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build + sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          EDDA_CAPI_CLIENT_ID: ${{ secrets.EDDA_CAPI_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes @tauri-apps/cli@2 build
+          v="${{ needs.verify.outputs.version }}"
+          mkdir -p out
+          app="$(ls target/release/bundle/appimage/*.AppImage | head -1)"
+          bash scripts/appimage-fixup.sh "$app"
+          cp "$app" "out/EDDA_${v}_amd64.AppImage"
+          [[ -f "$app.sig" ]] && cp "$app.sig" "out/EDDA_${v}_amd64.AppImage.sig" || echo "::warning::no AppImage signature (updater on Linux stays manual)"
+          deb="$(ls target/release/bundle/deb/*.deb | head -1)"
+          cp "$deb" "out/EDDA_${v}_amd64.deb"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/
+          if-no-files-found: error
+
+  build-api:
+    name: build (ed-api server)
+    needs: [verify, test]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: ed-api
+      - run: cargo build --release -p ed-api
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ed-api
+          path: target/release/ed-api
+          if-no-files-found: error
+
+  deploy:
+    name: deploy (box, manifest, site, release)
+    needs: [verify, build-windows, build-linux, build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$DEPLOY_SSH_KEY" ]] || { echo "::error::DEPLOY_SSH_KEY secret is not set"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          ssh-keyscan -t ed25519 "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          printf 'Host box\n  HostName ${{ vars.DEPLOY_HOST }}\n  User root\n  IdentityFile ~/.ssh/deploy\n  IdentitiesOnly yes\n' > ~/.ssh/config
+          ssh box 'echo connected: $(hostname)'
+
+      - name: ed-api → box (restart, readyz, ANALYZE)
+        run: |
+          set -euo pipefail
+          chmod 755 artifacts/ed-api/ed-api
+          scp artifacts/ed-api/ed-api box:/usr/local/bin/ed-api.new
+          ssh box 'mv /usr/local/bin/ed-api.new /usr/local/bin/ed-api && systemctl restart edda-api.service'
+          for i in $(seq 1 60); do
+            if ssh box 'curl -sf http://127.0.0.1:8787/readyz >/dev/null'; then echo "readyz ok after ${i}s"; break; fi
+            sleep 2
+            [[ $i -lt 60 ]] || { echo "::error::ed-api not ready after 120 s"; ssh box 'systemctl --no-pager --lines 20 status edda-api.service'; exit 1; }
+          done
+          # Runbook step (2026-09-06): plan quality on a fresh index depends on it.
+          ssh box "sudo -u postgres psql -d edda -qc 'ANALYZE market; ANALYZE systems; ANALYZE stations;'"
+
+      - name: installers → box, then the manifest (last)
+        env:
+          # Through the environment, never spliced into the script: a quote
+          # or backtick in a release blurb must not become shell.
+          NOTES: ${{ needs.verify.outputs.notes }}
+        run: |
+          set -euo pipefail
+          v="${{ needs.verify.outputs.version }}"
+          ssh box 'mkdir -p /var/lib/edda/artifacts/app'
+          scp artifacts/windows/* artifacts/linux/* box:/var/lib/edda/artifacts/app/
+          curl -fsS "$API_BASE/v1/app/latest.json" -o current.json || echo '{}' > current.json
+          python3 scripts/publish-manifest.py \
+            --version "$v" --notes "$NOTES" --api-base "$API_BASE" \
+            --current current.json --out latest.json \
+            --platform "windows-x86_64=EDDA_${v}_x64-setup.exe=artifacts/windows/EDDA_${v}_x64-setup.exe.sig" \
+            $( [[ -f "artifacts/linux/EDDA_${v}_amd64.AppImage.sig" ]] && echo "--platform linux-x86_64=EDDA_${v}_amd64.AppImage=artifacts/linux/EDDA_${v}_amd64.AppImage.sig" )
+          cat latest.json
+          # The release-notes FEED the website reads (maintainer, 2026-09-07:
+          # no more manual site updates for notes): same source file,
+          # published beside the manifest, before it.
+          python3 site/build-notes.py --out notes.json
+          scp notes.json box:/var/lib/edda/artifacts/app/notes.json
+          scp latest.json box:/var/lib/edda/artifacts/app/latest.json
+          ssh box 'chmod -R u=rwX,g=rX,o=rX /var/lib/edda/artifacts'
+
+      - name: website + dashboards
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude '*.py' --exclude README.md site/ box:/var/www/edda-site/
+          scp deploy/monitoring/dashboards/*.json box:/var/lib/edda/dashboards/
+
+      - name: verify from the outside
+        run: |
+          set -euo pipefail
+          v="${{ needs.verify.outputs.version }}"
+          served="$(curl -fsS "$API_BASE/v1/app/latest.json" | python3 -c 'import sys,json; print(json.load(sys.stdin)["version"])')"
+          [[ "$served" == "$v" ]] || { echo "::error::feed serves $served, expected $v"; exit 1; }
+          curl -fsS "$API_BASE/v1/app/EDDA_${v}_x64-setup.exe" -o dl.exe
+          cmp dl.exe "artifacts/windows/EDDA_${v}_x64-setup.exe" || { echo "::error::served installer differs from the built one"; exit 1; }
+          feed="$(curl -fsS "$API_BASE/v1/app/notes.json" | python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["version"])')"
+          [[ "$feed" == "$v" ]] || { echo "::error::notes feed leads with $feed, expected $v"; exit 1; }
+          curl -fsS https://edda-app.com/notes/ >/dev/null
+          curl -fsS "$API_BASE/readyz" >/dev/null
+          echo "$v live: manifest, installer bytes, notes feed, site, readyz — all verified"
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EDDA ${{ needs.verify.outputs.version }}
+          body: ${{ needs.verify.outputs.notes }}
+          files: |
+            artifacts/windows/*
+            artifacts/linux/*

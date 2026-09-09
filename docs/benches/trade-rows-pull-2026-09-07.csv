@@ -1,0 +1,27 @@
+# Trade-report row pull (API-only spec, Phase A.2) — 2026-09-07, review, WSL edda_dev (the 2026-08-30 EBEX
+# hydrate + EDDN since; 831,340 stations), harness docs/benches/knobs/trade-rows-pull.sh, 100 ly / 48 h, warm.
+# PRE-REGISTERED: candidates + every fresh row <= 0.5 s at Deciat, <= 1.5 s at Wyrd; over that and the server's
+# default max_stations drops from 2,500 to 1,000.
+#
+# VERDICT: UNCAPPED FAILS THE BAR EVERYWHERE; CAPPED AT THE FINDER'S 2,500 NEAREST PASSES BY 7x.
+#  - Uncapped, a 100 ly sphere has 102k market stations at Sol, 56k at Deciat, 92k at Wyrd, and pulling their fresh
+#    rows is 2.1-4.3 s (164k-449k rows). Nobody should ever run that shape; the local finder never does either -
+#    it keeps the nearest max_stations (2,500) BEFORE loading rows and counts the rest in excluded.beyond_station_cap.
+#  - Capped 2,500: 186 / 191 / 194 ms candidates+rows (24k / 7.5k / 13.7k rows). Capped 1,000: 151 / 115 / 160 ms.
+#    Both well inside; 2,500 keeps parity with local. DEFAULT_MAX_STATIONS = 2,500.
+#  - Context: the legacy best-8 query the report replaces measured 253 ms server-side (ledger, 0e340ec acceptance).
+#    The report's data half costs LESS than the legacy query at the same origins; the pairing/rings CPU on top is the
+#    next measurement (server-side timing fields ship with the endpoint: edda_trade_report_phase_seconds{phase}).
+#  - What the cap means for a 100 ly search at Sol: the nearest 2,500 stations is roughly a 30-35 ly sphere, and the
+#    report says so (beyond_station_cap ~ 99,500). That is the same answer the local finder gives; the honest fix for
+#    "I want 100 ly at Sol" is a smarter candidate filter, not a bigger pull - a later measurement.
+origin,radius_ly,max_age_h,cap,candidate_stations,fresh_rows,candidates_ms,candidates_plus_rows_ms
+Sol,100,48,none,102076,449450,177,4255
+Deciat,100,48,none,55898,163787,138,2060
+Wyrd,100,48,none,91645,372194,128,2693
+Sol,100,48,2500,2500,24060,133,186
+Deciat,100,48,2500,2500,7519,85,191
+Wyrd,100,48,2500,2500,13721,127,194
+Sol,100,48,1000,1000,10836,126,151
+Deciat,100,48,1000,1000,4286,107,115
+Wyrd,100,48,1000,1000,5430,124,160

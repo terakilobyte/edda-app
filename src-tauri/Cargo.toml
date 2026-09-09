@@ -1,0 +1,89 @@
+[package]
+name = "edda"
+# THE version — the single source of truth (maintainer, 2026-09-05: "source
+# the version from the toml files, not a magic floating number in the
+# release script"). tauri.conf.json omits its version field and
+# inherits this one; the release script READS it and never stamps.
+# Releasing = bump here, commit, run the script.
+version = "0.3.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+name = "edda_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tempfile = "3"
+tracing-subscriber = { version = "0.3.23", features = ["registry"] }
+
+[features]
+# Let tests actually speak: `cargo test --features test-voice`. Without it
+# a test state's voice is muted, so `cargo test` stays silent.
+test-voice = []
+
+[dependencies]
+memmap2 = "0.9"
+tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+chrono = "0.4"
+notify = "6"
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking", "stream"] }
+flate2 = "1"
+base64 = "0.22"
+getrandom = "0.3"
+tar = "0.4"
+bzip2 = "0.5"
+futures-util = "0.3"
+
+ed-journal = { path = "../crates/ed-journal" }
+ed-input = { path = "../crates/ed-input" }
+ed-listen = { path = "../crates/ed-listen" }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+arboard = { version = "3", default-features = false }
+ed-engineering = { path = "../crates/ed-engineering" }
+ed-store = { version = "0.1.0", path = "../crates/ed-store" }
+ed-eddn = { version = "0.1.0", path = "../crates/ed-eddn" }
+ed-voice = { path = "../crates/ed-voice" }
+ed-route = { path = "../crates/ed-route" }
+ed-galaxy = { path = "../crates/ed-galaxy" }
+ed-ebex = { path = "../crates/ed-ebex" }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-window-state = "2"
+# Opens cited source links in the default browser from the chat panel.
+tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+# Self-update: signed packages from our own API (maintainer-claimed 2026-09-04).
+tauri-plugin-updater = "2"
+tracing = "0.1.44"
+rusqlite = "0.40.2"
+rfd = "0.15"
+metrics = "0.24.6"
+metrics-exporter-prometheus = { version = "0.18.3", default-features = false }
+
+# The credential store is per host; without the matching feature keyring
+# silently compiles its in-memory mock and API keys vanish at exit.
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+# Secret Service (GNOME Keyring / KWallet over D-Bus) for persistence, with
+# the kernel keyutils cache in front; pure-Rust crypto so no OpenSSL dev
+# package is needed. Needs libdbus-1 at build and run time.
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }
