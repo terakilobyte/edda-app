@@ -1,5 +1,9 @@
-# Tests on Linux only (maintainer, 2026-09-07: "Normal pushes only run tests in
-# linux"). Windows runs on TAGS — see release.yml.
+# Tests on Linux AND Windows. Linux carries the full gate (frontend build,
+# clippy); Windows runs the same test suites, because Windows is the
+# primary target and a Windows-only break used to surface only once a
+# tag was already in flight (2026-09-07 to 2026-09-09: "Normal pushes
+# only run tests in linux" was a private-repo minutes decision, retired
+# with the public repo — hosted runners are free here).
 #
 # Where CI runs (maintainer, 2026-09-08: "keep it as the MR gate and tags
 # only"): pull requests into main — the one clean-checkout-on-another-OS
@@ -10,9 +14,10 @@
 # are the real testing, and main moves only by merge request, so the PR
 # run is the record. workflow_dispatch stays as the manual button.
 #
-# Cost controls (private repo, GitHub-hosted minutes): docs/site/ledger-only
-# PRs do not run at all; a newer push to a PR cancels its run in flight;
-# the cargo cache keeps a warm run to a few minutes.
+# Time controls (minutes are free on a public repo; the reviewer's wait
+# is not): docs/site-only PRs do not run at all, since Rust tests say
+# nothing about a Markdown edit; a newer push to a PR cancels its run in
+# flight; the cargo cache keeps a warm run to a few minutes.
 name: CI
 
 on:
@@ -102,6 +107,39 @@ jobs:
         # The tree is not yet clippy-clean (pre-existing lints in ed-store/ed-galaxy/commands.rs);
         # tighten to -D warnings once it is.
         run: cargo clippy --workspace --all-targets
+
+  # The same suites on the primary target. No clippy or vite build here:
+  # neither is platform-specific, and Linux already runs them.
+  test-windows:
+    name: test (windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Binary fixtures are intact
+        run: node tools/verify-binary-fixtures.mjs
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: |
+          npm ci
+          npx vitest run
+
+      - name: Rust tests
+        run: cargo test --workspace
 
   # Licence and advisory gate (maintainer, 2026-09-09): every dependency's
   # licence must be on the allow list in deny.toml, for every target — the
