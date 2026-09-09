@@ -5,7 +5,7 @@ name = "edda"
 # release script"). tauri.conf.json omits its version field and
 # inherits this one; the release script READS it and never stamps.
 # Releasing = bump here, commit, run the script.
-version = "0.3.0"
+version = "0.3.1"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true

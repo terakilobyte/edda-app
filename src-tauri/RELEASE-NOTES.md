@@ -7,6 +7,19 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.1
+
+Linux: the AppImage starts again on newer distributions. Everything
+else is 0.3.0.
+
+**AppImage on newer glibc and glib.** The 0.3.0 AppImage bundled the
+build machine's `libmount` and `libpcre2` next to a glib taken from
+the host, and a host with a newer glib refused to start
+(`version 'MOUNT_2_40' not found`). glib's whole family now comes from
+the host, the way glib itself already did. The `.deb` was never
+affected. What EDDA needs on Linux is written down at
+edda-app.com/linux.
+
 ## 0.3.0
 
 EDDA now runs every search on the community API and downloads nothing
