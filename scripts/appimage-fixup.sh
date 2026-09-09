@@ -30,6 +30,12 @@ APPDIR="$WORK/squashfs-root"
 STRIP_PATTERNS=(
     'libwayland-client.so*' 'libwayland-cursor.so*' 'libwayland-egl.so*' 'libwayland-server.so*'
     'libglib-2.0.so*' 'libgio-2.0.so*' 'libgobject-2.0.so*' 'libgmodule-2.0.so*' 'libgthread-2.0.so*'
+    # glib's own dependencies must come from the same machine as glib.
+    # 0.3.0 field report: the host's libgio (newer distro) loaded the
+    # BUNDLED 22.04 libmount and died — "version `MOUNT_2_40' not found",
+    # plus "libpcre2-8.so.0: no version information" from the bundled
+    # pcre2. Everything glib links against goes with it.
+    'libmount.so*' 'libblkid.so*' 'libuuid.so*' 'libselinux.so*' 'libpcre2-8.so*' 'libpcre.so*' 'libffi.so*' 'libz.so*'
     'libgst*'
     # Should never be bundled; verify-and-strip in case the bundler slips.
     'libEGL.so*' 'libGL.so*' 'libGLX.so*' 'libGLdispatch.so*' 'libgbm.so*' 'libdrm.so*' 'libglapi.so*'
