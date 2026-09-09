@@ -59,6 +59,7 @@
     "targets": [
       "nsis",
       "deb",
+      "rpm",
       "appimage",
       "dmg"
     ],
