@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { voiceName, serverVoiceName } from "./voices.js";
   import {
-    voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
+    voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
     calloutsGet, calloutsSet,
     listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices,
   } from "./api.js";
@@ -133,6 +133,32 @@
     catch (e) { vsMsg = String(e); }
   }
 
+  // The engine the panel offers, by name (maintainer, 2026-09-09: "why
+  // isn't piper there?" — it hid under "built-in" with the Windows
+  // voice). Three choices; the pill still says what is actually speaking.
+  const engineChoice = $derived(vsEngine === "server" ? "server" : voice?.backend === "sapi" ? "windows" : "piper");
+  async function pickEngine(which) {
+    vsMsg = "";
+    try {
+      if (which === "server") {
+        vsEngine = "server";
+        if (vsVoices.length) await saveVoiceServer(); else await connectSpeech();
+        return;
+      }
+      if (vsEngine === "server") { vsEngine = "builtin"; await saveVoiceServer(); }
+      if (which === "windows") {
+        voice = await voiceUseWindows();
+        vsMsg = "Windows voice selected. No local model or helper process is required.";
+      } else {
+        const model = chosen || models[0];
+        if (!model) { vsMsg = "No Piper voice is installed yet — install one below."; return; }
+        await setVoice(model);
+        chosen = model;
+        voice = await voiceStatus();
+      }
+    } catch (e) { vsMsg = String(e); }
+  }
+
   const pretty = voiceName;
   async function installVoice() {
     voiceInstalling = true;
@@ -169,8 +195,9 @@
       <dt>Engine</dt>
       <dd>
         <div class="row">
-          <label><input type="radio" bind:group={vsEngine} value="builtin" onchange={saveVoiceServer} /> built-in</label>
-          <label><input type="radio" bind:group={vsEngine} value="server" onchange={() => { if (vsVoices.length) saveVoiceServer(); else connectSpeech(); }} /> speech server (Kokoro or compatible)</label>
+          <label><input type="radio" name="voice-engine" value="windows" checked={engineChoice === "windows"} onchange={() => pickEngine("windows")} /> Windows voice</label>
+          <label><input type="radio" name="voice-engine" value="piper" checked={engineChoice === "piper"} onchange={() => pickEngine("piper")} /> Piper (neural, inside EDDA)</label>
+          <label><input type="radio" name="voice-engine" value="server" checked={engineChoice === "server"} onchange={() => pickEngine("server")} /> speech server (Kokoro or compatible)</label>
           <span class="pill {voice.backend === 'server' ? 'cyan' : voice.backend === 'piper' ? 'ok' : voice.backend === 'sapi' ? 'warn' : 'bad'}">{voice.backend === "server" ? "speech server" : voice.backend === "piper" ? "Piper neural" : voice.backend === "sapi" ? "Windows voice" : "no voice"}</span>
           {#if vsEngine === "server" && voice.backend !== "server"}<span class="pill warn" title="The configured speech server is not answering; EDDA fell back to the next voice. Retry the server or pick another engine.">server configured, not running — using {voice.backend === "piper" ? "Piper" : voice.backend === "sapi" ? "Windows voice" : "no voice"}</span>{/if}
         </div>
@@ -192,7 +219,7 @@
         {/if}
         {#if vsMsg}<div class="muted small" style="margin-top:0.3rem">{vsMsg}</div>{/if}
       </dd>
-      {#if vsEngine !== "server"}
+      {#if engineChoice === "piper"}
       <dt>Voice</dt>
       <dd class="row">
         <select value={chosen} onchange={changeVoice} disabled={voice.backend !== "piper"}>
