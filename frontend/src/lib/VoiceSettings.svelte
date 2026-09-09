@@ -24,6 +24,13 @@
     { id: "openai", label: "OpenAI", url: "https://api.openai.com", model: "gpt-4o-mini-tts", voices: ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"] },
     { id: "other", label: "Other", url: "", model: "", voices: [] },
   ];
+  // EDDA's managed Kokoro listens on a fresh loopback port every launch,
+  // so matching the preset by exact URL filed it under "Other" and showed
+  // address fields for a server the commander never typed in.
+  function presetFor(url, model) {
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url.trim()) && (model || "kokoro") === "kokoro") return "kokoro";
+    return SPEECH_PRESETS.find((p) => p.url && url.startsWith(p.url))?.id ?? "other";
+  }
   function applySpeechPreset() { const p = SPEECH_PRESETS.find((x) => x.id === vsPreset); if (p && p.id !== "other") { vsUrl = p.url; vsModel = p.model; vsVoices = p.voices; if (p.voices.length) vsVoice = p.voices[0]; } }
   async function connectSpeech() {
     vsBusy = true; vsMsg = "";
@@ -31,12 +38,16 @@
       const v = await voiceServerProbe({ url: vsUrl.trim(), model: vsModel.trim(), voice: vsVoice.trim(), api_key: vsKey ? vsKey : (vs?.config?.api_key ?? null) });
       vsVoices = v.length ? v : (SPEECH_PRESETS.find((x) => x.id === vsPreset)?.voices ?? []);
       if (vsVoices.length && !vsVoices.includes(vsVoice)) vsVoice = vsVoices.includes("af_heart") ? "af_heart" : vsVoices[0];
-      vsMsg = vsVoices.length ? `Connected · ${vsVoices.length} voices` : "Connected";
+      const outcome = vsVoices.length ? `Connected · ${vsVoices.length} voices` : "Connected (this server lists no voices)";
       if (vsEngine === "server") await saveVoiceServer();
+      // saveVoiceServer clears the message; the connect outcome is the
+      // one line the commander pressed the button to see (maintainer,
+      // 2026-09-09: "clicking connect appears to do nothing").
+      vsMsg = outcome;
     } catch (e) { vsMsg = String(e); vsVoices = []; } finally { vsBusy = false; }
   }
   async function loadVoiceServer() {
-    try { vs = await voiceServerGet(); vsEngine = vs.enabled ? "server" : "builtin"; if (vs.config.url) { vsUrl = vs.config.url; vsModel = vs.config.model || "kokoro"; vsVoice = vs.config.voice || "af_heart"; vsVoices = vs.voices ?? []; vsPreset = SPEECH_PRESETS.find((p) => p.url && vsUrl.startsWith(p.url))?.id ?? "other"; } } catch (e) { vsMsg = String(e); }
+    try { vs = await voiceServerGet(); vsEngine = vs.enabled ? "server" : "builtin"; if (vs.config.url) { vsUrl = vs.config.url; vsModel = vs.config.model || "kokoro"; vsVoice = vs.config.voice || "af_heart"; vsVoices = vs.voices ?? []; vsPreset = presetFor(vsUrl, vsModel); } } catch (e) { vsMsg = String(e); }
   }
   async function saveVoiceServer() {
     try {
@@ -206,7 +217,8 @@
             <select bind:value={vsPreset} onchange={applySpeechPreset}>{#each SPEECH_PRESETS as p}<option value={p.id}>{p.label}</option>{/each}</select>
             {#if vsPreset !== "kokoro"}<input placeholder="address" bind:value={vsUrl} style="min-width:16rem" /><input placeholder="model" bind:value={vsModel} style="min-width:8rem" />{/if}
             {#if vsPreset !== "kokoro"}<input type="password" placeholder={vs?.config?.api_key ? "key set" : "API key (if any)"} bind:value={vsKey} style="min-width:10rem" autocomplete="off" />{/if}
-            <button class="quiet" onclick={connectSpeech} disabled={vsBusy}>{vsBusy ? "Connecting…" : "Connect"}</button>
+            <button class="quiet" onclick={connectSpeech} disabled={vsBusy}>{vsBusy ? "Connecting…" : vsVoices.length ? "Reconnect" : "Connect"}</button>
+            {#if vsVoices.length && voice.backend === "server"}<span class="pill ok">connected · {vsVoices.length} voices</span>{/if}
           </div>
           <div class="row" style="margin-top:0.4rem">
             <span class="muted small">Voice</span>
