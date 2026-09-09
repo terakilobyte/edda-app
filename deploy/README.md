@@ -122,7 +122,14 @@ else:
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | `op://Private/EDDA updater signing key/password`      |
 | `EDDA_CAPI_CLIENT_ID`                | `op://Private/EDDA CAPI client id/password` (0.3.0+)  |
 
-    op read "op://Private/EDDA deploy key/private key?ssh-format=openssh" | gh secret set DEPLOY_SSH_KEY --repo terakilobyte/edda-app
+Never pipe `op read` straight into `gh secret set`: when the item is
+missing, `op` fails but `gh` still runs and stores an EMPTY secret
+(field case, 2026-09-09: two Tauri secrets set to nothing). Read first,
+set only if the read succeeded:
+
+    v=$(op read "op://Private/EDDA deploy key/private key?ssh-format=openssh") && gh secret set DEPLOY_SSH_KEY --repo terakilobyte/edda-app --body "$v"
+    v=$(op read "op://Private/EDDA updater signing key/private_key") && gh secret set TAURI_SIGNING_PRIVATE_KEY --repo terakilobyte/edda-app --body "$v"
+    v=$(op read "op://Private/EDDA updater signing key/password") && gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo terakilobyte/edda-app --body "$v"
 
 `?ssh-format=openssh` is not optional: without it `op read` emits the
 key as PKCS#8, which OpenSSH cannot load, and the box answers
