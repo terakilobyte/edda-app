@@ -94,9 +94,9 @@ what the stored copy outranked — that ratio is the trust measurement.
 
 ## Release = push a tag (CI/CD, maintainer-ruled 2026-09-07: "Never again")
 
-`.github/workflows/ci.yml` runs the Linux tests on every push (docs,
-site and docs-only pushes skip; a newer push cancels the run in
-flight). `.github/workflows/release.yml` runs on a `vX.Y.Z` tag and
+`.github/workflows/ci.yml` runs the tests on Linux and Windows for every
+pull request into main (docs- and site-only changes skip; a newer push
+cancels the run in flight; hosted runners are free on the public repo). `.github/workflows/release.yml` runs on a `vX.Y.Z` tag and
 does the whole release: verify the tag matches src-tauri/Cargo.toml and
 the newest RELEASE-NOTES.md section → tests on Linux AND Windows →
 signed Windows installer, Linux AppImage/.deb, ed-api binary → deploy
