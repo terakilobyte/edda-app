@@ -1,0 +1,27 @@
+# Proves the deploy path without a release: the pinned host key, the
+# DEPLOY_SSH_KEY secret, the `deploy` user's forced command and readyz,
+# in one run. Run it after rotating the key or re-running
+# deploy/install-deploy-user.sh, before the next tag.
+name: Deploy check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: connect to the box as deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/box-ssh
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          host_key: ${{ vars.DEPLOY_HOST_KEY }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: the forced command refuses anything else
+        run: |
+          set -euo pipefail
+          if ssh box 'id' 2>/dev/null; then echo "::error::the deploy key ran an arbitrary command"; exit 1; fi
+          echo "refused as expected"

@@ -1,0 +1,36 @@
+name: box-ssh
+description: >
+  Connect the runner to the deploy box as the restricted `deploy` user.
+  The host key is PINNED from a repository variable (never keyscanned at
+  run time: a keyscan trusts whoever answers), the private key comes from
+  the DEPLOY_SSH_KEY secret and can only run deploy/edda-deploy on the
+  box. Ends with `ssh box status`, so a bad key, host, or box fails here
+  and not halfway through a release.
+inputs:
+  host:
+    description: The deploy host (vars.DEPLOY_HOST)
+    required: true
+  host_key:
+    description: Its ssh-ed25519 host public key (vars.DEPLOY_HOST_KEY)
+    required: true
+  key:
+    description: The deploy private key (secrets.DEPLOY_SSH_KEY)
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+        HOST_KEY: ${{ inputs.host_key }}
+        DEPLOY_SSH_KEY: ${{ inputs.key }}
+      run: |
+        set -euo pipefail
+        [[ -n "$HOST" ]] || { echo "::error::DEPLOY_HOST variable is not set"; exit 1; }
+        [[ "$HOST_KEY" == ssh-ed25519\ * ]] || { echo "::error::DEPLOY_HOST_KEY variable is not an ssh-ed25519 host key"; exit 1; }
+        [[ -n "$DEPLOY_SSH_KEY" ]] || { echo "::error::DEPLOY_SSH_KEY secret is not set"; exit 1; }
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+        printf '%s %s\n' "$HOST" "$HOST_KEY" > ~/.ssh/known_hosts
+        printf 'Host box\n  HostName %s\n  User deploy\n  IdentityFile ~/.ssh/deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n  UserKnownHostsFile ~/.ssh/known_hosts\n' "$HOST" > ~/.ssh/config
+        ssh box status

@@ -129,6 +129,9 @@ systemctl enable --now edda-eddn.service
 systemctl enable --now edda-api.service
 systemctl enable --now edda-daily.timer edda-weekly.timer edda-backup.timer
 
+echo "== CI deploy identity (user deploy, forced command) =="
+bash "$(dirname "${BASH_SOURCE[0]}")/install-deploy-user.sh"
+
 echo "== done =="
 systemctl --no-pager --lines 3 status edda-api.service || true
 echo "next: seed the database (README step 3), then https://${DOMAIN}/healthz"

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# The ONLY thing the CI deploy key can run. sshd invokes this through the
+# `restrict,command=` entry install-deploy-user.sh writes for user
+# `deploy`; the command CI asked for arrives in SSH_ORIGINAL_COMMAND and
+# is matched against a closed list. No shell, no pty, no forwarding.
+#
+#   rsync --server ...      pushes into the inbox only (rrsync, write-only)
+#   apply api|app|site|dashboards
+#                           hands one verb to edda-apply through a sudoers
+#                           rule that names each verb exactly
+#   status                  hostname + readyz, for deploy-check.yml
+#
+# Every call is journaled (`journalctl -t edda-deploy`) so a key that
+# starts asking for anything else is seen, not just refused.
+set -euo pipefail
+
+INBOX=/var/lib/edda-deploy/inbox
+cmd="${SSH_ORIGINAL_COMMAND:-}"
+logger -t edda-deploy -- "from ${SSH_CONNECTION%% *}: ${cmd:-<none>}"
+
+case "$cmd" in
+    "rsync --server "*)
+        exec /usr/bin/rrsync -wo "$INBOX"
+        ;;
+    "apply api"|"apply app"|"apply site"|"apply dashboards")
+        exec sudo -n /usr/local/sbin/edda-apply "${cmd#apply }"
+        ;;
+    status)
+        echo "connected: $(hostname) as $(id -un)"
+        if curl -sf --max-time 5 http://127.0.0.1:8787/readyz >/dev/null; then
+            echo "readyz: ok"
+        else
+            echo "readyz: NOT ready"
+            exit 2
+        fi
+        ;;
+    *)
+        logger -t edda-deploy -- "REFUSED: ${cmd:-<none>}"
+        echo "edda-deploy: refused: ${cmd:-<none>}" >&2
+        exit 1
+        ;;
+esac

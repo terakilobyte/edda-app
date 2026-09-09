@@ -14,9 +14,12 @@
 #             from the outside, and cut a GitHub Release with the artifacts
 #
 # Secrets (repository → Settings → Secrets): TAURI_SIGNING_PRIVATE_KEY,
-# TAURI_SIGNING_PRIVATE_KEY_PASSWORD (may be empty), DEPLOY_SSH_KEY (a
-# dedicated ed25519 key for the deploy host (vars.DEPLOY_HOST)), EDDA_CAPI_CLIENT_ID
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD (may be empty), DEPLOY_SSH_KEY (the
+# ed25519 key whose public half is deploy/deploy-key.pub; on the box it
+# can only run deploy/edda-deploy as user `deploy`), EDDA_CAPI_CLIENT_ID
 # (0.3.0+; absent = the Frontier link is not compiled in).
+# Variables: DEPLOY_HOST, DEPLOY_HOST_KEY (the box's ssh-ed25519 host key,
+# pinned — see deploy/README.md, "Release = push a tag").
 name: Release
 
 on:
@@ -30,7 +33,6 @@ env:
   CARGO_TERM_COLOR: always
   EDDA_NO_EDDN: "1"
   API_BASE: https://api.edda-app.com
-  BOX: root@${{ vars.DEPLOY_HOST }}
 
 jobs:
   verify:
@@ -215,31 +217,20 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: SSH
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: |
-          set -euo pipefail
-          [[ -n "$DEPLOY_SSH_KEY" ]] || { echo "::error::DEPLOY_SSH_KEY secret is not set"; exit 1; }
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
-          ssh-keyscan -t ed25519 "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          printf 'Host box\n  HostName ${{ vars.DEPLOY_HOST }}\n  User root\n  IdentityFile ~/.ssh/deploy\n  IdentitiesOnly yes\n' > ~/.ssh/config
-          ssh box 'echo connected: $(hostname)'
+      # Everything below reaches the box as user `deploy`, whose key can
+      # only rsync into an inbox and run `apply <verb>` (deploy/edda-deploy,
+      # deploy/edda-apply). The box does the privileged moves itself.
+      - uses: ./.github/actions/box-ssh
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          host_key: ${{ vars.DEPLOY_HOST_KEY }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
 
       - name: ed-api → box (restart, readyz, ANALYZE)
         run: |
           set -euo pipefail
-          chmod 755 artifacts/ed-api/ed-api
-          scp artifacts/ed-api/ed-api box:/usr/local/bin/ed-api.new
-          ssh box 'mv /usr/local/bin/ed-api.new /usr/local/bin/ed-api && systemctl restart edda-api.service'
-          for i in $(seq 1 60); do
-            if ssh box 'curl -sf http://127.0.0.1:8787/readyz >/dev/null'; then echo "readyz ok after ${i}s"; break; fi
-            sleep 2
-            [[ $i -lt 60 ]] || { echo "::error::ed-api not ready after 120 s"; ssh box 'systemctl --no-pager --lines 20 status edda-api.service'; exit 1; }
-          done
-          # Runbook step (2026-09-06): plan quality on a fresh index depends on it.
-          ssh box "sudo -u postgres psql -d edda -qc 'ANALYZE market; ANALYZE systems; ANALYZE stations;'"
+          rsync -a artifacts/ed-api/ed-api box:ed-api
+          ssh box apply api
 
       - name: installers → box, then the manifest (last)
         env:
@@ -249,8 +240,6 @@ jobs:
         run: |
           set -euo pipefail
           v="${{ needs.verify.outputs.version }}"
-          ssh box 'mkdir -p /var/lib/edda/artifacts/app'
-          scp artifacts/windows/* artifacts/linux/* box:/var/lib/edda/artifacts/app/
           curl -fsS "$API_BASE/v1/app/latest.json" -o current.json || echo '{}' > current.json
           python3 scripts/publish-manifest.py \
             --version "$v" --notes "$NOTES" --api-base "$API_BASE" \
@@ -260,17 +249,19 @@ jobs:
           cat latest.json
           # The release-notes FEED the website reads (maintainer, 2026-09-07:
           # no more manual site updates for notes): same source file,
-          # published beside the manifest, before it.
+          # published beside the manifest.
           python3 site/build-notes.py --out notes.json
-          scp notes.json box:/var/lib/edda/artifacts/app/notes.json
-          scp latest.json box:/var/lib/edda/artifacts/app/latest.json
-          ssh box 'chmod -R u=rwX,g=rX,o=rX /var/lib/edda/artifacts'
+          # One inbox directory; `apply app` installs the manifest LAST.
+          rsync -a --delete artifacts/windows/ artifacts/linux/ notes.json latest.json box:app/
+          ssh box apply app
 
       - name: website + dashboards
         run: |
           set -euo pipefail
-          rsync -a --delete --exclude '*.py' --exclude README.md site/ box:/var/www/edda-site/
-          scp deploy/monitoring/dashboards/*.json box:/var/lib/edda/dashboards/
+          rsync -a --delete --exclude '*.py' --exclude README.md site/ box:site/
+          ssh box apply site
+          rsync -a --delete deploy/monitoring/dashboards/*.json box:dashboards/
+          ssh box apply dashboards
 
       - name: verify from the outside
         run: |
