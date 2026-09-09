@@ -40,7 +40,8 @@ dependencies:
 - **Windows** — WebView2 runtime (ships with Windows 10/11).
 - **Linux** — see [docs/BUILDING-LINUX.md](docs/BUILDING-LINUX.md) for
   the package list (webkit2gtk, ALSA, appindicator, ...) and the notes on
-  Proton journals, the HUD under Wayland and the `uinput` keyboard.
+  Proton journals, the HUD under Wayland and the `uinput` keyboard. What
+  a *user* needs at runtime is at <https://edda-app.com/linux/>.
 - **macOS** — `xcode-select --install`. The game does not run on macOS;
   this is a developer loop only.
 

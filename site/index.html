@@ -266,7 +266,7 @@
       if (p["linux-x86_64"]) {
         linux.href = p["linux-x86_64"].url;
         linux.removeAttribute("aria-disabled");
-        document.getElementById("deb-alt").innerHTML = `Prefer a <a href="${API}/v1/app/EDDA_${latest.version}_amd64.deb">.deb</a>?`;
+        document.getElementById("deb-alt").innerHTML = `Prefer a <a href="${API}/v1/app/EDDA_${latest.version}_amd64.deb">.deb</a>? <a href="/linux/">What EDDA needs on Linux.</a>`;
       }
       pill.innerHTML = `latest <span class="v">v${latest.version}</span>`;
     } catch {
