@@ -16,9 +16,23 @@ export const topics = [
     title: "Ship computer",
     body: [
       "Ask anything in plain language, by typing or by voice. It answers from your own journal and the community API, tells you where each fact came from, and can act: set pips, drop the gear, open the scoop, target the next system, plot and follow routes.",
-      "Provider: Claude, or any OpenAI-compatible service or local server (Mistral, Ollama, LM Studio, OpenRouter, Groq, OpenAI, Grok). Keys are kept in your Windows account's credential store, never in a file. Web research (looking up game mechanics and citing sources) is available with Claude only.",
+      "Provider: Claude, or any OpenAI-compatible service or local server (Mistral, Ollama, LM Studio, OpenRouter, Groq, OpenAI, Grok). Keys are kept in your operating system's credential store, never in a file. Web research (looking up game mechanics and citing sources) is available with Claude only.",
       "Check ship computer runs a set of cockpit questions against the current provider and scores the answers. Nothing is pressed in the game and nothing is spoken while it runs.",
     ],
+    tabs: [["settings:computer", "Ship computer settings"]],
+  },
+  {
+    id: "connecting-a-model",
+    title: "Connecting a model",
+    body: [
+      "EDDA works without a model. Connect one and the ship computer answers from your journal and the community data, cites where each fact came from, and can act: routes, pips, bindings, engineering plans, the profit finder, your fleet and carrier. The model runs on your own account and key, or on your own machine; nothing you say to it passes through EDDA's server. The full walkthrough with links is at edda-app.com/ship-computer.",
+      "Claude: a key from console.anthropic.com; leave the model blank for the default. The only provider with web research.",
+      "OpenAI: a key from platform.openai.com; endpoint https://api.openai.com/v1, default model gpt-4.1-mini. Mistral: console.mistral.ai; https://api.mistral.ai/v1, mistral-small-latest. Groq: console.groq.com; https://api.groq.com/openai/v1, llama-3.3-70b-versatile, very fast. OpenRouter: openrouter.ai; https://openrouter.ai/api/v1, default mistralai/mistral-small-3.2-24b-instruct:free (no cost) - pick models whose page lists tools. Grok: console.x.ai; https://api.x.ai/v1, grok-4.6.",
+      "Ollama (local): install it, run `ollama pull qwen3:8b`; endpoint http://localhost:11434/v1, no key. Choose models tagged for tools; qwen3:8b is the smallest that calls them reliably. LM Studio (local): load a model marked for tool use, start the server; http://localhost:1234/v1, the model identifier as LM Studio shows it, no key.",
+      "Anything else (Other service / Other local server): it must serve the OpenAI chat-completions API with tool calling - the ship computer answers by calling tools, so a model or server without tool_calls will make things up or fail. Allow at least 8k tokens of context (the tool catalogue alone is about 5k) and, locally, a model of 8B parameters or more.",
+      "After connecting, press Check ship computer: a pass means the model used the tools instead of guessing.",
+    ],
+    tip: "Tool calling is the one thing that is not optional. Check the model, not just the server.",
     tabs: [["settings:computer", "Ship computer settings"]],
   },
   {

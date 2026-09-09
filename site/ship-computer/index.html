@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The ship computer</title>
+<meta name="description" content="What hooking an AI model up to EDDA gets you, and how to connect Claude, OpenAI, Mistral, Groq, OpenRouter, Grok, Ollama, LM Studio, or any OpenAI-compatible server with tool calling.">
+<link rel="icon" href="/assets/icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root { --bg:#0a0c10; --panel:#131820; --rule:#262e3a; --ink:#e4e6ea; --muted:#8b95a5; --accent:#ff8c1a; --cyan:#5ec8e5; --ok:#57c66d; --bad:#ff5c5c; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui,"Segoe UI",sans-serif; }
+  .wrap { max-width:46rem; margin:0 auto; padding:2rem 1.4rem 5rem; }
+  .sitenav { font-family:"IBM Plex Mono",monospace; font-size:0.8rem; margin-bottom:2.5rem; display:flex; gap:1.2rem; flex-wrap:wrap; }
+  .sitenav a { color:var(--accent); text-decoration:none; }
+  .sitenav .here { color:#667081; }
+  h1 { font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:2.1rem; margin:0 0 0.5rem; }
+  h2 { font-family:"Bricolage Grotesque",sans-serif; font-weight:700; font-size:1.25rem; margin:2.4rem 0 0.6rem; }
+  h3 { font-family:"Bricolage Grotesque",sans-serif; font-weight:700; font-size:1.02rem; margin:1.6rem 0 0.3rem; color:var(--ink); }
+  p, li { color:var(--muted); }
+  p b, li b { color:var(--ink); font-weight:600; }
+  a { color:var(--cyan); }
+  .law { background:var(--panel); border:1px solid var(--rule); border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0; padding:0.9rem 1.2rem; margin:1.4rem 0; color:var(--ink); }
+  ul { padding-left:1.2em; } li { margin-bottom:0.45rem; }
+  code { font-family:"IBM Plex Mono",monospace; font-size:0.85em; background:#10141b; border:1px solid var(--rule); border-radius:4px; padding:0.05em 0.35em; }
+  table { border-collapse:collapse; width:100%; font-size:0.92rem; margin:0.6rem 0 1rem; }
+  th, td { text-align:left; padding:0.45rem 0.6rem; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--muted); }
+  th { color:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:0.78rem; letter-spacing:0.04em; text-transform:uppercase; }
+  td:first-child { color:var(--ink); white-space:nowrap; }
+  .scroll { overflow-x:auto; }
+  .quiet { color:#667081; font-size:0.85rem; }
+  .quiet a { color:var(--muted); }
+</style></head><body><div class="wrap">
+<nav class="sitenav"><a href="/">EDDA</a><span class="here">/ ship computer</span><a href="/route/">route planner</a><a href="/privacy/">privacy</a><a href="https://github.com/terakilobyte/edda-app" rel="noopener">source</a></nav>
+
+<h1>The ship computer</h1>
+<p>EDDA works without any AI model: routes, trade, callouts, the HUD and the voice all run on their own. Hook a model up and you get a <b>ship computer you can talk to</b> — one that answers from your own journal and the community data, tells you where each fact came from, and can put its hands on the controls.</p>
+
+<div class="law">The model runs on <b>your</b> account, with <b>your</b> key, under <b>your</b> choice of provider — including one on your own machine. Nothing you say to it passes through EDDA's server, and EDDA never sees your key. <a href="/privacy/">What EDDA collects.</a></div>
+
+<h2>What it gets you</h2>
+<p>Ask in plain language, typed or by voice. The model does not guess: it is handed a library of small tools that read your journal and query the community API, and every answer says whether a fact is first-hand from your journal or community data with an age on it.</p>
+<ul>
+  <li><b>Your ship and your fleet</b> — status, fuel, cargo, modules and their engineering, where every ship you own is stored, your fleet carrier's position and tritium.</li>
+  <li><b>Engineering</b> — what you hold, which engineers you have unlocked and how to unlock the rest, blueprints for a module type, the materials still missing for a grade, a shopping list across material traders, where to farm each material, synthesis recipes.</li>
+  <li><b>The galaxy</b> — how far a system is, what is in it, the nearest station with a given service, systems around you with Powerplay control, a station's full price board, a search for a commodity, module or ship, and the profit finder ranked by credits per hour.</li>
+  <li><b>Routes</b> — plot a jump route, read the one in your galaxy map hop by hop, plot and follow a fleet-carrier route, order your mission hand-ins.</li>
+  <li><b>Your record</b> — ranks, combat statistics, missions and their progress, Powerplay merits calibrated from your own sales.</li>
+  <li><b>Hands on the controls</b> — press your own game bindings (gear, scoop, next target…), set the power distributor to an exact split, start or stop following a route, choose which signal sources get announced, and say a line aloud in the ship's voice.</li>
+</ul>
+<p>With Claude, <b>research</b> can be switched on: questions about game mechanics are searched on the web and answered with citations. That is the only provider with it, and it is never used on anything from your own data.</p>
+<p><b>Check ship computer</b> in Settings runs a fixed set of cockpit questions against whatever you have connected and scores the answers against your journal. It presses nothing in the game and says nothing aloud. Run it after connecting a new model: a pass means the model used the tools instead of guessing.</p>
+
+<h2>Connecting a model</h2>
+<p>Settings → Ship computer. Pick <b>a service</b> or <b>a local server</b>, choose from the list, paste a key where one is needed, and press Check. Keys go into your operating system's credential store (Windows Credential Manager, the Secret Service on Linux), never into a file EDDA writes.</p>
+
+<h3>Claude (Anthropic)</h3>
+<ul>
+  <li>Create a key at <a href="https://console.anthropic.com/" rel="noopener">console.anthropic.com</a> (API Keys). Paste it as the key; leave the model blank for the default, or name one.</li>
+  <li>The only provider with web research. Uses Anthropic's own API rather than the OpenAI-style one, so it is its own entry in the list.</li>
+</ul>
+
+<h3>OpenAI</h3>
+<ul>
+  <li>Key from <a href="https://platform.openai.com/api-keys" rel="noopener">platform.openai.com</a>. Preset endpoint <code>https://api.openai.com/v1</code>, default model <code>gpt-4.1-mini</code>; any current chat model with tool calling works.</li>
+</ul>
+
+<h3>Mistral</h3>
+<ul>
+  <li>Key from <a href="https://console.mistral.ai/" rel="noopener">console.mistral.ai</a>. Preset endpoint <code>https://api.mistral.ai/v1</code>, default model <code>mistral-small-latest</code>.</li>
+</ul>
+
+<h3>Groq</h3>
+<ul>
+  <li>Key from <a href="https://console.groq.com/keys" rel="noopener">console.groq.com</a>. Preset endpoint <code>https://api.groq.com/openai/v1</code>, default model <code>llama-3.3-70b-versatile</code>. Very fast; a good fit for voice.</li>
+</ul>
+
+<h3>OpenRouter</h3>
+<ul>
+  <li>Key from <a href="https://openrouter.ai/keys" rel="noopener">openrouter.ai</a>. Preset endpoint <code>https://openrouter.ai/api/v1</code>, default model <code>mistralai/mistral-small-3.2-24b-instruct:free</code>, which costs nothing. One key reaches many models; pick one whose OpenRouter page lists <b>tools</b> under supported parameters.</li>
+</ul>
+
+<h3>Grok (xAI)</h3>
+<ul>
+  <li>Key from <a href="https://console.x.ai/" rel="noopener">console.x.ai</a>. Preset endpoint <code>https://api.x.ai/v1</code>, default model <code>grok-4.6</code>. xAI serves the OpenAI-style chat API with tool calling beside its own; EDDA speaks the former.</li>
+</ul>
+
+<h3>Ollama (local)</h3>
+<ul>
+  <li>Install from <a href="https://ollama.com/" rel="noopener">ollama.com</a>, then in a terminal: <code>ollama pull qwen3:8b</code>. Ollama serves an OpenAI-compatible endpoint at <code>http://localhost:11434/v1</code>, which is the preset; no key.</li>
+  <li>Pick a model whose library page carries the <b>tools</b> tag. <code>qwen3:8b</code> is the default because it is the smallest one that reliably calls the tools; a 14B or larger model does better still.</li>
+</ul>
+
+<h3>LM Studio (local)</h3>
+<ul>
+  <li>Install from <a href="https://lmstudio.ai/" rel="noopener">lmstudio.ai</a>, download a model marked for tool use, and start the local server (the Developer tab). The preset endpoint is <code>http://localhost:1234/v1</code>; enter the model's identifier as shown in LM Studio; no key.</li>
+</ul>
+
+<h3>Any other service or server</h3>
+<p>Choose <b>Other service</b> or <b>Other local server</b> and fill in the endpoint and model yourself. What EDDA needs from it:</p>
+<ul>
+  <li><b>The OpenAI chat-completions API</b> at <code>&lt;endpoint&gt;/chat/completions</code>, with the key sent as a bearer token if one is set. vLLM, llama.cpp's server, LocalAI, text-generation-webui, Together, Fireworks, DeepSeek and most others serve it.</li>
+  <li><b>Tool calling</b> (also called function calling). This is not optional: the ship computer answers by calling tools, and a model or server that cannot return <code>tool_calls</code> will answer from thin air or fail. Check both the server and the specific model; a server can support tools while the model you loaded does not.</li>
+  <li><b>Context of at least 8k tokens.</b> The tool catalogue alone is about 5k tokens. Local servers often default to less; raise it in the server if answers come back truncated or the model forgets the question.</li>
+  <li>A model of <b>8B parameters or more</b> for local use. Smaller ones tend to call the wrong tool or none.</li>
+</ul>
+
+<h2>What travels, and to whom</h2>
+<p>When you ask something, EDDA sends your question, the tool catalogue and, as the model asks for them, the tool results — which means <b>facts from your journal</b> (your ship, where you are, what you carry) go to the provider you chose, under your account. With a local server they never leave your machine. EDDA's own server is not in the loop at all. Providers bill by the token; a cockpit question is a few thousand tokens in, a few hundred out.</p>
+
+<p class="quiet" style="margin-top:2.6rem">EDDA is an unofficial third-party tool. Elite Dangerous © Frontier Developments plc. Provider names are their owners' trademarks; EDDA is affiliated with none of them.</p>
+</div></body></html>
