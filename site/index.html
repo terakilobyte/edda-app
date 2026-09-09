@@ -163,7 +163,7 @@
       <div class="mast">
         <img src="assets/icon.png" alt="" width="44" height="44">
         <span class="name">EDDA</span>
-        <nav style="margin-left:auto; font-family:var(--mono); font-size:0.82rem"><a href="/route/">route planner</a><a href="/blog/" style="margin-left:1.2rem">build log</a></nav>
+        <nav style="margin-left:auto; font-family:var(--mono); font-size:0.82rem"><a href="/route/">route planner</a><a href="/blog/" style="margin-left:1.2rem">build log</a><a href="https://github.com/terakilobyte/edda-app" style="margin-left:1.2rem" rel="noopener">source</a></nav>
       </div>
       <p class="kicker">For Elite Dangerous commanders</p>
       <h1>The galaxy is trying to kill you. <em>EDDA is trying to help.</em></h1>
@@ -176,8 +176,9 @@
         <span class="verpill" id="verpill">checking latest version…</span>
         <a href="/notes/" style="font-family:var(--mono); font-size:0.8rem; color:var(--accent-2); align-self:center">what's new →</a>
       </div>
-      <p style="font-family:var(--mono); font-size:0.8rem; color:var(--ok); margin:0.9rem 0 0">100% free. Free forever.</p>
-      <p style="font-family:var(--mono); font-size:0.74rem; color:var(--muted); margin:0.4rem 0 0">*EDDA is still in development and there may be bugs. <span id="deb-alt"></span></p>
+      <p style="font-family:var(--mono); font-size:0.74rem; color:var(--muted); margin:0.6rem 0 0" id="deb-alt"></p>
+      <p style="font-family:var(--mono); font-size:0.8rem; color:var(--ok); margin:0.6rem 0 0">100% free. Free forever.</p>
+      <p style="font-family:var(--mono); font-size:0.74rem; color:var(--muted); margin:0.4rem 0 0">*EDDA is still in development and there may be bugs. <a href="https://github.com/terakilobyte/edda-app/issues" rel="noopener">Report them.</a></p>
 
       <div class="shot" style="aspect-ratio:1600/753"><span class="tick"></span><img src="assets/route_planner.png" alt="EDDA's route planner: Sol to Colonia, 23,204 light years — 58 jumps, 55 supercharged, plotted in 889 ms, drawn as a blue neutron highway across the galaxy."></div>
     </header>
@@ -240,6 +241,7 @@
         <a href="https://edastro.com">EDAstro</a> and the <a href="https://github.com/EDCD">EDCD</a> standards work.
         Thank you, commanders.</p>
       <p><a href="/privacy/">What EDDA collects</a> — the whole list, in plain words. Short version: nothing that identifies you.</p>
+      <p>EDDA is open source under the MIT licence: <a href="https://github.com/terakilobyte/edda-app" rel="noopener">github.com/terakilobyte/edda-app</a> — the app, the server and this site, with the roadmap.</p>
       <p class="quiet">EDDA is an unofficial third-party tool. Elite Dangerous © Frontier Developments plc. All trademarks are the property of their respective owners.</p>
     </footer>
 
@@ -264,7 +266,7 @@
       if (p["linux-x86_64"]) {
         linux.href = p["linux-x86_64"].url;
         linux.removeAttribute("aria-disabled");
-        document.getElementById("deb-alt").innerHTML = `Prefer a <a href="${API}/v1/app/EDDA_${latest.version}_amd64.deb">.deb</a>? We have one of those too.`;
+        document.getElementById("deb-alt").innerHTML = `Prefer a <a href="${API}/v1/app/EDDA_${latest.version}_amd64.deb">.deb</a>?`;
       }
       pill.innerHTML = `latest <span class="v">v${latest.version}</span>`;
     } catch {
