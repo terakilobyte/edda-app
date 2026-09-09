@@ -1,0 +1,44 @@
+# The website publishes itself when a merge to main touches site/.
+# Same box path as a release (deploy/edda-deploy `apply site`), so a
+# site-only change no longer waits for a tag or a hand-run rsync. The
+# release-notes FEED (notes.json) is not touched here: it is release
+# content and release.yml publishes it with the manifest.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: site-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish edda-app.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/box-ssh
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          host_key: ${{ vars.DEPLOY_HOST_KEY }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: site → box
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude '*.py' --exclude README.md site/ box:site/
+          ssh box apply site
+      - name: verify from the outside
+        run: |
+          set -euo pipefail
+          # The served front page must be the bytes just merged.
+          curl -fsS https://edda-app.com/ -o served.html
+          cmp served.html site/index.html || { echo "::error::served front page differs from site/index.html"; exit 1; }
+          curl -fsS https://edda-app.com/notes/ >/dev/null
+          curl -fsS https://edda-app.com/route/ >/dev/null
+          echo "site live: front page bytes match, /notes/ and /route/ answer"
