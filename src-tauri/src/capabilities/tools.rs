@@ -45,7 +45,7 @@ pub static REGISTRY: &[ToolSpec] = &[
     ToolSpec { name: "missions", description: "The commander's missions from their own journal: objective, target faction or named target, kill progress (inferred from kill events and capped at the target), destination for hand-in, reward, expiry, and status (active, ready_to_turn_in, completed, failed, abandoned, expired). Default returns only what is still in play. First-hand.", schema: missions_schema, run: missions },
     ToolSpec { name: "missions_route", description: "A short visiting order for the active missions' hand-in systems, starting from where the commander is (or a given system): nearest-neighbour with 2-opt over straight-line distances. Returns the ordered stops with per-leg light-years, the missions and rewards waiting at each, and the total tour length. Use for 'plan my mission route', 'what order should I do my missions in'. Expiry is reported but not yet weighted into the order.", schema: missions_route_schema, run: missions_route },
     ToolSpec { name: "current_route", description: "The route currently plotted in the galaxy map (from NavRoute.json), hop by hop: system, star class, whether it can be fuel-scooped, hazardous arrivals (neutron stars, white dwarfs, black holes), the best dockable station in each system with pad size, Powerplay controlling power and state, whether that power opposes the commander's pledge, and security level. Also the spoken briefing and the next-hop line. Use for anything about the trip ahead: fuel planning, where to dock, whose space is crossed, how many jumps remain. First-hand for the route, community data for stations and control.", schema: no_args, run: current_route },
-    ToolSpec { name: "plot_route", description: "Plot a jump route between two systems over the galaxy star index (every known system when the full index is built; populated systems only otherwise). Minimises jumps with A*; can use neutron stars (x4) and white dwarfs (x1.5) to supercharge. Returns each hop with star class, scoopable or not, jump length, and whether the jump was boosted, plus totals. Uses the ship's unladen range unless range_ly is given. Does NOT model fuel; max_dry_jumps limits consecutive unscoopable arrivals. Long plots (thousands of ly) can take tens of seconds.", schema: plot_route_schema, run: plot_route },
+    ToolSpec { name: "plot_route", description: "Plot a jump route to a system. A journey from the current system within the commander's route-coverage threshold is handed to Elite's own plotter (the answer says handed_to_game: true, with no hops); longer journeys, or any explicit origin, are planned by EDDA over the galaxy star index (every known system when the full index is built; populated systems only otherwise). Minimises jumps with A*; can use neutron stars (x4) and white dwarfs (x1.5) to supercharge. Returns each hop with star class, scoopable or not, jump length, and whether the jump was boosted, plus totals. Uses the ship's unladen range unless range_ly is given. Does NOT model fuel; max_dry_jumps limits consecutive unscoopable arrivals. Long plots (thousands of ly) can take tens of seconds.", schema: plot_route_schema, run: plot_route },
     ToolSpec { name: "commander_ranks", description: "The commander's career ranks from the journal -- Combat, Trade, Exploration, Mercenary (Soldier), Exobiologist, CQC, Federal and Imperial navy -- each with the rank NAME on the public ladder (e.g. Deadly, Tycoon, Pioneer), the percent progress toward the next rank, and the next rank's name. Also the Powerplay power, rank and merit total. Use this for any 'how far am I from Elite' or 'what rank am I' question. First-hand.", schema: no_args, run: commander_ranks },
     ToolSpec { name: "signal_watch", description: "Signal sources the ship computer announces when they appear on the sensors (spoken and on the HUD). action=list: what is watched and the full menu. action=add / remove with signal = one of: hge (high grade emissions), encoded, degraded, combat_aftermath, weapons_fire, convoy (dispersal pattern), distress, power_convoy (Power convoy distress signal), power_wreckage, power_weapons, power_cz (Power conflict zone), nonhuman (Thargoid), pirates, compromised_beacon, trading_beacon. Use for 'I'm looking for X', 'tell me when you see X', 'stop looking for X'.", schema: signal_watch_schema, run: signal_watch },
     ToolSpec { name: "say", description: "Speak a short line aloud through the ship's voice. Use ONLY when the commander asks to be told something by voice or asks you to speak; keep it to one sentence.", schema: say_schema, run: say },
@@ -1125,6 +1125,38 @@ impl Default for PlotRequest {
 fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: PlotRequest = parse(input)?;
     let state = ctx.state;
+    // The route-coverage gate the Route tab and trade following apply
+    // (maintainer, 2026-09-09: "my threshold is 500 ly but 'route to my
+    // carrier' used EDDA routing"): a journey from HERE within
+    // game_route_max_ly, with the Galaxy Map recipe taught, goes to the
+    // game's own plotter. Anything longer, any explicit origin, or an
+    // untaught recipe falls through to EDDA's planner.
+    if req.from.as_deref().map(str::trim).is_none_or(str::is_empty) {
+        let max = state.config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly;
+        if max > 0 {
+            let galaxy = state.routing.galaxy(&state.data_dir);
+            let straight = state.with_read(|s| {
+                let conn = s.conn();
+                let here = galaxy::current_system(conn)?;
+                let a = galaxy::coords_hint(conn, galaxy.as_deref(), &here)?;
+                let b = galaxy::coords_hint(conn, galaxy.as_deref(), &req.to)?;
+                Some(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2) + (a.2 - b.2).powi(2)).sqrt())
+            });
+            if let Some(d) = straight.filter(|d| *d <= f64::from(max)) {
+                match ctx.fx.plot_in_game(state, &req.to) {
+                    Ok(message) => {
+                        tracing::info!(to = %req.to, straight_ly = d, max, "plot_route: within the game-route threshold, handed to the game's plotter");
+                        return Ok(json!({
+                            "to": req.to, "straight_ly": (d * 10.0).round() / 10.0, "game_route_max_ly": max,
+                            "handed_to_game": true, "message": message,
+                            "note": "within the commander's route-coverage threshold, so Elite plots this one itself: the system is on the clipboard and the next Target Next press asks the game to plot it. No EDDA hops to list.",
+                        }));
+                    }
+                    Err(error) => tracing::info!(%error, "plot_route: game plotter unavailable, EDDA plans"),
+                }
+            }
+        }
+    }
     let g = state
         .routing
         .galaxy(&state.data_dir)

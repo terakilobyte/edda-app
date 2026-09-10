@@ -2258,6 +2258,13 @@ fn wait_for_game_route(state: &AppState, expected: Option<&str>) -> Result<(), S
 
 #[tauri::command]
 pub async fn route_plot_in_game(state: State<'_, AppState>, system: String) -> Result<String, String> {
+    plot_in_game(state.inner(), system)
+}
+
+/// Arm the game's own plotter for `system`: clipboard loaded, the next
+/// Target Next press pastes and plots. Errors when the Galaxy Map
+/// controls are not taught, so callers can fall through to EDDA's planner.
+pub fn plot_in_game(state: &AppState, system: String) -> Result<String, String> {
     if state.config.lock().unwrap_or_else(|e| e.into_inner()).map_points.as_ref().and_then(point_plot_macro).is_none() {
         return Err("teach all four Galaxy Map controls in Setup first".into());
     }

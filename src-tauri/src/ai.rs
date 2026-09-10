@@ -99,6 +99,9 @@ pub trait Effects: Send + Sync {
     /// Persist `ar` as the followed route and tell the UI; true if it is now followed.
     fn follow(&self, state: &AppState, ar: &crate::follow::ActiveRoute) -> bool;
     fn stop_following(&self, state: &AppState) -> Result<(), String>;
+    /// Hand a destination to the GAME's plotter (clipboard + Target Next).
+    /// Err when the map recipe is not taught; callers fall through to EDDA.
+    fn plot_in_game(&self, state: &AppState, system: &str) -> Result<String, String>;
 }
 
 /// The real thing.
@@ -131,6 +134,9 @@ impl Effects for Live {
             }
         }
         saved
+    }
+    fn plot_in_game(&self, state: &AppState, system: &str) -> Result<String, String> {
+        crate::follow::plot_in_game(state, system.to_string())
     }
     fn stop_following(&self, state: &AppState) -> Result<(), String> {
         let cleared = state.with_store(|s| {
@@ -194,6 +200,10 @@ impl Effects for Recording {
     fn stop_following(&self, _state: &AppState) -> Result<(), String> {
         self.note("stop_following".into());
         Ok(())
+    }
+    fn plot_in_game(&self, _state: &AppState, system: &str) -> Result<String, String> {
+        self.note(format!("plot_in_game {system}"));
+        Ok(format!("(simulated) {system} handed to the game's plotter"))
     }
 }
 

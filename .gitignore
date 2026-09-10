@@ -42,3 +42,6 @@ knobsearch.db
 scoop_voxels.csv
 report.html
 docs/benches/flamegraphs/runs/**/*.svg
+
+# local flight builds (scripts/release-app.ps1 -ArtifactDir .flight); never committed
+.flight/
