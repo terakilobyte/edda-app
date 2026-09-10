@@ -993,14 +993,52 @@ pub async fn replan_followed(app: AppHandle) -> Result<String, String> {
     let next = here.as_deref().and_then(|h| route.hops.iter().position(|x| x.name.eq_ignore_ascii_case(h))).map(|i| i + 1).unwrap_or(1).min(route.hops.len());
     let jumps = route.jumps;
     let stops = route.refuel_stops;
+    // Same hops ahead and the same stops: the tank changed nothing worth
+    // saying (maintainer, 2026-09-09: "chatty voice about recalculating
+    // routes" — a re-plan two minutes after the plot spoke a plan
+    // identical to the one being flown).
+    let unchanged = replan_is_same(&ar, &route, next);
     let new = crate::follow::ActiveRoute { route, next, source: "replan".into() };
     state.with_store(|s| crate::follow::save_pub(s.conn(), &new))?;
     use tauri::Emitter;
     let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(&new)));
     let _ = app.emit(crate::events::ROUTE_REPLANNED, &new.route);
+    if unchanged {
+        tracing::info!(jumps, stops, "re-plan: same hops ahead and same stops; nothing said");
+        return Ok(format!("Plan unchanged: {jumps} jumps to {dest}, {stops} fuel stop{}.", if stops == 1 { "" } else { "s" }));
+    }
     let text = format!("Re-planned for the tank: {jumps} jumps to {dest}, {stops} fuel stop{}. {}", if stops == 1 { "" } else { "s" }, crate::follow::advance_text(&new));
     crate::watcher::deliver(&app, vec![(crate::callouts::Callout { kind: "route", text: text.clone(), priority: 1, speak: true, ts: String::new() }, None)]);
     Ok(text)
+}
+
+/// Does the re-planned route repeat what is already being flown: the
+/// same systems from the cursor onward and the same number of stops?
+pub fn replan_is_same(old: &crate::follow::ActiveRoute, new: &ed_galaxy::router::Route, new_next: usize) -> bool {
+    let names = |hops: &[ed_galaxy::router::Hop]| -> Vec<String> { hops.iter().map(|h| h.name.to_ascii_lowercase()).collect() };
+    same_plan_ahead(&names(&old.route.hops), old.next, old.route.refuel_stops, &names(&new.hops), new_next, new.refuel_stops)
+}
+
+/// The rule behind [`replan_is_same`], on names so it can be pinned.
+pub fn same_plan_ahead(old: &[String], old_next: usize, old_stops: usize, new: &[String], new_next: usize, new_stops: usize) -> bool {
+    old.iter().skip(old_next.saturating_sub(1)).eq(new.iter().skip(new_next.saturating_sub(1))) && old_stops == new_stops
+}
+
+#[cfg(test)]
+mod replan_same_tests {
+    use super::same_plan_ahead;
+    fn n(v: &[&str]) -> Vec<String> { v.iter().map(|s| s.to_string()).collect() }
+    /// The 02:07 re-plan: same three hops ahead, zero stops both times -
+    /// silent. A different hop, a new stop, or a shifted cursor is worth saying.
+    #[test]
+    fn a_replan_that_repeats_the_plan_is_silent() {
+        let old = n(&["ega", "a", "b", "crucis"]);
+        assert!(same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "b", "crucis"]), 1, 0));
+        assert!(same_plan_ahead(&old, 2, 0, &n(&["a", "b", "crucis"]), 1, 0), "re-planned from the second hop: what is AHEAD still matches");
+        assert!(!same_plan_ahead(&old, 1, 0, &n(&["a", "b", "crucis"]), 1, 0), "the old cursor still sees ega ahead");
+        assert!(!same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "c", "crucis"]), 1, 0));
+        assert!(!same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "b", "crucis"]), 1, 1));
+    }
 }
 
 /// Plot a route to `dest` for the trade follower: the same quiet,
