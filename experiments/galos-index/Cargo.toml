@@ -23,6 +23,9 @@ ed-galaxy = { path = "../../crates/ed-galaxy" }
 ed-domain = { path = "../../crates/ed-domain" }
 galos_index = { git = "https://github.com/nixpulvis/galos", rev = "a8fc2fc", default-features = false }
 galos_photometry = { git = "https://github.com/nixpulvis/galos", rev = "a8fc2fc" }
+# Unifies with galos_index's glam 0.32; theirs.rs uses DVec3 as their graph does.
+glam = "0.32"
+memmap2 = "0.9"
 pollster = "0.3"
 anyhow = "1"
 

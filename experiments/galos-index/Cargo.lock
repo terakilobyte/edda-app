@@ -269,6 +269,8 @@ dependencies = [
  "ed-galaxy",
  "galos_index",
  "galos_photometry",
+ "glam",
+ "memmap2",
  "pollster",
 ]
 

@@ -73,7 +73,34 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        _ => bail!("usage: build <edda-index> <out>  |  route <edda-index> <galos-dir> FROM TO RANGE [reps]  |  pins <edda-index> <galos-dir> <pins.csv> RANGE [reps]"),
+        // theirs <edda-index> FROM TO RANGE [reps]: their map's router over
+        // every position in our index, all three of their modes, against
+        // our planner on the same pair. No octree involved.
+        Some("theirs") if args.len() >= 5 => {
+            let reps = args.get(5).map(|s| s.parse()).transpose()?.unwrap_or(3);
+            let range: f32 = args[4].parse()?;
+            theirs_vs_ours(Path::new(&args[1]), &args[2], &args[3], range, reps)
+        }
+        // theirs-raw <stars.bin> FROM_IDX TO_IDX RANGE [reps] [mode]: their
+        // router over the records alone — the one 5.8 GB file, no names,
+        // no grid — for a machine that has the memory but not the index.
+        // Record indices come from `info` on a full index. mode = quick |
+        // direct | shortest | all (default all).
+        Some("theirs-raw") if args.len() >= 5 => {
+            let reps = args.get(5).map(|s| s.parse()).transpose()?.unwrap_or(3);
+            let mode = args.get(6).map(String::as_str).unwrap_or("all").to_string();
+            theirs_raw(Path::new(&args[1]), args[2].parse()?, args[3].parse()?, args[4].parse()?, reps, &mode)
+        }
+        // ours <edda-index> FROM TO RANGE [reps]: our planner alone, same
+        // request shape as the comparison rows.
+        Some("ours") if args.len() >= 5 => {
+            let reps = args.get(5).map(|s| s.parse()).transpose()?.unwrap_or(3);
+            let range: f32 = args[4].parse()?;
+            let g = Galaxy::open(Path::new(&args[1]))?;
+            println!("route_from,route_to,range_ly,router,mode,jumps,expansions,best_ms,median_ms");
+            ours_only(&g, &args[2], &args[3], range, reps)
+        }
+        _ => bail!("usage: build <edda-index> <out> [--within CX CY CZ R]  |  route <edda-index> <galos-dir> FROM TO RANGE [reps]  |  pins <edda-index> <galos-dir> <pins.csv> RANGE [reps]  |  theirs <edda-index> FROM TO RANGE [reps]  |  info <edda-index> [--within CX CY CZ R]"),
     }
 }
 
@@ -371,6 +398,150 @@ fn compare(g: &Galaxy, oct: &Octree, from: &str, to: &str, range: f32, reps: usi
     }
     if !same {
         eprintln!("DIFFER: {from} -> {to}: grid {} jumps, octree {} jumps", a.jumps, b.jumps);
+    }
+    Ok(())
+}
+
+// --------------------------------------------------------------- theirs --
+
+/// Their router (theirs.rs, the map's graph.rs unchanged) over every
+/// position we hold, in Quick, Direct and Shortest, with their Standard
+/// drive; then our planner on the same pair at weight 1.3 (our default)
+/// and 1.0 (exact), supercharge on, no fuel. Same records, same range.
+fn theirs_vs_ours(edda: &Path, from: &str, to: &str, range: f32, reps: usize) -> Result<()> {
+    use theirs::{Boosts, Drive, JumpGraph, Places, Routing};
+    let g = Galaxy::open(edda)?;
+    let n = g.count;
+    let from_idx = g.find(from).ok_or_else(|| anyhow!("unknown system {from}"))?;
+    let to_idx = g.find(to).ok_or_else(|| anyhow!("unknown system {to}"))?;
+    let (from_addr, to_addr) = (g.record(from_idx).id64 as i64, g.record(to_idx).id64 as i64);
+
+    // Their graph, straight from our records: address and position for
+    // the places, the jet-cone table from our star class.
+    let t0 = Instant::now();
+    let places = Places::build((0..n as u32).map(|idx| (g.record(idx).id64 as i64, g.pos_of(idx))));
+    let mut boosts = HashMap::new();
+    for idx in 0..n as u32 {
+        let boost = match ed_galaxy::StarClass::from_code(g.class_code(idx)) {
+            ed_galaxy::StarClass::Neutron => Some(galos_index::meta::Boost::Neutron),
+            ed_galaxy::StarClass::WhiteDwarf => Some(galos_index::meta::Boost::WhiteDwarf),
+            _ => None,
+        };
+        if let Some(b) = boost {
+            boosts.insert(g.record(idx).id64 as i64, b);
+        }
+    }
+    let graph = JumpGraph::new(places, Boosts::from_map(boosts));
+    eprintln!("their graph: {n} places, built in {:.1} s", t0.elapsed().as_secs_f64());
+    report_rss("after their graph");
+
+    println!("route_from,route_to,range_ly,router,mode,jumps,expansions,best_ms,median_ms");
+    for (label, how) in [("quick", Routing::Quick), ("direct", Routing::Direct), ("shortest", Routing::Shortest)] {
+        let mut ms = Vec::new();
+        let mut found = None;
+        for _ in 0..reps.max(1) {
+            let t = Instant::now();
+            found = theirs::route(&graph, from_addr, to_addr, range as f64, how, Drive::Standard);
+            ms.push(t.elapsed().as_secs_f64() * 1e3);
+        }
+        ms.sort_by(|x, y| x.total_cmp(y));
+        match found {
+            Some(f) => println!("{from},{to},{range},galos,{label},{},{},{:.1},{:.1}", f.jumps, f.expansions, ms[0], ms[ms.len() / 2]),
+            None => println!("{from},{to},{range},galos,{label},none,,{:.1},{:.1}", ms[0], ms[ms.len() / 2]),
+        }
+    }
+    drop(graph);
+    ours_only(&g, from, to, range, reps)
+}
+
+/// Their router over stars.bin alone. Records are 29 bytes from a 32-byte
+/// header: x y z as f32, class, flags, companion, name_len u16, id64 u64,
+/// name_off u64 (ed_galaxy::format, version 2+). The name files are not
+/// needed: the caller passes record indices.
+fn theirs_raw(stars: &Path, from_idx: u32, to_idx: u32, range: f32, reps: usize, mode: &str) -> Result<()> {
+    use theirs::{Boosts, Drive, JumpGraph, Places, Routing};
+    let f = std::fs::File::open(stars).with_context(|| format!("opening {}", stars.display()))?;
+    // SAFETY: written once, never modified in place (ed_galaxy::format).
+    let map = unsafe { memmap2::Mmap::map(&f)? };
+    anyhow::ensure!(&map[0..4] == b"EDGX", "not a galaxy index");
+    let version = u32::from_le_bytes(map[4..8].try_into().unwrap());
+    anyhow::ensure!(version >= 2, "records-only mode needs index version 2+, got {version}");
+    let n = u64::from_le_bytes(map[8..16].try_into().unwrap()) as usize;
+    const HEADER: usize = 32;
+    const REC: usize = 29;
+    anyhow::ensure!(map.len() >= HEADER + n * REC, "truncated");
+    let rec = |idx: u32| -> ([f32; 3], u8, i64) {
+        let o = HEADER + idx as usize * REC;
+        let b = &map[o..o + REC];
+        let f = |i: usize| f32::from_le_bytes(b[i..i + 4].try_into().unwrap());
+        ([f(0), f(4), f(8)], b[12], u64::from_le_bytes(b[17..25].try_into().unwrap()) as i64)
+    };
+    eprintln!("records: {n}");
+    let (_, _, from_addr) = rec(from_idx);
+    let (_, _, to_addr) = rec(to_idx);
+
+    let t0 = Instant::now();
+    let places = Places::build((0..n as u32).map(|idx| {
+        let (p, _, addr) = rec(idx);
+        (addr, p)
+    }));
+    let mut boosts = HashMap::new();
+    for idx in 0..n as u32 {
+        let (_, class, addr) = rec(idx);
+        let boost = match ed_galaxy::StarClass::from_code(class) {
+            ed_galaxy::StarClass::Neutron => Some(galos_index::meta::Boost::Neutron),
+            ed_galaxy::StarClass::WhiteDwarf => Some(galos_index::meta::Boost::WhiteDwarf),
+            _ => None,
+        };
+        if let Some(b) = boost {
+            boosts.insert(addr, b);
+        }
+    }
+    eprintln!("jet cones: {}", boosts.len());
+    let graph = JumpGraph::new(places, Boosts::from_map(boosts));
+    eprintln!("their graph: {n} places, built in {:.1} s", t0.elapsed().as_secs_f64());
+    report_rss("after their graph");
+
+    println!("route_from,route_to,range_ly,router,mode,jumps,expansions,best_ms,median_ms");
+    for (label, how) in [("quick", Routing::Quick), ("direct", Routing::Direct), ("shortest", Routing::Shortest)] {
+        if mode != "all" && mode != label {
+            continue;
+        }
+        let mut ms = Vec::new();
+        let mut found = None;
+        for _ in 0..reps.max(1) {
+            let t = Instant::now();
+            found = theirs::route(&graph, from_addr, to_addr, range as f64, how, Drive::Standard);
+            ms.push(t.elapsed().as_secs_f64() * 1e3);
+        }
+        ms.sort_by(|x, y| x.total_cmp(y));
+        match found {
+            Some(f) => println!("idx{from_idx},idx{to_idx},{range},galos,{label},{},{},{:.1},{:.1}", f.jumps, f.expansions, ms[0], ms[ms.len() / 2]),
+            None => println!("idx{from_idx},idx{to_idx},{range},galos,{label},none,,{:.1},{:.1}", ms[0], ms[ms.len() / 2]),
+        }
+    }
+    Ok(())
+}
+
+/// Our planner on the same pair, at our default weight and exact.
+fn ours_only(g: &Galaxy, from: &str, to: &str, range: f32, reps: usize) -> Result<()> {
+    let from_idx = g.find(from).ok_or_else(|| anyhow!("unknown system {from}"))?;
+    let to_idx = g.find(to).ok_or_else(|| anyhow!("unknown system {to}"))?;
+    let ctl = Control::none();
+    for (label, weight) in [("w1.3", 1.3f32), ("w1.0", 1.0)] {
+        let req = RouteRequest { from: from_idx, to: to_idx, range_ly: range, weight, ..Default::default() };
+        let mut ms = Vec::new();
+        let mut r = None;
+        for _ in 0..reps.max(1) {
+            let t = Instant::now();
+            r = Some(router::plan(g, &req, &ctl));
+            ms.push(t.elapsed().as_secs_f64() * 1e3);
+        }
+        ms.sort_by(|x, y| x.total_cmp(y));
+        match r.unwrap() {
+            Ok(r) => println!("{from},{to},{range},edda,{label},{},{},{:.1},{:.1}", r.jumps, r.expansions, ms[0], ms[ms.len() / 2]),
+            Err(e) => println!("{from},{to},{range},edda,{label},none ({e}),,{:.1},{:.1}", ms[0], ms[ms.len() / 2]),
+        }
     }
     Ok(())
 }
