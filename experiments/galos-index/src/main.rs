@@ -532,8 +532,16 @@ fn ours_only(g: &Galaxy, from: &str, to: &str, range: f32, reps: usize) -> Resul
     let from_idx = g.find(from).ok_or_else(|| anyhow!("unknown system {from}"))?;
     let to_idx = g.find(to).ok_or_else(|| anyhow!("unknown system {to}"))?;
     let ctl = Control::none();
-    for (label, weight) in [("w1.3", 1.3f32), ("w1.0", 1.0)] {
-        let req = RouteRequest { from: from_idx, to: to_idx, range_ly: range, weight, ..Default::default() };
+    // OURS_MODES=w1.3,w1.0,thorough selects which to run (default all
+    // three). `thorough` is weight 1.0 with the admissible boost
+    // heuristic: the mode that can find a neutron-highway route, and the
+    // one comparable to their Direct.
+    let wanted = std::env::var("OURS_MODES").unwrap_or_else(|_| "w1.3,w1.0,thorough".into());
+    for (label, weight, thorough) in [("w1.3", 1.3f32, false), ("w1.0", 1.0, false), ("thorough", 1.0, true)] {
+        if !wanted.split(',').any(|m| m == label) {
+            continue;
+        }
+        let req = RouteRequest { from: from_idx, to: to_idx, range_ly: range, weight, thorough, ..Default::default() };
         let mut ms = Vec::new();
         let mut r = None;
         for _ in 0..reps.max(1) {
