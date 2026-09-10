@@ -1,0 +1,60 @@
+# 2026-09-09/10 galos octree spike (experiments/galos-index, branch spike/galos-index, never merged)
+# Question (maintainer): build galos's octree from our 199.6M-system index, size it, run our router over it;
+# re-measure galos's published Sol->Colonia 0.08 s (2.4M systems, 50 ly) on the full galaxy; and see whether
+# their map can run over our data. galos = github.com/nixpulvis/galos at a8fc2fc (MIT).
+# Pre-registered (README in the crate): identical jumps grid vs octree; octree within 2x of grid;
+# their directory larger than ours; build memory the risk at 199M.
+# VERDICT (closed 2026-09-10):
+#  1. Their octree as OUR routing index: BURIED. Parity holds (identical plans and expansion counts on every
+#     pair), and their cells cost our planner 1.7-2.6x what our 50 ly grid costs per plot (bubble, 8.3M).
+#  2. Their router for server-side plotting: BURIED. Sol->Colonia 50 ly over all 199,636,869 systems:
+#     their quick 137 jumps / 130 s, direct 136 / 175 s, shortest 136 (proven fewest) / 261 s, with the whole
+#     graph resident (7.98 GB peak). The product's plot on the box: 141 jumps in 1.14 s from a memory-mapped
+#     index beside Postgres and the feed. Five jumps for 100-200x the time and a resident galaxy. Their
+#     published 0.08 s was true of their 2.4M-system database and does not describe the full galaxy.
+#  3. Their builder cannot raise the full galaxy on a workstation: ~185 B/system peak (measured 3.49M) ->
+#     ~37 GB; the 84.4M corridor subset was killed at ~16 GB on both WSL and native Windows. On disk their
+#     cells are 39-42 B/system, 89 B/system with names, against our 58 all in (~17 GB projected vs 11.5 GB).
+#  4. Their map runs UNCHANGED over a directory written from our index (--for-map): 145k and 8.3M-system
+#     builds on the Mac and the PC, 2.0-2.25 GB resident, uncoloured (no populated sidecar). A streaming
+#     builder + two sidecars (dense magnitude/temperature, sparse populated/political) is the concrete
+#     collaboration offer; on the roadmap.
+#  5. Against us, kept: (a) an unreachable goal costs our planner 161 s (w1.3) / >240 s (exact) on a 145k
+#     fixture where theirs answers in ~1 s; (b) our bare exact mode (thorough) over the full galaxy did not
+#     finish in 2 h 08 min (killed by the PC's memory watchdog, shared machine; null result, not rerun).
+#     Both are roadmap items. The product's long-plot path is unaffected (1.1 s).
+# Machines: mac = M-series 32 GB (fixtures, stars.bin-only full run, full index copy for the map build);
+# pc = Ryzen 9 5900X 32 GB, index on NVMe/C:, native Windows, desktop load present; box = prod API, 16 GB.
+kind,machine,dataset,systems,from,to,range_ly,structure_or_router,mode,jumps,expansions,best_ms,median_ms,note
+build,mac,galaxy_populated,145579,,,,galos_octree,,,,,,196 cells 158 leaves; 0.1 s; 39.3 B/system
+build,mac,neutrons250,3487192,,,,galos_octree,,,,,,3646 cells 3113 leaves; build 3.1 s; write 0.5 s; 39.2 B/system; peak RSS 843 MB incl 200 MB mmap
+build,pc,bubble r2000 about Sol,8277074,,,,galos_octree,,,,,,8027 cells 6977 leaves; build 15.3 s; write 4.5 s; 42.2 B/system; 333 MB on disk
+build,pc,corridor r11010,84368124,,,,galos_octree,,,,,,KILLED by low-memory watchdog after convert (VmHWM 10.9 GB at that point); WSL and native
+route,mac,galaxy_populated,145579,Sol,Lave,30,edda_grid,w1.3,4,122,1.2,1.3,
+route,mac,galaxy_populated,145579,Sol,Lave,30,galos_octree,w1.3,4,122,2.6,2.6,same plan
+route,pc,bubble r2000,8277074,Sol,Wongi,50,edda_grid,w1.3,3,113,4.2,4.3,subset bitmap on grid side
+route,pc,bubble r2000,8277074,Sol,Wongi,50,galos_octree,w1.3,3,113,7.1,7.1,same plan
+route,pc,bubble r2000,8277074,Sol,Deciat,30,edda_grid,w1.3,5,129,1.7,1.7,
+route,pc,bubble r2000,8277074,Sol,Deciat,30,galos_octree,w1.3,5,129,4.4,4.4,same plan
+theirs,mac,galaxy_populated,145579,Sol,Lave,30,galos_router,quick,4,1157,9.6,9.7,their map router headless (theirs.rs)
+theirs,mac,galaxy_populated,145579,Sol,Lave,30,galos_router,direct,4,1157,9.6,9.6,
+theirs,mac,galaxy_populated,145579,Sol,Lave,30,galos_router,shortest,4,1170,10.3,10.4,
+ours,mac,galaxy_populated,145579,Sol,Lave,30,edda_planner,w1.3,4,122,1.0,1.1,
+ours,mac,galaxy_populated,145579,Sol,Lave,30,edda_planner,w1.0,4,41,0.4,0.4,
+theirs,mac,galaxy_populated,145579,Sol,Colonia,50,galos_router,quick,none,,1053.5,1053.5,no route exists in this fixture
+theirs,mac,galaxy_populated,145579,Sol,Colonia,50,galos_router,direct,none,,1058.5,1058.5,
+theirs,mac,galaxy_populated,145579,Sol,Colonia,50,galos_router,shortest,none,,1180.8,1180.8,
+ours,mac,galaxy_populated,145579,Sol,Colonia,50,edda_planner,w1.3,none,,161496.9,161496.9,NoRoute after 161 s
+ours,mac,galaxy_populated,145579,Sol,Colonia,50,edda_planner,w1.0,none,,>240000,,killed at the 240 s cap
+ours,pc,full,199636869,Sol,Colonia,50,edda_planner,w1.3,453,2708,352.9,356.5,supercharge on; bare plan() defaults
+ours,pc,full,199636869,Sol,Colonia,50,edda_planner,w1.0,317,546687,33645.4,33996.6,
+ours,pc,full,199636869,Sol,Colonia,70,edda_planner,w1.3,321,321,67.9,69.7,321 expansions for 321 jumps: a straight greedy walk
+ours,pc,full,199636869,Sol,Colonia,70,edda_planner,w1.0,227,253213,23797.0,23902.2,
+ours,pc,full,199636869,Wongi,Beagle Point,50,edda_planner,w1.3,1390,18161,152.1,154.8,
+ours,pc,full,199636869,Wongi,Beagle Point,50,edda_planner,w1.0,814,6988320,308697.7,308921.5,
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,quick,137,10092328,130181.9,130322.9,graph built in 57.1 s; 3864828 jet cones; peak RSS 7.98 GB for the whole run
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,direct,136,14966472,174663.8,180262.2,
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,shortest,136,15410738,260637.8,261251.1,
+product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,quick,141,1597,1139,,POST /v1/route supercharge=true min_fuel=true; boosted 119; total 23698.9 ly; curl 2.12 s
+product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,thorough,141,1597,1502,,"Try harder": identical route
+ours,pc,full,199636869,Sol,Colonia,50,edda_planner,thorough,none (killed),,,,"NULL RESULT: rep 1 never finished; process killed by the PC low-memory watchdog at ~2 h 08 min (19:58-22:06 -07) with RSS past 2.8 GB while galos_map (2.25 GB) and the map-bubble build shared the machine. Admissible boost heuristic on the full galaxy is a long search; a rerun needs the box quiet. Does not change the verdict."

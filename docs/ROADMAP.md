@@ -40,6 +40,22 @@ verdicts live in the CSV headers under `docs/benches/`.
   CI. Watch the per-verb `edda-apply <verb>: done in N s` lines in the
   release log; pre-registered: `apply api` under 30 s, the other three
   under 5 s.
+- **A route that cannot exist should be refused fast** (2026-09-10). On a
+  145k-system fixture with no path, the planner spent 161 s (weight 1.3)
+  and over 240 s (exact) before saying no; galos's router answered in
+  about a second in all three of its modes. A commander whose range is
+  too small for a gap sits through that. Measure the reachable-component
+  size first, then pick: a bounded frontier, a connectivity pre-check on
+  the cell graph, or a wall-clock cap that returns NoRoute.
+  Numbers in `docs/benches/2026-09-09-galos-index-spike.csv`.
+- **The bare exact mode does not finish at full scale** (2026-09-10).
+  `thorough` (weight 1.0, admissible boost heuristic) over 199.6 M
+  systems, Sol to Colonia at 50 ly, was killed after 2 h 08 min on a
+  shared PC; galos's proven-shortest search took 261 s for the same
+  question with the galaxy resident. The product's long plot answers in
+  1.1 s with 141 jumps against the proven 136, so this is about the exact
+  mode only. Rerun on a quiet machine before deciding anything; then
+  either a better admissible bound or an honest cap.
 - **Full routing rebuild on demand** (2026-09-09). The monthly rebuild is
   retired; build the instrument that diffs the applied index against a
   fresh dump (systems missing, records mismatched, bucket skew) and
@@ -64,6 +80,15 @@ verdicts live in the CSV headers under `docs/benches/`.
 - **Browser route planner** (2026-09-09). Live at `/route/`; watch plots
   per hour from the page vs the app on the shared route budget, and the
   physics endpoint's P50 (pre-registered under 5 ms).
+- **Galos's map over our data** (2026-09-10). Their bevy map runs
+  unchanged over a directory written from our star index
+  (`experiments/galos-index`, spike branch, `build --for-map`): 8.3 M
+  systems, 2 GB resident, uncoloured. To make it a real offer: a
+  streaming builder for their format (theirs holds the galaxy in memory,
+  ~185 B/system, and cannot raise 199.6 M on a workstation), a dense
+  sidecar of magnitude and temperature from the dump (~3 B/system), and
+  a sparse populated/political export from Postgres. Only if a drawn
+  full galaxy is wanted; it buys nothing for routing.
 - **Windows and Linux flights before each release**: the maintainer flies
   every release candidate; Linux is alpha until a second tester has.
 
@@ -81,6 +106,17 @@ Ideas measured and set aside stay here with their numbers; they come
 back only when a premise changes, and then they are re-measured, not
 re-argued.
 
+- **Galos's octree as the routing index** (2026-09-10). Built from our
+  records and walked by our planner: identical plans and expansion
+  counts, and 1.7–2.6× the time of our 50 ly grid per plot at bubble
+  scale. Their levels serve drawing, not the neighbour question.
+- **Galos's router for server-side plotting** (2026-09-10). Sol to
+  Colonia at 50 ly over all 199.6 M systems: 136–137 jumps in 130–261 s
+  with a 7.98 GB resident graph, against the product's 141 jumps in
+  1.14 s from a memory-mapped index on the 16 GB box. Five jumps for two
+  orders of magnitude and a galaxy in RAM; and no fuel, scoop or
+  injection model. Their published 0.08 s described their 2.4 M-system
+  database, not the galaxy.
 - **Doubling the supercruise estimate** (2026-09-09). Proposed from a
   comparison against the 45 s base alone; the full curve already priced
   the measured loop long (174/234 s vs 98/139 s flown). Replaced by the
