@@ -1,0 +1,30 @@
+[package]
+name = "galos-index-experiment"
+version = "0.0.1"
+edition = "2021"
+publish = false
+license = "MIT"
+
+# Spike, 2026-09-09 (maintainer: "build their index fully using our data,
+# see the disk size of it, and spin an experiment where we use our router
+# on their index"). Standalone: not a workspace member, never shipped.
+#
+#   build  <edda-index-dir> <out-dir>            our records -> galos octree
+#   route  <edda-index-dir> <galos-dir> FROM TO RANGE [reps]
+#                                                  our planner over both
+#   pins   <edda-index-dir> <galos-dir> <pins.csv> RANGE [reps]
+#
+# galos is MIT (Nathan Lilienthal); pinned at the commit the comparison
+# page was written against.
+[workspace]
+
+[dependencies]
+ed-galaxy = { path = "../../crates/ed-galaxy" }
+ed-domain = { path = "../../crates/ed-domain" }
+galos_index = { git = "https://github.com/nixpulvis/galos", rev = "a8fc2fc", default-features = false }
+galos_photometry = { git = "https://github.com/nixpulvis/galos", rev = "a8fc2fc" }
+pollster = "0.3"
+anyhow = "1"
+
+[profile.release]
+debug = 1

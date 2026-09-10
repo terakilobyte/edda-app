@@ -367,7 +367,28 @@ impl PartialOrd for Open {
 /// Stars relaxed per expansion of the exact planner (see the scan below).
 const LEG_FANOUT: usize = 512;
 
+/// The one question the planner asks a spatial structure: every system
+/// within `radius` of `pos`, optionally only from cells that can hold a
+/// system closer than `max_goal` to `goal`. The star index answers it from
+/// its 50 ly grid; an experiment may answer it from another structure over
+/// the same records (spike, 2026-09-09: the galos octree), which is why the
+/// planner takes the neighbourhood apart from the records.
+pub trait Near {
+    fn for_each_within_toward(&self, pos: [f32; 3], radius: f32, goal: Option<([f32; 3], f32)>, f: &mut dyn FnMut(u32, f32));
+}
+
+impl Near for Galaxy {
+    fn for_each_within_toward(&self, pos: [f32; 3], radius: f32, goal: Option<([f32; 3], f32)>, f: &mut dyn FnMut(u32, f32)) {
+        Galaxy::for_each_within_toward(self, pos, radius, goal, f)
+    }
+}
+
 pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
+    plan_with(g, g, req, ctl)
+}
+
+/// [`plan`] with the neighbourhood supplied separately from the records.
+pub fn plan_with<N: Near + Sync + ?Sized>(g: &Galaxy, near: &N, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
     let started = std::time::Instant::now();
     let goal = g.record(req.to).pos();
     let start_rec = g.record(req.from);
@@ -499,7 +520,7 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             // ones making the most progress (scoopables ranked a jump
             // ahead, so a fuel stop is never thinned away) get an edge.
             cands.clear();
-            g.for_each_within_toward(here, scan, toward, |n_idx, d| {
+            near.for_each_within_toward(here, scan, toward, &mut |n_idx, d| {
                 if n_idx == cur.idx || (injected && d <= reach) {
                     return;
                 }
