@@ -1,0 +1,34 @@
+# 2026-09-10 boost star present but NOT the arrival star: galaxy-wide count (Statler/boss question, measurement before the flag bit + sidecar)
+# Source: Spansh galaxy.json.gz of 2026-08-30 01:49 (116,251,284,940 B), one streaming pass on the PC, scratch Rust scanner
+#   (flate2 MultiGzDecoder + serde_json typed on bodies[].type/subType/mainStar/distanceToArrival), BelowNormal priority, 2,122 s wall.
+# Rule per system: boost star = body type "Star" with subType starting "Neutron" or "White Dwarf".
+#   Any boost star with mainStar=true -> boost_primary (first-listed wins, per the tie-break ruling); also counted when another boost star is present.
+#   No boost mainStar but >=1 boost star -> boost_secondary_only; the NEAREST one's distanceToArrival is bucketed (ls), with a neutron/WD split of that nearest star.
+# VERDICT: 127,246 systems have a boost star only as a secondary, 3.3% of the 3,852,215 with a boost primary; 30,210 within 1 kls
+#   (24,890 of them neutrons), 49,881 within 5 kls, 60,811 within 10 kls. 122,955,599 systems (61.8%) carry no bodies in the dump at all,
+#   so these are lower bounds on the galaxy; upper bounds scale by at most the 76.0M-with-bodies share.
+# Smoke test (1,369 populated-dump systems): primary 14, secondary-only 175 (<=1k 50, 1-5k 24, 5-10k 13, 10-50k 31, 50-200k 34, >200k 23).
+metric,value
+systems,198978506
+systems_with_bodies,76022907
+parse_errors,0
+boost_primary,3852215
+boost_primary_neutron,3487424
+boost_primary_white_dwarf,364791
+boost_primary_with_another_boost_star,46179
+boost_secondary_only,127246
+boost_secondary_only_nearest_is_neutron,102283
+boost_secondary_only_nearest_is_white_dwarf,24963
+secondary_nearest_ls_<=1k,30210
+secondary_nearest_ls_1-5k,19671
+secondary_nearest_ls_5-10k,10930
+secondary_nearest_ls_10-50k,27456
+secondary_nearest_ls_50-200k,23394
+secondary_nearest_ls_>200k,15585
+secondary_nearest_ls_<=1k_neutron,24890
+secondary_nearest_ls_1-5k_neutron,15388
+secondary_nearest_ls_5-10k_neutron,8651
+secondary_nearest_ls_10-50k_neutron,22158
+secondary_nearest_ls_50-200k_neutron,18803
+secondary_nearest_ls_>200k_neutron,12393
+elapsed_s,2122
