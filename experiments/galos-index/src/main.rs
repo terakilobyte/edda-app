@@ -127,6 +127,15 @@ fn main() -> Result<()> {
             let g = Galaxy::open(Path::new(&args[1]))?;
             refine(&g, Path::new(&args[2]), window)
         }
+        // diff-index <a/stars.bin> <b/stars.bin>: what changed between two
+        // builds of the star index, joined on id64 for every system that is
+        // a neutron star or white dwarf in either — the stars a boosted
+        // route depends on — plus per-class totals for both.
+        Some("diff-index") if args.len() == 3 => diff_index(Path::new(&args[1]), Path::new(&args[2])),
+        // taught <stars.bin> <rows.csv>: rows are `address,class,source,observed_at`
+        // from the stars table; against the index's own class per record,
+        // count what each source changed, boost classes called out.
+        Some("taught") if args.len() == 3 => taught(Path::new(&args[1]), Path::new(&args[2])),
         _ => bail!("usage: build <edda-index> <out> [--within CX CY CZ R]  |  route <edda-index> <galos-dir> FROM TO RANGE [reps]  |  pins <edda-index> <galos-dir> <pins.csv> RANGE [reps]  |  theirs <edda-index> FROM TO RANGE [reps]  |  info <edda-index> [--within CX CY CZ R]"),
     }
 }
@@ -674,5 +683,163 @@ fn refine(g: &Galaxy, route_json: &Path, window: usize) -> Result<()> {
         }
     }
     eprintln!("windows: {windows}, shorter: {shorter}, greedy splice saves {total_saved} jumps ({} -> {}), exact work {:.1} s total, {:.1} ms per window", n - 1, n - 1 - total_saved, total_ms / 1e3, total_ms / windows.max(1) as f64);
+    Ok(())
+}
+
+// ----------------------------------------------------------- diff-index --
+
+struct RawStars {
+    map: memmap2::Mmap,
+    n: usize,
+    rec_len: usize,
+    version: u32,
+}
+
+impl RawStars {
+    fn open(path: &Path) -> Result<RawStars> {
+        let f = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+        // SAFETY: written once, never modified in place.
+        let map = unsafe { memmap2::Mmap::map(&f)? };
+        anyhow::ensure!(&map[0..4] == b"EDGX", "not a galaxy index");
+        let version = u32::from_le_bytes(map[4..8].try_into().unwrap());
+        let n = u64::from_le_bytes(map[8..16].try_into().unwrap()) as usize;
+        let rec_len = if version == 1 { 32 } else { 29 };
+        anyhow::ensure!(map.len() >= 32 + n * rec_len, "truncated");
+        Ok(RawStars { map, n, rec_len, version })
+    }
+    /// (position, class, flags, id64)
+    fn rec(&self, idx: usize) -> ([f32; 3], u8, u8, u64) {
+        let o = 32 + idx * self.rec_len;
+        let b = &self.map[o..o + self.rec_len];
+        let f = |i: usize| f32::from_le_bytes(b[i..i + 4].try_into().unwrap());
+        let (class, flags) = if self.version == 1 { (b[12], b[13]) } else { (b[12] & 0x0f, b[12] >> 4) };
+        ([f(0), f(4), f(8)], class, flags, u64::from_le_bytes(b[16..24].try_into().unwrap()))
+    }
+}
+
+fn diff_index(a: &Path, b: &Path) -> Result<()> {
+    use ed_galaxy::StarClass;
+    let (a, b) = (RawStars::open(a)?, RawStars::open(b)?);
+    eprintln!("A: {} records (v{}), B: {} records (v{})", a.n, a.version, b.n, b.version);
+    let is_boost = |c: u8| matches!(StarClass::from_code(c), StarClass::Neutron | StarClass::WhiteDwarf);
+    // Per-class totals and the scoop-nearby flag count, both files.
+    let mut totals = [[0u64; 16]; 2];
+    let mut scoop_flag = [0u64; 2];
+    let mut boost: [HashMap<u64, (u8, u8, [f32; 3])>; 2] = [HashMap::new(), HashMap::new()];
+    for (k, file) in [&a, &b].into_iter().enumerate() {
+        for i in 0..file.n {
+            let (p, c, fl, id) = file.rec(i);
+            totals[k][(c & 0x0f) as usize] += 1;
+            if fl & 0x02 != 0 {
+                scoop_flag[k] += 1;
+            }
+            if is_boost(c) {
+                boost[k].insert(id, (c, fl, p));
+            }
+        }
+    }
+    println!("class,A,B,delta");
+    for c in 0..16u8 {
+        let (x, y) = (totals[0][c as usize], totals[1][c as usize]);
+        if x > 0 || y > 0 {
+            println!("{},{x},{y},{}", StarClass::from_code(c).name(), y as i64 - x as i64);
+        }
+    }
+    println!("scoop_nearby_flag,{},{},{}", scoop_flag[0], scoop_flag[1], scoop_flag[1] as i64 - scoop_flag[0] as i64);
+    // The join: boost stars lost, gained, reclassified, or with a changed flag.
+    let mut lost = Vec::new();
+    let mut reclassified = Vec::new();
+    let mut flag_changed = 0u64;
+    for (id, (c, fl, p)) in &boost[0] {
+        match boost[1].get(id) {
+            None => lost.push((*id, *c, *p)),
+            Some((c2, fl2, _)) => {
+                if c2 != c {
+                    reclassified.push((*id, *c, *c2));
+                }
+                if (fl & 0x02) != (fl2 & 0x02) {
+                    flag_changed += 1;
+                }
+            }
+        }
+    }
+    let gained = boost[1].keys().filter(|id| !boost[0].contains_key(*id)).count();
+    println!("boost_join,in_A,in_B,lost_from_A,gained_in_B,reclassified,scoop_flag_changed");
+    println!("boost_join,{},{},{},{gained},{},{flag_changed}", boost[0].len(), boost[1].len(), lost.len(), reclassified.len());
+    // Where did the lost ones go: still in B under another class, or gone?
+    let mut b_ids: HashMap<u64, u8> = HashMap::with_capacity(0);
+    if !lost.is_empty() {
+        b_ids.reserve(b.n / 8);
+        for i in 0..b.n {
+            let (_, c, _, id) = b.rec(i);
+            b_ids.insert(id, c);
+        }
+        let mut gone = 0;
+        let mut demoted = [0u64; 16];
+        for (id, _, _) in &lost {
+            match b_ids.get(id) {
+                None => gone += 1,
+                Some(c2) => demoted[(*c2 & 0x0f) as usize] += 1,
+            }
+        }
+        println!("lost_fate,gone_from_B,{gone}");
+        for c in 0..16u8 {
+            if demoted[c as usize] > 0 {
+                println!("lost_fate,now_{},{}", StarClass::from_code(c).name(), demoted[c as usize]);
+            }
+        }
+        for (id, c, p) in lost.iter().take(10) {
+            println!("lost_sample,{id},{},{:.1},{:.1},{:.1}", StarClass::from_code(*c).name(), p[0], p[1], p[2]);
+        }
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------- taught --
+
+fn taught(stars: &Path, rows: &Path) -> Result<()> {
+    use ed_galaxy::StarClass;
+    let idx = RawStars::open(stars)?;
+    let mut taught: HashMap<u64, (u8, String)> = HashMap::new();
+    for line in std::fs::read_to_string(rows)?.lines() {
+        let mut it = line.split(',');
+        let (Some(a), Some(c), Some(src)) = (it.next(), it.next(), it.next()) else { continue };
+        let (Ok(a), Ok(c)) = (a.parse::<i64>(), c.parse::<u8>()) else { continue };
+        taught.insert(a as u64, (c, src.to_string()));
+    }
+    eprintln!("taught rows: {}", taught.len());
+    let is_boost = |c: u8| matches!(StarClass::from_code(c), StarClass::Neutron | StarClass::WhiteDwarf);
+    // per source: rows found in the index, same class, changed, boost->non-boost, non-boost->boost
+    let mut per: HashMap<String, [u64; 5]> = HashMap::new();
+    let mut demoted: Vec<(u64, u8, u8, String)> = Vec::new();
+    for i in 0..idx.n {
+        let (_, c, _, id) = idx.rec(i);
+        if let Some((tc, src)) = taught.get(&id) {
+            let e = per.entry(src.clone()).or_default();
+            e[0] += 1;
+            if *tc == c {
+                e[1] += 1;
+            } else {
+                e[2] += 1;
+                if is_boost(c) && !is_boost(*tc) {
+                    e[3] += 1;
+                    demoted.push((id, c, *tc, src.clone()));
+                } else if !is_boost(c) && is_boost(*tc) {
+                    e[4] += 1;
+                }
+            }
+        }
+    }
+    println!("source,in_index,same_class,changed,boost_to_nonboost,nonboost_to_boost");
+    let mut keys: Vec<_> = per.keys().cloned().collect();
+    keys.sort();
+    for k in keys {
+        let e = per[&k];
+        println!("{k},{},{},{},{},{}", e[0], e[1], e[2], e[3], e[4]);
+    }
+    for (id, from, to, src) in demoted.iter().take(40) {
+        println!("demoted,{id},{},{},{src}", StarClass::from_code(*from).name(), StarClass::from_code(*to).name());
+    }
+    println!("demoted_total,{}", demoted.len());
     Ok(())
 }
