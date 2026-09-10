@@ -113,7 +113,29 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
             }
             continue;
         }
-        let Some(id) = i(&v, "CarrierID").or_else(|| (event == "CarrierJump").then(|| i(&v, "MarketID")).flatten()) else { continue };
+        // CarrierJump names the carrier by MarketID only when the commander
+        // is docked aboard; the undocked-aboard form carries neither
+        // CarrierID nor MarketID (field case 2026-09-09: a jump that never
+        // cleared, "departs in -1350 min" a day later). Attribute it to the
+        // carrier whose pending jump this completes, else to the one owned
+        // fleet carrier.
+        let id = i(&v, "CarrierID")
+            .or_else(|| (event == "CarrierJump").then(|| i(&v, "MarketID")).flatten())
+            .or_else(|| {
+                if event != "CarrierJump" {
+                    return None;
+                }
+                let star = s(&v, "StarSystem")?;
+                let by_pending = carriers
+                    .iter()
+                    .find(|(_, r)| r.pending_jump_system.as_deref().is_some_and(|p| p.eq_ignore_ascii_case(&star)))
+                    .map(|(id, _)| *id);
+                by_pending.or_else(|| {
+                    let owned: Vec<i64> = carriers.iter().filter(|(_, r)| r.owned).map(|(id, _)| *id).collect();
+                    (owned.len() == 1).then(|| owned[0])
+                })
+            });
+        let Some(id) = id else { continue };
         let row = carriers.entry(id).or_default();
         // The type rides every carrier event EXCEPT CarrierNameChange,
         // whose key is "" (Frontier bug, census 2026-09-06).
@@ -184,7 +206,14 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                 row.system_address = i(&v, "SystemAddress").or(row.system_address);
                 row.body = s(&v, "Body").or(row.body.take());
                 row.location_ts = Some(ts.clone());
-                if event == "CarrierJump" {
+                // A jump is over when the journal says so, OR when a later
+                // location heartbeat finds the carrier AT the pending
+                // destination after its departure time - the CarrierJump
+                // event is not written when the commander is elsewhere.
+                let arrived_by_heartbeat = event == "CarrierLocation"
+                    && row.pending_jump_system.as_deref().zip(row.system_name.as_deref()).is_some_and(|(p, here)| p.eq_ignore_ascii_case(here))
+                    && row.pending_departure.as_deref().is_none_or(|d| ts.as_str() >= d);
+                if event == "CarrierJump" || arrived_by_heartbeat {
                     row.pending_jump_system = None;
                     row.pending_jump_body = None;
                     row.pending_departure = None;
@@ -367,12 +396,13 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
     for row in rows {
         let (id, carrier_type, callsign, name, owned, decommissioned, system, body, location_ts, fuel, fuel_ts, cap_total, cap_used, free, stats_ts, jump_range, docking, balance, services, pj_system, pj_body, pj_departure) = row?;
         let capacity = cap_total.map(|t| serde_json::json!({ "total_t": t, "used_t": cap_used, "free_t": free }));
+        let minutes_to_departure = pj_departure.as_deref().and_then(|d| {
+            let dep = ed_domain::freshness::parse_timestamp(d)?;
+            let now = ed_domain::freshness::parse_timestamp(now)?;
+            Some((dep - now) / 60)
+        });
         let pending_jump = pj_system.map(|system| PendingJump {
-            minutes_to_departure: pj_departure.as_deref().and_then(|d| {
-                let dep = ed_domain::freshness::parse_timestamp(d)?;
-                let now = ed_domain::freshness::parse_timestamp(now)?;
-                Some((dep - now) / 60)
-            }),
+            minutes_to_departure,
             system,
             body: pj_body,
             departure: pj_departure,
@@ -487,6 +517,36 @@ mod tests {
         let loc = c.location.unwrap();
         assert_eq!((loc.value.as_str(), loc.as_of.as_str()), ("Beta", "2026-01-15T22:58:00Z"));
         assert_eq!(c.body.as_deref(), Some("Beta 1"));
+    }
+
+    /// The commander is aboard but not docked: the journal's CarrierJump
+    /// then names NO carrier (no CarrierID, no MarketID). It still ends
+    /// the pending jump of the carrier it completes.
+    #[test]
+    fn an_undocked_carrier_jump_still_clears_the_pending_jump() {
+        let conn = db();
+        ev(&conn, 1, BUY);
+        ev(&conn, 2, REQUEST);
+        ev(&conn, 3, r#"{"timestamp":"2026-01-15T22:58:00Z","event":"CarrierJump","Docked":false,"StarSystem":"Beta","SystemAddress":22,"Body":"Beta 1","BodyID":1}"#);
+        let c = one(&conn);
+        assert!(c.pending_jump.is_none(), "{:?}", c.pending_jump);
+        assert_eq!(c.location.unwrap().value, "Beta");
+    }
+
+    /// Nobody aboard: no CarrierJump is ever written. The next location
+    /// heartbeat that finds the carrier at its destination, after the
+    /// departure time, ends the pending jump; one before departure does not.
+    #[test]
+    fn a_heartbeat_at_the_destination_after_departure_clears_the_pending_jump() {
+        let conn = db();
+        ev(&conn, 1, BUY);
+        ev(&conn, 2, REQUEST);
+        ev(&conn, 3, r#"{"timestamp":"2026-01-15T22:40:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Alpha","SystemAddress":11,"BodyID":0}"#);
+        assert!(one(&conn).pending_jump.is_some(), "still scheduled while it sits at the origin");
+        ev(&conn, 4, r#"{"timestamp":"2026-01-16T01:00:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Beta","SystemAddress":22,"BodyID":0}"#);
+        let c = one(&conn);
+        assert!(c.pending_jump.is_none());
+        assert_eq!(c.location.unwrap().value, "Beta");
     }
 
     #[test]

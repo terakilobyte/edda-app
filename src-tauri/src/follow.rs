@@ -2369,7 +2369,7 @@ fn run_macro_steps(
     let run_started = std::time::Instant::now();
     tracing::info!(steps = steps.len(), system, "macro run");
     for step in steps {
-        tracing::info!(
+        tracing::debug!(
             at_ms = run_started.elapsed().as_millis() as u64,
             ?step,
             "macro step"

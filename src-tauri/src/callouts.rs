@@ -61,10 +61,14 @@ pub fn merge_follow_into_arrival(
 /// and to phrase things in context.
 #[derive(Debug, Default, Clone)]
 pub struct CalloutState {
-    /// Item 52 A: where the commander's carrier was last heard from, so
-    /// the startup CarrierLocation heartbeat is silent and only a MOVE
-    /// speaks.
-    pub carrier_system: Option<String>,
+    /// Item 52 A: where each carrier was last heard from (by CarrierID;
+    /// 0 when the event names none), so the startup CarrierLocation
+    /// heartbeat is silent and only a MOVE speaks. Per carrier: a
+    /// squadron carrier and the commander's own alternate their
+    /// heartbeats at every login, and one shared slot read that as the
+    /// carrier moving every time ("Your carrier is at Outordy…" about a
+    /// squadron carrier, 2026-09-09).
+    pub carrier_systems: std::collections::HashMap<i64, String>,
     /// Watched signals already announced (per system + signal).
     pub seen_signals: std::collections::HashSet<String>,
     /// Watched signals noticed this pass but not yet spoken: label ->
@@ -710,17 +714,22 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         }
         "CarrierJump" => {
             let system = s(v, "StarSystem").unwrap_or("an unknown system").to_string();
-            st.carrier_system = Some(system.clone());
+            let id = v.get("CarrierID").or_else(|| v.get("MarketID")).and_then(serde_json::Value::as_i64).unwrap_or(0);
+            st.carrier_systems.insert(id, system.clone());
             out.push(Callout::new("carrier", ts, 1, true, format!("Carrier arrived at {system}.")));
         }
         "CarrierLocation" => {
             let system = s(v, "StarSystem").map(str::to_string);
-            let moved = matches!((&st.carrier_system, &system), (Some(prev), Some(now)) if prev != now);
+            let id = v.get("CarrierID").and_then(serde_json::Value::as_i64).unwrap_or(0);
+            let squadron = s(v, "CarrierType") == Some("SquadronCarrier");
+            let moved = matches!((st.carrier_systems.get(&id), &system), (Some(prev), Some(now)) if prev != now);
             if moved {
-                out.push(Callout::new("carrier", ts, 1, true, format!("Your carrier is at {}.", system.clone().unwrap_or_default())));
+                let now = system.clone().unwrap_or_default();
+                let line = if squadron { format!("Squadron carrier is at {now}.") } else { format!("Your carrier is at {now}.") };
+                out.push(Callout::new("carrier", ts, 1, true, line));
             }
-            if system.is_some() {
-                st.carrier_system = system;
+            if let Some(system) = system {
+                st.carrier_systems.insert(id, system);
             }
         }
         "Docked" => {
@@ -888,7 +897,16 @@ mod tests {
         let jump = serde_json::json!({"timestamp":"2026-01-15T22:58:00Z","event":"CarrierJump","Docked":true,"StationName":"K3X-9ZQ","StationType":"FleetCarrier","MarketID":1,"StarSystem":"Beta","SystemAddress":22,"Body":"Beta 1","BodyID":1});
         let arrived = super::from_event(&jump, &mut st);
         assert!(arrived.iter().any(|c| c.kind == "carrier" && c.text.contains("arrived at Beta")));
-        assert_eq!(st.carrier_system.as_deref(), Some("Beta"));
+        assert_eq!(st.carrier_systems.get(&1).map(String::as_str), Some("Beta"));
+        // A squadron carrier's heartbeat is its own: it neither moves
+        // "your" carrier nor speaks as it (2026-09-09: "Your carrier is
+        // at Outordy" was the squadron's).
+        let squad = |sys: &str| serde_json::json!({"timestamp":"2026-01-16T01:05:00Z","event":"CarrierLocation","CarrierType":"SquadronCarrier","CarrierID":2,"StarSystem":sys,"SystemAddress":44,"BodyID":0});
+        assert!(super::from_event(&squad("Outordy"), &mut st).is_empty(), "first sighting of the squadron carrier is silent");
+        assert!(super::from_event(&loc("Beta"), &mut st).is_empty(), "your carrier has not moved");
+        let squad_moved = super::from_event(&squad("Elsewhere"), &mut st);
+        assert_eq!(squad_moved.len(), 1);
+        assert!(squad_moved[0].text.starts_with("Squadron carrier is at"), "{}", squad_moved[0].text);
     }
 
     /// The 2026-09-04 flight transcript: "All bodies found" fired 3-5
