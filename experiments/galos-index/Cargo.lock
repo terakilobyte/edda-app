@@ -272,6 +272,7 @@ dependencies = [
  "glam",
  "memmap2",
  "pollster",
+ "serde_json",
 ]
 
 [[package]]

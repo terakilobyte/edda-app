@@ -118,6 +118,15 @@ fn main() -> Result<()> {
             println!("route_from,route_to,range_ly,router,mode,jumps,expansions,best_ms,median_ms");
             ours_only(&g, &args[2], &args[3], range, reps)
         }
+        // refine <edda-index> <route.json> [window] [reps]: window refinement
+        // of a product route — for every window of `window` hops, an exact
+        // plan (thorough, weight 1.0) between its endpoints; report which
+        // windows shorten, by how much, and what the greedy splice saves.
+        Some("refine") if args.len() >= 3 => {
+            let window: usize = args.get(3).map(|s| s.parse()).transpose()?.unwrap_or(8);
+            let g = Galaxy::open(Path::new(&args[1]))?;
+            refine(&g, Path::new(&args[2]), window)
+        }
         _ => bail!("usage: build <edda-index> <out> [--within CX CY CZ R]  |  route <edda-index> <galos-dir> FROM TO RANGE [reps]  |  pins <edda-index> <galos-dir> <pins.csv> RANGE [reps]  |  theirs <edda-index> FROM TO RANGE [reps]  |  info <edda-index> [--within CX CY CZ R]"),
     }
 }
@@ -602,5 +611,60 @@ fn ours_only(g: &Galaxy, from: &str, to: &str, range: f32, reps: usize) -> Resul
             Err(e) => println!("{from},{to},{range},edda,{label},none ({e}),,{:.1},{:.1}", ms[0], ms[ms.len() / 2]),
         }
     }
+    Ok(())
+}
+
+// --------------------------------------------------------------- refine --
+
+/// The coarse-plus-refine long plot lands a few jumps over the proven
+/// fewest. If the loss is local, an exact search inside a sliding window
+/// of the route recovers it cheaply; if it is global (a different highway),
+/// windows find nothing. This measures which.
+fn refine(g: &Galaxy, route_json: &Path, window: usize) -> Result<()> {
+    let route: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(route_json)?)?;
+    let range = route["range_ly"].as_f64().unwrap_or(50.0) as f32;
+    let hops: Vec<String> = route["hops"].as_array().context("hops")?.iter().map(|h| h["name"].as_str().unwrap_or("").to_string()).collect();
+    let idxs: Vec<u32> = hops.iter().map(|n| g.find(n).ok_or_else(|| anyhow!("unknown hop {n}"))).collect::<Result<_>>()?;
+    let n = idxs.len();
+    eprintln!("route: {} hops ({} jumps) at {range} ly; window {window}", n, n - 1);
+    let ctl = Control::none();
+    println!("window_start,window_end,hops_in_route,exact_jumps,saved,expansions,ms");
+    let mut saved_at = vec![0usize; n];
+    let mut total_ms = 0.0;
+    let mut windows = 0;
+    let mut shorter = 0;
+    for i in 0..n.saturating_sub(window) {
+        let j = i + window;
+        let req = RouteRequest { from: idxs[i], to: idxs[j], range_ly: range, weight: 1.0, thorough: true, ..Default::default() };
+        let t = Instant::now();
+        let r = router::plan(g, &req, &ctl);
+        let ms = t.elapsed().as_secs_f64() * 1e3;
+        total_ms += ms;
+        windows += 1;
+        match r {
+            Ok(r) => {
+                let saved = window.saturating_sub(r.jumps);
+                if saved > 0 {
+                    shorter += 1;
+                    saved_at[i] = saved;
+                }
+                println!("{i},{j},{window},{},{saved},{},{ms:.1}", r.jumps, r.expansions);
+            }
+            Err(e) => println!("{i},{j},{window},err ({e}),0,,{ms:.1}"),
+        }
+    }
+    // Greedy non-overlapping splice: take the earliest saving window, skip
+    // past it, repeat. A lower bound on what a real refinement pass gets.
+    let mut i = 0;
+    let mut total_saved = 0;
+    while i + window <= n.saturating_sub(1) {
+        if saved_at[i] > 0 {
+            total_saved += saved_at[i];
+            i += window;
+        } else {
+            i += 1;
+        }
+    }
+    eprintln!("windows: {windows}, shorter: {shorter}, greedy splice saves {total_saved} jumps ({} -> {}), exact work {:.1} s total, {:.1} ms per window", n - 1, n - 1 - total_saved, total_ms / 1e3, total_ms / windows.max(1) as f64);
     Ok(())
 }
