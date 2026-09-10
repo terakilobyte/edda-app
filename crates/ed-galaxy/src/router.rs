@@ -391,8 +391,14 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     let h = |p: [f32; 3]| dist(p, goal) / h_range * weight;
 
     // State is (system, dry-run length) when dry runs are limited; the
-    // dry component is what makes "refuel before it" enforceable.
-    let key = |idx: u32, dry: u32| -> u64 { ((idx as u64) << 8) | (dry.min(255) as u64) };
+    // dry component is what makes "refuel before it" enforceable. With a
+    // fuel model the slot carries the quantised tank instead. With neither
+    // (no limit, no fuel) the counter constrains nothing, and keying on it
+    // minted a state per distinct dry length at every system: an
+    // impossible plot over 145k systems expanded 7.25 M times before
+    // saying no (2026-09-10, galos spike). Then the system is the state.
+    let dry_matters = fuel_model.is_some() || req.max_dry_jumps > 0;
+    let key = move |idx: u32, dry: u32| -> u64 { ((idx as u64) << 8) | if dry_matters { dry.min(255) as u64 } else { 0 } };
     // Best (jumps, ly) seen per state; a path with equal jumps but fewer ly
     // still improves on the recorded one.
     // (jumps, boosts, ly): lexicographically smaller is better.
@@ -659,6 +665,37 @@ mod tests {
         import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         (dir, g)
+    }
+
+    /// A route that cannot exist must be refused in about one pass over the
+    /// reachable systems. Measured 2026-09-10 (galos spike): with no dry-jump
+    /// limit the search still keyed its state on the dry-run counter, so
+    /// every unscoopable arrival minted a fresh state per system and an
+    /// impossible plot over 145k systems expanded 7.25 M times (161 s).
+    #[test]
+    fn an_impossible_route_is_refused_in_one_pass_over_the_reachable_systems() {
+        // Forty brown dwarfs (unscoopable) in a line 10 ly apart, and a goal
+        // 1,000 ly away that nothing reaches at a 15 ly range.
+        let mut lines = vec!["[".to_string()];
+        for i in 0..40 {
+            lines.push(format!(
+                r#"{{"id64":{},"name":"D{i}","coords":{{"x":{},"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"L (Brown dwarf) Star","mainStar":true}}]}},"#,
+                i + 1,
+                i * 10
+            ));
+        }
+        lines.push(r#"{"id64":999,"name":"Far","coords":{"x":1000,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}"#.into());
+        lines.push("]".into());
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let req = RouteRequest { from: g.find("D0").unwrap(), to: g.find("Far").unwrap(), range_ly: 15.0, supercharge: true, max_dry_jumps: 0, ..Default::default() };
+        let expanded = std::sync::atomic::AtomicU64::new(0);
+        let progress = |n: u64, _: f32| expanded.store(n, std::sync::atomic::Ordering::Relaxed);
+        let ctl = Control { progress: &progress, ..Control::none() };
+        assert!(matches!(plan(&g, &req, &ctl), Err(RouteError::NoRoute)));
+        let n = expanded.load(std::sync::atomic::Ordering::Relaxed);
+        assert!(n <= 80, "refusing an impossible route took {n} expansions over 40 reachable systems");
     }
 
     /// Item 39: an eager plan's comfort top-ups get labelled — the tank
