@@ -587,7 +587,11 @@ fn theirs_raw(stars: &Path, from_idx: u32, to_idx: u32, range: f32, reps: usize,
 fn ours_only(g: &Galaxy, from: &str, to: &str, range: f32, reps: usize) -> Result<()> {
     let from_idx = g.find(from).ok_or_else(|| anyhow!("unknown system {from}"))?;
     let to_idx = g.find(to).ok_or_else(|| anyhow!("unknown system {to}"))?;
-    let ctl = Control::none();
+    // Expansions are reported through the progress hook, so a NoRoute
+    // still says how much work it took to say no.
+    let expanded = std::sync::atomic::AtomicU64::new(0);
+    let progress = |n: u64, _f: f32| expanded.store(n, std::sync::atomic::Ordering::Relaxed);
+    let ctl = Control { progress: &progress, ..Control::none() };
     // OURS_MODES=w1.3,w1.0,thorough selects which to run (default all
     // three). `thorough` is weight 1.0 with the admissible boost
     // heuristic: the mode that can find a neutron-highway route, and the
@@ -608,7 +612,11 @@ fn ours_only(g: &Galaxy, from: &str, to: &str, range: f32, reps: usize) -> Resul
         ms.sort_by(|x, y| x.total_cmp(y));
         match r.unwrap() {
             Ok(r) => println!("{from},{to},{range},edda,{label},{},{},{:.1},{:.1}", r.jumps, r.expansions, ms[0], ms[ms.len() / 2]),
-            Err(e) => println!("{from},{to},{range},edda,{label},none ({e}),,{:.1},{:.1}", ms[0], ms[ms.len() / 2]),
+            Err(e) => {
+                let n = expanded.load(std::sync::atomic::Ordering::Relaxed);
+                println!("{from},{to},{range},edda,{label},none ({e}),{n},{:.1},{:.1}", ms[0], ms[ms.len() / 2]);
+                eprintln!("{label}: {n} expansions before giving up, {:.0} expansions/s", n as f64 / (ms[0] / 1e3).max(1e-9));
+            }
         }
     }
     Ok(())
