@@ -39,7 +39,10 @@ verdicts live in the CSV headers under `docs/benches/`.
   (`deploy/edda-deploy`, `deploy/edda-apply`); the host key is pinned in
   CI. Watch the per-verb `edda-apply <verb>: done in N s` lines in the
   release log; pre-registered: `apply api` under 30 s, the other three
-  under 5 s.
+  under 5 s. Measured on the two v0.3.1 deploys (2026-09-09, runs
+  34415889827 and 34418299899), identical both times: `api` 14 s (readyz
+  after 4 s), `app` 0 s, `site` 0 s, `dashboards` 0 s. All inside the
+  pre-registration; closed.
 - **Full routing rebuild on demand** (2026-09-09). The monthly rebuild is
   retired; build the instrument that diffs the applied index against a
   fresh dump (systems missing, records mismatched, bucket skew) and
