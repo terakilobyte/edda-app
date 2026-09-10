@@ -44,3 +44,8 @@ ours,pc,full,199636869,Sol,Colonia,70,edda_planner,w1.3,321,321,67.9,69.7,321 ex
 ours,pc,full,199636869,Sol,Colonia,70,edda_planner,w1.0,227,253213,23797.0,23902.2,
 ours,pc,full,199636869,Wongi,Beagle Point,50,edda_planner,w1.3,1390,18161,152.1,154.8,
 ours,pc,full,199636869,Wongi,Beagle Point,50,edda_planner,w1.0,814,6988320,308697.7,308921.5,
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,quick,137,10092328,130181.9,130322.9,graph built in 57.1 s; 3864828 jet cones; peak RSS 7.98 GB for the whole run
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,direct,136,14966472,174663.8,180262.2,
+theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,shortest,136,15410738,260637.8,261251.1,
+product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,quick,141,1597,1139,,POST /v1/route supercharge=true min_fuel=true; boosted 119; total 23698.9 ly; curl 2.12 s
+product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,thorough,141,1597,1502,,"Try harder": identical route
