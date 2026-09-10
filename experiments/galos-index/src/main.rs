@@ -125,7 +125,8 @@ fn info(edda: &Path, rest: &[String]) -> Result<()> {
         let r = g.record(idx);
         println!("sample {idx}: {} at {:?}", g.name(&r), r.pos());
     }
-    for name in ["Sol", "Colonia", "Beagle Point", "Wongi", "Sagittarius A*"] {
+    let extra: Vec<&str> = if rest.first().map(String::as_str) == Some("--within") { vec![] } else { rest.iter().map(String::as_str).collect() };
+    for name in ["Sol", "Colonia", "Beagle Point", "Wongi", "Sagittarius A*"].into_iter().chain(extra) {
         println!("{name}: {}", g.find(name).map(|i| format!("idx {i} at {:?}", g.pos_of(i))).unwrap_or_else(|| "absent".into()));
     }
     // info <edda> --within CX CY CZ R: how many records a subset build would take.
@@ -465,16 +466,19 @@ fn theirs_raw(stars: &Path, from_idx: u32, to_idx: u32, range: f32, reps: usize,
     let map = unsafe { memmap2::Mmap::map(&f)? };
     anyhow::ensure!(&map[0..4] == b"EDGX", "not a galaxy index");
     let version = u32::from_le_bytes(map[4..8].try_into().unwrap());
-    anyhow::ensure!(version >= 2, "records-only mode needs index version 2+, got {version}");
     let n = u64::from_le_bytes(map[8..16].try_into().unwrap()) as usize;
     const HEADER: usize = 32;
-    const REC: usize = 29;
-    anyhow::ensure!(map.len() >= HEADER + n * REC, "truncated");
+    // v1 records are 32 bytes with the class in its own byte; v2+ are 29
+    // with the class in the low nibble of byte 12 (StarRecord::read_v1 /
+    // read_from). id64 sits at 16..24 in both.
+    let rec_len = if version == 1 { 32 } else { 29 };
+    anyhow::ensure!(map.len() >= HEADER + n * rec_len, "truncated");
     let rec = |idx: u32| -> ([f32; 3], u8, i64) {
-        let o = HEADER + idx as usize * REC;
-        let b = &map[o..o + REC];
+        let o = HEADER + idx as usize * rec_len;
+        let b = &map[o..o + rec_len];
         let f = |i: usize| f32::from_le_bytes(b[i..i + 4].try_into().unwrap());
-        ([f(0), f(4), f(8)], b[12], u64::from_le_bytes(b[17..25].try_into().unwrap()) as i64)
+        let class = if version == 1 { b[12] } else { b[12] & 0x0f };
+        ([f(0), f(4), f(8)], class, u64::from_le_bytes(b[16..24].try_into().unwrap()) as i64)
     };
     eprintln!("records: {n}");
     let (_, _, from_addr) = rec(from_idx);
