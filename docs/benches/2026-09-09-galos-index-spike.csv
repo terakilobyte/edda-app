@@ -1,22 +1,30 @@
-# 2026-09-09 galos octree spike (experiments/galos-index, branch spike/galos-index)
+# 2026-09-09/10 galos octree spike (experiments/galos-index, branch spike/galos-index, never merged)
 # Question (maintainer): build galos's octree from our 199.6M-system index, size it, run our router over it;
-# and re-measure galos's published Sol->Colonia 0.08 s (2.4M systems, 50 ly) on the full galaxy.
+# re-measure galos's published Sol->Colonia 0.08 s (2.4M systems, 50 ly) on the full galaxy; and see whether
+# their map can run over our data. galos = github.com/nixpulvis/galos at a8fc2fc (MIT).
 # Pre-registered (README in the crate): identical jumps grid vs octree; octree within 2x of grid;
 # their directory larger than ours; build memory the risk at 199M.
-# VERDICT SO FAR (in progress; rows appended as they land):
-#  - build memory: ~185 B/system peak in their builder (Mac, 3.49M fixture) -> ~37 GB for 199.6M;
-#    the 84.4M Sol-Colonia corridor subset (~15.6 GB) was killed by the PC's low-memory watchdog
-#    both in WSL (24 GB cap) and native (32 GB, desktop load). Full-galaxy octree: not buildable
-#    on a 32 GB workstation as their builder stands.
-#  - on disk: their cells 39.2-42.2 B/system (no names table) vs our 57.8-58.3 B/system (with names + by-name).
-#  - our router over their cells: identical plans and expansion counts on every pair tried (parity holds);
-#    their cells cost 1.7-2.6x our grid per plot at bubble scale (8.3M) and ~2x on the small fixtures.
-#  - unreachable goal (145k populated fixture, Sol->Colonia 50 ly, no route exists): THEIR router answers
-#    none in 1.05-1.18 s in all three modes; OUR planner takes 161.5 s at w1.3 and >240 s exact. Ours is the
-#    pathological one; roadmap item.
-#  - our planner on the full 199.6M index (PC, native, desktop load): rows below; exact (w1.0) finds far
-#    fewer jumps than w1.3 on raw range with supercharge (317 vs 453 Sol->Colonia 50 ly) at ~100x the time.
-# Machines: mac = M-series 32 GB (fixtures only); pc = Ryzen 9 5900X 32 GB, index on NVMe, native Windows.
+# VERDICT (closed 2026-09-10):
+#  1. Their octree as OUR routing index: BURIED. Parity holds (identical plans and expansion counts on every
+#     pair), and their cells cost our planner 1.7-2.6x what our 50 ly grid costs per plot (bubble, 8.3M).
+#  2. Their router for server-side plotting: BURIED. Sol->Colonia 50 ly over all 199,636,869 systems:
+#     their quick 137 jumps / 130 s, direct 136 / 175 s, shortest 136 (proven fewest) / 261 s, with the whole
+#     graph resident (7.98 GB peak). The product's plot on the box: 141 jumps in 1.14 s from a memory-mapped
+#     index beside Postgres and the feed. Five jumps for 100-200x the time and a resident galaxy. Their
+#     published 0.08 s was true of their 2.4M-system database and does not describe the full galaxy.
+#  3. Their builder cannot raise the full galaxy on a workstation: ~185 B/system peak (measured 3.49M) ->
+#     ~37 GB; the 84.4M corridor subset was killed at ~16 GB on both WSL and native Windows. On disk their
+#     cells are 39-42 B/system, 89 B/system with names, against our 58 all in (~17 GB projected vs 11.5 GB).
+#  4. Their map runs UNCHANGED over a directory written from our index (--for-map): 145k and 8.3M-system
+#     builds on the Mac and the PC, 2.0-2.25 GB resident, uncoloured (no populated sidecar). A streaming
+#     builder + two sidecars (dense magnitude/temperature, sparse populated/political) is the concrete
+#     collaboration offer; on the roadmap.
+#  5. Against us, kept: (a) an unreachable goal costs our planner 161 s (w1.3) / >240 s (exact) on a 145k
+#     fixture where theirs answers in ~1 s; (b) our bare exact mode (thorough) over the full galaxy did not
+#     finish in 2 h 08 min (killed by the PC's memory watchdog, shared machine; null result, not rerun).
+#     Both are roadmap items. The product's long-plot path is unaffected (1.1 s).
+# Machines: mac = M-series 32 GB (fixtures, stars.bin-only full run, full index copy for the map build);
+# pc = Ryzen 9 5900X 32 GB, index on NVMe/C:, native Windows, desktop load present; box = prod API, 16 GB.
 kind,machine,dataset,systems,from,to,range_ly,structure_or_router,mode,jumps,expansions,best_ms,median_ms,note
 build,mac,galaxy_populated,145579,,,,galos_octree,,,,,,196 cells 158 leaves; 0.1 s; 39.3 B/system
 build,mac,neutrons250,3487192,,,,galos_octree,,,,,,3646 cells 3113 leaves; build 3.1 s; write 0.5 s; 39.2 B/system; peak RSS 843 MB incl 200 MB mmap
