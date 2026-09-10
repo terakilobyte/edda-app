@@ -49,3 +49,4 @@ theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,direct,13
 theirs,mac,full (stars.bin only),199636869,Sol,Colonia,50,galos_router,shortest,136,15410738,260637.8,261251.1,
 product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,quick,141,1597,1139,,POST /v1/route supercharge=true min_fuel=true; boosted 119; total 23698.9 ly; curl 2.12 s
 product,box,full (prod API),199636869,Sol,Colonia,50,edda_api_route,thorough,141,1597,1502,,"Try harder": identical route
+ours,pc,full,199636869,Sol,Colonia,50,edda_planner,thorough,none (killed),,,,"NULL RESULT: rep 1 never finished; process killed by the PC low-memory watchdog at ~2 h 08 min (19:58-22:06 -07) with RSS past 2.8 GB while galos_map (2.25 GB) and the map-bubble build shared the machine. Admissible boost heuristic on the full galaxy is a long search; a rerun needs the box quiet. Does not change the verdict."
