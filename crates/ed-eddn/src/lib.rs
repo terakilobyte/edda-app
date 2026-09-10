@@ -369,16 +369,17 @@ impl Envelope {
                             allegiance: None,
                         }));
                     }
-                    if let Some(class) = hop.star_class.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
-                        out.push(Operation::Star(ed_domain::StarTeaching {
-                            system_address: address,
-                            system_name: Some(name),
-                            position: hop.star_pos,
-                            star_type: class.to_string(),
-                            observed_at: observed.clone(),
-                            source: "eddn:navroute".into(),
-                        }));
-                    }
+                    // A hop's `StarClass` is NOT the main star. Measured
+                    // 2026-09-10 against the pre-navroute index: of 49,746
+                    // systems navroute touched it changed the class of
+                    // 13,571 (27%), demoting 6 neutron/white-dwarf primaries
+                    // and promoting 151 systems to a boost class they do not
+                    // have; EDSM shows the taught class is a secondary star
+                    // thousands of light seconds out (Lalande 25224: F at
+                    // 6,061 ls, neutron primary at 0). Positions are kept —
+                    // a plotted route is how undiscovered systems get one —
+                    // the class is not taught from here at all.
+                    let _ = &hop.star_class;
                 }
                 out
             }
@@ -1283,15 +1284,17 @@ mod teaching_tests {
     }
 
     #[test]
-    fn a_navroute_teaches_a_system_and_a_star_per_hop() {
+    fn a_navroute_teaches_a_system_per_hop_and_never_a_star() {
         let raw = r#"{"$schemaRef":"https://eddn.edcd.io/schemas/navroute/1","header":{"uploaderID":"x","softwareName":"t","softwareVersion":"1"},"message":{"timestamp":"2026-09-09T10:02:00Z","event":"NavRoute","Route":[{"StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"StarClass":"K"},{"StarSystem":"Jackson's Lighthouse","SystemAddress":9999,"StarPos":[-8.6,52.7,4.0],"StarClass":"N"},{"StarSystem":"Nameless","SystemAddress":1,"StarPos":[0,0,0],"StarClass":""}]}}"#;
         let env = decode(raw.as_bytes()).unwrap();
         assert_eq!(env.schema(), "navroute/1");
         let ops = env.operations();
-        assert_eq!(ops.len(), 5, "2 systems+stars, 1 system without a class: {ops:?}");
-        let stars: Vec<&ed_domain::StarTeaching> = ops.iter().filter_map(|o| if let Operation::Star(s) = o { Some(s) } else { None }).collect();
-        assert_eq!(stars.len(), 2);
-        assert_eq!((stars[1].star_type.as_str(), stars[1].source.as_str()), ("N", "eddn:navroute"));
+        assert_eq!(ops.len(), 3, "one system per hop with a position, and no star: {ops:?}");
+        // The hop's StarClass names a secondary star as often as not (27% of
+        // systems changed class when it was taught, 2026-09-10); it must
+        // never reach the stars table, even where it happens to say "N".
+        assert!(!ops.iter().any(|o| matches!(o, Operation::Star(_))), "{ops:?}");
+        assert!(ops.iter().all(|o| matches!(o, Operation::System(_))));
         let mut stats = FeedStats::default();
         stats.count(&env);
         assert_eq!(stats.journal_events.get("NavRoute.hops"), Some(&3));
