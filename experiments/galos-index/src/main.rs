@@ -35,15 +35,33 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("info") if args.len() >= 2 => info(Path::new(&args[1]), &args[2..]),
-        Some("build") if args.len() == 3 => build(Path::new(&args[1]), Path::new(&args[2]), None),
-        // build --within CX CY CZ R: only the systems within R ly of the
-        // centre, for a build that fits the machine; a bitmap of the
-        // records taken is written beside the tree so the grid side of a
-        // comparison can be held to the same subset.
-        Some("build") if args.len() == 8 && args[3] == "--within" => {
-            let c: Vec<f32> = args[4..7].iter().map(|s| s.parse()).collect::<std::result::Result<_, _>>()?;
-            let r: f32 = args[7].parse()?;
-            build(Path::new(&args[1]), Path::new(&args[2]), Some(([c[0], c[1], c[2]], r)))
+        // build <edda> <out> [--within CX CY CZ R] [--for-map]
+        //   --within: only the systems within R ly of the centre, for a
+        //   build that fits the machine; a bitmap of the records taken is
+        //   written beside the tree so the grid side of a comparison can
+        //   be held to the same subset.
+        //   --for-map: a directory their map can open. Payload id64 is the
+        //   real address (not our record index), and the names chunks and
+        //   the supercharge table are written beside the tree.
+        Some("build") if args.len() >= 3 => {
+            let mut within = None;
+            let mut for_map = false;
+            let mut i = 3;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--within" if i + 4 < args.len() => {
+                        let c: Vec<f32> = args[i + 1..i + 4].iter().map(|s| s.parse()).collect::<std::result::Result<_, _>>()?;
+                        within = Some(([c[0], c[1], c[2]], args[i + 4].parse::<f32>()?));
+                        i += 5;
+                    }
+                    "--for-map" => {
+                        for_map = true;
+                        i += 1;
+                    }
+                    other => bail!("unknown build option {other}"),
+                }
+            }
+            build(Path::new(&args[1]), Path::new(&args[2]), within, for_map)
         }
         Some("route") if args.len() >= 6 => {
             let reps = args.get(6).map(|s| s.parse()).transpose()?.unwrap_or(3);
@@ -198,7 +216,8 @@ impl Near for GridSubset<'_> {
     }
 }
 
-fn build(edda: &Path, out: &Path, within: Option<([f32; 3], f32)>) -> Result<()> {
+fn build(edda: &Path, out: &Path, within: Option<([f32; 3], f32)>, for_map: bool) -> Result<()> {
+    use galos_index::meta::{NameEntry, SystemBoost};
     let t0 = Instant::now();
     let g = Galaxy::open(edda).with_context(|| format!("opening {}", edda.display()))?;
     let n = g.count;
@@ -209,6 +228,8 @@ fn build(edda: &Path, out: &Path, within: Option<([f32; 3], f32)>) -> Result<()>
     let t1 = Instant::now();
     let mut systems: Vec<System> = Vec::with_capacity(n);
     let mut subset = within.map(|_| Subset { bits: vec![0; n.div_ceil(64)] });
+    let mut names: Vec<NameEntry> = Vec::new();
+    let mut boosts: Vec<SystemBoost> = Vec::new();
     for idx in 0..n as u32 {
         let p = g.pos_of(idx);
         if let Some((c, r)) = within {
@@ -220,8 +241,20 @@ fn build(edda: &Path, out: &Path, within: Option<([f32; 3], f32)>) -> Result<()>
         }
         let class = ed_galaxy::StarClass::from_code(g.class_code(idx));
         let light = ClassLight::of(class.letter());
+        let rec = g.record(idx);
+        if for_map {
+            names.push(NameEntry { address: rec.id64 as i64, name: g.name(&rec).to_string(), position: p });
+            let boost = match class {
+                ed_galaxy::StarClass::Neutron => Some(galos_index::meta::Boost::Neutron),
+                ed_galaxy::StarClass::WhiteDwarf => Some(galos_index::meta::Boost::WhiteDwarf),
+                _ => None,
+            };
+            if let Some(boost) = boost {
+                boosts.push(SystemBoost { address: rec.id64 as i64, boost });
+            }
+        }
         systems.push(System {
-            id64: idx as u64,
+            id64: if for_map { rec.id64 } else { idx as u64 },
             position: [p[0] as f64, p[1] as f64, p[2] as f64],
             absolute_magnitude: light.absolute_magnitude.0,
             temperature: light.temperature.0,
@@ -246,6 +279,20 @@ fn build(edda: &Path, out: &Path, within: Option<([f32; 3], f32)>) -> Result<()>
     snap.write(out).with_context(|| format!("writing {}", out.display()))?;
     if let Some(s) = &subset {
         s.write(out)?;
+    }
+    if for_map {
+        // Their sidecars: the names table (address-ordered chunks, the
+        // search index and their router's graph) and the supercharge
+        // table. Populated, reaches, factions and bodies are not written;
+        // the map warns and draws uncoloured, which is the honest state of
+        // what our star index knows.
+        let t = Instant::now();
+        boosts.sort_by_key(|b| b.address);
+        galos_index::source::write_meta(&galos_index::source::boosts_path(out), &boosts)?;
+        let count = names.len();
+        let mut table = galos_index::names::NameTable::from_entries(std::mem::take(&mut names));
+        let chunks = table.publish(out)?;
+        eprintln!("sidecars: {count} names in {chunks} chunks, {} jet cones, {:.1} s", boosts.len(), t.elapsed().as_secs_f64());
     }
     let (files, bytes) = dir_size(out)?;
     eprintln!("written: {:.1} s, {files} files, {bytes} B ({:.2} GB), {:.1} B/system", t3.elapsed().as_secs_f64(), bytes as f64 / 1e9, bytes as f64 / points as f64);
