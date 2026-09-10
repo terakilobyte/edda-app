@@ -4878,7 +4878,7 @@ mod tests {
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
     fn full_pins_hold_under_every_judge() {
         let Some((g, neutrons)) = full_index() else { return };
-        let routes: [(&str, fn(&Galaxy) -> RouteRequest, &[JudgePin]); 2] = [
+        let routes: [(&str, fn(&Galaxy) -> RouteRequest, &[JudgePin]); 8] = [
             (
                 "Mandalay Wongi -> Colonia (no white dwarfs)",
                 |g| without_white_dwarfs(mandalay_request(g, "Wongi", "Colonia")),
@@ -4892,7 +4892,58 @@ mod tests {
                 |g| mandalay_request(g, "Wongi", "Colonia"),
                 &[
                     JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 94, max_flat_seconds: None },
-                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 96, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 96, max_flat_seconds: Some(8_520) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia (no white dwarfs)",
+                |g| without_white_dwarfs(explorer(g, "Wongi", "Colonia")),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 58, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 58, max_flat_seconds: Some(4_200) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia (white dwarfs)",
+                |g| explorer(g, "Wongi", "Colonia"),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 57, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 57, max_flat_seconds: Some(4_020) },
+                ],
+            ),
+            (
+                "explorer Sol -> Sagittarius A* (no white dwarfs)",
+                |g| without_white_dwarfs(explorer(g, "Sol", "Sagittarius A*")),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 67, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 67, max_flat_seconds: Some(4_860) },
+                ],
+            ),
+            (
+                "explorer Sol -> Sagittarius A* (white dwarfs)",
+                |g| explorer(g, "Sol", "Sagittarius A*"),
+                &[
+                    // 66 under the jumps judge on both the 09-01 and 09-07
+                    // indexes; the default judge takes 67 jumps with 5 stops
+                    // over 66 with 6 (4,620 s against 4,680 s).
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 66, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 67, max_flat_seconds: Some(4_620) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Maia",
+                |g| explorer(g, "Wongi", "Maia"),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 3, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 3, max_flat_seconds: Some(300) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia, thorough (no white dwarfs, grace 1 s, budget 120 s)",
+                |g| RouteRequest { thorough: true, grace_ms: 1_000, time_budget_ms: 120_000, ..without_white_dwarfs(explorer(g, "Wongi", "Colonia")) },
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 58, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 58, max_flat_seconds: Some(4_200) },
                 ],
             ),
         ];
@@ -4961,29 +5012,29 @@ mod tests {
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_sol_to_sagittarius_a_with_white_dwarfs_is_at_most_66_jumps_in_under_five_seconds() {
+    fn full_sol_to_sagittarius_a_with_white_dwarfs_is_at_most_67_jumps_in_under_five_seconds() {
         // The clearest white-dwarf win: 69 -> 66 jumps, 7 -> 3 refuels.
         let Some((g, neutrons)) = full_index() else { return };
         let r = explorer(&g, "Sol", "Sagittarius A*");
-        full_pin(&g, &neutrons, &r, "Sol -> Sagittarius A* (white dwarfs)", 66, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Sol -> Sagittarius A* (white dwarfs)", 67, std::time::Duration::from_secs(5));
     }
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_mandalay_wongi_to_colonia_is_at_most_93_jumps_in_under_five_seconds() {
+    fn full_mandalay_wongi_to_colonia_is_at_most_95_jumps_in_under_five_seconds() {
         let Some((g, neutrons)) = full_index() else { return };
         let r = without_white_dwarfs(mandalay_request(&g, "Wongi", "Colonia"));
-        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia", 93, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia", 95, std::time::Duration::from_secs(5));
     }
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_mandalay_wongi_to_colonia_with_white_dwarfs_is_at_most_94_jumps_in_under_five_seconds() {
+    fn full_mandalay_wongi_to_colonia_with_white_dwarfs_is_at_most_96_jumps_in_under_five_seconds() {
         // 93 without, 94 with: weighted-A* jitter on a larger coarse graph,
         // pinned so it cannot drift further.
         let Some((g, neutrons)) = full_index() else { return };
         let r = mandalay_request(&g, "Wongi", "Colonia");
-        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia (white dwarfs)", 94, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia (white dwarfs)", 96, std::time::Duration::from_secs(5));
     }
 
     #[test]

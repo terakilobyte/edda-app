@@ -1,0 +1,29 @@
+# 2026-09-10 pins per judge (maintainer: "we need pins for the various settings. minimize jumps, minimize time, etc.")
+# Index: galaxy-95957318 (the 2026-09-07 build, EDGX v3) + its boost250 sub-index; machine: Ryzen 9 5900X, native
+# Windows, release, planner at main f277d0c (pins/per-judge 11286a0 for the table). One row per route x judge.
+# Judges: fewest_jumps = stop_weight 0 (Try harder; flying time alone); flat_public = stop_weight 1, t_jump 60 s,
+# stop_overhead 120 s (the public server's explicit defaults). flat_s = 60*jumps + 120*stops.
+# VERDICT: the three "failing" full pins were judge-shaped, not planner or data regressions. Item 42 (2026-09-03)
+# moved the default judge to the flat model; under it Mandalay Wongi->Colonia is 95 jumps / 23 stops (8,460 s)
+# where the old pin's 93 / 26 costs 8,700 s; the jumps judge still gives 93. Same for the WD variant (94 vs 96)
+# and Sol->Sgr A* + WD (66 under jumps on both the 09-01 and 09-07 indexes; 67 / 5 stops under flat = 4,620 s vs
+# 66 / 6 = 4,680 s). The index diff 09-01 -> 09-07 (spike diff-index): 1 neutron reclassified black hole 12 kly
+# from any pin, 12 scoop-flag changes, +12,622 boost stars; nothing lost. Time caps: explorer Wongi->Colonia
+# default hit 5.06 s once on this machine against a 5 s cap — marginal, not a regression.
+route,judge,jumps,boosted,stops,flat_s,wall_s
+Mandalay Wongi->Colonia (no WD),fewest_jumps,93,83,26,8700,1.78
+Mandalay Wongi->Colonia (no WD),flat_public,95,86,23,8460,1.40
+Mandalay Wongi->Colonia (WD),fewest_jumps,94,84,25,8640,1.24
+Mandalay Wongi->Colonia (WD),flat_public,96,87,23,8520,1.32
+explorer Wongi->Colonia (no WD),fewest_jumps,58,55,8,4440,4.62
+explorer Wongi->Colonia (no WD),flat_public,58,55,6,4200,5.06
+explorer Wongi->Colonia (WD),fewest_jumps,57,56,6,4140,2.24
+explorer Wongi->Colonia (WD),flat_public,57,56,5,4020,2.22
+explorer Sol->Sagittarius A* (no WD),fewest_jumps,67,64,7,4860,2.69
+explorer Sol->Sagittarius A* (no WD),flat_public,67,64,7,4860,2.68
+explorer Sol->Sagittarius A* (WD),fewest_jumps,66,65,6,4680,2.38
+explorer Sol->Sagittarius A* (WD),flat_public,67,66,5,4620,2.21
+explorer Wongi->Maia,fewest_jumps,3,2,1,300,0.87
+explorer Wongi->Maia,flat_public,3,2,1,300,0.84
+explorer Wongi->Colonia thorough (no WD; grace 1 s; budget 120 s),fewest_jumps,58,55,6,4200,1.03
+explorer Wongi->Colonia thorough (no WD; grace 1 s; budget 120 s),flat_public,58,55,6,4200,1.21
