@@ -4825,6 +4825,152 @@ mod tests {
         route
     }
 
+    /// What "best" means is the judge's, not the planner's (maintainer,
+    /// 2026-09-10: "we need pins for the various settings. minimize
+    /// jumps, minimize time, etc."). A pin that asserts a jump count under
+    /// the default judge measures the judge as much as the planner: item 42
+    /// (2026-09-03, the flat public model of 60 s a jump and 120 s a stop)
+    /// turned the Mandalay Wongi -> Colonia plan from 93 jumps / 26 stops
+    /// into 95 / 23, four minutes faster by the contract, and the jump pin
+    /// went stale unnoticed because the full-index pins only run by hand.
+    /// So a route is pinned once per judge, each number owned by the one
+    /// thing that can move it: jumps under the fewest-jumps preset (the
+    /// planner's), seconds under the flat model in default mode (the
+    /// judge's).
+    #[derive(Clone, Copy)]
+    enum Judge {
+        /// `stop_weight` 0: flying time alone, absolute fewest jumps — the
+        /// Try-harder preset.
+        FewestJumps,
+        /// The public server's defaults: the flat model, 60 s a jump and
+        /// 120 s a stop, passed explicitly as the website does.
+        FlatPublic,
+    }
+
+    fn judged(r: RouteRequest, judge: Judge) -> RouteRequest {
+        match judge {
+            Judge::FewestJumps => RouteRequest { stop_weight: 0.0, ..r },
+            Judge::FlatPublic => RouteRequest { stop_weight: 1.0, t_jump_s: Some(60.0), stop_overhead_s: Some(120.0), ..r },
+        }
+    }
+
+    /// Seconds a plan costs under the flat public model: the number the
+    /// default judge minimises, so the number its pin asserts.
+    fn flat_seconds(route: &Route) -> u32 {
+        route.jumps as u32 * 60 + route.refuel_stops as u32 * 120
+    }
+
+    struct JudgePin {
+        label: &'static str,
+        judge: Judge,
+        max_jumps: usize,
+        /// Asserted only under FlatPublic; None where the seconds are not
+        /// yet measured on the index the pins run on.
+        max_flat_seconds: Option<u32>,
+    }
+
+    /// Every full-index pin, once per judge. Values measured on the PC's
+    /// galaxy-95957318 (2026-09-07 build) at main, 2026-09-10; the
+    /// fewest-jumps values are the pre-item-42 answers. A row's numbers
+    /// are re-measured, not argued, when they move; the index id travels
+    /// with them in docs/benches.
+    #[test]
+    #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
+    fn full_pins_hold_under_every_judge() {
+        let Some((g, neutrons)) = full_index() else { return };
+        let routes: [(&str, fn(&Galaxy) -> RouteRequest, &[JudgePin]); 8] = [
+            (
+                "Mandalay Wongi -> Colonia (no white dwarfs)",
+                |g| without_white_dwarfs(mandalay_request(g, "Wongi", "Colonia")),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 93, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 95, max_flat_seconds: Some(8_460) },
+                ],
+            ),
+            (
+                "Mandalay Wongi -> Colonia (white dwarfs)",
+                |g| mandalay_request(g, "Wongi", "Colonia"),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 94, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 96, max_flat_seconds: Some(8_520) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia (no white dwarfs)",
+                |g| without_white_dwarfs(explorer(g, "Wongi", "Colonia")),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 58, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 58, max_flat_seconds: Some(4_200) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia (white dwarfs)",
+                |g| explorer(g, "Wongi", "Colonia"),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 57, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 57, max_flat_seconds: Some(4_020) },
+                ],
+            ),
+            (
+                "explorer Sol -> Sagittarius A* (no white dwarfs)",
+                |g| without_white_dwarfs(explorer(g, "Sol", "Sagittarius A*")),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 67, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 67, max_flat_seconds: Some(4_860) },
+                ],
+            ),
+            (
+                "explorer Sol -> Sagittarius A* (white dwarfs)",
+                |g| explorer(g, "Sol", "Sagittarius A*"),
+                &[
+                    // 66 under the jumps judge on both the 09-01 and 09-07
+                    // indexes; the default judge takes 67 jumps with 5 stops
+                    // over 66 with 6 (4,620 s against 4,680 s).
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 66, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 67, max_flat_seconds: Some(4_620) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Maia",
+                |g| explorer(g, "Wongi", "Maia"),
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 3, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 3, max_flat_seconds: Some(300) },
+                ],
+            ),
+            (
+                "explorer Wongi -> Colonia, thorough (no white dwarfs, grace 1 s, budget 120 s)",
+                |g| RouteRequest { thorough: true, grace_ms: 1_000, time_budget_ms: 120_000, ..without_white_dwarfs(explorer(g, "Wongi", "Colonia")) },
+                &[
+                    JudgePin { label: "fewest jumps", judge: Judge::FewestJumps, max_jumps: 58, max_flat_seconds: None },
+                    JudgePin { label: "flat public", judge: Judge::FlatPublic, max_jumps: 58, max_flat_seconds: Some(4_200) },
+                ],
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (route_label, request, pins) in routes {
+            for pin in pins {
+                let r = judged(request(&g), pin.judge);
+                let started = std::time::Instant::now();
+                let route = plan_best(&g, Some(&neutrons), &r, &Control::none()).unwrap();
+                let took = started.elapsed();
+                assert_contiguous(&route, &r);
+                assert_fuel_consistent(&route, r.fuel.as_ref().unwrap(), &r.boost, r.start_fuel);
+                let secs = flat_seconds(&route);
+                eprintln!("{route_label} / {}: {} jumps, {} boosted, {} stops, {secs} flat-s, {took:?}", pin.label, route.jumps, route.boosted_jumps, route.refuel_stops);
+                if route.jumps > pin.max_jumps {
+                    failures.push(format!("{route_label} / {}: {} jumps > {}", pin.label, route.jumps, pin.max_jumps));
+                }
+                if let Some(max) = pin.max_flat_seconds {
+                    if secs > max {
+                        failures.push(format!("{route_label} / {}: {secs} flat-s > {max}", pin.label));
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "pins moved:\n{}", failures.join("\n"));
+    }
+
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
     fn full_wongi_to_colonia_is_at_most_58_jumps_in_under_five_seconds() {
@@ -4866,29 +5012,29 @@ mod tests {
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_sol_to_sagittarius_a_with_white_dwarfs_is_at_most_66_jumps_in_under_five_seconds() {
+    fn full_sol_to_sagittarius_a_with_white_dwarfs_is_at_most_67_jumps_in_under_five_seconds() {
         // The clearest white-dwarf win: 69 -> 66 jumps, 7 -> 3 refuels.
         let Some((g, neutrons)) = full_index() else { return };
         let r = explorer(&g, "Sol", "Sagittarius A*");
-        full_pin(&g, &neutrons, &r, "Sol -> Sagittarius A* (white dwarfs)", 66, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Sol -> Sagittarius A* (white dwarfs)", 67, std::time::Duration::from_secs(5));
     }
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_mandalay_wongi_to_colonia_is_at_most_93_jumps_in_under_five_seconds() {
+    fn full_mandalay_wongi_to_colonia_is_at_most_95_jumps_in_under_five_seconds() {
         let Some((g, neutrons)) = full_index() else { return };
         let r = without_white_dwarfs(mandalay_request(&g, "Wongi", "Colonia"));
-        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia", 93, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia", 95, std::time::Duration::from_secs(5));
     }
 
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
-    fn full_mandalay_wongi_to_colonia_with_white_dwarfs_is_at_most_94_jumps_in_under_five_seconds() {
+    fn full_mandalay_wongi_to_colonia_with_white_dwarfs_is_at_most_96_jumps_in_under_five_seconds() {
         // 93 without, 94 with: weighted-A* jitter on a larger coarse graph,
         // pinned so it cannot drift further.
         let Some((g, neutrons)) = full_index() else { return };
         let r = mandalay_request(&g, "Wongi", "Colonia");
-        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia (white dwarfs)", 94, std::time::Duration::from_secs(5));
+        full_pin(&g, &neutrons, &r, "Mandalay Wongi -> Colonia (white dwarfs)", 96, std::time::Duration::from_secs(5));
     }
 
     #[test]
