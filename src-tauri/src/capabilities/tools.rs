@@ -26,7 +26,8 @@ pub static REGISTRY: &[ToolSpec] = &[
     ToolSpec { name: "set_pips", description: "Set the power distributor to an exact split: systems / engines / weapons pips adding up to 6, each at most 4 (halves allowed). Works out the button presses itself (reset, then the shortest sequence) and reports what was reached. Use this for ANY pips order ('full pips to systems' = 4/1/1; 'four to systems, rest to engines' = 4/2/0; 'balanced' = 2/2/2); do not use game_control for pips. Needs the game window focused.", schema: set_pips_schema, run: set_pips },
     ToolSpec { name: "follow_route", description: "The route the commander is following in the game (plotted here or imported from Spansh) and actions on it. action=status: jumps left, next system, scoop/boost notes. action=target_next: put the next system into the game's galaxy map (key macro; the game window must be focused). action=skip: mark the next hop as done without jumping. action=stop: stop following. Use for spoken orders like 'target the next system', 'what's next', 'how many jumps left'. If nothing is being followed here but the game has its own plotted route (current_route), 'target next' means game_control target_next_route; if neither, say there is no route.", schema: follow_route_schema, run: follow_route },
     ToolSpec { name: "material_sources", description: "Where to collect one material: community-known farm sites (crash sites, crystal shards, Dav's Hope, HGE guidance) and, first-hand, every place the commander has actually picked it up before from their journal — with distance from the current system. Use for anything still short after material_shopping_list; offer plot_route to the chosen site.", schema: material_sources_schema, run: material_sources },
-    ToolSpec { name: "ship_modules", description: "The commander's current ship modules from the latest Loadout, engineered ones first: slot, item, module type and blueprint resolved to the same names get_engineering_gap uses, current grade, quality, engineer, experimental effect. Use this to plan from the REAL current grade (pass it as from_grade) instead of from zero, and to see what is already applied. First-hand.", schema: no_args, run: ship_modules },
+    ToolSpec { name: "ship_modules", description: "One ship's full build from its latest Loadout (the same data as the Ships tab), engineered modules first: slot, outfitting names ('Fuel Scoop 7A'), module type and blueprint resolved to the names get_engineering_gap uses, grade, quality, engineer, experimental effect. Without ship_id it is the ship being flown; pass ship_id from list_ships for ANY owned ship, stored or aboard a carrier. Use it to plan from the REAL current grade (pass it as from_grade) and to see what is fitted. To find WHICH ship carries a module, use find_module instead. First-hand.", schema: ship_modules_schema, run: ship_modules },
+    ToolSpec { name: "find_module", description: "Which of the commander's ships carry a module: searches every owned ship's latest Loadout (stored ships and ships aboard carriers included, not just the one being flown) for a module whose name contains the query -- 'wake scanner', 'fuel scoop', '7A fuel scoop', 'guardian fsd booster', 'AFMU', 'SRV hangar', 'shield cell'. Returns each matching ship with its name, ident, whether it is the one being flown, WHERE it is (from list_ships), and the matching modules with slot, outfitting name and grade. Use for 'which ship has X', 'do I own a Y', 'is there a Z on the Kestrel'. First-hand.", schema: find_module_schema, run: find_module },
     ToolSpec { name: "synthesis_recipes", description: "Synthesis recipes (ammo, AFM refill, heat sinks, chaff, life support, limpets, SRV refuel/repair/ammo, FSD injection, AX and Guardian munitions) with every grade's material costs and bonus, from the vendored wiki table, diffed against the commander's live materials so each grade says how many can be made now. Pass name for one recipe (\"FSD Injection\", \"heat sink\"), omit it for the whole list of names. Tech-broker modules (Guardian and Human/anti-xeno items) are blueprints: list_blueprints with module_type \"Guardian\" or \"Human\".", schema: engineer_unlocks_schema, run: synthesis_recipes },
     ToolSpec { name: "engineer_unlocks", description: "How to meet and unlock engineers: home system and base, the invite condition, the unlock task (item and quantity), rank-up hint, and where to get the items -- vendored from the Wanderer's Toolbox step-by-step guide (source URL and fetch date included), merged with the commander's OWN unlock status from the journal so already-unlocked engineers are marked. Pass a name for one engineer, or nothing for all twenty in the guide's recommended order.", schema: engineer_unlocks_schema, run: engineer_unlocks },
     ToolSpec { name: "list_blueprints", description: "Blueprint names available for a module type, from the vendored EDEngineer dataset. Use this to discover what options exist before checking access or cost. Module types include the tech-broker catalogues: \"Guardian\" (Gauss cannons, plasma chargers, shard cannons, FSD booster, hull/module/shield reinforcements, fighters) and \"Human\" (AX and anti-xeno kit: shock cannons, enzyme and flechette racks, Sirius AX racks, meta-alloy hull, engineered FSD V1) — their material costs come from get_engineering_gap like any blueprint.", schema: list_blueprints_schema, run: list_blueprints },
@@ -318,43 +319,133 @@ fn commander_ranks(ctx: &Ctx, _: &Value) -> CapResult<Value> {
     Ok(json!({ "ranks": v, "provenance": "journal", "note": "progress is percent toward the next rank as the game reports it; the underlying point curve is not exposed" }))
 }
 
-fn ship_modules(ctx: &Ctx, _: &Value) -> CapResult<Value> {
-    // Same resolution as the Engineering tab, via the command's logic.
-    let raw = ctx.state.with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout").ok().flatten());
-    let v = raw
-        .and_then(|r| serde_json::from_str::<Value>(&r).ok())
-        .ok_or_else(|| CapError::not_found("no Loadout in the journal yet").hint("the game writes one on load; ask the commander to check the game is running"))?;
-    let mods: Vec<Value> = v
-        .get("Modules")
-        .and_then(Value::as_array)
-        .map(|ms| {
-            ms.iter()
-                .filter_map(|m| {
-                    let item = m.get("Item")?.as_str()?.to_string();
-                    let mt = ed_engineering::journal::module_type_for_item(&item);
-                    let eng = m.get("Engineering");
-                    let sym = eng.and_then(|e| e.get("BlueprintName")).and_then(Value::as_str);
-                    let bp = match (sym, mt) {
-                        (Some(s), Some(t)) => ed_engineering::journal::blueprint_for_symbol(s, t),
-                        _ => None,
-                    };
-                    Some(json!({
-                        "slot": m.get("Slot"), "item": item, "module_type": mt,
-                        "blueprint_symbol": sym, "blueprint": bp,
-                        "grade": eng.and_then(|e| e.get("Level")),
-                        "quality": eng.and_then(|e| e.get("Quality")),
-                        "engineer": eng.and_then(|e| e.get("Engineer")),
-                        "experimental": eng.and_then(|e| e.get("ExperimentalEffect_Localised")),
-                    }))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+fn ship_modules_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "ship_id": { "type": "integer", "description": "ship_id from list_ships; omit for the ship being flown" }
+        }
+    })
+}
+
+fn ship_modules(ctx: &Ctx, input: &Value) -> CapResult<Value> {
+    // The Ships tab's own read (commands::ship_loadout): any owned ship by
+    // id, the flown one without.
+    let ship_id = input.get("ship_id").and_then(Value::as_i64);
+    let build = crate::commands::ship_loadout(ctx.state, ship_id).map_err(|e| {
+        if ship_id.is_some() {
+            CapError::not_found(e).hint("ship_id comes from list_ships; a ship never flown since the journal began has no Loadout")
+        } else {
+            CapError::not_found(e).hint("the game writes one on load; ask the commander to check the game is running")
+        }
+    })?;
+    let mut v = serde_json::to_value(&build).unwrap_or_default();
+    if let Value::Object(map) = &mut v {
+        map.insert("ship_id".into(), json!(ship_id));
+        map.insert("provenance".into(), json!("journal"));
+        map.insert("note".into(), json!("module_type/blueprint are null when the mapping is unknown; plan from grade with from_grade. item_name is the outfitting name."));
+    }
+    Ok(v)
+}
+
+fn find_module_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "query": { "type": "string", "description": "part of a module's name: 'wake scanner', '7A fuel scoop', 'guardian fsd booster', 'AFMU'" },
+            "include_historical": { "type": "boolean", "description": "also search ships no longer owned (default false)" }
+        },
+        "required": ["query"]
+    })
+}
+
+/// Every word of `query` appears somewhere in the module's names (slot,
+/// outfitting item name, journal item symbol, module type), compared
+/// with case and punctuation flattened, so 'wake scanner' finds
+/// 'Frame Shift Wake Scanner 0B' and 'afmu' finds the
+/// 'Auto Field-Maintenance Unit' via its int_repairer symbol alias.
+pub fn module_matches(query: &str, haystacks: &[&str]) -> bool {
+    fn flat(s: &str) -> String {
+        s.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { ' ' }).collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+    let words: Vec<String> = flat(query).split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect();
+    if words.is_empty() {
+        return false;
+    }
+    let hay = format!(" {} ", haystacks.iter().map(|h| flat(h)).collect::<Vec<_>>().join(" "));
+    words.iter().all(|w| {
+        let w = match w.as_str() {
+            "afmu" | "afm" => "auto field maintenance",
+            "fsd" => "frame shift drive",
+            "srv" => "planetary vehicle hangar",
+            "scb" => "shield cell bank",
+            "hrp" => "hull reinforcement",
+            "mrp" => "module reinforcement",
+            other => other,
+        };
+        hay.contains(w)
+    })
+}
+
+fn find_module(ctx: &Ctx, input: &Value) -> CapResult<Value> {
+    let query = input.get("query").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| CapError::invalid("query is required"))?;
+    let include_historical = input.get("include_historical").and_then(Value::as_bool).unwrap_or(false);
+    let ships = commander::ships_list(ctx.state, &commander::ShipsListRequest { include_historical })?;
+    let mut hits = Vec::new();
+    let mut searched = 0usize;
+    let mut unreadable = Vec::new();
+    for ship in &ships {
+        let build = match crate::commands::ship_loadout(ctx.state, Some(ship.ship_id)) {
+            Ok(b) => b,
+            Err(_) => {
+                unreadable.push(ship.ship_name.clone().unwrap_or_else(|| ship.ship.clone()));
+                continue;
+            }
+        };
+        searched += 1;
+        let matches: Vec<Value> = build
+            .modules
+            .iter()
+            .filter(|m| module_matches(query, &[&m.slot_name, &m.item_name, &m.item, m.module_type.as_deref().unwrap_or("")]))
+            .map(|m| json!({ "slot": m.slot_name, "item": m.item_name, "grade": m.grade, "blueprint": m.blueprint, "experimental": m.experimental }))
+            .collect();
+        if !matches.is_empty() {
+            hits.push(json!({
+                "ship_id": ship.ship_id, "ship": ship.ship, "ship_name": ship.ship_name, "ident": ship.ident,
+                "with_you": ship.current, "historical": ship.historical, "location": ship.location,
+                "modules": matches,
+            }));
+        }
+    }
     Ok(json!({
-        "ship": v.get("Ship").and_then(Value::as_str).map(|t| ed_journal::ships::display_name_or(t, v.get("Ship_Localised").and_then(Value::as_str))),
-        "ship_name": v.get("ShipName"), "modules": mods, "provenance": "journal",
-        "note": "module_type/blueprint are null when the mapping is unknown; plan from grade with from_grade"
+        "query": query, "ships_searched": searched, "ships_with_module": hits.len(), "ships": hits,
+        "ships_without_a_loadout": unreadable,
+        "note": if hits.is_empty() { "no owned ship carries a module matching every word of the query; try fewer or different words ('scanner' instead of 'wake scanner'), and remember a ship never flown since the journal began has no Loadout to search" } else { "every owned ship with a stored Loadout was searched; locations are journal-derived as in list_ships" },
+        "provenance": "journal",
     }))
+}
+
+#[cfg(test)]
+mod find_module_tests {
+    use super::module_matches;
+    /// The 2026-09-10 question: 'wake scanner' must find the Frame Shift
+    /// Wake Scanner by its outfitting name; abbreviations expand; every
+    /// word has to hit, so 'wake scoop' finds nothing.
+    #[test]
+    fn a_module_is_found_by_any_words_of_its_names() {
+        let wake = ["Utility Mount 1", "Frame Shift Wake Scanner 0B", "hpt_cloudscanner_size0_class2", ""];
+        assert!(module_matches("wake scanner", &wake));
+        assert!(module_matches("Wake Scanner", &wake));
+        assert!(module_matches("cloudscanner", &wake));
+        assert!(!module_matches("wake scoop", &wake));
+        assert!(!module_matches("   ", &wake));
+        let afmu = ["Optional 5 (size 3)", "Auto Field-Maintenance Unit 3A", "int_repairer_size3_class5", ""];
+        assert!(module_matches("AFMU", &afmu));
+        assert!(module_matches("field maintenance", &afmu));
+        let scoop = ["Optional 7 (size 7)", "Fuel Scoop 7A", "int_fuelscoop_size7_class5", "Fuel Scoop"];
+        assert!(module_matches("7a fuel scoop", &scoop));
+        assert!(!module_matches("6a fuel scoop", &scoop));
+    }
 }
 
 // ── Engineering ───────────────────────────────────────────────────────
