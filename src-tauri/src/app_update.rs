@@ -78,7 +78,7 @@ async fn check_inner(app: &AppHandle) -> Result<UpdateCheck, String> {
     let url = endpoint(&state);
     let current = app.package_info().version.to_string();
     let started = std::time::Instant::now();
-    tracing::info!(%url, %current, "app update check: starting");
+    tracing::debug!(%url, %current, "app update check: starting");
     let updater = app
         .updater_builder()
         .endpoints(vec![url.parse().map_err(|e| format!("bad update endpoint {url}: {e}"))?])
@@ -98,7 +98,7 @@ async fn check_inner(app: &AppHandle) -> Result<UpdateCheck, String> {
             return Err(format!("update check timed out after {} s reaching {url}", CHECK_TIMEOUT.as_secs()));
         }
     };
-    tracing::info!(
+    tracing::debug!(
         ms = started.elapsed().as_millis() as u64,
         available = found.as_ref().map(|u| u.version.as_str()).unwrap_or("none"),
         "app update check: done"
@@ -231,6 +231,10 @@ pub fn spawn_update_watch(app: AppHandle) {
         // He reported "no update yet" and was exactly right — nothing
         // had looked. The check is one small bounded request; there is
         // no reason to make a commander wait for it.
+        // The five-minute beat logs at INFO only when the answer changes:
+        // 27 "available 0.3.1" lines in two hours told the maintainer
+        // nothing the first one had not (2026-09-09).
+        let mut announced: Option<String> = None;
         loop {
             let auto = app
                 .state::<AppState>()
@@ -242,7 +246,12 @@ pub fn spawn_update_watch(app: AppHandle) {
                 match check_inner(&app).await {
                     Ok(check) => match &check.available {
                         Some(version) => {
-                            tracing::info!(%version, "app update available");
+                            if announced.as_deref() != Some(version.as_str()) {
+                                tracing::info!(%version, "app update available");
+                                announced = Some(version.clone());
+                            } else {
+                                tracing::debug!(%version, "app update still available");
+                            }
                             let _ = app.emit(
                                 APP_UPDATE_EVENT,
                                 serde_json::json!({"phase": "available", "version": version}),
@@ -252,7 +261,10 @@ pub fn spawn_update_watch(app: AppHandle) {
                         // to cover three different states — checked and
                         // up to date, checked and errored, never ran —
                         // and "no update yet" could be any of them.
-                        None => tracing::info!(current = %check.current, "app update check: already current"),
+                        None => {
+                            announced = None;
+                            tracing::debug!(current = %check.current, "app update check: already current");
+                        }
                     },
                     // WARN, not debug: a release build filters debug out,
                     // so a check that failed every time looked exactly
