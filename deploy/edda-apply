@@ -26,6 +26,13 @@ case "$verb" in
         [[ -s "$src" ]] || { echo "edda-apply api: $src is missing or empty" >&2; exit 1; }
         install -o root -g root -m 755 "$src" /usr/local/bin/ed-api.new
         mv -f /usr/local/bin/ed-api.new /usr/local/bin/ed-api
+        # Both units run this binary. The feed first: it is back in
+        # seconds and the API's restart below is the longer of the two;
+        # the gap it leaves is the roadmap's "ingest unit restart gap"
+        # measurement (edda_eddn_last_apply_unix_seconds).
+        t_eddn=$(date +%s)
+        systemctl restart edda-eddn.service
+        echo "edda-eddn restarted in $(( $(date +%s) - t_eddn )) s"
         systemctl restart edda-api.service
         for i in $(seq 1 60); do
             if curl -sf --max-time 2 http://127.0.0.1:8787/readyz >/dev/null; then
