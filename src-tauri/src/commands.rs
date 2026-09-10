@@ -792,7 +792,17 @@ pub async fn ship_modules(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
 ) -> Result<ShipLoadout, String> {
-    let raw = loadout_raw(&state, ship_id)?;
+    ship_loadout(state.inner(), ship_id)
+}
+
+/// The Ships tab's build for one ship: the latest Loadout for `ship_id`
+/// (any owned ship, not only the one being flown), or the newest Loadout
+/// of all when `ship_id` is None. Shared with the ship computer's tools
+/// (maintainer, 2026-09-10: "which of my ships has a wake scanner" was
+/// answered with "I can only see the active ship" while the Ships tab
+/// showed every build).
+pub fn ship_loadout(state: &AppState, ship_id: Option<i64>) -> Result<ShipLoadout, String> {
+    let raw = loadout_raw(state, ship_id)?;
     let v: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     let mut out: Vec<ShipModule> = v
         .get("Modules")
