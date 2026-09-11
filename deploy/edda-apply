@@ -90,15 +90,14 @@ case "$verb" in
         # filesystem), so the 11 GB is not copied twice. The service's
         # environment comes from the same file systemd reads
         # (EnvironmentFile=/etc/edda/api.env), one KEY=value per line,
-        # exported inside the child shell so DATABASE_URL never appears
-        # on a command line (ps) — a single quoted "$(...)" once glued
-        # the whole file into one DATABASE_URL and the adopt failed to
-        # connect (2026-09-11; nothing was touched).
-        sudo -u edda bash -c '
-            while IFS= read -r line; do
-                [[ -z "$line" || "$line" == \#* ]] && continue
-                export "$line"
-            done < /etc/edda/api.env
+        # read here as root (the file is root-only, as systemd reads it)
+        # and piped into the edda shell, which exports each line, so
+        # DATABASE_URL never appears on a command line (ps) and the edda
+        # user never needs to read the file. A single quoted "$(...)"
+        # once glued the whole file into one DATABASE_URL and the adopt
+        # failed to connect (2026-09-11; nothing was touched).
+        grep -v '^#' /etc/edda/api.env | grep . | sudo -u edda bash -c '
+            while IFS= read -r line; do export "$line"; done
             exec /usr/local/bin/ed-api adopt-routing "$1"
         ' _ "$handoff"
         rm -rf "$handoff"
