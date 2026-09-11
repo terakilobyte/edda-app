@@ -1,0 +1,72 @@
+# 2026-09-11 secondary boost stars in the planner: the pins, both judges, at 0 / 5,000 / 10,000 ls
+# Index: D:\galos\index-boost-secondary (2026-08-30 dump imported with FLAG_BOOST_SECONDARY + boost.bin, 173,425
+# entries; boost250 sub-index 3,853,782 highway stars) on the PC (Ryzen 9 5900X, native, release), branch
+# index/boost-secondary 25e4935. Test: full_pins_secondary_boosts_measure. Judges as in 2026-09-10-pins-per-judge.csv.
+# Pre-registered: at most two jumps saved on any pin, usually zero.
+# HISTORY: the first run (rows marked run=1) was produced while the request switch reached only the exact search;
+# plan_best priced every departure on the arrival star alone, so it measured nothing — caught by the probe
+# (Sphoetz BQ-Y f127, a black hole with a neutron 3 ls out, departed unboosted at 10,000 ls). Fixed the same day
+# (boost_source at every departure, 98450c5) and RE-MEASURED (rows marked run=2): the 36 pin rows are identical
+# to run 1 — no pin takes a secondary boost — and the probe departure now boosts: 7 -> 6 jumps.
+# VERDICT (final, 2026-09-11): the pins never use it; the feature bites only on departure from a boost-secondary
+# system (7 -> 6 jumps, 60 flat-s saved) and there the supercruise run costs 150 s under the cost model, so under
+# the flat public judge the boosted departure is 90 s WORSE — and the judge does not yet price the run at all
+# (the flat judge took the 6-jump plan; supercruise_s is reported, not charged). BURIED for the product on these
+# numbers: no gain on any pin, a net time loss where it applies. The flag and boost.bin stay in the index; the
+# request switch stays 0. Comes back only with a judge that charges the run and a route class that shows a gain.
+# Probe rows (explorer, run 2): route,judge,secondary_ls,jumps,boosted,secondary_boosts,stops,flat_s,supercruise_s,wall_s
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,fewest_jumps,0,7,6,0,1,540,0,0.42
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,fewest_jumps,10000,6,6,1,1,480,150,0.39
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,flat_public,0,7,6,0,1,540,0,0.40
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,flat_public,10000,6,6,1,1,480,150,0.40
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,fewest_jumps,0,6,6,0,3,720,0,0.32
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,fewest_jumps,10000,6,6,0,3,720,0,0.31
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,flat_public,0,6,6,0,2,600,0,0.33
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,flat_public,10000,6,6,0,2,600,0,0.30
+#   (secondary_boosts on the two boosted rows read 0 in the run-2 output — the counter bug fixed in the same
+#   commit — and are recorded here as 1, which via_secondary and supercruise_s = 150 on those rows establish.)
+# The 36 pin rows below are run 2 (98450c5, identical to run 1). The planner took no secondary boost on any of the six pinned routes under either judge at
+# either distance: every jumps/boosted/stops/flat_s value is identical across 0 / 5,000 / 10,000 ls, and identical to
+# the same pins on galaxy-95957318 (the arrival classes are unchanged by design; full_pins_hold_under_every_judge
+# passes on the new index, all sixteen lines identical). On the neutron highway the arrival stars already are the
+# boost stars; the 60,811 secondaries within 10 kls sit elsewhere. The flag and boost.bin stay in the index (cheap,
+# and the file is where a later planner or the map reads the fact); planner use of secondaries is BURIED on this
+# measurement, to be re-measured only on routes that start or end in a boost-secondary system or cross a corridor
+# with no boost primary in range (one probe offered, not yet run).
+route,judge,secondary_ls,jumps,boosted,secondary_boosts,stops,flat_s,supercruise_s,wall_s
+Mandalay Wongi->Colonia (no WD),fewest_jumps,0,93,83,0,26,8700,0,1.47
+Mandalay Wongi->Colonia (no WD),fewest_jumps,5000,93,83,0,26,8700,0,1.46
+Mandalay Wongi->Colonia (no WD),fewest_jumps,10000,93,83,0,26,8700,0,1.65
+Mandalay Wongi->Colonia (no WD),flat_public,0,95,86,0,23,8460,0,1.52
+Mandalay Wongi->Colonia (no WD),flat_public,5000,95,86,0,23,8460,0,1.52
+Mandalay Wongi->Colonia (no WD),flat_public,10000,95,86,0,23,8460,0,1.58
+Mandalay Wongi->Colonia (WD),fewest_jumps,0,94,84,0,25,8640,0,1.24
+Mandalay Wongi->Colonia (WD),fewest_jumps,5000,94,84,0,25,8640,0,1.22
+Mandalay Wongi->Colonia (WD),fewest_jumps,10000,94,84,0,25,8640,0,1.18
+Mandalay Wongi->Colonia (WD),flat_public,0,96,87,0,23,8520,0,1.23
+Mandalay Wongi->Colonia (WD),flat_public,5000,96,87,0,23,8520,0,1.35
+Mandalay Wongi->Colonia (WD),flat_public,10000,96,87,0,23,8520,0,1.30
+explorer Wongi->Colonia (no WD),fewest_jumps,0,58,55,0,8,4440,0,4.64
+explorer Wongi->Colonia (no WD),fewest_jumps,5000,58,55,0,8,4440,0,4.48
+explorer Wongi->Colonia (no WD),fewest_jumps,10000,58,55,0,8,4440,0,4.62
+explorer Wongi->Colonia (no WD),flat_public,0,58,55,0,6,4200,0,4.66
+explorer Wongi->Colonia (no WD),flat_public,5000,58,55,0,6,4200,0,4.59
+explorer Wongi->Colonia (no WD),flat_public,10000,58,55,0,6,4200,0,4.60
+explorer Wongi->Colonia (WD),fewest_jumps,0,57,56,0,6,4140,0,2.18
+explorer Wongi->Colonia (WD),fewest_jumps,5000,57,56,0,6,4140,0,2.11
+explorer Wongi->Colonia (WD),fewest_jumps,10000,57,56,0,6,4140,0,2.07
+explorer Wongi->Colonia (WD),flat_public,0,57,56,0,5,4020,0,2.07
+explorer Wongi->Colonia (WD),flat_public,5000,57,56,0,5,4020,0,2.07
+explorer Wongi->Colonia (WD),flat_public,10000,57,56,0,5,4020,0,2.23
+explorer Sol->Sagittarius A* (no WD),fewest_jumps,0,67,64,0,7,4860,0,2.70
+explorer Sol->Sagittarius A* (no WD),fewest_jumps,5000,67,64,0,7,4860,0,3.90
+explorer Sol->Sagittarius A* (no WD),fewest_jumps,10000,67,64,0,7,4860,0,2.63
+explorer Sol->Sagittarius A* (no WD),flat_public,0,67,64,0,7,4860,0,2.64
+explorer Sol->Sagittarius A* (no WD),flat_public,5000,67,64,0,7,4860,0,3.71
+explorer Sol->Sagittarius A* (no WD),flat_public,10000,67,64,0,7,4860,0,2.65
+explorer Sol->Sagittarius A* (WD),fewest_jumps,0,66,65,0,6,4680,0,2.31
+explorer Sol->Sagittarius A* (WD),fewest_jumps,5000,66,65,0,6,4680,0,2.26
+explorer Sol->Sagittarius A* (WD),fewest_jumps,10000,66,65,0,6,4680,0,2.26
+explorer Sol->Sagittarius A* (WD),flat_public,0,67,66,0,5,4620,0,2.14
+explorer Sol->Sagittarius A* (WD),flat_public,5000,67,66,0,5,4620,0,2.23
+explorer Sol->Sagittarius A* (WD),flat_public,10000,67,66,0,5,4620,0,2.12

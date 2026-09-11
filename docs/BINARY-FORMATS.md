@@ -784,8 +784,12 @@ a rebase and never touched by an overlay. It names, for every record whose
 flag bit 2 is set, the boost star that is not the arrival star.
 
 Why it exists (2026-09-10, `docs/benches/2026-09-10-boost-secondary-scan.csv`):
-3,852,215 systems arrive at a neutron star or white dwarf and 127,246 hold
-one only as a secondary, 60,811 of them within 10,000 ls of arrival. The
+3,852,215 systems arrive at a neutron star or white dwarf; 127,246 hold one
+only as a secondary, 60,811 of them within 10,000 ls of arrival, and a further
+46,179 hold one beside a boost primary. The flag and the file carry all
+173,425 (measured on the 2026-08-30 dump): "not the arrival star" is the
+definition, and a white-dwarf primary with a neutron secondary in reach is
+the case that keeps the second group worth having. The
 record's class is the arrival star's and MUST stay so — a navroute hop's
 `StarClass` filed as the main star demoted true neutron primaries and
 promoted secondaries (PR #29) — so the secondary lives here, keyed by id64.
