@@ -33,7 +33,9 @@ use ed_sync::{ArtifactFile, Manifest, OverlayLink, Product, ProductKey};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::routing::{read_current_manifest, write_manifest, ROUTING_FILES, ROUTING_SCHEMA};
+use crate::routing::{
+    read_current_manifest, write_manifest, ROUTING_FILES, ROUTING_SCHEMA, ROUTING_SIDE_FILES,
+};
 
 /// A system the firehose knows by coordinates — an Add candidate.
 #[derive(Debug, Clone)]
@@ -256,6 +258,23 @@ pub fn publish_overlay(
     };
     let apply_seconds = apply_started.elapsed().as_secs_f64();
     metrics::histogram!("edda_reconcile_apply_seconds").record(apply_seconds);
+    // Side files (the secondary-boost table and any other sidecar) are
+    // not part of the overlay: carry them beside the applied index, or
+    // the prune of the old version discards them (2026-09-11: the first
+    // reconcile after an adopt left routing/164fcbd0 without boost.bin).
+    for name in ROUTING_SIDE_FILES {
+        let from = base_dir.join(name);
+        if from.is_file() {
+            let to = staging.join(name);
+            if std::fs::hard_link(&from, &to).is_err() {
+                if let Err(error) = std::fs::copy(&from, &to) {
+                    let _ = std::fs::remove_dir_all(&staging);
+                    let _ = std::fs::remove_file(&overlay_path);
+                    return Err(error).with_context(|| format!("carrying side file {name}"));
+                }
+            }
+        }
+    }
     tracing::info!(
         version,
         apply_seconds,
@@ -577,6 +596,21 @@ mod tests {
         );
         write_manifest(artifact_dir.path(), &manifest, "test").unwrap();
 
+        // A side file beside the base (the secondary-boost table) is not
+        // part of the overlay and must ride along to the next version, or
+        // the nightly prune of the old version silently discards it.
+        let side = base_dir.join(ed_galaxy::boost_side::BOOST_SIDE_FILE);
+        ed_galaxy::boost_side::write(
+            &side,
+            &mut vec![ed_galaxy::boost_side::SecondaryBoost {
+                id64: 3,
+                ls: 1234.5,
+                class: StarClass::Neutron.code(),
+            }],
+        )
+        .unwrap();
+        let side_bytes = std::fs::read(&side).unwrap();
+
         let base = Galaxy::open(&base_dir).unwrap();
         let taught = HashMap::from([(3u64, StarClass::Neutron.code())]);
         let candidates = vec![candidate(
@@ -592,6 +626,18 @@ mod tests {
                 .unwrap();
         assert_eq!((publication.diff.adds, publication.diff.updates), (1, 1));
         assert_eq!(publication.apply.systems, 4);
+        assert_eq!(
+            std::fs::read(
+                artifact_dir
+                    .path()
+                    .join("routing")
+                    .join("2")
+                    .join(ed_galaxy::boost_side::BOOST_SIDE_FILE)
+            )
+            .ok(),
+            Some(side_bytes),
+            "the side file is carried beside the published version"
+        );
 
         // The manifest: version 2 with a 1 -> 2 link, walkable by a client.
         let current = read_current_manifest(artifact_dir.path()).unwrap().unwrap();
