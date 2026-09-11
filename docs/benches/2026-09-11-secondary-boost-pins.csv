@@ -3,7 +3,11 @@
 # entries; boost250 sub-index 3,853,782 highway stars) on the PC (Ryzen 9 5900X, native, release), branch
 # index/boost-secondary 25e4935. Test: full_pins_secondary_boosts_measure. Judges as in 2026-09-10-pins-per-judge.csv.
 # Pre-registered: at most two jumps saved on any pin, usually zero.
-# VERDICT: exactly zero. The planner took no secondary boost on any of the six pinned routes under either judge at
+# WITHDRAWN 2026-09-11 (same day): the rows below were produced while the request switch reached only the exact
+# search (router::plan); plan_best — the pins' path — priced every departure on the arrival star alone, so these
+# rows measured nothing. Found by the probe: departing Sphoetz BQ-Y f127 (black hole, neutron at 3 ls) stayed
+# unboosted at 10,000 ls. Fixed (boost_source at every departure); re-measurement rows to follow in this file.
+# ORIGINAL VERDICT (void): exactly zero. The planner took no secondary boost on any of the six pinned routes under either judge at
 # either distance: every jumps/boosted/stops/flat_s value is identical across 0 / 5,000 / 10,000 ls, and identical to
 # the same pins on galaxy-95957318 (the arrival classes are unchanged by design; full_pins_hold_under_every_judge
 # passes on the new index, all sixteen lines identical). On the neutron highway the arrival stars already are the
