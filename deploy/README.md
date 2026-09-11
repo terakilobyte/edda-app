@@ -120,6 +120,15 @@ the deploy key:
 
 A rebase is a full re-download for clients on local data (the chain
 restarts), which is why it is rare and on the maintainer's word.
+
+The inbox is single-writer: rrsync holds a per-user lock for the whole
+transfer, so a second rsync from anyone — including a Deploy API or
+release run — fails immediately with "Another instance of rrsync is
+already accessing this directory" and nothing on the box changes
+(measured 2026-09-11: Deploy API failed at its rsync step during an
+11 GB routing push; the build job was green and the box was untouched).
+Push the index first, then run the deploy, or the other way round;
+never both at once.
 A server-only change ships without a tag: **Deploy API** in the Actions
 tab (`.github/workflows/deploy-api.yml`) builds `ed-api` from the ref
 you name and swaps it on the box through the deploy user's `apply api`,
@@ -175,7 +184,7 @@ CI logs in as user `deploy`, not root. The key's authorized_keys entry
 carries `restrict,command="/usr/local/bin/edda-deploy"`, so no matter
 what the runner asks for, the box runs `edda-deploy` and that script
 allows exactly: rsync INTO `/var/lib/edda-deploy/inbox` (rrsync,
-write-only), `apply api|app|site|dashboards` (sudo to root-owned
+write-only), `apply api|app|site|dashboards|routing` (sudo to root-owned
 `edda-apply`, each verb named exactly in `/etc/sudoers.d/edda-deploy`),
 and `status`. Everything else is refused and journaled
 (`journalctl -t edda-deploy`). A leaked key can therefore deploy
