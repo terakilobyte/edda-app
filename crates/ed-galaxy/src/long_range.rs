@@ -1462,6 +1462,10 @@ pub fn plan_best(g: &Galaxy, neutrons: Option<&Galaxy>, req: &RouteRequest, ctl:
         // HUD can say "fuel available, not needed" instead of "fuel here".
         crate::router::mark_optional_stops(m, &req.boost, req.injection.map(|(mult, _, _)| mult), &mut route, req.start_fuel);
     }
+    // Legs record the secondary on the hop; the route-level count is
+    // derived here so every path (exact search, legs, min-fuel rewrite)
+    // reports the same headline number.
+    route.secondary_boosts = route.hops.iter().filter(|h| h.via_secondary.is_some()).count();
     Ok(route)
 }
 
@@ -3816,7 +3820,7 @@ mod tests {
                 None => req.range_ly * boost,
             };
             assert!(d <= reach + 0.01, "{} -> {} is {d:.1} ly but reach is {reach:.1} (boost {boost})", a.name, b.name);
-            if b.boosted {
+            if b.boosted && b.via_secondary.is_none() {
                 assert!(a.class == StarClass::Neutron || a.class == StarClass::WhiteDwarf, "{} boosted a jump", a.name);
             }
             boosted += b.boosted as usize;
@@ -4935,7 +4939,8 @@ mod tests {
                     let took = started.elapsed();
                     assert_contiguous(&route, &r);
                     assert_fuel_consistent(&route, r.fuel.as_ref().unwrap(), &r.boost, r.start_fuel);
-                    let supercruise_s: f32 = route.hops.iter().filter_map(|h| h.via_secondary).map(|(_, ls)| 150.0 + 0.5 * ls / 1000.0).sum();
+                    // fold, not sum: f32::sum starts at -0.0 and prints "-0" for an empty route.
+                    let supercruise_s: f32 = route.hops.iter().filter_map(|h| h.via_secondary).map(|(_, ls)| 150.0 + 0.5 * ls / 1000.0).fold(0.0, |a, b| a + b);
                     let judge_name = match judge { Judge::FewestJumps => "fewest_jumps", Judge::FlatPublic => "flat_public" };
                     println!("{label},{judge_name},{allowed},{},{},{},{},{},{supercruise_s:.0},{:.2}", route.jumps, route.boosted_jumps, route.secondary_boosts, route.refuel_stops, flat_seconds(&route), took.as_secs_f64());
                 }
