@@ -105,6 +105,21 @@ notes.json, then latest.json LAST; website; dashboards) → verify from
 the outside (feed version, installer bytes, notes feed, readyz) →
 GitHub Release with the artifacts.
 
+A routing index built elsewhere (the PC imports the dump; the box does
+not hold it) ships as a rebase through the same deploy user: rsync the
+index directory — the four EDGX files plus `boost.bin` and any other
+side files — into the inbox as `routing/`, then `apply routing`. The box
+hands it to the edda user and `ed-api adopt-routing` validates it,
+chunks it, rewrites the manifest with a fresh overlay chain and prunes
+the old versions; the nightly reconcile then folds back every system
+and teaching Postgres holds that the base lacks. From a machine with
+the deploy key:
+
+    rsync -a --delete <index-dir>/ box:routing/
+    ssh box apply routing
+
+A rebase is a full re-download for clients on local data (the chain
+restarts), which is why it is rare and on the maintainer's word.
 A server-only change ships without a tag: **Deploy API** in the Actions
 tab (`.github/workflows/deploy-api.yml`) builds `ed-api` from the ref
 you name and swaps it on the box through the deploy user's `apply api`,
