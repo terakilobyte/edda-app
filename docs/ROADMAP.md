@@ -39,8 +39,9 @@ verdicts live in the CSV headers under `docs/benches/`.
   boosts.
 - **`apply api` must ship with its own script** (2026-09-11, measured).
   The 16:25 Deploy API ran the box's *old* `edda-apply`, which restarted
-  only the API; `edda-eddn` kept the Sep 9 binary until a manual restart
-  ~4 h later, and 180k more navroute star rows landed in between. The
+  only the API; `edda-eddn` kept the Sep 9 binary for another four
+  hours, and ~60k more navroute star rows landed in between (hourly
+  counts 8.7k, 19.7k, 21.5k, 8.6k, 3.4k up to 20:20 UTC). The
   deploy path does not carry `deploy/edda-apply`; the installer rerun is a
   separate manual step. Either the workflow refuses when the box's script
   hash differs from the ref's, or the box script is shipped and
