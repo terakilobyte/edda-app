@@ -117,14 +117,17 @@ re-argued.
   orders of magnitude and a galaxy in RAM; and no fuel, scoop or
   injection model. Their published 0.08 s described their 2.4 M-system
   database, not the galaxy.
-- **Secondary boost stars in the planner** (2026-09-11). First
-  measurement withdrawn the same day: the switch had reached only the
-  exact search, not the pins' path, so its 36 zero rows measured
-  nothing (`docs/benches/2026-09-11-secondary-boost-pins.csv`, header).
-  Fixed; being re-measured on the pins and on two probe routes that
-  leave a black-hole system with a neutron 3 ls out. Buried or kept on
-  those numbers, not before. The flag and `boost.bin` stay in the index
-  either way.
+- **Secondary boost stars in the planner** (2026-09-11). Measured
+  twice: the first run's switch never reached the pins' path and was
+  withdrawn; the second, with every departure priced by one helper,
+  gives the same answer on the pins (no route takes one) and shows the
+  feature working where it can: departing a black-hole system with a
+  neutron 3 ls out, 7 jumps become 6. Under the flat public model that
+  saves 60 s and costs a 150 s supercruise run, a net loss, and the judge
+  does not yet charge the run. Buried for the product on those numbers
+  (`docs/benches/2026-09-11-secondary-boost-pins.csv`); the flag and
+  `boost.bin` stay in the index; the request switch stays off. Back
+  only with a judge that charges the run and a route class that gains.
 - **Doubling the supercruise estimate** (2026-09-09). Proposed from a
   comparison against the 45 s base alone; the full curve already priced
   the measured loop long (174/234 s vs 98/139 s flown). Replaced by the

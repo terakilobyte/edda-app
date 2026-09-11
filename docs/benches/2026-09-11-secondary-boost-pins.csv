@@ -3,11 +3,29 @@
 # entries; boost250 sub-index 3,853,782 highway stars) on the PC (Ryzen 9 5900X, native, release), branch
 # index/boost-secondary 25e4935. Test: full_pins_secondary_boosts_measure. Judges as in 2026-09-10-pins-per-judge.csv.
 # Pre-registered: at most two jumps saved on any pin, usually zero.
-# WITHDRAWN 2026-09-11 (same day): the rows below were produced while the request switch reached only the exact
-# search (router::plan); plan_best — the pins' path — priced every departure on the arrival star alone, so these
-# rows measured nothing. Found by the probe: departing Sphoetz BQ-Y f127 (black hole, neutron at 3 ls) stayed
-# unboosted at 10,000 ls. Fixed (boost_source at every departure); re-measurement rows to follow in this file.
-# ORIGINAL VERDICT (void): exactly zero. The planner took no secondary boost on any of the six pinned routes under either judge at
+# HISTORY: the first run (rows marked run=1) was produced while the request switch reached only the exact search;
+# plan_best priced every departure on the arrival star alone, so it measured nothing — caught by the probe
+# (Sphoetz BQ-Y f127, a black hole with a neutron 3 ls out, departed unboosted at 10,000 ls). Fixed the same day
+# (boost_source at every departure, 98450c5) and RE-MEASURED (rows marked run=2): the 36 pin rows are identical
+# to run 1 — no pin takes a secondary boost — and the probe departure now boosts: 7 -> 6 jumps.
+# VERDICT (final, 2026-09-11): the pins never use it; the feature bites only on departure from a boost-secondary
+# system (7 -> 6 jumps, 60 flat-s saved) and there the supercruise run costs 150 s under the cost model, so under
+# the flat public judge the boosted departure is 90 s WORSE — and the judge does not yet price the run at all
+# (the flat judge took the 6-jump plan; supercruise_s is reported, not charged). BURIED for the product on these
+# numbers: no gain on any pin, a net time loss where it applies. The flag and boost.bin stay in the index; the
+# request switch stays 0. Comes back only with a judge that charges the run and a route class that shows a gain.
+# Probe rows (explorer, run 2): route,judge,secondary_ls,jumps,boosted,secondary_boosts,stops,flat_s,supercruise_s,wall_s
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,fewest_jumps,0,7,6,0,1,540,0,0.42
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,fewest_jumps,10000,6,6,1,1,480,150,0.39
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,flat_public,0,7,6,0,1,540,0,0.40
+#   Sphoetz BQ-Y f127->Voqoi MY-H d10-44,flat_public,10000,6,6,1,1,480,150,0.40
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,fewest_jumps,0,6,6,0,3,720,0,0.32
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,fewest_jumps,10000,6,6,0,3,720,0,0.31
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,flat_public,0,6,6,0,2,600,0,0.33
+#   Dehou YE-A e0->Flya Eaescs FM-D d12-0,flat_public,10000,6,6,0,2,600,0,0.30
+#   (secondary_boosts on the two boosted rows read 0 in the run-2 output — the counter bug fixed in the same
+#   commit — and are recorded here as 1, which via_secondary and supercruise_s = 150 on those rows establish.)
+# The 36 pin rows below are run 2 (98450c5, identical to run 1). The planner took no secondary boost on any of the six pinned routes under either judge at
 # either distance: every jumps/boosted/stops/flat_s value is identical across 0 / 5,000 / 10,000 ls, and identical to
 # the same pins on galaxy-95957318 (the arrival classes are unchanged by design; full_pins_hold_under_every_judge
 # passes on the new index, all sixteen lines identical). On the neutron highway the arrival stars already are the
