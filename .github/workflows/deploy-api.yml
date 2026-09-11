@@ -1,0 +1,83 @@
+# A server-only deploy: build ed-api from any ref and swap it on the box
+# through the restricted deploy user, nothing else. A tag still ships
+# everything (release.yml); this exists for the case where only the
+# server changed (maintainer, 2026-09-10: "currently I don't think CI
+# differentiates when 'is this server only' vs 'deploy it all!'").
+#
+# Runs only when triggered by hand; the production environment's rules
+# apply. `apply api` on the box restarts the ingest unit and then the API
+# (both run this binary), waits for readyz, and re-analyses the hot
+# tables; the box's own `edda-apply api: done in N s` line is the record.
+name: Deploy API
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build the server from
+        required: true
+        default: main
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  API_BASE: https://api.edda-app.com
+
+jobs:
+  build:
+    name: build (ed-api server, release)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    outputs:
+      commit: ${{ steps.fp.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: ed-api
+      - run: cargo build --release -p ed-api
+      - name: Fingerprint
+        id: fp
+        run: |
+          file target/release/ed-api
+          sha256sum target/release/ed-api
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ed-api
+          path: target/release/ed-api
+          if-no-files-found: error
+
+  deploy:
+    name: deploy (box, server only)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ed-api
+          path: artifacts/ed-api
+      - uses: ./.github/actions/box-ssh
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          host_key: ${{ vars.DEPLOY_HOST_KEY }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: ed-api → box (ingest + API restart, readyz, ANALYZE)
+        run: |
+          set -euo pipefail
+          echo "deploying ed-api built from ${{ needs.build.outputs.commit }} (ref ${{ inputs.ref }})"
+          rsync -a artifacts/ed-api/ed-api box:ed-api
+          ssh box apply api
+      - name: verify from the outside
+        run: |
+          set -euo pipefail
+          curl -fsS "$API_BASE/readyz" >/dev/null
+          curl -fsS "$API_BASE/healthz" >/dev/null
+          echo "server live: readyz and healthz answer"

@@ -105,6 +105,13 @@ notes.json, then latest.json LAST; website; dashboards) → verify from
 the outside (feed version, installer bytes, notes feed, readyz) →
 GitHub Release with the artifacts.
 
+A server-only change ships without a tag: **Deploy API** in the Actions
+tab (`.github/workflows/deploy-api.yml`) builds `ed-api` from the ref
+you name and swaps it on the box through the deploy user's `apply api`,
+which restarts the ingest unit and then the API, waits for readyz and
+re-analyses the hot tables. Nothing else moves. A tag still ships
+everything.
+
 To release: bump `version` in src-tauri/Cargo.toml, lead
 RELEASE-NOTES.md with a `## X.Y.Z` section (one-paragraph blurb first),
 commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`. Nothing else.
