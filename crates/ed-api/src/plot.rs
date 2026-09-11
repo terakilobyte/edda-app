@@ -269,6 +269,8 @@ pub fn resolve_endpoints(
         // server that knows no commander uses conservative fleet times.
         t_jump_s: Some(60.0),
         stop_overhead_s: Some(120.0),
+        // Product: secondaries are an experiment (ed-galaxy boost_side); off here.
+        secondary_boost_ls: 0.0,
     };
     Ok(Resolved { req, bridges: Bridges { from: from_bridge, to: to_bridge }, from_pos, to_pos })
 }

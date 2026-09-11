@@ -61,6 +61,9 @@ pub struct ImportStats {
     /// Systems with a scoopable companion star near the arrival point.
     #[serde(default)]
     pub scoop_companions: usize,
+    /// Systems whose neutron star or white dwarf is not the arrival star.
+    #[serde(default)]
+    pub boost_secondaries: usize,
     pub systems: u64,
     pub skipped_lines: u64,
     pub with_main_star: u64,
@@ -88,6 +91,9 @@ struct ParsedSystem {
     /// Distance to the nearest scoopable companion star within
     /// [`crate::format::SCOOP_COMPANION_LS`], if any.
     scoop_ls: Option<f64>,
+    /// The nearest neutron star or white dwarf that is not the arrival
+    /// star, with its distance from arrival (`boost.bin`).
+    boost_secondary: Option<(StarClass, f64)>,
 }
 
 enum ParsedLine {
@@ -132,6 +138,15 @@ fn parse_system_line(line: &str) -> ParsedLine {
         .filter_map(|b| b.distance_to_arrival)
         .filter(|ls| *ls <= crate::format::SCOOP_COMPANION_LS)
         .min_by(|a, b| a.total_cmp(b));
+    let boost_secondary = sys
+        .bodies
+        .iter()
+        .filter(|b| b.kind == Some("Star") && b.main_star != Some(true))
+        .filter_map(|b| {
+            let c = StarClass::from_subtype(b.sub_type?);
+            matches!(c, StarClass::Neutron | StarClass::WhiteDwarf).then_some((c, b.distance_to_arrival?))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1));
     ParsedLine::System(ParsedSystem {
         id64: sys.id64,
         name: sys.name.to_owned(),
@@ -143,6 +158,7 @@ fn parse_system_line(line: &str) -> ParsedLine {
         class,
         has_main: main.is_some(),
         scoop_ls,
+        boost_secondary,
     })
 }
 
@@ -192,6 +208,7 @@ pub fn import_reader(
 
     let mut pending: Vec<Pending> = Vec::new();
     let mut names: Vec<u8> = Vec::new();
+    let mut secondaries: Vec<crate::boost_side::SecondaryBoost> = Vec::new();
     // Keep enough work queued to occupy the parser pool without allowing a
     // fast download to turn into unbounded raw-JSON memory. Indexed parallel
     // iteration preserves source order, so record/name offsets remain
@@ -244,6 +261,10 @@ pub fn import_reader(
             if sys.scoop_ls.is_some() {
                 stats.scoop_companions += 1;
             }
+            if let Some((class, ls)) = sys.boost_secondary {
+                stats.boost_secondaries += 1;
+                secondaries.push(crate::boost_side::SecondaryBoost { id64: sys.id64, ls: ls as f32, class: class.code() });
+            }
             let (cx, cy, cz) = cell_of(sys.pos);
             let name_off = names.len() as u64;
             let name_bytes = sys.name.as_bytes();
@@ -258,6 +279,11 @@ pub fn import_reader(
                     flags: (sys.has_main as u8)
                         | if sys.scoop_ls.is_some() {
                             crate::format::FLAG_SCOOP_NEARBY
+                        } else {
+                            0
+                        }
+                        | if sys.boost_secondary.is_some() {
+                            crate::format::FLAG_BOOST_SECONDARY
                         } else {
                             0
                         },
@@ -278,6 +304,7 @@ pub fn import_reader(
     stats.phase = "sorting spatial index".into();
     progress(&stats);
     write_index(out_dir, pending, names, &mut stats, Some(progress))?;
+    crate::boost_side::write(&out_dir.join(crate::boost_side::BOOST_SIDE_FILE), &mut secondaries)?;
     stats.phase = "complete".into();
     progress(&stats);
     Ok(stats)
@@ -751,6 +778,31 @@ mod tests {
     /// morton-keyed cells, names contiguous in record order, companion
     /// buckets populated from the bodies' distances.
     #[test]
+    /// A neutron star that is not the arrival star flags the record and
+    /// lands in boost.bin with its distance; the record class stays the
+    /// arrival star's (2026-09-10, the navroute lesson).
+    #[test]
+    fn a_secondary_boost_star_flags_the_record_and_is_in_the_side_file() {
+        let json = r#"[
+{"id64":1,"name":"Sol","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Lalande","coords":{"x":20,"y":0,"z":0},"bodies":[{"type":"Star","subType":"F (White) Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":6061.0}]},
+{"id64":3,"name":"Twin","coords":{"x":40,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true},{"type":"Star","subType":"White Dwarf (DA) Star","mainStar":false,"distanceToArrival":90000.0},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":800.0}]},
+{"id64":4,"name":"Primary","coords":{"x":60,"y":0,"z":0},"bodies":[{"type":"Star","subType":"Neutron Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":500.0}]}
+]"#;
+        let dir = tempfile::tempdir().unwrap();
+        let stats = import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), dir.path(), &mut |_| {}).unwrap();
+        assert_eq!(stats.boost_secondaries, 3);
+        let g = Galaxy::open(dir.path()).unwrap();
+        let by = |n: &str| g.find(n).unwrap();
+        assert_eq!(g.boost_secondary(by("Sol")), None);
+        assert_eq!(g.flags(by("Sol")) & crate::format::FLAG_BOOST_SECONDARY, 0);
+        assert_eq!(g.class_code(by("Lalande")), StarClass::F.code(), "the arrival star's class stands");
+        assert_eq!(g.boost_secondary(by("Lalande")), Some((StarClass::Neutron, 6061.0)));
+        assert_eq!(g.boost_secondary(by("Twin")), Some((StarClass::Neutron, 800.0)), "the nearest secondary wins");
+        assert_eq!(g.class_code(by("Primary")), StarClass::Neutron.code());
+        assert_eq!(g.boost_secondary(by("Primary")), Some((StarClass::Neutron, 500.0)), "a second neutron beside a neutron primary is still recorded");
+    }
+
     fn edgx_v3_build_is_morton_keyed_with_contiguous_names_and_companions() {
         let dir = tempfile::tempdir().unwrap();
         import_reader(

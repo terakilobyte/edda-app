@@ -179,6 +179,7 @@ fn direct_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> 
         fuel_optional: false,
         injection: None,
         synthesized: false,
+        via_secondary_ls: None,
     };
     let boosted = is_boosted(req.fuel, d, fuel, boost, range);
     let b_scoop = g.scoopable(to);
@@ -202,7 +203,7 @@ fn direct_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> 
         expansions: 0,
         elapsed_ms: 0,
         refuel_stops: refuel as usize,
-        injections: 0,
+        injections: 0, secondary_boosts: 0,
     })
 }
 
@@ -260,6 +261,7 @@ fn scoop_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> O
         fuel_optional: false,
         injection: None,
         synthesized: false,
+        via_secondary_ls: None,
     };
     let after_b = m.jump(d2, m.capacity, 1.0)?;
     let b_scoop = g.scoopable(to);
@@ -286,7 +288,7 @@ fn scoop_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> O
         expansions: 0,
         elapsed_ms: 0,
         refuel_stops: 1 + (b_scoop && after_b < m.capacity) as usize,
-        injections: 0,
+        injections: 0, secondary_boosts: 0,
     })
 }
 
@@ -353,6 +355,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
         fuel_optional: false,
         injection: None,
         synthesized: false,
+        via_secondary_ls: None,
     };
     let landing = crate::router::Hop {
         idx: s_idx,
@@ -369,6 +372,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
         fuel_optional: false,
         injection: None,
         synthesized: false,
+        via_secondary_ls: None,
     };
     // The rest is a short ordinary run.
     let tail_req = RouteRequest { from: s_idx, to, weight: LEG_WEIGHT, thorough: false, max_expansions: 200_000, start_fuel: arrive.unwrap_or(0.0), ..req.clone() };
@@ -399,7 +403,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
         expansions: tail.expansions,
         elapsed_ms: 0,
         refuel_stops: hops.iter().filter(|h| h.refuel).count(),
-        injections: 0,
+        injections: 0, secondary_boosts: 0,
         hops,
     })
 }
@@ -3549,6 +3553,7 @@ mod tests {
                 distance_ly: d, boosted: false, total_ly: 0.0,
                 fuel_after: fuel, refuel: false, fuel_optional: false, injection: None,
                 synthesized: false,
+                via_secondary_ls: None,
             }
         };
         let hops = vec![
@@ -3561,7 +3566,7 @@ mod tests {
         let mut route = crate::router::Route {
             range_ly: m.range_at(m.capacity), hops, jumps: 4, total_ly: 150.0,
             straight_ly: 150.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0,
-            refuel_stops: 0, injections: 0, ship_id: None, ship: None,
+            refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None,
             variants_run: 0, variants_finished: 0, ship_has_scoop: None,
             fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None,
         };
@@ -3712,7 +3717,7 @@ mod tests {
     /// stop -- so without the rule this test would hang.
     #[test]
     fn a_slow_variant_is_cancelled_once_another_has_a_route() {
-        let dummy = || Route { range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
+        let dummy = || Route { range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
         let started = std::time::Instant::now();
         let (results, finished) = run_variants(3, Some(std::time::Duration::from_millis(50)), None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
             if i == 1 {
@@ -4874,6 +4879,47 @@ mod tests {
     /// fewest-jumps values are the pre-item-42 answers. A row's numbers
     /// are re-measured, not argued, when they move; the index id travels
     /// with them in docs/benches.
+    /// Measurement, not a pin (maintainer, 2026-09-10: "1 and 2, go"):
+    /// every full-index route under both judges with secondary boosts off,
+    /// within 5,000 ls and within 10,000 ls. Prints jumps, boosts,
+    /// secondary boosts, stops, flat seconds, and the supercruise seconds
+    /// the runs cost under the cost model (150 s + 0.5 s per 1,000 ls),
+    /// so the judge can be read either way. Pre-registered before the
+    /// first run: at most two jumps saved on any pin, usually zero.
+    /// Needs `boost.bin` beside the index (an import made after this
+    /// change); without it every row equals the off row.
+    #[test]
+    #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
+    fn full_pins_secondary_boosts_measure() {
+        let Some((g, neutrons)) = full_index() else { return };
+        let side = g.boost_secondary(g.find("Sol").unwrap()).is_some() || std::path::Path::new(&std::env::var("EDDA_GALAXY_FULL_INDEX").unwrap()).join(crate::boost_side::BOOST_SIDE_FILE).is_file();
+        eprintln!("boost.bin beside the index: {side}");
+        let routes: [(&str, fn(&Galaxy) -> RouteRequest); 6] = [
+            ("Mandalay Wongi -> Colonia (no white dwarfs)", |g| without_white_dwarfs(mandalay_request(g, "Wongi", "Colonia"))),
+            ("Mandalay Wongi -> Colonia (white dwarfs)", |g| mandalay_request(g, "Wongi", "Colonia")),
+            ("explorer Wongi -> Colonia (no white dwarfs)", |g| without_white_dwarfs(explorer(g, "Wongi", "Colonia"))),
+            ("explorer Wongi -> Colonia (white dwarfs)", |g| explorer(g, "Wongi", "Colonia")),
+            ("explorer Sol -> Sagittarius A* (no white dwarfs)", |g| without_white_dwarfs(explorer(g, "Sol", "Sagittarius A*"))),
+            ("explorer Sol -> Sagittarius A* (white dwarfs)", |g| explorer(g, "Sol", "Sagittarius A*")),
+        ];
+        println!("route,judge,secondary_ls,jumps,boosted,secondary_boosts,stops,flat_s,supercruise_s,wall_s");
+        for (label, request) in routes {
+            for judge in [Judge::FewestJumps, Judge::FlatPublic] {
+                for allowed in [0.0f32, 5_000.0, 10_000.0] {
+                    let r = RouteRequest { secondary_boost_ls: allowed, ..judged(request(&g), judge) };
+                    let started = std::time::Instant::now();
+                    let route = plan_best(&g, Some(&neutrons), &r, &Control::none()).unwrap();
+                    let took = started.elapsed();
+                    assert_contiguous(&route, &r);
+                    assert_fuel_consistent(&route, r.fuel.as_ref().unwrap(), &r.boost, r.start_fuel);
+                    let supercruise_s: f32 = route.hops.iter().filter_map(|h| h.via_secondary_ls).map(|ls| 150.0 + 0.5 * ls / 1000.0).sum();
+                    let judge_name = match judge { Judge::FewestJumps => "fewest_jumps", Judge::FlatPublic => "flat_public" };
+                    println!("{label},{judge_name},{allowed},{},{},{},{},{},{supercruise_s:.0},{:.2}", route.jumps, route.boosted_jumps, route.secondary_boosts, route.refuel_stops, flat_seconds(&route), took.as_secs_f64());
+                }
+            }
+        }
+    }
+
     #[test]
     #[ignore = "needs the full galaxy index; set EDDA_GALAXY_FULL_INDEX and run with --ignored"]
     fn full_pins_hold_under_every_judge() {

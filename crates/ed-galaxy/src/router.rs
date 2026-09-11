@@ -89,11 +89,17 @@ pub struct RouteRequest {
     /// rate). `None` = ED_STOP_OVERHEAD_S, then 36 s; the public
     /// default passes 120 s of total conservatism explicitly.
     pub stop_overhead_s: Option<f32>,
+    /// Experiment (2026-09-10): supercharge from a neutron star or white
+    /// dwarf that is not the arrival star when it sits within this many
+    /// light seconds of arrival (`boost.bin`, [`crate::boost_side`]). 0
+    /// = off, the product's behaviour. The hop records the run so a
+    /// judge can price it; the search itself still counts jumps.
+    pub secondary_boost_ls: f32,
 }
 
 impl Default for RouteRequest {
     fn default() -> Self {
-        RouteRequest { from: 0, to: 0, range_ly: 30.0, supercharge: true, max_dry_jumps: 0, weight: 1.3, max_expansions: 0, thorough: false, boost: BoostProfile::default(), fuel: None, start_fuel: 0.0, injection: None, time_budget_ms: 0, grace_ms: 0, min_fuel: false, stop_weight: 1.0, prize_k: None, t_jump_s: None, stop_overhead_s: None }
+        RouteRequest { from: 0, to: 0, range_ly: 30.0, supercharge: true, max_dry_jumps: 0, weight: 1.3, max_expansions: 0, thorough: false, boost: BoostProfile::default(), fuel: None, start_fuel: 0.0, injection: None, time_budget_ms: 0, grace_ms: 0, min_fuel: false, stop_weight: 1.0, prize_k: None, t_jump_s: None, stop_overhead_s: None, secondary_boost_ls: 0.0 }
     }
 }
 
@@ -146,6 +152,12 @@ pub struct Hop {
     /// Synthesise this FSD injection before the jump to this hop.
     #[serde(default)]
     pub injection: Option<String>,
+    /// The boost into this hop came from a star that was not the
+    /// previous system's arrival star: how far the commander must
+    /// supercruise there first, light seconds. Experiment; `None` in
+    /// product plans.
+    #[serde(default)]
+    pub via_secondary_ls: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
@@ -164,6 +176,9 @@ pub struct Route {
     /// Hops that need an FSD injection synthesised first.
     #[serde(default)]
     pub injections: usize,
+    /// Hops boosted from a secondary star (experiment; 0 in product plans).
+    #[serde(default)]
+    pub secondary_boosts: usize,
     /// The ship (journal ShipID) and its label this plan was made for; a
     /// route is only valid for the ship whose fuel model produced it.
     #[serde(default)]
@@ -470,7 +485,21 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
         (ctl.trace)("exact", here, cur.g as f32);
         let class = g.class(&rec);
         let goal_idx = req.to;
-        let boost = if req.supercharge { req.boost.for_class(class) } else { 1.0 };
+        let boost = if !req.supercharge {
+            1.0
+        } else {
+            let own = req.boost.for_class(class);
+            if own > 1.0 || req.secondary_boost_ls <= 0.0 {
+                own
+            } else {
+                // A boost star off the arrival point, within the allowed
+                // supercruise run: the experiment's second kind of boost.
+                match g.boost_secondary(cur.idx) {
+                    Some((secondary, ls)) if ls <= req.secondary_boost_ls => req.boost.for_class(secondary),
+                    _ => 1.0,
+                }
+            }
+        };
         let reach = match fuel_model {
             Some(m) => m.reach(cur.fuel, boost),
             None => range * boost * (1.0 - crate::fuel::range_margin()),
@@ -587,6 +616,8 @@ fn reconstruct(
     let mut boosted_jumps = 0;
     let mut refuel_stops = 0;
     let mut injections = 0;
+    let mut secondary_boosts = 0;
+    let mut prev_idx: Option<u32> = None;
     for (k, boosted, d, fuel, refuel, injected) in chain {
         if injected {
             injections += 1;
@@ -598,6 +629,18 @@ fn reconstruct(
         if boosted {
             boosted_jumps += 1;
         }
+        // A boosted hop out of a system whose own arrival star grants no
+        // boost came from its secondary: record the supercruise run.
+        let via_secondary_ls = match (boosted, prev_idx) {
+            (true, Some(p)) if req.secondary_boost_ls > 0.0 && req.boost.for_class(g.class(&g.record(p))) <= 1.0 => {
+                g.boost_secondary(p).map(|(_, ls)| ls)
+            }
+            _ => None,
+        };
+        if via_secondary_ls.is_some() {
+            secondary_boosts += 1;
+        }
+        prev_idx = Some(idx);
         if refuel {
             refuel_stops += 1;
         }
@@ -616,6 +659,7 @@ fn reconstruct(
             fuel_optional: false,
             injection: if injected { req.injection.map(|(_, name, _)| name.to_string()) } else { None },
             synthesized: false,
+            via_secondary_ls,
         });
     }
     Route {
@@ -633,6 +677,7 @@ fn reconstruct(
         straight_ly: straight,
         boosted_jumps,
         injections,
+        secondary_boosts,
         expansions,
         elapsed_ms: started.elapsed().as_millis() as u64,
         refuel_stops,
@@ -696,6 +741,40 @@ mod tests {
         assert!(matches!(plan(&g, &req, &ctl), Err(RouteError::NoRoute)));
         let n = expanded.load(std::sync::atomic::Ordering::Relaxed);
         assert!(n <= 80, "refusing an impossible route took {n} expansions over 40 reachable systems");
+    }
+
+    /// The experiment's second kind of boost: a system whose arrival star
+    /// grants nothing but whose neutron secondary sits within the allowed
+    /// run supercharges the next jump, and the hop says how far the run
+    /// was. Off, or with the secondary too far, the plan is the unboosted
+    /// one.
+    #[test]
+    fn a_secondary_neutron_within_the_allowed_run_supercharges_the_next_jump() {
+        // Sol -> Twin (30 ly) -> Far (30 + 100 ly). Range 30: only a x4
+        // boost out of Twin reaches Far; Twin's arrival star is K, its
+        // neutron sits at 4,000 ls.
+        let json = r#"[
+{"id64":1,"name":"Sol","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Twin","coords":{"x":30,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":4000.0}]},
+{"id64":3,"name":"Far","coords":{"x":130,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}
+]"#;
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let base = RouteRequest { from: g.find("Sol").unwrap(), to: g.find("Far").unwrap(), range_ly: 30.0, supercharge: true, ..Default::default() };
+        let ctl = Control::none();
+        assert!(matches!(plan(&g, &base, &ctl), Err(RouteError::NoRoute)), "off: the 100 ly gap is unbridgeable");
+        let too_far = RouteRequest { secondary_boost_ls: 1_000.0, ..base.clone() };
+        assert!(matches!(plan(&g, &too_far, &ctl), Err(RouteError::NoRoute)), "a 4,000 ls secondary is outside a 1,000 ls run");
+        let allowed = RouteRequest { secondary_boost_ls: 5_000.0, ..base.clone() };
+        let route = plan(&g, &allowed, &ctl).unwrap();
+        assert_eq!(route.jumps, 2);
+        assert_eq!(route.secondary_boosts, 1);
+        assert_eq!(route.boosted_jumps, 1);
+        let far = route.hops.last().unwrap();
+        assert!(far.boosted);
+        assert_eq!(far.via_secondary_ls, Some(4000.0));
+        assert_eq!(route.hops[1].via_secondary_ls, None, "the hop into Twin was a plain jump");
     }
 
     /// Item 39: an eager plan's comfort top-ups get labelled — the tank

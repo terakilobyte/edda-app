@@ -32,6 +32,13 @@ pub const FLAG_MAIN_STAR: u8 = 0x01;
 /// A scoopable star sits within [`SCOOP_COMPANION_LS`] of the arrival
 /// point -- a neutron system you can refuel in without leaving the highway.
 pub const FLAG_SCOOP_NEARBY: u8 = 0x02;
+/// A neutron star or white dwarf sits in the system but is not the
+/// arrival star; which class and how far is in `boost.bin`
+/// ([`crate::boost_side`]). Set at import from the dump's body list;
+/// the record class stays the arrival star's, so nothing that reads the
+/// class changes. (2026-09-10: 127,246 such systems, 60,811 within
+/// 10,000 ls.)
+pub const FLAG_BOOST_SECONDARY: u8 = 0x04;
 pub const SCOOP_COMPANION_LS: f64 = 1_500.0;
 /// Grid cell edge in light years. Larger than any single jump, so a
 /// neighbourhood query touches at most 27 cells.
@@ -262,6 +269,9 @@ pub struct Galaxy {
     /// The coarse cell graph (`graph250.bin`), opened on first use.
     /// `None` inside: absent or stale -- no goal field for the plot.
     cell_graph: std::sync::OnceLock<Option<crate::cgraph::CellGraph>>,
+    /// The secondary boost stars (`boost.bin`), opened on first use.
+    /// `None` inside: absent -- [`Galaxy::boost_secondary`] is never Some.
+    boost_side: std::sync::OnceLock<Option<crate::boost_side::BoostSide>>,
 }
 
 impl Galaxy {
@@ -323,7 +333,25 @@ impl Galaxy {
             presence: Default::default(),
             alt: Default::default(),
             cell_graph: Default::default(),
+            boost_side: Default::default(),
         })
+    }
+
+    /// The boost star that is not this system's arrival star, with its
+    /// distance from arrival in light seconds: only for records flagged
+    /// [`FLAG_BOOST_SECONDARY`], and only where `boost.bin` sits beside
+    /// the index. The planner reads it when a request allows a secondary
+    /// within some distance; otherwise the flag grants nothing.
+    pub fn boost_secondary(&self, idx: u32) -> Option<(crate::StarClass, f32)> {
+        if self.flags(idx) & FLAG_BOOST_SECONDARY == 0 {
+            return None;
+        }
+        let side = self
+            .boost_side
+            .get_or_init(|| crate::boost_side::BoostSide::open(&self.dir.join(crate::boost_side::BOOST_SIDE_FILE)).ok())
+            .as_ref()?;
+        let e = side.lookup(self.record(idx).id64)?;
+        Some((crate::StarClass::from_code(e.class), e.ls))
     }
 
     /// The coarse cell graph, if `graph250.bin` was written beside the
