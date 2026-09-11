@@ -115,7 +115,7 @@ pub const RATE_PER_WINDOW: u32 = 2_500;
 
 /// The wire request. Everything optional mirrors the client's
 /// `PlotQuery` defaults so the two paths cannot quietly disagree.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouteApiRequest {
     pub from: String,
@@ -456,7 +456,14 @@ impl RouteService {
         let outcome = match outcome {
             Ok(route) => {
                 let route = std::sync::Arc::new(route);
-                self.store(key, std::sync::Arc::clone(&route));
+                // A plot made before this version's highway sub-index
+                // exists is a fallback answer (bare range, no boosts);
+                // serve it, never store it — the next request replots
+                // with the highway once the lazy build lands (6-10 s on
+                // the box, 2026-09-11).
+                if handle.neutrons.is_some() {
+                    self.store(key, std::sync::Arc::clone(&route));
+                }
                 PlotOutcome::Route(route, false)
             }
             Err(RouteError::NoRoute) => PlotOutcome::Refused(PlotRefusal::NoRoute),
@@ -587,6 +594,47 @@ mod lane_tests {
 
     /// The premise of the split: a long lane full to its waiting-room
     /// wall leaves the interactive lane's room untouched.
+    /// 2026-09-11, measured on the box: the first plot after a routing
+    /// version flips runs before the highway sub-index for that version
+    /// exists (built lazily, 6-10 s), answers highway-less (Sol→Colonia
+    /// 453 jumps / 0 boosted instead of 141 / 119) and was cached under
+    /// the new version for an hour. A highway-less answer is a fallback,
+    /// never a cache entry.
+    #[tokio::test]
+    async fn a_plot_made_before_the_highway_exists_is_not_cached() {
+        let (_dir, galaxy) = tiny_galaxy();
+        let galaxy = std::sync::Arc::new(galaxy);
+        let api = RouteApiRequest {
+            from: "Sol".into(),
+            to: "Nearby".into(),
+            range_ly: Some(50.0),
+            supercharge: Some(true),
+            ..Default::default()
+        };
+        let svc = RouteService::default();
+
+        let pending = crate::galaxy_service::GalaxyHandle {
+            version: "v".into(),
+            galaxy: std::sync::Arc::clone(&galaxy),
+            neutrons: None,
+        };
+        for _ in 0..2 {
+            let (_, outcome, _) = svc.plot(&pending, &api).await.unwrap();
+            let PlotOutcome::Route(_, cached) = outcome else { panic!("a route") };
+            assert!(!cached, "no highway yet: every plot is live, none is stored");
+        }
+
+        let ready = crate::galaxy_service::GalaxyHandle {
+            version: "v".into(),
+            galaxy: std::sync::Arc::clone(&galaxy),
+            neutrons: Some(std::sync::Arc::clone(&galaxy)),
+        };
+        let (_, first, _) = svc.plot(&ready, &api).await.unwrap();
+        let (_, second, _) = svc.plot(&ready, &api).await.unwrap();
+        assert!(matches!(first, PlotOutcome::Route(_, false)), "the first plot with the highway is live");
+        assert!(matches!(second, PlotOutcome::Route(_, true)), "and the second is served from the cache");
+    }
+
     #[tokio::test]
     async fn a_full_long_lane_does_not_take_an_interactive_place() {
         let svc = RouteService::default();
