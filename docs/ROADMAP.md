@@ -33,9 +33,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   version change (`galaxy_service.rs`; 6 s for 164fcbd0, journal
   21:20:29Z) — so the window is the first few seconds of plotting after
   every publish, nightly included; it happened again at 21:20Z on
-  164fcbd0 (453 / 0 on four fresh keys). Fix: do not cache a plot made
-  while the sub-index for the current version is pending; a version
-  change should also drop the cache. Small.
+  164fcbd0 (453 / 0 on four fresh keys). Journal confirms the trigger:
+  each version was mapped and its highway built within 10 s of the
+  first plot after the flip, and both first plots were ours — no
+  commander plotted in either window. Fixed 2026-09-11: a plot made
+  while the highway for the current version is pending is served but
+  never cached. Still open: a warm-up plot from adopt/reconcile so the
+  build runs before a commander's request.
 - **`boost.bin` is adopted but not published** (2026-09-11). The side
   file lands in `routing/<version>/` but the manifest's file list still
   names only the four EDGX files and `chunks.json`, so clients on local
