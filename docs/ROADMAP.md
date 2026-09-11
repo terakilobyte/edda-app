@@ -20,6 +20,31 @@ verdicts live in the CSV headers under `docs/benches/`.
   week over week; pre-registered: stars and hotspots from the dump fall
   by an order of magnitude, systems less. When the curve flattens, that
   is the true residual the daily dump provides.
+- **Plots cached before the highway sub-index lands** (2026-09-11,
+  measured). After the first `apply routing` (version 3cff2b54, 79 s),
+  a Sol→Colonia plot at range 50 answered 453 jumps / 0 boosted in
+  1,051 ms and stayed byte-identical for 40 min while the same request
+  at 49.9 or 50.1 answered 146 / 127 in 428 ms: the plot ran while the
+  highway sub-index for the new version was still building, fell back to
+  bare range, and was cached under the new version (in-memory, keyed on
+  version + request, TTL 3,600 s, cap 256, `crates/ed-api/src/plot.rs`).
+  Fix: do not cache (or do not serve) a plot while the sub-index for the
+  current version is pending; a version change should also drop the
+  cache. Small.
+- **`boost.bin` is adopted but not published** (2026-09-11). The side
+  file lands in `routing/<version>/` but the manifest's file list still
+  names only the four EDGX files and `chunks.json`, so clients on local
+  data never fetch it. Harmless while the product passes
+  `secondary_boost_ls: 0`; needed the day the planner charges secondary
+  boosts.
+- **`apply api` must ship with its own script** (2026-09-11, measured).
+  The 16:25 Deploy API ran the box's *old* `edda-apply`, which restarted
+  only the API; `edda-eddn` kept the Sep 9 binary until a manual restart
+  ~4 h later, and 180k more navroute star rows landed in between. The
+  deploy path does not carry `deploy/edda-apply`; the installer rerun is a
+  separate manual step. Either the workflow refuses when the box's script
+  hash differs from the ref's, or the box script is shipped and
+  reinstalled by the deploy itself.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
