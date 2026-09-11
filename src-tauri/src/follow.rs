@@ -3271,7 +3271,7 @@ mod tests {
             refuel,
             fuel_optional: false,
             synthesized: false,
-            via_secondary_ls: None,
+            via_secondary: None,
         }
     }
 

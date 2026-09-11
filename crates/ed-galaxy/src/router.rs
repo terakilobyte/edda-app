@@ -153,11 +153,11 @@ pub struct Hop {
     #[serde(default)]
     pub injection: Option<String>,
     /// The boost into this hop came from a star that was not the
-    /// previous system's arrival star: how far the commander must
-    /// supercruise there first, light seconds. Experiment; `None` in
-    /// product plans.
+    /// previous system's arrival star: its class, and how far the
+    /// commander must supercruise there first, light seconds.
+    /// Experiment; `None` in product plans.
     #[serde(default)]
-    pub via_secondary_ls: Option<f32>,
+    pub via_secondary: Option<(StarClass, f32)>,
 }
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
@@ -382,6 +382,33 @@ impl PartialOrd for Open {
 /// Stars relaxed per expansion of the exact planner (see the scan below).
 const LEG_FANOUT: usize = 512;
 
+/// The supercharge a jump out of `idx` gets, and where it came from: the
+/// arrival star's own class first; otherwise, when the request allows a
+/// run of up to `secondary_boost_ls`, the boost star that is not the
+/// arrival star (`boost.bin`) with its class and distance. Every planner
+/// path that prices a departure asks this, so the experiment's switch
+/// reaches the coarse pass, the legs and the exact search alike
+/// (2026-09-11: the first measurement only reached the exact search and
+/// measured nothing).
+pub fn boost_source(g: &Galaxy, req: &RouteRequest, idx: u32, class: StarClass) -> (f32, Option<(StarClass, f32)>) {
+    if !req.supercharge {
+        return (1.0, None);
+    }
+    let own = req.boost.for_class(class);
+    if own > 1.0 || req.secondary_boost_ls <= 0.0 {
+        return (own, None);
+    }
+    match g.boost_secondary(idx) {
+        Some((secondary, ls)) if ls <= req.secondary_boost_ls => (req.boost.for_class(secondary), Some((secondary, ls))),
+        _ => (1.0, None),
+    }
+}
+
+/// [`boost_source`]'s multiplier alone.
+pub fn boost_at(g: &Galaxy, req: &RouteRequest, idx: u32, class: StarClass) -> f32 {
+    boost_source(g, req, idx, class).0
+}
+
 pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
     let started = std::time::Instant::now();
     let goal = g.record(req.to).pos();
@@ -485,21 +512,7 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
         (ctl.trace)("exact", here, cur.g as f32);
         let class = g.class(&rec);
         let goal_idx = req.to;
-        let boost = if !req.supercharge {
-            1.0
-        } else {
-            let own = req.boost.for_class(class);
-            if own > 1.0 || req.secondary_boost_ls <= 0.0 {
-                own
-            } else {
-                // A boost star off the arrival point, within the allowed
-                // supercruise run: the experiment's second kind of boost.
-                match g.boost_secondary(cur.idx) {
-                    Some((secondary, ls)) if ls <= req.secondary_boost_ls => req.boost.for_class(secondary),
-                    _ => 1.0,
-                }
-            }
-        };
+        let boost = boost_at(g, req, cur.idx, class);
         let reach = match fuel_model {
             Some(m) => m.reach(cur.fuel, boost),
             None => range * boost * (1.0 - crate::fuel::range_margin()),
@@ -631,13 +644,11 @@ fn reconstruct(
         }
         // A boosted hop out of a system whose own arrival star grants no
         // boost came from its secondary: record the supercruise run.
-        let via_secondary_ls = match (boosted, prev_idx) {
-            (true, Some(p)) if req.secondary_boost_ls > 0.0 && req.boost.for_class(g.class(&g.record(p))) <= 1.0 => {
-                g.boost_secondary(p).map(|(_, ls)| ls)
-            }
+        let via_secondary = match (boosted, prev_idx) {
+            (true, Some(p)) => boost_source(g, req, p, g.class(&g.record(p))).1,
             _ => None,
         };
-        if via_secondary_ls.is_some() {
+        if via_secondary.is_some() {
             secondary_boosts += 1;
         }
         prev_idx = Some(idx);
@@ -659,7 +670,7 @@ fn reconstruct(
             fuel_optional: false,
             injection: if injected { req.injection.map(|(_, name, _)| name.to_string()) } else { None },
             synthesized: false,
-            via_secondary_ls,
+            via_secondary,
         });
     }
     Route {
@@ -773,8 +784,8 @@ mod tests {
         assert_eq!(route.boosted_jumps, 1);
         let far = route.hops.last().unwrap();
         assert!(far.boosted);
-        assert_eq!(far.via_secondary_ls, Some(4000.0));
-        assert_eq!(route.hops[1].via_secondary_ls, None, "the hop into Twin was a plain jump");
+        assert_eq!(far.via_secondary, Some((StarClass::Neutron, 4000.0)));
+        assert_eq!(route.hops[1].via_secondary, None, "the hop into Twin was a plain jump");
     }
 
     /// Item 39: an eager plan's comfort top-ups get labelled — the tank

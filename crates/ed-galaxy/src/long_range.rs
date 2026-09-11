@@ -156,7 +156,7 @@ fn direct_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> 
     let d = dist(a.pos(), b.pos());
     let class_a = g.class(&a);
     let class_b = g.class(&b);
-    let boost = if req.supercharge { req.boost.for_class(class_a) } else { 1.0 };
+    let (boost, via) = crate::router::boost_source(g, req, from, class_a);
     let (range, fuel_after) = match req.fuel {
         Some(m) => (m.range_at(fuel), m.jump(d, fuel, boost)?),
         None => (req.range_ly.max(1.0), 0.0),
@@ -179,7 +179,7 @@ fn direct_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> 
         fuel_optional: false,
         injection: None,
         synthesized: false,
-        via_secondary_ls: None,
+        via_secondary: if boosted { via } else { None },
     };
     let boosted = is_boosted(req.fuel, d, fuel, boost, range);
     let b_scoop = g.scoopable(to);
@@ -217,7 +217,7 @@ fn scoop_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> O
     let b = g.record(to);
     let a_pos = a.pos();
     let b_pos = b.pos();
-    let boost = if req.supercharge { req.boost.for_class(g.class(&a)) } else { 1.0 };
+    let (boost, via) = crate::router::boost_source(g, req, from, g.class(&a));
     let reach = m.reach(fuel, boost);
     let full = m.reach(m.capacity, 1.0);
     let mut best: Option<(u32, f32, f32, f32)> = None; // (idx, d1, d2, fuel after first jump)
@@ -261,7 +261,7 @@ fn scoop_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> O
         fuel_optional: false,
         injection: None,
         synthesized: false,
-        via_secondary_ls: None,
+        via_secondary: if boosted { via } else { None },
     };
     let after_b = m.jump(d2, m.capacity, 1.0)?;
     let b_scoop = g.scoopable(to);
@@ -301,7 +301,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
     let a_pos = a.pos();
     let b_pos = g.pos_of(to);
     let class_a = g.class(&a);
-    let boost = if req.supercharge { req.boost.for_class(class_a) } else { 1.0 };
+    let boost = crate::router::boost_at(g, req, from, class_a);
     let (range, full) = match req.fuel {
         Some(m) => (m.range_at(fuel), m.reach(m.capacity, 1.0)),
         None => (req.range_ly.max(1.0), req.range_ly.max(1.0) * (1.0 - crate::fuel::range_margin())),
@@ -355,7 +355,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
         fuel_optional: false,
         injection: None,
         synthesized: false,
-        via_secondary_ls: None,
+        via_secondary: None,
     };
     let landing = crate::router::Hop {
         idx: s_idx,
@@ -372,7 +372,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
         fuel_optional: false,
         injection: None,
         synthesized: false,
-        via_secondary_ls: None,
+        via_secondary: None,
     };
     // The rest is a short ordinary run.
     let tail_req = RouteRequest { from: s_idx, to, weight: LEG_WEIGHT, thorough: false, max_expansions: 200_000, start_fuel: arrive.unwrap_or(0.0), ..req.clone() };
@@ -415,7 +415,7 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
         return Ok(l);
     }
     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
-        let a = g.record(from); let boost = if req.supercharge { req.boost.for_class(g.class(&a)) } else { 1.0 };
+        let a = g.record(from); let boost = crate::router::boost_at(g, req, from, g.class(&a));
         if let Some(m) = req.fuel { eprintln!("      direct failed {} -> {}: d {:.1} reach {:.1} (range {:.1} x {boost})", g.name(&a), g.name(&g.record(to)), dist(a.pos(), g.pos_of(to)), m.reach(fuel, boost), m.range_at(fuel)); }
     }
     // A scoop stop and a one-jump bridge both cost one extra jump; take the
@@ -466,7 +466,7 @@ fn refuel_hops(g: &Galaxy, m: &crate::fuel::FuelModel, req: &RouteRequest, leg: 
         let prev_class = g.class(&g.record(leg.hops[i - 1].idx));
         let h = &mut leg.hops[i];
         let boost = if h.boosted {
-            req.boost.for_class(prev_class)
+            h.via_secondary.map_or_else(|| req.boost.for_class(prev_class), |(c, _)| req.boost.for_class(c))
         } else if h.injection.is_some() {
             req.injection.map(|(mult, _, _)| mult).unwrap_or(1.0)
         } else {
@@ -1858,7 +1858,7 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     };
     let start_rec = g.record(req.from);
     let start_pos = start_rec.pos();
-    let start_boost = if req.supercharge { req.boost.for_class(g.class(&start_rec)) } else { 1.0 };
+    let start_boost = crate::router::boost_at(g, req, req.from, g.class(&start_rec));
     let goal_pos = g.record(req.to).pos();
     let straight = dist(start_pos, goal_pos);
 
@@ -2581,7 +2581,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     }
     let start_rec = g.record(req.from);
     let start_pos = start_rec.pos();
-    let start_boost = if req.supercharge { req.boost.for_class(g.class(&start_rec)) } else { 1.0 };
+    let start_boost = crate::router::boost_at(g, req, req.from, g.class(&start_rec));
     let straight = dist(start_pos, goal_pos);
     let start_fuel = match fuel_model {
         Some(m) => req.start_fuel.clamp(0.0, m.capacity),
@@ -3553,7 +3553,7 @@ mod tests {
                 distance_ly: d, boosted: false, total_ly: 0.0,
                 fuel_after: fuel, refuel: false, fuel_optional: false, injection: None,
                 synthesized: false,
-                via_secondary_ls: None,
+                via_secondary: None,
             }
         };
         let hops = vec![
@@ -3810,7 +3810,7 @@ mod tests {
             assert!((d - b.distance_ly).abs() < 0.01, "{} -> {}: hop says {:.2} ly, positions say {d:.2}", a.name, b.name, b.distance_ly);
             total += d;
             assert!((total - b.total_ly).abs() < 0.05, "{}: cumulative {:.2} vs summed {total:.2}", b.name, b.total_ly);
-            let boost = if b.boosted { req.boost.for_class(a.class) } else { 1.0 };
+            let boost = if b.boosted { b.via_secondary.map_or_else(|| req.boost.for_class(a.class), |(c, _)| req.boost.for_class(c)) } else { 1.0 };
             let reach = match req.fuel {
                 Some(m) => m.reach(a.fuel_after.expect("fuel figures with a fuel model"), boost),
                 None => req.range_ly * boost,
@@ -3833,7 +3833,7 @@ mod tests {
         assert!((r.hops[0].fuel_after.unwrap() - start_fuel).abs() < 0.05);
         for w in r.hops.windows(2) {
             let (a, b) = (&w[0], &w[1]);
-            let bst = if b.boosted { boost.for_class(a.class) } else { 1.0 };
+            let bst = if b.boosted { b.via_secondary.map_or_else(|| boost.for_class(a.class), |(c, _)| boost.for_class(c)) } else { 1.0 };
             let left = m.jump(b.distance_ly, f, bst).unwrap_or_else(|| panic!("{} -> {} ({:.1} ly, boost {bst}) is not fundable from {f:.1} t", a.name, b.name, b.distance_ly));
             assert!(left >= 0.0);
             f = if b.scoopable { m.capacity } else { left };
@@ -4790,6 +4790,29 @@ mod tests {
     /// ms. The pins are ceilings, so a better route passes; a reintroduced
     /// lock in the hot loop or broken stitching does not. Their time limits
     /// assume the machine to themselves: run with `--test-threads=1`.
+    /// The long-range planner (the pins' path) honours the switch at the
+    /// origin: departing a black-hole system whose neutron sits 3 ls out
+    /// gets the x4 hop when the run is allowed, and not when it is not.
+    /// (2026-09-11: the probe found the first jump out of Sphoetz BQ-Y f127
+    /// unboosted at 10,000 ls — the switch had only reached the exact
+    /// search.)
+    #[test]
+    fn plan_best_boosts_out_of_a_black_hole_with_a_neutron_secondary() {
+        let json = r#"[
+{"id64":1,"name":"Hole","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"Black Hole","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":3.0}]},
+{"id64":2,"name":"Far","coords":{"x":100,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}
+]"#;
+        let dir = tempfile::tempdir().unwrap();
+        crate::import::import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let base = RouteRequest { from: g.find("Hole").unwrap(), to: g.find("Far").unwrap(), range_ly: 30.0, supercharge: true, ..Default::default() };
+        assert!(plan_best(&g, None, &base, &Control::none()).is_err(), "off: 100 ly is beyond a 30 ly ship");
+        let on = RouteRequest { secondary_boost_ls: 10.0, ..base };
+        let route = plan_best(&g, None, &on, &Control::none()).unwrap();
+        assert_eq!((route.jumps, route.boosted_jumps, route.secondary_boosts), (1, 1, 1));
+        assert_eq!(route.hops[1].via_secondary, Some((crate::StarClass::Neutron, 3.0)));
+    }
+
     fn full_index() -> Option<(Galaxy, Galaxy)> {
         let Some(dir) = std::env::var_os("EDDA_GALAXY_FULL_INDEX") else {
             eprintln!("skipping: set EDDA_GALAXY_FULL_INDEX to the full galaxy index");
@@ -4912,7 +4935,7 @@ mod tests {
                     let took = started.elapsed();
                     assert_contiguous(&route, &r);
                     assert_fuel_consistent(&route, r.fuel.as_ref().unwrap(), &r.boost, r.start_fuel);
-                    let supercruise_s: f32 = route.hops.iter().filter_map(|h| h.via_secondary_ls).map(|ls| 150.0 + 0.5 * ls / 1000.0).sum();
+                    let supercruise_s: f32 = route.hops.iter().filter_map(|h| h.via_secondary).map(|(_, ls)| 150.0 + 0.5 * ls / 1000.0).sum();
                     let judge_name = match judge { Judge::FewestJumps => "fewest_jumps", Judge::FlatPublic => "flat_public" };
                     println!("{label},{judge_name},{allowed},{},{},{},{},{},{supercruise_s:.0},{:.2}", route.jumps, route.boosted_jumps, route.secondary_boosts, route.refuel_stops, flat_seconds(&route), took.as_secs_f64());
                 }

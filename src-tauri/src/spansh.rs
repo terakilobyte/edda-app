@@ -398,7 +398,7 @@ pub async fn import_spansh_route(state: State<'_, AppState>, link: String) -> Re
             fuel_optional: false,
             injection: None,
             synthesized: false,
-            via_secondary_ls: None,
+            via_secondary: None,
         });
         prev_neutron = b(j, "has_neutron");
     }
