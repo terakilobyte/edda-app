@@ -5,7 +5,7 @@
 # is matched against a closed list. No shell, no pty, no forwarding.
 #
 #   rsync --server ...      pushes into the inbox only (rrsync, write-only)
-#   apply api|app|site|dashboards
+#   apply api|app|site|dashboards|routing
 #                           hands one verb to edda-apply through a sudoers
 #                           rule that names each verb exactly
 #   status                  hostname + readyz, for deploy-check.yml
@@ -22,7 +22,7 @@ case "$cmd" in
     "rsync --server "*)
         exec /usr/bin/rrsync -wo "$INBOX"
         ;;
-    "apply api"|"apply app"|"apply site"|"apply dashboards")
+    "apply api"|"apply app"|"apply site"|"apply dashboards"|"apply routing")
         exec sudo -n /usr/local/sbin/edda-apply "${cmd#apply }"
         ;;
     status)

@@ -55,12 +55,55 @@ pub fn write_manifest(artifact_dir: &Path, manifest: &Manifest, token: &str) -> 
         .context("atomically publishing manifest")
 }
 
+/// Where a routing base comes from: a galaxy dump imported here, or a
+/// directory already built elsewhere (2026-09-10: the maintainer's PC
+/// imports the dump with the flag-and-sidecar importer and pushes the
+/// result; the box adopts it rather than pulling 116 GB to rebuild what
+/// exists). Either way the publish half is the same: validate, chunk,
+/// rename into place, start a fresh overlay chain, prune.
+#[derive(Clone, Debug)]
+pub enum RoutingSource {
+    Import(PathBuf),
+    Prebuilt(PathBuf),
+}
+
 /// Build the index from `source` and publish it as `routing/<version>/`
 /// under `artifact_dir`, merging the product into the current manifest.
 /// Blocking: the import is CPU- and memory-bound (the full galaxy needs
 /// ~8 GB), so callers on an async runtime use `spawn_blocking`.
 pub fn build_routing(
     source: &Path,
+    artifact_dir: &Path,
+    version: &str,
+    generated_at: &str,
+) -> Result<RoutingPublication> {
+    publish_from(&RoutingSource::Import(source.to_owned()), artifact_dir, version, generated_at)
+}
+
+/// Adopt an index built elsewhere as the next routing version: a rebase
+/// without an import. The four EDGX files are required and validated;
+/// side files beside them (`boost.bin`, `agg250.bin`, `alt250.bin`,
+/// `graph250.bin`) travel with them and are not part of the product.
+pub fn adopt_routing(
+    prebuilt: &Path,
+    artifact_dir: &Path,
+    version: &str,
+    generated_at: &str,
+) -> Result<RoutingPublication> {
+    publish_from(&RoutingSource::Prebuilt(prebuilt.to_owned()), artifact_dir, version, generated_at)
+}
+
+/// Side files an index may carry beside the four product files. Copied
+/// on adopt when present, never listed in the manifest.
+pub const ROUTING_SIDE_FILES: [&str; 4] = [
+    ed_galaxy::boost_side::BOOST_SIDE_FILE,
+    "agg250.bin",
+    "alt250.bin",
+    "graph250.bin",
+];
+
+fn publish_from(
+    source: &RoutingSource,
     artifact_dir: &Path,
     version: &str,
     generated_at: &str,
@@ -78,7 +121,10 @@ pub fn build_routing(
     }
     std::fs::create_dir_all(&staging)?;
 
-    let result = build_into(source, &staging, artifact_dir, version);
+    let result = match source {
+        RoutingSource::Import(dump) => build_into(dump, &staging, artifact_dir, version),
+        RoutingSource::Prebuilt(dir) => adopt_into(dir, &staging, artifact_dir, version),
+    };
     if result.is_err() {
         let _ = std::fs::remove_dir_all(&staging);
     }
@@ -127,6 +173,50 @@ pub fn build_routing(
     })
 }
 
+/// Bring a prebuilt index into staging: the four product files (a
+/// rename where the two sit on one filesystem, a copy otherwise), any
+/// side files present, then the same validation and chunking an import
+/// gets.
+fn adopt_into(
+    prebuilt: &Path,
+    staging: &Path,
+    artifact_dir: &Path,
+    version: &str,
+) -> Result<(ed_galaxy::import::ImportStats, Vec<ArtifactFile>, u64)> {
+    ensure!(
+        ed_galaxy::Galaxy::exists(prebuilt),
+        "{} does not hold the four EDGX files",
+        prebuilt.display()
+    );
+    Galaxy::validate_dir(prebuilt).with_context(|| format!("validating {}", prebuilt.display()))?;
+    let take = |name: &str| -> Result<()> {
+        let from = prebuilt.join(name);
+        let to = staging.join(name);
+        if std::fs::rename(&from, &to).is_err() {
+            std::fs::copy(&from, &to).with_context(|| format!("copying {}", from.display()))?;
+        }
+        Ok(())
+    };
+    for name in ROUTING_FILES {
+        take(name)?;
+    }
+    for name in ROUTING_SIDE_FILES {
+        if prebuilt.join(name).is_file() {
+            take(name)?;
+        }
+    }
+    let galaxy = Galaxy::open(staging).context("opening the adopted index")?;
+    ensure!(galaxy.count > 0, "{} holds no systems", prebuilt.display());
+    let stats = ed_galaxy::import::ImportStats {
+        phase: "adopted".into(),
+        systems: galaxy.count as u64,
+        ..Default::default()
+    };
+    tracing::info!(systems = galaxy.count, from = %prebuilt.display(), "adopting prebuilt routing index");
+    let (files, bytes) = chunk_staging(staging, artifact_dir, version)?;
+    Ok((stats, files, bytes))
+}
+
 fn build_into(
     source: &Path,
     staging: &Path,
@@ -148,7 +238,13 @@ fn build_into(
         source.display()
     );
     Galaxy::validate_dir(staging).context("validating built routing index")?;
+    let (files, bytes) = chunk_staging(staging, artifact_dir, version)?;
+    Ok((stats, files, bytes))
+}
 
+/// Digest and chunk the four product files in `staging`: the artifact
+/// list and the chunk manifest a client verifies against.
+fn chunk_staging(staging: &Path, artifact_dir: &Path, version: &str) -> Result<(Vec<ArtifactFile>, u64)> {
     let mut files = Vec::with_capacity(ROUTING_FILES.len() + 1);
     let mut bytes = 0;
     for name in ROUTING_FILES {
@@ -173,7 +269,7 @@ fn build_into(
     files.push(chunks);
     // The manifest must be readable before anything is renamed into place.
     let _ = read_current_manifest(artifact_dir)?;
-    Ok((stats, files, bytes))
+    Ok((files, bytes))
 }
 
 /// CDC chunk boundaries for the wire unification (ledger 04bd87a /
@@ -297,6 +393,23 @@ pub async fn publish_routing(
     artifact_dir: &Path,
     source: &Path,
 ) -> Result<RoutingPublication> {
+    publish_recorded(pool, artifact_dir, RoutingSource::Import(source.to_owned())).await
+}
+
+/// Run [`adopt_routing`] as a recorded `routing` publication.
+pub async fn adopt_routing_recorded(
+    pool: &PgPool,
+    artifact_dir: &Path,
+    prebuilt: &Path,
+) -> Result<RoutingPublication> {
+    publish_recorded(pool, artifact_dir, RoutingSource::Prebuilt(prebuilt.to_owned())).await
+}
+
+async fn publish_recorded(
+    pool: &PgPool,
+    artifact_dir: &Path,
+    source: RoutingSource,
+) -> Result<RoutingPublication> {
     let (sequence, generated_at): (i64, String) = sqlx::query_as(
         "INSERT INTO artifact_publications (product, status) VALUES ('routing', 'building') \
          RETURNING id, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')",
@@ -305,9 +418,9 @@ pub async fn publish_routing(
     .await
     .context("starting routing publication")?;
     let version = crate::version::short_version("routing", sequence, &generated_at);
-    let (source, artifact_dir) = (source.to_owned(), artifact_dir.to_owned());
+    let artifact_dir = artifact_dir.to_owned();
     let built = tokio::task::spawn_blocking(move || {
-        build_routing(&source, &artifact_dir, &version, &generated_at)
+        publish_from(&source, &artifact_dir, &version, &generated_at)
     })
     .await
     .context("routing build panicked")?;
@@ -370,6 +483,40 @@ mod tests {
             let slice = &data[chunk.offset as usize..chunk.offset as usize + chunk.len as usize];
             assert_eq!(chunk.sha256, ed_sync::sha256_hex(slice));
         }
+    }
+
+    /// An index built elsewhere is adopted as a rebase: the four files
+    /// validated, chunked and renamed into place, the side file carried,
+    /// the manifest's routing product pointing at it with an empty chain.
+    #[test]
+    fn a_prebuilt_index_is_adopted_with_its_side_file_and_a_fresh_chain() {
+        let json = r#"[
+{"id64":1,"name":"Sol","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Twin","coords":{"x":30,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":4000.0}]}
+]"#;
+        let built = tempfile::tempdir().unwrap();
+        ed_galaxy::import::import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), built.path(), &mut |_| {}).unwrap();
+        assert!(built.path().join(ed_galaxy::boost_side::BOOST_SIDE_FILE).is_file());
+        let artifacts = tempfile::tempdir().unwrap();
+        let publication = adopt_routing(built.path(), artifacts.path(), "77", "2026-09-10T12:00:00Z").unwrap();
+        assert_eq!(publication.stats.systems, 2);
+        let published = artifacts.path().join("routing").join("77");
+        for name in ROUTING_FILES {
+            assert!(published.join(name).is_file(), "{name} published");
+        }
+        assert!(published.join(ed_sync::CHUNKS_FILE).is_file(), "chunks.json written");
+        assert!(published.join(ed_galaxy::boost_side::BOOST_SIDE_FILE).is_file(), "side file carried");
+        assert_eq!(publication.files.len(), ROUTING_FILES.len() + 1, "the side file is not a product file");
+        let g = Galaxy::open(&published).unwrap();
+        assert_eq!(g.boost_secondary(g.find("Twin").unwrap()), Some((ed_galaxy::StarClass::Neutron, 4000.0)));
+        let manifest = read_current_manifest(artifacts.path()).unwrap().unwrap();
+        let routing = manifest.products.get(&ProductKey::Routing).unwrap();
+        assert_eq!(routing.version, "77");
+        assert!(routing.overlays.is_empty(), "a rebase starts a fresh chain");
+        // A directory without the four files is refused before anything moves.
+        let empty = tempfile::tempdir().unwrap();
+        assert!(adopt_routing(empty.path(), artifacts.path(), "78", "2026-09-10T12:00:00Z").is_err());
+        assert!(!artifacts.path().join("routing").join("78").exists());
     }
 
     /// The prune keeps current + grace + `overlays` and anything that is

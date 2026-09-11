@@ -67,6 +67,14 @@ async fn main() -> Result<()> {
             source,
             artifact_dir,
         } => build_routing(config, source, artifact_dir).await,
+        Command::AdoptRouting { prebuilt, artifact_dir } => {
+            let pool = database_pool(&config).await?;
+            let artifact_dir = artifact_dir.unwrap_or(config.artifact_dir);
+            tokio::fs::create_dir_all(&artifact_dir).await?;
+            let publication = routing::adopt_routing_recorded(&pool, &artifact_dir, &prebuilt).await?;
+            println!("{}", serde_json::to_string(&publication)?);
+            Ok(())
+        }
         Command::ReconcileRouting { artifact_dir } => {
             let pool = database_pool(&config).await?;
             let artifact_dir = artifact_dir.unwrap_or(config.artifact_dir);

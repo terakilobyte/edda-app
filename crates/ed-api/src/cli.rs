@@ -9,7 +9,7 @@ pub const USAGE: &str =
     "usage: ed-api [serve | ingest | hydrate <fixture.json> | hydrate --spansh <dump.json[.gz]> \
                          | hydrate --edsm-bodies <bodies.json[.gz]> | hydrate --fdev-ids [commodity.csv] \
                          | publish-community | publish-market-daily | publish-stars \
-                         | build-routing <galaxy.json[.gz]> [artifact_dir] \
+                         | build-routing <galaxy.json[.gz]> [artifact_dir] | adopt-routing <index-dir> [artifact_dir] \
                          | reconcile-routing [artifact_dir]]";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +40,13 @@ pub enum Command {
     /// the `routing` product. `artifact_dir` overrides the configured one.
     BuildRouting {
         source: PathBuf,
+        artifact_dir: Option<PathBuf>,
+    },
+    /// Adopt an index built elsewhere (the four EDGX files plus any side
+    /// files) as the next routing version: the same publish as
+    /// build-routing without the import — a rebase.
+    AdoptRouting {
+        prebuilt: PathBuf,
         artifact_dir: Option<PathBuf>,
     },
     /// Item 47: diff EDDN/EDSM knowledge against the published routing
@@ -77,6 +84,15 @@ pub fn parse_command(args: Vec<String>) -> Result<Command> {
             };
             Command::BuildRouting {
                 source: PathBuf::from(source),
+                artifact_dir: args.next().map(PathBuf::from),
+            }
+        }
+        "adopt-routing" => {
+            let Some(prebuilt) = args.next() else {
+                bail!("{USAGE}");
+            };
+            Command::AdoptRouting {
+                prebuilt: PathBuf::from(prebuilt),
                 artifact_dir: args.next().map(PathBuf::from),
             }
         }

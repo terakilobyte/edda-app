@@ -7,7 +7,7 @@
 #
 # What the key can do, and nothing else (deploy/edda-deploy):
 #   - rsync into /var/lib/edda-deploy/inbox (rrsync, write-only)
-#   - `apply api|app|site|dashboards` → sudo edda-apply, each verb named
+#   - `apply api|app|site|dashboards|routing` → sudo edda-apply, each verb named
 #     exactly in sudoers; edda-apply is root-owned and not writable by
 #     deploy, so the rule cannot be widened from the deploy side
 #   - `status`
@@ -49,7 +49,7 @@ tmp=$(mktemp)
 cat > "$tmp" <<'SUDOERS'
 # EDDA CI deploy: user deploy may run exactly these four commands as root.
 Defaults!/usr/local/sbin/edda-apply !requiretty
-deploy ALL=(root) NOPASSWD: /usr/local/sbin/edda-apply api, /usr/local/sbin/edda-apply app, /usr/local/sbin/edda-apply site, /usr/local/sbin/edda-apply dashboards
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/edda-apply api, /usr/local/sbin/edda-apply app, /usr/local/sbin/edda-apply site, /usr/local/sbin/edda-apply dashboards, /usr/local/sbin/edda-apply routing
 SUDOERS
 visudo -cf "$tmp" >/dev/null
 install -o root -g root -m 440 "$tmp" /etc/sudoers.d/edda-deploy

@@ -11,6 +11,8 @@
 #               pointer flips only once everything it names is in place
 #   site        /var/www/edda-site ← inbox/site (mirror)
 #   dashboards  /var/lib/edda/dashboards ← inbox/dashboards/*.json
+#   routing     a prebuilt index in inbox/routing/ adopted as the next
+#               routing version (ed-api adopt-routing, a rebase)
 #
 # Prints one `edda-apply <verb>: done in N s` line per verb; the CI log is
 # the record of how long each step took on the box.
@@ -70,6 +72,24 @@ case "$verb" in
         mkdir -p /var/www/edda-site
         rsync -a --delete --chown=root:root --chmod=D755,F644 "$src/" /var/www/edda-site/
         rm -rf "$src"
+        ;;
+    routing)
+        # A routing index built elsewhere (the four EDGX files plus any
+        # side files, rsync'd to inbox/routing/) becomes the next routing
+        # version: handed to the edda user and adopted by ed-api as a
+        # rebase — validated, chunked, manifest rewritten, fresh overlay
+        # chain. Nothing else on the box changes; the nightly reconcile
+        # then folds Postgres's newer systems and teachings back in.
+        src="$INBOX/routing"
+        [[ -d "$src" && -s "$src/stars.bin" && -s "$src/cells.bin" && -s "$src/names.bin" && -s "$src/byname.bin" ]] || { echo "edda-apply routing: $src lacks the four EDGX files" >&2; exit 1; }
+        handoff=/var/lib/edda/dumps/routing-adopt
+        rm -rf "$handoff"
+        mv "$src" "$handoff"
+        chown -R edda:edda "$handoff"
+        # The adopt renames the files into the artifact tree (same
+        # filesystem), so the 11 GB is not copied twice.
+        sudo -u edda env "$(grep -v '^#' /etc/edda/api.env | xargs)" /usr/local/bin/ed-api adopt-routing "$handoff"
+        rm -rf "$handoff"
         ;;
     dashboards)
         src="$INBOX/dashboards"
