@@ -5,7 +5,10 @@
 //! dwarf. Another 127,246 hold one only as a secondary (full-dump scan,
 //! 2026-09-10, `docs/benches/2026-09-10-boost-secondary-scan.csv`), 60,811
 //! of them within 10,000 ls of arrival -- reachable by a supercruise run
-//! the cost model can price. The record marks them with
+//! the cost model can price -- and 46,179 hold one beside a boost primary,
+//! which the file keeps too (173,425 entries on the 2026-08-30 dump): a
+//! white-dwarf primary with a neutron secondary in reach is the case that
+//! makes the second group worth a row. The record marks them with
 //! [`crate::format::FLAG_BOOST_SECONDARY`]; this side file, keyed by
 //! id64, says which class and how far, so the flag costs one byte test
 //! per candidate and the lookup is paid only where it is true.
