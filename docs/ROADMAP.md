@@ -117,6 +117,14 @@ re-argued.
   orders of magnitude and a galaxy in RAM; and no fuel, scoop or
   injection model. Their published 0.08 s described their 2.4 M-system
   database, not the galaxy.
+- **Secondary boost stars in the planner** (2026-09-11). Measured on
+  every full pin under both judges at 5,000 and 10,000 ls: the planner
+  took no secondary boost on any route; every number identical to the
+  plain run (`docs/benches/2026-09-11-secondary-boost-pins.csv`). On
+  the highway the arrival stars already are the boost stars. The flag
+  and `boost.bin` stay in the index; the request switch stays off.
+  Comes back only for a route that starts or ends in a boost-secondary
+  system or crosses a corridor with no boost primary in range.
 - **Doubling the supercruise estimate** (2026-09-09). Proposed from a
   comparison against the 45 s base alone; the full curve already priced
   the measured loop long (174/234 s vs 98/139 s flown). Replaced by the
