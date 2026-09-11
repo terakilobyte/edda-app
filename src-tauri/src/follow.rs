@@ -3271,6 +3271,7 @@ mod tests {
             refuel,
             fuel_optional: false,
             synthesized: false,
+            via_secondary_ls: None,
         }
     }
 
@@ -3297,7 +3298,7 @@ mod tests {
             expansions: 0,
             elapsed_ms: 0,
             refuel_stops: 1,
-            injections: 0,
+            injections: 0, secondary_boosts: 0,
             ship_id: None,
             ship: None,
         };
@@ -3335,7 +3336,7 @@ mod tests {
             fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None,
             range_ly: 37.6, hops, jumps: 3, total_ly: 0.0, straight_ly: 0.0,
             boosted_jumps: 1, expansions: 0, elapsed_ms: 0, refuel_stops: 0,
-            injections: 0, ship_id: None, ship: None,
+            injections: 0, secondary_boosts: 0, ship_id: None, ship: None,
         };
         let ar = ActiveRoute { route, next: 1, source: "plot".into() };
         // Empty hold: everything fits, boosted hop included (90 <= 37.6*4).
@@ -3390,7 +3391,7 @@ mod tests {
             expansions: 0,
             elapsed_ms: 0,
             refuel_stops: 0,
-            injections: 0,
+            injections: 0, secondary_boosts: 0,
             ship_id: None,
             ship: None,
         };
