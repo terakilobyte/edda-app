@@ -597,8 +597,19 @@ implementation enum. Producers MUST encode an unrecognized source class as
 0. Changing an assigned code's meaning or adding another class requires a new
 EDGX record version because no unassigned nibble values remain.
 
-Current flag bits are bit 0 `main star` and bit 1 `scoopable companion within
-1,500 ls`. Unknown bits must be ignored by compatible readers.
+Flag bits (record byte 12, high nibble):
+
+| Bit | Value | Meaning | Since |
+|---:|---:|---|---|
+| 0 | `0x01` | main star: the class at bits 0–3 is the arrival star's, taken from a body marked as the main star | v2 |
+| 1 | `0x02` | scoopable companion within 1,500 ls of arrival (byte 13 carries the distance bucket in v3) | v2 |
+| 2 | `0x04` | secondary boost star: a neutron star or white dwarf is in the system but is not the arrival star; its class and distance are in the `boost.bin` side file (EDBS, below). The record class is unaffected | v3, 2026-09-10 |
+| 3 | `0x08` | reserved; writers MUST leave it zero, readers MUST ignore it | |
+
+A flag bit is additive: a reader that does not know a bit ignores it, and
+no bit changes the meaning of the class nibble. Bit 2 in particular grants
+nothing on its own — a planner that has no `boost.bin`, or is not asked to
+consider secondaries, treats the record exactly as before.
 
 ### `cells.bin` spatial index
 
@@ -763,6 +774,44 @@ Measured on routing/45: 1.5–2.4 µs per corridor-point query vs 19–140 µs
 for the walked scan, ~55–80 node reads; 2.9 MB for the 474,595 occupied
 boost-tier cells (the spec's ≪ 1 MB guess undercounted the occupied
 volume; still a rounding error beside the 5.8 GB index).
+
+## EDBS: secondary boost side file (`boost.bin`)
+
+A side file written by the importer beside the four EDGX files, like
+`agg250.bin`, `alt250.bin` and `graph250.bin`: optional, memory-mapped, read
+on first use, not part of the published routing product, rewritten whole by
+a rebase and never touched by an overlay. It names, for every record whose
+flag bit 2 is set, the boost star that is not the arrival star.
+
+Why it exists (2026-09-10, `docs/benches/2026-09-10-boost-secondary-scan.csv`):
+3,852,215 systems arrive at a neutron star or white dwarf and 127,246 hold
+one only as a secondary, 60,811 of them within 10,000 ls of arrival. The
+record's class is the arrival star's and MUST stay so — a navroute hop's
+`StarClass` filed as the main star demoted true neutron primaries and
+promoted secondaries (PR #29) — so the secondary lives here, keyed by id64.
+
+### Header (16 bytes)
+
+| Offset | Size | Type | Meaning |
+|---:|---:|---|---|
+| 0 | 4 | bytes | Magic `EDBS` |
+| 4 | 4 | u32 | Version `1` |
+| 8 | 8 | u64 | Entry count |
+
+### Entry (16 bytes), sorted by id64 ascending, one per system
+
+| Offset | Size | Type | Meaning |
+|---:|---:|---|---|
+| 0 | 8 | u64 | Elite system address/id64 |
+| 8 | 4 | f32 | Distance from the arrival point, light seconds |
+| 12 | 1 | u8 | EDGX star-class code of the secondary: 13 (white dwarf) or 14 (neutron) |
+| 13 | 3 | bytes | Reserved, zero |
+
+Where a system holds more than one secondary boost star, the nearest is
+recorded. Readers look an id64 up by binary search; a record without flag
+bit 2 MUST NOT be looked up (the flag is the cheap test, the file the
+answer). A reader that finds the magic, version or length wrong MUST treat
+the file as absent.
 
 ## Benchmark and acceptance gates
 

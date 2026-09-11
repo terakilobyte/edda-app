@@ -1303,6 +1303,7 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         prize_k: None,
         t_jump_s: time_fit.and_then(|f| f.t_jump_s),
         stop_overhead_s: time_fit.and_then(|f| f.stop_overhead_s),
+        secondary_boost_ls: 0.0,
     };
     let ctl = ed_galaxy::router::Control::none();
     let straight = ed_galaxy::format::dist(g.record(a).pos(), g.record(b).pos());

@@ -1300,6 +1300,7 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
         prize_k: try_hard.then_some(0.0),
         t_jump_s: time_fit.and_then(|f| f.t_jump_s),
         stop_overhead_s: time_fit.and_then(|f| f.stop_overhead_s),
+        secondary_boost_ls: 0.0,
     };
 
     let cancel = state.jobs.begin(crate::jobs::ROUTE_PLOT);
