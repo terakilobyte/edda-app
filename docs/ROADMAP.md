@@ -78,11 +78,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   dedicated deploy user once the repository is public and CI minutes are
   free.~~ Done 2026-09-09: CI reaches the box as user `deploy` with a
   fresh key (born in 1Password, public half in `deploy/deploy-key.pub`)
-  that can only rsync into an inbox and run four `apply` verbs
-  (`deploy/edda-deploy`, `deploy/edda-apply`); the host key is pinned in
-  CI. Watch the per-verb `edda-apply <verb>: done in N s` lines in the
-  release log; pre-registered: `apply api` under 30 s, the other three
-  under 5 s.
+  that can only rsync into an inbox and run five `apply` verbs
+  (`deploy/edda-deploy`, `deploy/edda-apply`; `routing` joined them
+  2026-09-11); the host key is pinned in CI. Watch the per-verb
+  `edda-apply <verb>: done in N s` lines in the release log;
+  pre-registered: `apply api` under 30 s, the others under 5 s. Measured
+  on the two v0.3.1 deploys (2026-09-09, runs 34415889827 and
+  34418299899), identical both times: `api` 14 s (readyz after 4 s),
+  `app` 0 s, `site` 0 s, `dashboards` 0 s — all inside the
+  pre-registration. `routing` is the exception by design and was not
+  pre-registered: 79 s on 2026-09-11 for an 11 GB adopt (validate,
+  rename into the artifact tree, chunk, rewrite the manifest). Closed.
 - **A route that cannot exist should be refused fast** (2026-09-10). On a
   145k-system fixture with no path, the planner spent 161 s (weight 1.3)
   and over 240 s (exact) before saying no; galos's router answered in
