@@ -77,13 +77,82 @@ fn wire_body(
         "min_quantity": query.min_quantity,
         "sort": query.sort,
         "limit": query.limit,
+        // Narrow to the Powers that discount this item rather than
+        // ranking fifty stations and throwing most away.
+        "powers": if query.discounted_only { discount_powers(&query.kind, &wire_text(&query.kind, &query.text)) } else { Vec::new() },
+        "include_stronghold_carriers": query.stronghold_carriers.as_deref() != Some("none"),
     })
+}
+
+/// The Powers whose space discounts the item being searched for.
+fn discount_powers(kind: &str, symbol: &str) -> Vec<String> {
+    let item = match kind {
+        "ship" => ed_domain::discount::Item::Ship(symbol),
+        "module" => ed_domain::discount::Item::Module(symbol),
+        _ => return Vec::new(),
+    };
+    ed_domain::discount::powers_offering(item).into_iter().map(str::to_owned).collect()
+}
+
+/// The Power the commander is pledged to, from the journal's own
+/// `Powerplay` event; None when unpledged or not yet seen.
+fn pledged_power(state: &AppState) -> Option<String> {
+    state
+        .with_read(|s| Ok::<_, CapError>(ed_store::session::latest_event_raw(s.conn(), "Powerplay")?))
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|v| v.get("Power").and_then(|p| p.as_str()).map(str::to_owned))
+}
+
+/// The filters the server cannot apply for us: "my Power's stronghold
+/// carriers" needs the commander's pledge, which never leaves the machine,
+/// and "discounted only" has to hold even against a server too old to know
+/// the `powers` narrowing (the request field is ignored there, not
+/// refused, so the rows arrive unfiltered).
+fn apply_local_filters(query: &MarketSearchRequest, value: &mut serde_json::Value, pledged: Option<&str>) {
+    let mode = query.stronghold_carriers.as_deref().unwrap_or("all");
+    let Some(results) = value.get_mut("results").and_then(|r| r.as_array_mut()) else {
+        return;
+    };
+    results.retain(|row| {
+        let station = row.get("station").and_then(|v| v.as_str()).unwrap_or_default();
+        let stronghold = station == ed_api_stronghold_carrier();
+        let keep_stronghold = match mode {
+            "none" => !stronghold,
+            "mine" => !stronghold || pledged.is_some_and(|p| row.get("controlling_power").and_then(|v| v.as_str()) == Some(p)),
+            _ => true,
+        };
+        let keep_discount = !query.discounted_only
+            || row.get("discount_percent").and_then(serde_json::Value::as_f64).unwrap_or(0.0) > 0.0;
+        keep_stronghold && keep_discount
+    });
+}
+
+/// The station name a Power's own carrier always carries. Spelled once
+/// here so the client and the server cannot drift.
+fn ed_api_stronghold_carrier() -> &'static str {
+    "Stronghold Carrier"
+}
+
+/// Does the commander hold Elite in any field? The 2.5% galaxy-wide
+/// discount is theirs if so, and it stacks with everything else. Read from
+/// the journal's own Rank event; unknown reads as "no", so a discount is
+/// never promised that the commander cannot get.
+fn holds_elite(state: &AppState) -> bool {
+    state
+        .with_read(|s| Ok::<_, CapError>(ed_store::session::ranks(s.conn())?))
+        .map(|r| r.ranks.iter().any(|row| row.name.eq_ignore_ascii_case("Elite")))
+        .unwrap_or(false)
 }
 
 /// The server holds symbols only; display names come from the bundled
 /// catalog. Metadata the local search would carry (class, rating,
 /// category, ship) stays null on server rows — declared, not smuggled.
-fn enrich_names(kind: &str, value: &mut serde_json::Value) {
+/// The discount is filled in here for the same reason: the rules are
+/// static game knowledge the client carries, and the server publishes no
+/// prices to compare (2026-09-12).
+fn enrich_names(kind: &str, value: &mut serde_json::Value, elite: bool) {
     let Some(results) = value.get_mut("results").and_then(|r| r.as_array_mut()) else {
         return;
     };
@@ -97,6 +166,23 @@ fn enrich_names(kind: &str, value: &mut serde_json::Value) {
             _ => continue,
         };
         row["name"] = serde_json::Value::String(name);
+        let str_of = |k: &str| row.get(k).and_then(|v| v.as_str()).map(str::to_owned);
+        let (station, system) = (str_of("station").unwrap_or_default(), str_of("system").unwrap_or_default());
+        let (power, power_state) = (str_of("controlling_power"), str_of("power_state"));
+        let at = ed_domain::discount::At {
+            station: &station,
+            system: &system,
+            power: power.as_deref(),
+            power_state: power_state.as_deref(),
+        };
+        let item = if kind == "ship" {
+            ed_domain::discount::Item::Ship(&symbol)
+        } else {
+            ed_domain::discount::Item::Module(&symbol)
+        };
+        let applied = ed_domain::discount::discounts(item, &at, elite);
+        row["discount_percent"] = serde_json::json!(ed_domain::discount::best_percent(&applied));
+        row["discounts"] = serde_json::to_value(&applied).unwrap_or(serde_json::Value::Null);
     }
 }
 
@@ -137,7 +223,8 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
         Ok(mut value) if value.get("results").is_some() => {
             let results = value["results"].as_array().map(|r| r.len());
             tracing::info!(kind = %query.kind, results, ms, "market search served by API");
-            enrich_names(query.kind.trim(), &mut value);
+            enrich_names(query.kind.trim(), &mut value, holds_elite(state));
+            apply_local_filters(query, &mut value, pledged_power(state).as_deref());
             Ok(value)
         }
         _ => {
@@ -166,6 +253,8 @@ mod tests {
             limit: Some(75),
             min_quantity: Some(500),
             sort: Some("distance".into()),
+            discounted_only: false,
+            stronghold_carriers: None,
         }
     }
 
@@ -185,6 +274,48 @@ mod tests {
         assert_eq!(unpadded["min_pad"], "any");
     }
 
+    /// The two filters the client owns. A server that ignores `powers`
+    /// (an older one) still cannot show an undiscounted row under
+    /// "discounted only", and a pledge never goes on the wire.
+    #[test]
+    fn local_filters_drop_what_the_server_kept() {
+        let rows = || serde_json::json!({"results": [
+            {"station": "Jameson Memorial", "system": "Shinrarta Dezhra", "discount_percent": 10.0},
+            {"station": "Somewhere", "system": "Elsewhere", "discount_percent": 0.0},
+            {"station": "Stronghold Carrier", "system": "A", "controlling_power": "Aisling Duval", "discount_percent": 0.0},
+            {"station": "Stronghold Carrier", "system": "B", "controlling_power": "Li Yong-Rui", "discount_percent": 15.0},
+        ]});
+        let q = |discounted: bool, strongholds: Option<&str>| MarketSearchRequest {
+            kind: "ship".into(),
+            discounted_only: discounted,
+            stronghold_carriers: strongholds.map(str::to_owned),
+            ..Default::default()
+        };
+
+        let mut v = rows();
+        apply_local_filters(&q(false, None), &mut v, Some("Aisling Duval"));
+        assert_eq!(v["results"].as_array().unwrap().len(), 4, "all four by default");
+
+        let mut v = rows();
+        apply_local_filters(&q(true, None), &mut v, None);
+        let kept: Vec<&str> = v["results"].as_array().unwrap().iter().map(|r| r["station"].as_str().unwrap()).collect();
+        assert_eq!(kept, vec!["Jameson Memorial", "Stronghold Carrier"], "only the discounted rows");
+
+        let mut v = rows();
+        apply_local_filters(&q(false, Some("none")), &mut v, Some("Aisling Duval"));
+        assert_eq!(v["results"].as_array().unwrap().len(), 2, "no stronghold carriers at all");
+
+        let mut v = rows();
+        apply_local_filters(&q(false, Some("mine")), &mut v, Some("Aisling Duval"));
+        let systems: Vec<&str> = v["results"].as_array().unwrap().iter().map(|r| r["system"].as_str().unwrap()).collect();
+        assert_eq!(systems, vec!["Shinrarta Dezhra", "Elsewhere", "A"], "only the commander's own Power's carrier");
+
+        // Unpledged: "mine" cannot mean anything, so it hides none of them.
+        let mut v = rows();
+        apply_local_filters(&q(false, Some("mine")), &mut v, None);
+        assert_eq!(v["results"].as_array().unwrap().len(), 2, "unpledged keeps the docks, drops carriers it cannot vouch for");
+    }
+
     /// Server module/ship rows carry symbols; the bundled catalog gives
     /// them their display names, and absent metadata stays null.
     #[test]
@@ -192,11 +323,11 @@ mod tests {
         let mut value = serde_json::json!({"results": [
             {"symbol": "python", "name": "python", "class": null},
         ]});
-        enrich_names("ship", &mut value);
+        enrich_names("ship", &mut value, false);
         assert_eq!(value["results"][0]["name"], "Python");
         assert!(value["results"][0]["class"].is_null());
         let mut commodity = serde_json::json!({"results": [{"station": "X", "price": 1}]});
-        enrich_names("commodity", &mut commodity);
+        enrich_names("commodity", &mut commodity, false);
         assert_eq!(commodity["results"][0]["price"], 1, "commodity rows pass through untouched");
     }
 }

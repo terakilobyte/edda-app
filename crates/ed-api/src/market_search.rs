@@ -51,6 +51,16 @@ pub struct MarketSearchApiRequest {
     pub min_pad: Option<String>,
     #[serde(default)]
     pub include_carriers: bool,
+    /// Only stations in systems held by one of these Powers; empty or
+    /// absent means every system. The client sends the Powers whose space
+    /// discounts what it is searching for (ship and module discounts are
+    /// static rules the client owns), so a 50-row answer is not spent on
+    /// stations that cannot be cheaper.
+    #[serde(default)]
+    pub powers: Vec<String>,
+    /// Stronghold Carriers are a Power's own carrier, not a commander's,
+    /// and are not flagged `is_carrier`; absent means include them.
+    pub include_stronghold_carriers: Option<bool>,
     #[serde(default)]
     pub include_prohibited: bool,
     /// Commodities only; default 48.
@@ -153,6 +163,12 @@ async fn resolve_commodity(pool: &PgPool, text: &str) -> Result<(String, String,
         matches: matches.into_iter().map(|(name,)| name).collect(),
     })
 }
+
+/// A Power's own carrier, one per Stronghold system, named exactly this
+/// in the game's data. Not a commander's fleet carrier: it is not flagged
+/// `is_carrier`, so the two filters are independent, as they are on the
+/// tools commanders already use.
+pub const STRONGHOLD_CARRIER: &str = "Stronghold Carrier";
 
 type StationRow = (
     i64,            // station id
@@ -385,7 +401,8 @@ async fn availability_rows(
                 st.arrival_ls, st.pad_large, st.pad_medium, st.pad_small, \
                 COALESCE(st.is_carrier, false), \
                 a.{column}, \
-                EXTRACT(EPOCH FROM {observed})::DOUBLE PRECISION \
+                EXTRACT(EPOCH FROM {observed})::DOUBLE PRECISION, \
+                sy.controlling_power, sy.power_state \
          FROM {table} a \
          JOIN stations st ON st.id = a.station_id \
          JOIN systems sy ON sy.address = st.system_address \
@@ -394,11 +411,15 @@ async fn availability_rows(
            AND (sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$4)^2 <= $5*$5 \
            AND {pad} \
            AND ($6 OR NOT COALESCE(st.is_carrier, false)) \
+           AND ($8 OR st.name IS DISTINCT FROM '{stronghold}') \
+           AND (cardinality($9::text[]) = 0 OR sy.controlling_power = ANY($9)) \
          ORDER BY distance_ly ASC LIMIT {limit}",
         pad = pad_clause(min_pad),
         limit = req.limit(),
+        stronghold = STRONGHOLD_CARRIER,
     );
-    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, String, Option<f64>)> =
+    #[allow(clippy::type_complexity)]
+    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, String, Option<f64>, Option<String>, Option<String>)> =
         sqlx::query_as(&sql)
             .bind(req.text.trim())
             .bind(ox)
@@ -407,6 +428,8 @@ async fn availability_rows(
             .bind(radius)
             .bind(req.include_carriers)
             .bind(cells_covering(ox, oy, oz, radius))
+            .bind(req.include_stronghold_carriers.unwrap_or(true))
+            .bind(req.powers.clone())
             // Fresh plan per execution — see `search`.
             .persistent(false)
             .fetch_all(pool)
@@ -428,6 +451,10 @@ async fn availability_rows(
                     "category": null,
                     "ship": null,
                     "updated": r.10.map(iso_from_unix),
+                    // The client turns these into a discount: the rules are
+                    // static and it owns them (2026-09-12).
+                    "controlling_power": r.11,
+                    "power_state": r.12,
                 }),
             )
         })

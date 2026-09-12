@@ -1,8 +1,9 @@
 <script>
-  import { commoditySearch, outfittingSearch, shipyardSearch, sellHoldSearch, getStatus, listCommodities, nameComplete } from "./api.js";
+  import { commoditySearch, outfittingSearch, shipyardSearch, sellHoldSearch, getStatus, listCommodities, nameComplete, powerplayOptions } from "./api.js";
   import { fmtInt, fmtLs, fmtLy, fmtTs } from "./format.js";
   import Autocomplete from "./Autocomplete.svelte";
   import { requestRoute } from "./route.svelte.js";
+  import { onMount } from "svelte";
 
   let kind = $state("commodity");
   let text = $state("");
@@ -12,6 +13,14 @@
   let maxAge = $state(48);
   let pad = $state("");
   let carriers = $state(false);
+  // Stronghold Carriers are a Power's own, not a commander's: "all",
+  // "mine" (the Power the commander is pledged to) or "none".
+  let strongholds = $state("all");
+  let discountedOnly = $state(false);
+  // The Power the commander is pledged to, for the "mine" option and for
+  // saying whose carriers those are (the Trade panel reads the same).
+  let pledgedPower = $state(null);
+  onMount(async () => { try { pledgedPower = (await powerplayOptions()).pledged; } catch { pledgedPower = null; } });
   let prohibited = $state(false);
   let minQty = $state(0);
   let loading = $state(false);
@@ -76,6 +85,8 @@
       min_pad: pad || null, include_carriers: carriers, include_prohibited: prohibited, max_age_hours: Number(maxAge),
       side, limit: 75, sort: sortKey === "distance_ly" ? "distance" : "price",
       min_quantity: Number(minQty) || 0,
+      discounted_only: kind !== "commodity" && discountedOnly,
+      stronghold_carriers: kind === "commodity" ? null : strongholds,
     };
     try {
       report = kind === "commodity" ? await commoditySearch(query)
@@ -167,7 +178,19 @@
       <label>Prices newer than <span class="inline"><input class="short" type="number" min="1" bind:value={maxAge} /> h</span></label>
       <label title="Skip stations with less depth than your hold needs">Min {side === "buy" ? "supply" : "demand"} <input class="short" type="number" min="0" bind:value={minQty} /></label>
     {/if}
-    <label class="check"><input type="checkbox" bind:checked={carriers} /> Include carriers</label>
+    <label class="check" title="Fleet carriers: a commander's own, which move"><input type="checkbox" bind:checked={carriers} /> Include fleet carriers</label>
+    {#if kind !== "commodity"}
+      <label title="A Power's own carrier in each Stronghold system. Not a fleet carrier, and stocked for the Power's pledged commanders.">Stronghold carriers
+        <select bind:value={strongholds}>
+          <option value="all">all</option>
+          <option value="mine">{pledgedPower ? `${pledgedPower} only` : "my Power only"}</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+      <label class="check" title="Only where the game's published discounts apply: Powerplay space, the permit stations, and your Elite rank">
+        <input type="checkbox" bind:checked={discountedOnly} /> Discounted only
+      </label>
+    {/if}
     <label class="check" title="Show sales of confiscated goods at stations with a black-market contact"><input type="checkbox" bind:checked={prohibited} /> Include prohibited goods and black markets</label>
     <button class="go" onclick={() => run()} disabled={loading}>{loading ? "Searching…" : "Search"}</button>
     <button class="quiet" title="Search every commodity in the cargo hold sell-side and rank stations by the combined price" onclick={runHold} disabled={holdLoading}>{holdLoading ? "Valuing hold…" : "Sell my hold"}</button>
@@ -230,6 +253,7 @@
             <th class="r"><button class="sort" onclick={() => sortBy("distance_ly")}>Distance{arrow("distance_ly")}</button></th>
             <th class="r"><button class="sort" onclick={() => sortBy("distance_to_arrival")}>Arrival{arrow("distance_to_arrival")}</button></th>
             <th><button class="sort" onclick={() => sortBy("max_pad")}>Pad{arrow("max_pad")}</button></th>
+            {#if kind !== "commodity"}<th class="r"><button class="sort" onclick={() => sortBy("discount_percent")}>Discount{arrow("discount_percent")}</button></th>{/if}
             {#if kind === "commodity"}
               <th class="r"><button class="sort" onclick={() => sortBy("price")}>Price{arrow("price")}</button></th>
               <th class="r"><button class="sort" onclick={() => sortBy("quantity")}>{side === "buy" ? "Supply" : "Demand"}{arrow("quantity")}</button></th>
@@ -242,12 +266,15 @@
                 {#if kind !== "commodity"}
                   <td><strong>{r.name}</strong>{#if kind === "outfitting" && (r.class || r.rating)}<span class="pill">{r.class ?? "?"}{r.rating ?? ""}</span>{/if}<div class="symbol">{r.symbol}</div></td>
                 {/if}
-                <td><strong>{r.station}</strong>{#if r.is_carrier}<span class="pill">carrier</span>{/if}
+                <td><strong>{r.station}</strong>{#if r.is_carrier}<span class="pill">carrier</span>{:else if r.station === "Stronghold Carrier"}<span class="pill">stronghold</span>{/if}
                   <button class="route-icon" onclick={() => requestRoute(r.system)}
                     title="Plot a route to {r.station}, {r.system}" aria-label="Plot a route to {r.station}, {r.system}">➤</button>
                 </td>
                 <td>{r.system}</td><td class="r num">{fmtLy(r.distance_ly)}</td><td class="r num">{fmtLs(r.distance_to_arrival)}</td>
                 <td><span class="pill {r.max_pad === 'large' ? 'ok' : r.max_pad ? '' : 'warn'}">{padLabel(r.max_pad)}</span></td>
+                {#if kind !== "commodity"}
+                  <td class="r num">{#if r.discount_percent}<span class="pill ok" title={(r.discounts ?? []).map((d) => `${d.percent}% — ${d.why}`).join("\n")}>−{r.discount_percent}%</span>{:else}<span class="muted">—</span>{/if}</td>
+                {/if}
                 {#if kind === "commodity"}
                   <td class="r num">{fmtInt(r.price)} cr</td><td class="r num">{fmtInt(r.quantity)}</td>
                   <td class="small {r.age_hours != null && r.age_hours > 48 ? '' : 'muted'}">{#if r.age_hours != null && r.age_hours > 48}<span class="pill warn">{r.age_hours.toFixed(0)} h</span>{:else}{r.age_hours == null ? "?" : r.age_hours < 1 ? "<1 h" : `${r.age_hours.toFixed(0)} h`}{/if}</td>

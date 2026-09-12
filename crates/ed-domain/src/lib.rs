@@ -1,5 +1,6 @@
 //! Database- and transport-independent data operations shared by EDDA.
 
+pub mod discount;
 pub mod star;
 pub mod station;
 pub mod system;
