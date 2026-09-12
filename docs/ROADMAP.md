@@ -55,6 +55,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   separate manual step. Either the workflow refuses when the box's script
   hash differs from the ref's, or the box script is shipped and
   reinstalled by the deploy itself.
+- **`thorough` defaults to true on the public route endpoint**
+  (2026-09-11). `POST /v1/route` with the field absent plans the
+  expensive path (`plot.rs`, `api.thorough.unwrap_or(true)`), while the
+  app's Route tab sends `thorough: false` for its quick plot and `true`
+  only for "Try harder". Defensible for a one-shot web caller, but
+  undocumented, and it cost two sessions an evening of comparing rows
+  that were not the same request. Document it on the endpoint; decide
+  whether the default should follow the app.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.

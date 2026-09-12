@@ -1,0 +1,26 @@
+# 2026-09-11 navroute repair: the box index rebased and reconciled (maintainer: "box repair. We can't be just
+# destroying our shit" / "I just want our routing index to not be borked"). Machine: the prod box (2 vCPU),
+# api at dc9d816; index 21521269 (corrupted, 2026-09-10) -> 3cff2b54 (adopted from the PC's 08-30 dump build,
+# 198,978,505 systems) -> 164fcbd0 (one reconcile folding Postgres back: adds 1,010,050, updates 56,715,
+# taught_unknown 0, systems 199,988,555). Route: Sol->Colonia, supercharge on, min_fuel on, range 50.
+# VERDICT: repaired, and no worse than before the regression. Like-for-like (quick, thorough=false) 141/119 on
+# the corrupted base -> 140/119 on the reconciled one: one jump better, same boosts, 27% faster wall. Corruption
+# gone at every layer: zero eddn:navroute rows in `stars` and none returning in 3.5 h of live traffic after the
+# 20:25Z ingest restart; of 20 sampled known-corrupted systems the one now carrying a teaching carries the true
+# class (13/D where navroute said 7/M) and the other 19 carry none rather than a wrong one; the base itself was
+# built from the dump, so navroute never touched its bytes.
+# CAUTION, and the reason two sessions measured "the same" request differently all evening: `thorough` defaults
+# to TRUE when the field is absent (plot.rs:258, api.thorough.unwrap_or(true)), while the app's Route tab sends
+# thorough=false for its quick plot and true only for "Try harder". An omitted field is the expensive path.
+# `max_dry_jumps` absent == 0 and changes nothing here. Bodies are spelled out per row.
+# Highway note: the neutron sub-index builds lazily on the first plot after a version flip (10 s for 3cff2b54,
+# 6 s for 164fcbd0) and until PR #41 that first, highway-less answer was cached for an hour. Both flips today
+# were first hit by our own probes; no commander saw one.
+index,mode,body,jumps,boosted,stops,total_ly,expansions,wall_ms
+21521269 (corrupted),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:50}",141,119,0,,1597,1139
+164fcbd0 (repaired),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:50}",140,119,0,23606.6,3309,826
+164fcbd0 (repaired),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:49.9}",146,127,0,24377.4,3011,418
+164fcbd0 (repaired),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:50.1}",146,127,0,24317.4,3217,410
+164fcbd0 (repaired),thorough,"{supercharge:true,min_fuel:true,range_ly:50}",141,122,0,24016.2,3190,539
+3cff2b54 (pre-reconcile),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:49.9}",146,127,0,,,
+3cff2b54 (pre-reconcile),quick,"{supercharge:true,min_fuel:true,thorough:false,range_ly:50.1}",146,127,0,,,
