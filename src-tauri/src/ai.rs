@@ -127,7 +127,9 @@ impl Effects for Live {
             .is_ok();
         if saved {
             use crate::events::EmitExt as _;
-            state.events.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(ar)));
+            state
+                .events
+                .emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(ar)));
             // A route asked for by voice or chat gets the same briefing as one from the tab.
             if ar.next <= 1 {
                 crate::follow::announce_with(&state.announcer(), ar);
@@ -150,7 +152,9 @@ impl Effects for Live {
             // delete left a ghost route on the overlay until reload
             // (field case 2026-09-05, "clear my route" by voice).
             use crate::events::EmitExt as _;
-            state.events.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(None));
+            state
+                .events
+                .emit(crate::events::ROUTE_FOLLOW, crate::follow::view(None));
         }
         cleared
     }
@@ -381,7 +385,12 @@ struct RoundState {
 /// same order. Calls within a turn are independent by construction -- the
 /// model issued them all before seeing any result -- so they run
 /// concurrently on scoped threads; a single call runs inline.
-fn run_round(state: &AppState, fx: &dyn Effects, rs: &mut RoundState, calls: &[ToolCall]) -> Vec<Value> {
+fn run_round(
+    state: &AppState,
+    fx: &dyn Effects,
+    rs: &mut RoundState,
+    calls: &[ToolCall],
+) -> Vec<Value> {
     // Loop breaker first, sequentially: the same call with the same input
     // gives the same answer; after two repeats the model is told so instead
     // of being fed it again.
@@ -409,8 +418,14 @@ fn run_round(state: &AppState, fx: &dyn Effects, rs: &mut RoundState, calls: &[T
         outputs[pending[0]] = Some(run(&calls[pending[0]]));
     } else if !pending.is_empty() {
         let results: Vec<(usize, Value)> = std::thread::scope(|s| {
-            let handles: Vec<_> = pending.iter().map(|&i| s.spawn(move || (i, run(&calls[i])))).collect();
-            handles.into_iter().map(|h| h.join().unwrap_or_else(|_| (usize::MAX, json!({})))).collect()
+            let handles: Vec<_> = pending
+                .iter()
+                .map(|&i| s.spawn(move || (i, run(&calls[i]))))
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| h.join().unwrap_or_else(|_| (usize::MAX, json!({}))))
+                .collect()
         });
         for (i, v) in results {
             if i != usize::MAX {
@@ -421,7 +436,12 @@ fn run_round(state: &AppState, fx: &dyn Effects, rs: &mut RoundState, calls: &[T
 
     let mut out = Vec::with_capacity(calls.len());
     for (c, o) in calls.iter().zip(outputs) {
-        let mut output = o.unwrap_or_else(|| capabilities::error_value(&capabilities::CapError::internal(format!("{} panicked", c.name))));
+        let mut output = o.unwrap_or_else(|| {
+            capabilities::error_value(&capabilities::CapError::internal(format!(
+                "{} panicked",
+                c.name
+            )))
+        });
         tracing::info!(tool = %c.name, input = %c.input, bytes = output.to_string().len(), ms = started.elapsed().as_millis() as u64, "ship computer tool");
         rs.tools_used.push(c.name.clone());
         match c.name.as_str() {
@@ -607,11 +627,23 @@ async fn ask_openai(
             obj.retain(|k, _| matches!(k.as_str(), "role" | "content" | "tool_calls"));
         }
         messages.push(message);
-        let ids: Vec<String> = calls.iter().map(|c| c.get("id").and_then(Value::as_str).unwrap_or_default().to_string()).collect();
+        let ids: Vec<String> = calls
+            .iter()
+            .map(|c| {
+                c.get("id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string()
+            })
+            .collect();
         let tool_calls: Vec<ToolCall> = calls
             .iter()
             .map(|call| ToolCall {
-                name: call.pointer("/function/name").and_then(Value::as_str).unwrap_or_default().to_string(),
+                name: call
+                    .pointer("/function/name")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
                 input: match call.pointer("/function/arguments") {
                     Some(Value::String(s)) => serde_json::from_str(s).unwrap_or(json!({})),
                     Some(v) => v.clone(),
@@ -832,7 +864,11 @@ pub async fn ask_with(state: &AppState, fx: &dyn Effects, question: &str) -> Res
         let tool_calls: Vec<ToolCall> = tool_uses
             .iter()
             .map(|call| ToolCall {
-                name: call.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
+                name: call
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
                 input: call.get("input").cloned().unwrap_or(json!({})),
             })
             .collect();
@@ -924,9 +960,18 @@ mod tests {
         let fx = Recording::default();
         let mut rs = RoundState::default();
         let calls = vec![
-            ToolCall { name: "say".into(), input: json!({ "text": "one" }) },
-            ToolCall { name: "list_blueprints".into(), input: json!({}) },
-            ToolCall { name: "say".into(), input: json!({ "text": "three" }) },
+            ToolCall {
+                name: "say".into(),
+                input: json!({ "text": "one" }),
+            },
+            ToolCall {
+                name: "list_blueprints".into(),
+                input: json!({}),
+            },
+            ToolCall {
+                name: "say".into(),
+                input: json!({ "text": "three" }),
+            },
         ];
         let out = run_round(&f.state, &fx, &mut rs, &calls);
         assert_eq!(out.len(), 3);
@@ -944,14 +989,20 @@ mod tests {
         let f = crate::capabilities::testing::fixture("cutter");
         let fx = Recording::default();
         let mut rs = RoundState::default();
-        let call = ToolCall { name: "list_blueprints".into(), input: json!({}) };
+        let call = ToolCall {
+            name: "list_blueprints".into(),
+            input: json!({}),
+        };
         for _ in 0..2 {
             let out = run_round(&f.state, &fx, &mut rs, std::slice::from_ref(&call));
             assert!(out[0].get("error").is_none());
         }
         let out = run_round(&f.state, &fx, &mut rs, std::slice::from_ref(&call));
         assert_eq!(out[0]["error"]["kind"], "invalid_input");
-        assert!(out[0]["error"]["hint"].as_str().unwrap().contains("change the parameters"));
+        assert!(out[0]["error"]["hint"]
+            .as_str()
+            .unwrap()
+            .contains("change the parameters"));
     }
 
     #[test]

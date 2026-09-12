@@ -79,7 +79,9 @@ impl VoiceHandle {
                     tracing::warn!(text = t, "voice queue full; dropped");
                     let _ = done.send(());
                 }
-                Err(TrySendError::Full(_)) => tracing::warn!("voice queue full; model change dropped"),
+                Err(TrySendError::Full(_)) => {
+                    tracing::warn!("voice queue full; model change dropped")
+                }
                 Err(TrySendError::Disconnected(_)) => tracing::error!("voice thread is gone"),
             }
         }
@@ -99,12 +101,16 @@ impl VoiceHandle {
     pub fn say_wait(&self, text: impl Into<String>) {
         let text = text.into();
         *self.last.lock().unwrap_or_else(|e| e.into_inner()) = Some(text.clone());
-        if self.muted.load(std::sync::atomic::Ordering::Relaxed) { return; }
+        if self.muted.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
         let gen = self.audio.generation();
         let (done_tx, done_rx) = sync_channel(0);
         let guard = self.tx.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(tx) = guard.as_ref() {
-            if tx.send(Msg::SayWait(text, gen, done_tx)).is_ok() { let _ = done_rx.recv(); }
+            if tx.send(Msg::SayWait(text, gen, done_tx)).is_ok() {
+                let _ = done_rx.recv();
+            }
         }
     }
 
@@ -143,7 +149,8 @@ impl VoiceHandle {
     }
 
     pub fn set_muted(&self, muted: bool) {
-        self.muted.store(muted, std::sync::atomic::Ordering::Relaxed);
+        self.muted
+            .store(muted, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn is_muted(&self) -> bool {
@@ -173,7 +180,9 @@ fn run(mut voice: ed_voice::Voice, rx: Receiver<Msg>, audio: Arc<ed_voice::Audio
         match msg {
             Msg::Say(text, gen) => {
                 if paused {
-                    if held.len() == QUEUE { held.pop_front(); }
+                    if held.len() == QUEUE {
+                        held.pop_front();
+                    }
                     held.push_back((text, gen));
                     continue;
                 }
@@ -197,7 +206,9 @@ fn run(mut voice: ed_voice::Voice, rx: Receiver<Msg>, audio: Arc<ed_voice::Audio
                 }
             }
             Msg::UseWindows => voice.use_windows_voice(),
-            Msg::Reload(data_dir) => voice = ed_voice::Voice::discover_with(&data_dir, audio.clone()),
+            Msg::Reload(data_dir) => {
+                voice = ed_voice::Voice::discover_with(&data_dir, audio.clone())
+            }
             Msg::Pause(value) => {
                 paused = value;
                 if !paused {
@@ -237,8 +248,15 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let a = VoiceHandle::spawn(dir.path(), "EDDA/test");
         let b = VoiceHandle::spawn(dir.path(), "EDDA/test");
-        a.audio().set_server(Some(ed_voice::ServerConfig { url: "http://127.0.0.1:1".into(), ..Default::default() }));
+        a.audio().set_server(Some(ed_voice::ServerConfig {
+            url: "http://127.0.0.1:1".into(),
+            ..Default::default()
+        }));
         assert_eq!(a.backend(), ed_voice::Backend::Server);
-        assert_ne!(b.backend(), ed_voice::Backend::Server, "a second handle must not inherit it");
+        assert_ne!(
+            b.backend(),
+            ed_voice::Backend::Server,
+            "a second handle must not inherit it"
+        );
     }
 }

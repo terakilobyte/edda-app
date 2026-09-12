@@ -87,7 +87,8 @@ impl AltOracle {
         for &d in &self.table {
             out.extend_from_slice(&d.to_le_bytes());
         }
-        let mut file = std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
+        let mut file =
+            std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
         file.write_all(&out)?;
         Ok(())
     }
@@ -99,7 +100,10 @@ impl AltOracle {
         }
         ensure!(bytes[4] == 1, "unknown ALT version {}", bytes[4]);
         let landmarks = bytes[5] as usize;
-        ensure!((1..=64).contains(&landmarks), "implausible landmark count {landmarks}");
+        ensure!(
+            (1..=64).contains(&landmarks),
+            "implausible landmark count {landmarks}"
+        );
         let cells = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
         let mut at = 16;
         let mut landmark_cells = Vec::with_capacity(landmarks);
@@ -110,18 +114,33 @@ impl AltOracle {
             at = end;
         }
         let need = cells * landmarks * 2;
-        ensure!(bytes.len() == at + need, "{} carries {} table bytes for {cells} cells x {landmarks}", path.display(), bytes.len() - at);
+        ensure!(
+            bytes.len() == at + need,
+            "{} carries {} table bytes for {cells} cells x {landmarks}",
+            path.display(),
+            bytes.len() - at
+        );
         let table = bytes[at..]
-            .as_chunks::<2>().0.iter()
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|b| u16::from_le_bytes([b[0], b[1]]))
             .collect();
-        Ok(AltOracle { table, landmark_cells, cells })
+        Ok(AltOracle {
+            table,
+            landmark_cells,
+            cells,
+        })
     }
 }
 
 fn centre(key: u64, cell_ly: f32) -> [f32; 3] {
     let (cx, cy, cz) = morton_cell_of(key);
-    [(cx as f32 + 0.5) * cell_ly, (cy as f32 + 0.5) * cell_ly, (cz as f32 + 0.5) * cell_ly]
+    [
+        (cx as f32 + 0.5) * cell_ly,
+        (cy as f32 + 0.5) * cell_ly,
+        (cz as f32 + 0.5) * cell_ly,
+    ]
 }
 
 /// Build the table over the COARSE CELL GRAPH's metric -- highway edges
@@ -135,18 +154,32 @@ fn centre(key: u64, cell_ly: f32) -> [f32; 3] {
 /// hop) so the heuristic's ly arithmetic is unchanged and remains a
 /// lower bound for every real ship.
 pub fn build(sub: &Galaxy, graph: &crate::cgraph::CellGraph) -> Result<AltOracle> {
-    ensure!(sub.morton_cells(), "the ALT table needs a v3 (morton-ordered) index");
+    ensure!(
+        sub.morton_cells(),
+        "the ALT table needs a v3 (morton-ordered) index"
+    );
     let cells = sub.cell_count();
     ensure!(cells > 0, "an empty sub-index has nothing to bound");
-    ensure!(graph.leaf_count() == cells, "the cell graph belongs to another sub-index");
+    ensure!(
+        graph.leaf_count() == cells,
+        "the cell graph belongs to another sub-index"
+    );
     let cell_ly = sub.cell_ly;
-    let centres: Vec<[f32; 3]> = (0..cells).map(|i| centre(sub.cell_entry(i).0, cell_ly)).collect();
+    let centres: Vec<[f32; 3]> = (0..cells)
+        .map(|i| centre(sub.cell_entry(i).0, cell_ly))
+        .collect();
     let dijkstra = |from: usize| -> Vec<f32> {
         graph
             .goal_field(from)
             .as_jumps()
             .into_iter()
-            .map(|j| if j.is_finite() { j * crate::cgraph::REF_BOOSTED_REACH_LY } else { f32::INFINITY })
+            .map(|j| {
+                if j.is_finite() {
+                    j * crate::cgraph::REF_BOOSTED_REACH_LY
+                } else {
+                    f32::INFINITY
+                }
+            })
             .collect()
     };
     // Seed: the occupied cell nearest Sol (the origin).
@@ -187,7 +220,11 @@ pub fn build(sub: &Galaxy, graph: &crate::cgraph::CellGraph) -> Result<AltOracle
             });
         }
     }
-    Ok(AltOracle { table: packed, landmark_cells, cells })
+    Ok(AltOracle {
+        table: packed,
+        landmark_cells,
+        cells,
+    })
 }
 
 /// Total ordering for non-NaN f32 heap keys.
@@ -226,7 +263,12 @@ mod tests {
             ));
         }
         source.push(']');
-        import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let ndir = dir.path().join("boost250");
         import::subset_cells(&g, &ndir, crate::long_range::NEUTRON_CELL_LY, |r| {
@@ -269,7 +311,9 @@ mod tests {
     fn reference_dijkstra(sub: &Galaxy, from: usize) -> Vec<f32> {
         let cells = sub.cell_count();
         let cell_ly = sub.cell_ly;
-        let centres: Vec<[f32; 3]> = (0..cells).map(|i| centre(sub.cell_entry(i).0, cell_ly)).collect();
+        let centres: Vec<[f32; 3]> = (0..cells)
+            .map(|i| centre(sub.cell_entry(i).0, cell_ly))
+            .collect();
         let mut dist = vec![f32::INFINITY; cells];
         dist[from] = 0.0;
         let mut open = vec![from];
@@ -309,7 +353,10 @@ mod tests {
             bound > euclid,
             "the detour must show: bound {bound:.0} ly vs straight {euclid:.0} ly"
         );
-        assert!(bound <= 8_000.0 + 500.0, "and stay below the true path: {bound:.0}");
+        assert!(
+            bound <= 8_000.0 + 500.0,
+            "and stay below the true path: {bound:.0}"
+        );
     }
 
     /// The table round-trips through alt250.bin bit for bit and loads

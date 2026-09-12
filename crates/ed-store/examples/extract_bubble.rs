@@ -19,7 +19,9 @@ use rusqlite::Connection;
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() != 4 {
-        eprintln!("usage: extract_bubble <galaxy.sqlite3> <origin system> <radius_ly> <out.sqlite3>");
+        eprintln!(
+            "usage: extract_bubble <galaxy.sqlite3> <origin system> <radius_ly> <out.sqlite3>"
+        );
         std::process::exit(2);
     }
     let src = PathBuf::from(&args[0]);
@@ -83,7 +85,10 @@ fn main() -> Result<()> {
         ("sys_body_materials", by_body),
         ("sys_rings", by_body),
         ("sys_ring_hotspots", by_body),
-        ("star_overrides", "id64 IN (SELECT id64 FROM galaxy.sys_systems)"),
+        (
+            "star_overrides",
+            "id64 IN (SELECT id64 FROM galaxy.sys_systems)",
+        ),
         ("sys_commodities", "1"),
         ("sys_modules", "1"),
         ("sys_ships", "1"),
@@ -92,7 +97,10 @@ fn main() -> Result<()> {
         if table_exists(&conn, "src", table)? {
             copy(&conn, table, filter)?;
         } else if legacy_catalog(table) {
-            let n: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM galaxy.{table}"), [], |r| r.get(0))?;
+            let n: i64 =
+                conn.query_row(&format!("SELECT COUNT(*) FROM galaxy.{table}"), [], |r| {
+                    r.get(0)
+                })?;
             eprintln!("{table:>22}: {n} rows (built from legacy symbols)");
         } else {
             eprintln!("{table:>22}: absent in source, skipped");
@@ -100,7 +108,11 @@ fn main() -> Result<()> {
     }
     conn.execute_batch("COMMIT")?;
     conn.execute_batch("DETACH DATABASE src")?;
-    eprintln!("done in {:.1}s -> {}", started.elapsed().as_secs_f64(), out.display());
+    eprintln!(
+        "done in {:.1}s -> {}",
+        started.elapsed().as_secs_f64(),
+        out.display()
+    );
     Ok(())
 }
 
@@ -179,7 +191,11 @@ fn copy_legacy_items(
         .iter()
         .filter(|c| *c != "id" && src_cols.contains(c))
         .collect();
-    let carry_list = carry.iter().map(|c| format!("\"{c}\"")).collect::<Vec<_>>().join(", ");
+    let carry_list = carry
+        .iter()
+        .map(|c| format!("\"{c}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
     let carry_min = carry
         .iter()
         .filter(|c| **c != "symbol")
@@ -205,7 +221,8 @@ fn copy_legacy_items(
         .filter(|c| *c != id_col)
         .map(|c| {
             if c == "updated" {
-                "CAST(strftime('%s', substr(s.\"updated\", 1, 19)) AS INTEGER) AS \"updated\"".to_string()
+                "CAST(strftime('%s', substr(s.\"updated\", 1, 19)) AS INTEGER) AS \"updated\""
+                    .to_string()
             } else {
                 format!("s.\"{c}\"")
             }
@@ -258,11 +275,16 @@ fn common_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
 
 fn columns(conn: &Connection, schema: &str, table: &str) -> Result<Vec<String>> {
     Ok(conn
-        .prepare(&format!("SELECT name FROM pragma_table_info('{table}', '{schema}')"))?
+        .prepare(&format!(
+            "SELECT name FROM pragma_table_info('{table}', '{schema}')"
+        ))?
         .query_map([], |r| r.get::<_, String>(0))?
         .collect::<rusqlite::Result<_>>()?)
 }
 
 fn quoted(cols: &[String]) -> String {
-    cols.iter().map(|c| format!("\"{c}\"")).collect::<Vec<_>>().join(", ")
+    cols.iter()
+        .map(|c| format!("\"{c}\""))
+        .collect::<Vec<_>>()
+        .join(", ")
 }

@@ -144,7 +144,10 @@ impl Catalog {
         Catalog {
             blueprints,
             synthesis: synthesis.recipes,
-            synthesis_provenance: Provenance { source: synthesis.source, fetched: synthesis.fetched },
+            synthesis_provenance: Provenance {
+                source: synthesis.source,
+                fetched: synthesis.fetched,
+            },
         }
     }
 
@@ -164,10 +167,17 @@ impl Catalog {
         if want.is_empty() {
             return None;
         }
-        if let Some(exact) = self.synthesis.iter().find(|r| r.name.eq_ignore_ascii_case(&want)) {
+        if let Some(exact) = self
+            .synthesis
+            .iter()
+            .find(|r| r.name.eq_ignore_ascii_case(&want))
+        {
             return Some(exact);
         }
-        let mut hits = self.synthesis.iter().filter(|r| r.name.to_ascii_lowercase().contains(&want));
+        let mut hits = self
+            .synthesis
+            .iter()
+            .filter(|r| r.name.to_ascii_lowercase().contains(&want));
         match (hits.next(), hits.next()) {
             (Some(one), None) => Some(one),
             _ => None,
@@ -203,7 +213,9 @@ impl Catalog {
         let mut grades: Vec<i64> = self
             .blueprints
             .iter()
-            .filter(|b| b.module_type.eq_ignore_ascii_case(module_type) && b.name.eq_ignore_ascii_case(name))
+            .filter(|b| {
+                b.module_type.eq_ignore_ascii_case(module_type) && b.name.eq_ignore_ascii_case(name)
+            })
             .filter_map(|b| b.grade)
             .collect();
         grades.sort_unstable();
@@ -224,7 +236,11 @@ impl Catalog {
     }
 
     pub fn module_types(&self) -> Vec<&str> {
-        let mut types: Vec<&str> = self.blueprints.iter().map(|b| b.module_type.as_str()).collect();
+        let mut types: Vec<&str> = self
+            .blueprints
+            .iter()
+            .map(|b| b.module_type.as_str())
+            .collect();
         types.sort_unstable();
         types.dedup();
         types
@@ -257,7 +273,8 @@ impl Catalog {
         self.blueprints
             .iter()
             .filter(|b| {
-                b.module_type.to_lowercase().contains(&needle) || b.name.to_lowercase().contains(&needle)
+                b.module_type.to_lowercase().contains(&needle)
+                    || b.name.to_lowercase().contains(&needle)
             })
             .collect()
     }
@@ -314,7 +331,11 @@ impl Catalog {
     ) -> HashMap<String, i64> {
         let mut totals: HashMap<String, i64> = HashMap::new();
         for grade in (from_grade + 1)..=target_grade {
-            let rolls = if grade < target_grade || complete_target { Self::rolls_to_unlock_next(grade) } else { 1 };
+            let rolls = if grade < target_grade || complete_target {
+                Self::rolls_to_unlock_next(grade)
+            } else {
+                1
+            };
             if let Some(bp) = self.find(module_type, name, grade) {
                 for ing in &bp.ingredients {
                     *totals.entry(ing.name.clone()).or_insert(0) += ing.quantity * rolls;
@@ -334,26 +355,49 @@ impl Catalog {
         complete_target: bool,
         have: &HashMap<String, i64>,
     ) -> GapReport {
-        let totals = self.cumulative_requirements_realistic(module_type, name, from_grade, target_grade, complete_target);
-        let have_lower: HashMap<String, i64> = have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
+        let totals = self.cumulative_requirements_realistic(
+            module_type,
+            name,
+            from_grade,
+            target_grade,
+            complete_target,
+        );
+        let have_lower: HashMap<String, i64> =
+            have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
         let mut lines: Vec<RequirementLine> = totals
             .into_iter()
             .map(|(material, need)| {
                 let have_qty = *have_lower.get(&material.to_lowercase()).unwrap_or(&0);
-                RequirementLine { material, need, have: have_qty }
+                RequirementLine {
+                    material,
+                    need,
+                    have: have_qty,
+                }
             })
             .collect();
         lines.sort_by(|a, b| a.material.cmp(&b.material));
         let fully_met = lines.iter().all(|l| l.have >= l.need);
-        GapReport { module_type: module_type.to_string(), name: name.to_string(), grade: target_grade, lines, fully_met }
+        GapReport {
+            module_type: module_type.to_string(),
+            name: name.to_string(),
+            grade: target_grade,
+            lines,
+            fully_met,
+        }
     }
 
     /// Materials for an experimental effect (one application, no grade),
     /// diffed against inventory. `None` if the effect does not exist for
     /// the module. Reported with `grade: 0` so callers can tell it apart.
-    pub fn experimental_gap(&self, module_type: &str, name: &str, have: &HashMap<String, i64>) -> Option<GapReport> {
+    pub fn experimental_gap(
+        &self,
+        module_type: &str,
+        name: &str,
+        have: &HashMap<String, i64>,
+    ) -> Option<GapReport> {
         let bp = self.find_experimental(module_type, name)?;
-        let have_lower: HashMap<String, i64> = have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
+        let have_lower: HashMap<String, i64> =
+            have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
         let mut lines: Vec<RequirementLine> = bp
             .ingredients
             .iter()
@@ -365,7 +409,13 @@ impl Catalog {
             .collect();
         lines.sort_by(|a, b| a.material.cmp(&b.material));
         let fully_met = lines.iter().all(|l| l.have >= l.need);
-        Some(GapReport { module_type: module_type.to_string(), name: name.to_string(), grade: 0, lines, fully_met })
+        Some(GapReport {
+            module_type: module_type.to_string(),
+            name: name.to_string(),
+            grade: 0,
+            lines,
+            fully_met,
+        })
     }
 
     pub fn gap_report(
@@ -377,13 +427,18 @@ impl Catalog {
         have: &HashMap<String, i64>,
     ) -> GapReport {
         let totals = self.cumulative_requirements(module_type, name, from_grade, target_grade);
-        let have_lower: HashMap<String, i64> = have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
+        let have_lower: HashMap<String, i64> =
+            have.iter().map(|(k, v)| (k.to_lowercase(), *v)).collect();
 
         let mut lines: Vec<RequirementLine> = totals
             .into_iter()
             .map(|(material, need)| {
                 let have_qty = *have_lower.get(&material.to_lowercase()).unwrap_or(&0);
-                RequirementLine { material, need, have: have_qty }
+                RequirementLine {
+                    material,
+                    need,
+                    have: have_qty,
+                }
             })
             .collect();
         lines.sort_by(|a, b| a.material.cmp(&b.material));
@@ -406,24 +461,44 @@ mod tests {
     #[test]
     fn loads_the_full_vendored_dataset() {
         let cat = Catalog::load();
-        assert!(cat.len() > 1000, "expected the full EDEngineer blueprint set, got {}", cat.len());
+        assert!(
+            cat.len() > 1000,
+            "expected the full EDEngineer blueprint set, got {}",
+            cat.len()
+        );
     }
 
     #[test]
     fn finds_a_known_fsd_blueprint_by_type_name_grade() {
         let cat = Catalog::load();
-        let bp = cat.find("Frame Shift Drive", "Increased FSD Range", 5).expect("grade 5 FSD range must exist");
-        assert!(bp.ingredients.iter().any(|i| i.name == "Datamined Wake Exceptions"));
+        let bp = cat
+            .find("Frame Shift Drive", "Increased FSD Range", 5)
+            .expect("grade 5 FSD range must exist");
+        assert!(bp
+            .ingredients
+            .iter()
+            .any(|i| i.name == "Datamined Wake Exceptions"));
     }
 
     #[test]
     fn realistic_requirements_roll_each_lower_grade_n_times() {
         let cat = Catalog::load();
         let min = cat.cumulative_requirements("Frame Shift Drive", "Increased FSD Range", 0, 3);
-        let real = cat.cumulative_requirements_realistic("Frame Shift Drive", "Increased FSD Range", 0, 3, false);
+        let real = cat.cumulative_requirements_realistic(
+            "Frame Shift Drive",
+            "Increased FSD Range",
+            0,
+            3,
+            false,
+        );
         // Grade 1 x1, grade 2 x2, grade 3 x1 (target): strictly more than the minimum.
         let sum = |m: &HashMap<String, i64>| m.values().sum::<i64>();
-        assert!(sum(&real) > sum(&min), "realistic {} vs minimum {}", sum(&real), sum(&min));
+        assert!(
+            sum(&real) > sum(&min),
+            "realistic {} vs minimum {}",
+            sum(&real),
+            sum(&min)
+        );
         assert_eq!(Catalog::rolls_to_unlock_next(4), 4);
     }
 
@@ -442,7 +517,11 @@ mod tests {
         have.insert("Atypical Disrupted Wake Echoes".to_string(), 1);
         let report = cat.gap_report("Frame Shift Drive", "Increased FSD Range", 0, 2, &have);
         assert!(!report.fully_met);
-        let line = report.lines.iter().find(|l| l.material == "Atypical Disrupted Wake Echoes").unwrap();
+        let line = report
+            .lines
+            .iter()
+            .find(|l| l.material == "Atypical Disrupted Wake Echoes")
+            .unwrap();
         assert_eq!(line.need, 2);
         assert_eq!(line.have, 1);
     }
@@ -457,26 +536,62 @@ mod synthesis_tests {
     #[test]
     fn synthesis_library_loads_and_matches_the_injection_table() {
         let c = Catalog::load();
-        assert!(c.synthesis_recipes().len() >= 25, "{} recipes", c.synthesis_recipes().len());
+        assert!(
+            c.synthesis_recipes().len() >= 25,
+            "{} recipes",
+            c.synthesis_recipes().len()
+        );
         assert!(c.synthesis_provenance().source.contains("Synthesis"));
         let fsd = c.find_synthesis("FSD Injection").expect("FSD Injection");
         assert_eq!(fsd.grades.len(), 3);
         let mats = |g: &str| -> Vec<String> {
-            fsd.grades.iter().find(|x| x.grade == g).unwrap().ingredients.iter().map(|i| i.name.to_ascii_lowercase()).collect()
+            fsd.grades
+                .iter()
+                .find(|x| x.grade == g)
+                .unwrap()
+                .ingredients
+                .iter()
+                .map(|i| i.name.to_ascii_lowercase())
+                .collect()
         };
         assert_eq!(mats("Basic"), vec!["carbon", "vanadium", "germanium"]);
-        assert_eq!(mats("Standard"), vec!["carbon", "vanadium", "germanium", "cadmium", "niobium"]);
-        assert_eq!(mats("Premium"), vec!["carbon", "germanium", "arsenic", "niobium", "yttrium", "polonium"]);
+        assert_eq!(
+            mats("Standard"),
+            vec!["carbon", "vanadium", "germanium", "cadmium", "niobium"]
+        );
+        assert_eq!(
+            mats("Premium"),
+            vec![
+                "carbon",
+                "germanium",
+                "arsenic",
+                "niobium",
+                "yttrium",
+                "polonium"
+            ]
+        );
         assert_eq!(fsd.grades[2].bonus.as_deref(), Some("+100% Jump Range"));
-        assert!(c.find_synthesis("injection").is_some(), "unique substring lands");
-        assert!(c.find_synthesis("munitions").is_none(), "ambiguous substring does not");
+        assert!(
+            c.find_synthesis("injection").is_some(),
+            "unique substring lands"
+        );
+        assert!(
+            c.find_synthesis("munitions").is_none(),
+            "ambiguous substring does not"
+        );
         // Every ingredient has a positive count and a name the material
         // catalog could look up (no wiki markup leaked through).
         for r in c.synthesis_recipes() {
             for g in &r.grades {
                 assert!(!g.ingredients.is_empty(), "{} {}", r.name, g.grade);
                 for i in &g.ingredients {
-                    assert!(i.count > 0 && !i.name.contains('[') && !i.name.contains('|'), "{} {} {:?}", r.name, g.grade, i);
+                    assert!(
+                        i.count > 0 && !i.name.contains('[') && !i.name.contains('|'),
+                        "{} {} {:?}",
+                        r.name,
+                        g.grade,
+                        i
+                    );
                 }
             }
         }

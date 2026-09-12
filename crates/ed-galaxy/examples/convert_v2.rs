@@ -50,7 +50,11 @@ fn convert(from: &Path, to: &Path) -> Result<()> {
         record.write_to(&mut encoded);
         out.write_all(&encoded)?;
         if i > 0 && i % 25_000_000 == 0 {
-            eprintln!("  {i}/{} records ({:.1} M/s)", galaxy.count, i as f64 / started.elapsed().as_secs_f64() / 1e6);
+            eprintln!(
+                "  {i}/{} records ({:.1} M/s)",
+                galaxy.count,
+                i as f64 / started.elapsed().as_secs_f64() / 1e6
+            );
         }
     }
     out.flush()?;
@@ -58,9 +62,17 @@ fn convert(from: &Path, to: &Path) -> Result<()> {
     fs::rename(&tmp, &final_path)?;
     let check = Galaxy::open(to)?;
     if check.count != galaxy.count {
-        bail!("converted count mismatch: {} != {}", check.count, galaxy.count);
+        bail!(
+            "converted count mismatch: {} != {}",
+            check.count,
+            galaxy.count
+        );
     }
-    eprintln!("converted {} records in {:.1}s", galaxy.count, started.elapsed().as_secs_f64());
+    eprintln!(
+        "converted {} records in {:.1}s",
+        galaxy.count,
+        started.elapsed().as_secs_f64()
+    );
     Ok(())
 }
 
@@ -71,7 +83,10 @@ fn main() -> Result<()> {
     let from = Path::new(from);
     let to = Path::new(to);
     if Galaxy::exists(to) || to.join("stars.bin.tmp").exists() {
-        bail!("destination already contains an index or partial conversion: {}", to.display());
+        bail!(
+            "destination already contains an index or partial conversion: {}",
+            to.display()
+        );
     }
     convert(from, to)?;
     let neutron_from = ed_galaxy::long_range::neutron_dir(from);

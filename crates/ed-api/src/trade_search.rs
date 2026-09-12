@@ -52,7 +52,9 @@ pub struct TradeSearchApiRequest {
 
 impl TradeSearchApiRequest {
     fn radius(&self) -> f64 {
-        self.radius_ly.unwrap_or(DEFAULT_RADIUS_LY).clamp(1.0, MAX_RADIUS_LY)
+        self.radius_ly
+            .unwrap_or(DEFAULT_RADIUS_LY)
+            .clamp(1.0, MAX_RADIUS_LY)
     }
     fn max_age(&self) -> f64 {
         self.max_age_hours.unwrap_or(48.0).clamp(0.25, 720.0)
@@ -188,7 +190,10 @@ impl Default for TradeService {
             .filter(|&n| n >= 1)
             .unwrap_or(CONCURRENCY);
         tracing::info!(concurrency, "trade gate sized");
-        Self { gate: tokio::sync::Semaphore::new(concurrency), cache: Mutex::new(HashMap::new()) }
+        Self {
+            gate: tokio::sync::Semaphore::new(concurrency),
+            cache: Mutex::new(HashMap::new()),
+        }
     }
 }
 
@@ -240,7 +245,11 @@ impl TradeService {
     /// The v2 answer: `trade_report::prepare` (Postgres) then
     /// `ed_route::profit::assemble` (the finder's own pipeline) behind
     /// the same one-at-a-time gate and minute cache as the legacy legs.
-    pub async fn report(&self, pool: &PgPool, req: &ReportRequest) -> Result<TradeOutcome, Refusal> {
+    pub async fn report(
+        &self,
+        pool: &PgPool,
+        req: &ReportRequest,
+    ) -> Result<TradeOutcome, Refusal> {
         let mut req = req.clone();
         req.clamp();
         let origin = crate::market_search::origin_coords(pool, req.system.trim()).await?;
@@ -265,8 +274,11 @@ impl TradeService {
         let mut prepared = crate::trade_report::prepare(pool, origin, &req.constraints).await?;
         let board_use = match &req.board {
             Some(board) => {
-                let outcome = crate::trade_report::fuse(pool, &mut prepared, board, req.from_station_id).await?;
-                metrics::counter!("edda_trade_board_total", "reason" => outcome.reason).increment(1);
+                let outcome =
+                    crate::trade_report::fuse(pool, &mut prepared, board, req.from_station_id)
+                        .await?;
+                metrics::counter!("edda_trade_board_total", "reason" => outcome.reason)
+                    .increment(1);
                 Some(outcome)
             }
             None => None,
@@ -277,11 +289,16 @@ impl TradeService {
             ("market", prepared.timing.market_ms),
             ("guards", prepared.timing.guards_ms),
         ] {
-            metrics::histogram!("edda_trade_report_phase_seconds", "phase" => phase).record(ms as f64 / 1000.0);
+            metrics::histogram!("edda_trade_report_phase_seconds", "phase" => phase)
+                .record(ms as f64 / 1000.0);
         }
         let system = req.system.trim().to_owned();
-        let (ship, constraints, from_station, limit) =
-            (req.ship, req.constraints.clone(), req.from_station_id, req.limit());
+        let (ship, constraints, from_station, limit) = (
+            req.ship,
+            req.constraints.clone(),
+            req.from_station_id,
+            req.limit(),
+        );
         let report = tokio::task::spawn_blocking(move || {
             ed_route::profit::assemble(
                 &system,
@@ -296,8 +313,12 @@ impl TradeService {
         })
         .await
         .map_err(|join| Refusal::Invalid(format!("report panicked: {join}")))?;
-        for (phase, ms) in [("pairing", report.timing.pairing_ms), ("rings", report.timing.rings_ms)] {
-            metrics::histogram!("edda_trade_report_phase_seconds", "phase" => phase).record(ms as f64 / 1000.0);
+        for (phase, ms) in [
+            ("pairing", report.timing.pairing_ms),
+            ("rings", report.timing.rings_ms),
+        ] {
+            metrics::histogram!("edda_trade_report_phase_seconds", "phase" => phase)
+                .record(ms as f64 / 1000.0);
         }
         tracing::info!(
             stations = report.stations_considered,
@@ -318,7 +339,8 @@ impl TradeService {
             reason: b.reason.to_owned(),
             rows: b.rows,
         });
-        let mut value = serde_json::to_value(&report).map_err(|e| Refusal::Invalid(e.to_string()))?;
+        let mut value =
+            serde_json::to_value(&report).map_err(|e| Refusal::Invalid(e.to_string()))?;
         if let Some(obj) = value.as_object_mut() {
             obj.insert("provenance".into(), json!("server"));
             obj.insert("as_of".into(), json!(crate::market_search::now_iso()));
@@ -347,9 +369,9 @@ impl TradeService {
     fn same_sphere_cached(&self, spatial: &str, full_key: &str) -> bool {
         let prefix = format!("{spatial}#");
         let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        cache.iter().any(|(k, (at, _))| {
-            k != full_key && k.starts_with(&prefix) && at.elapsed() < CACHE_TTL
-        })
+        cache
+            .iter()
+            .any(|(k, (at, _))| k != full_key && k.starts_with(&prefix) && at.elapsed() < CACHE_TTL)
     }
 }
 
@@ -436,7 +458,12 @@ async fn legs(
         .bind(req.min_demand.unwrap_or(DEFAULT_MIN_QTY).max(0))
         .bind(req.include_carriers)
         .bind(req.max_age() * 3600.0)
-        .bind(crate::market_search::cells_covering(ox, oy, oz, req.radius()))
+        .bind(crate::market_search::cells_covering(
+            ox,
+            oy,
+            oz,
+            req.radius(),
+        ))
         // Fresh plan per execution: pg_stat_statements (2026-09-07) showed
         // this statement at plan_time 0 and a 697 ms mean — a generic plan
         // that cannot see the cell list or the origin — while the same SQL
@@ -509,28 +536,45 @@ mod tests {
         let req = ReportRequest::parse(&body).unwrap();
         assert_eq!(req.constraints.radius_ly, 60.0);
         assert_eq!(req.constraints.max_stops, 3);
-        assert_eq!(req.constraints.max_age_hours, ed_route::profit::Constraints::default().max_age_hours);
+        assert_eq!(
+            req.constraints.max_age_hours,
+            ed_route::profit::Constraints::default().max_age_hours
+        );
         assert_eq!(req.limit(), ed_route::request::ProfitRequest::DEFAULT_LIMIT);
-        assert!(ReportRequest::parse(&serde_json::json!({"system": "Sol"})).is_none(), "no ship: legacy");
+        assert!(
+            ReportRequest::parse(&serde_json::json!({"system": "Sol"})).is_none(),
+            "no ship: legacy"
+        );
     }
 
     #[test]
     fn report_request_clamps_to_the_server_budget() {
         let mut req = ReportRequest {
             system: "Sol".into(),
-            ship: ed_route::cost::Ship { cargo_capacity: 1, jump_range_ly: 1.0, laden_range_ly: 1.0 },
+            ship: ed_route::cost::Ship {
+                cargo_capacity: 1,
+                jump_range_ly: 1.0,
+                laden_range_ly: 1.0,
+            },
             constraints: ed_route::profit::Constraints {
                 radius_ly: 9_000.0,
                 max_stations: 1_000_000,
                 max_age_hours: 0.0,
                 ..Default::default()
             },
-            from_station_id: None, board: None,
+            from_station_id: None,
+            board: None,
             limit: Some(9_000),
         };
         req.clamp();
-        assert_eq!(req.constraints.radius_ly, crate::trade_report::MAX_RADIUS_LY);
-        assert_eq!(req.constraints.max_stations, crate::trade_report::DEFAULT_MAX_STATIONS);
+        assert_eq!(
+            req.constraints.radius_ly,
+            crate::trade_report::MAX_RADIUS_LY
+        );
+        assert_eq!(
+            req.constraints.max_stations,
+            crate::trade_report::DEFAULT_MAX_STATIONS
+        );
         assert_eq!(req.constraints.max_age_hours, 0.25);
         assert_eq!(req.limit(), 100);
     }
@@ -577,13 +621,21 @@ mod tests {
         let mut r = request();
         r.min_demand = Some(1);
         assert_ne!(a, r.cache_key(origin), "filters must key");
-        assert_eq!(request().spatial_key(origin), r.spatial_key(origin), "a filter change keeps the sphere");
+        assert_eq!(
+            request().spatial_key(origin),
+            r.spatial_key(origin),
+            "a filter change keeps the sphere"
+        );
         let mut r = request();
         r.include_carriers = true;
         assert_ne!(a, r.cache_key(origin));
         assert_eq!(request().spatial_key(origin), r.spatial_key(origin));
         let mut r = request();
         r.radius_ly = Some(250.0);
-        assert_ne!(request().spatial_key(origin), r.spatial_key(origin), "a sphere change is a real miss");
+        assert_ne!(
+            request().spatial_key(origin),
+            r.spatial_key(origin),
+            "a sphere change is a real miss"
+        );
     }
 }

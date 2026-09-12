@@ -63,7 +63,10 @@ pub struct AddRecord {
 pub enum OverlayOp {
     Add(AddRecord),
     /// The two mutable bytes of a record, whole (not a diff mask).
-    Update { class: u8, flags: u8 },
+    Update {
+        class: u8,
+        flags: u8,
+    },
     Tombstone,
 }
 
@@ -110,8 +113,8 @@ fn identity(cell: u64, pos: [f32; 3]) -> Identity {
 
 impl Overlay {
     pub fn write(&self, path: &Path) -> Result<()> {
-        let file = std::fs::File::create(path)
-            .with_context(|| format!("creating {}", path.display()))?;
+        let file =
+            std::fs::File::create(path).with_context(|| format!("creating {}", path.display()))?;
         self.write_to(BufWriter::new(file))
     }
 
@@ -144,8 +147,14 @@ impl Overlay {
             }
             match &record.op {
                 OverlayOp::Add(add) => {
-                    ensure!(add.class <= 0x0f && add.flags <= 0x0f, "add fields exceed their nibbles");
-                    ensure!(add.companion <= COMPANION_BUCKETS, "add companion bucket out of range");
+                    ensure!(
+                        add.class <= 0x0f && add.flags <= 0x0f,
+                        "add fields exceed their nibbles"
+                    );
+                    ensure!(
+                        add.companion <= COMPANION_BUCKETS,
+                        "add companion bucket out of range"
+                    );
                     let name = add.name.as_bytes();
                     ensure!(name.len() <= u16::MAX as usize, "add name too long");
                     body.extend_from_slice(&add.id64.to_le_bytes());
@@ -157,7 +166,10 @@ impl Overlay {
                     name_bytes += name.len() as u64;
                 }
                 OverlayOp::Update { class, flags } => {
-                    ensure!(*class <= 0x0f && *flags <= 0x0f, "update fields exceed their nibbles");
+                    ensure!(
+                        *class <= 0x0f && *flags <= 0x0f,
+                        "update fields exceed their nibbles"
+                    );
                     body.push(*class);
                     body.push(*flags);
                 }
@@ -169,7 +181,10 @@ impl Overlay {
         header.extend_from_slice(&OVERLAY_VERSION.to_le_bytes());
         header.extend_from_slice(&self.base_stars_sha256);
         header.extend_from_slice(&(records.len() as u32).to_le_bytes());
-        ensure!(name_bytes <= u32::MAX as u64, "overlay name bytes exceed u32");
+        ensure!(
+            name_bytes <= u32::MAX as u64,
+            "overlay name bytes exceed u32"
+        );
         header.extend_from_slice(&(name_bytes as u32).to_le_bytes());
         header.extend_from_slice(&self.created_at.to_le_bytes());
         header.resize(OVERLAY_HEADER_LEN, 0);
@@ -181,8 +196,8 @@ impl Overlay {
     }
 
     pub fn read(path: &Path) -> Result<Overlay> {
-        let file = std::fs::File::open(path)
-            .with_context(|| format!("opening {}", path.display()))?;
+        let file =
+            std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
         Self::read_from(std::io::BufReader::new(file))
     }
 
@@ -191,7 +206,8 @@ impl Overlay {
     /// nibbles, UTF-8 names, no trailing bytes.
     pub fn read_from(mut r: impl Read) -> Result<Overlay> {
         let mut header = [0u8; OVERLAY_HEADER_LEN];
-        r.read_exact(&mut header).context("reading the overlay header")?;
+        r.read_exact(&mut header)
+            .context("reading the overlay header")?;
         if &header[0..4] != OVERLAY_MAGIC {
             bail!("not an EDGO overlay");
         }
@@ -216,7 +232,9 @@ impl Overlay {
         let mut names_seen = 0u64;
         let mut previous: Option<Identity> = None;
         let take = |at: &mut usize, n: usize| -> Result<&[u8]> {
-            let slice = body.get(*at..*at + n).context("overlay record stream is truncated")?;
+            let slice = body
+                .get(*at..*at + n)
+                .context("overlay record stream is truncated")?;
             *at += n;
             Ok(slice)
         };
@@ -248,7 +266,13 @@ impl Overlay {
                         .with_context(|| format!("overlay add {index} name is not UTF-8"))?
                         .to_owned();
                     names_seen += u64::from(name_len);
-                    OverlayOp::Add(AddRecord { id64, class, flags, companion, name })
+                    OverlayOp::Add(AddRecord {
+                        id64,
+                        class,
+                        flags,
+                        companion,
+                        name,
+                    })
                 }
                 OP_UPDATE => {
                     let class = take(&mut at, 1)?[0];
@@ -269,7 +293,11 @@ impl Overlay {
         if names_seen != name_bytes {
             bail!("overlay header claims {name_bytes} name bytes, stream carries {names_seen}");
         }
-        Ok(Overlay { base_stars_sha256, created_at, records })
+        Ok(Overlay {
+            base_stars_sha256,
+            created_at,
+            records,
+        })
     }
 }
 
@@ -277,8 +305,8 @@ impl Overlay {
 /// as its base.
 pub fn stars_sha256(dir: &Path) -> Result<[u8; 32]> {
     let path = dir.join("stars.bin");
-    let mut file = std::fs::File::open(&path)
-        .with_context(|| format!("opening {}", path.display()))?;
+    let mut file =
+        std::fs::File::open(&path).with_context(|| format!("opening {}", path.display()))?;
     let mut hasher = Sha256::new();
     std::io::copy(&mut file, &mut hasher)?;
     Ok(hasher.finalize().into())
@@ -293,14 +321,23 @@ pub fn stars_sha256(dir: &Path) -> Result<[u8; 32]> {
 /// chain 45->49->50->51).
 #[derive(Debug, Clone, PartialEq)]
 enum FinalOp {
-    Add { record: AddRecord, link: usize },
-    Update { class: u8, flags: u8 },
+    Add {
+        record: AddRecord,
+        link: usize,
+    },
+    Update {
+        class: u8,
+        flags: u8,
+    },
     /// tombstone + add of the same identity across links (the rename
     /// path — updates can't touch names): the base record is REMOVED and
     /// the new one APPENDS at its link's position, exactly as the
     /// sequential applies would have it. Never emitted into the dead
     /// record's slot.
-    Replace { record: AddRecord, link: usize },
+    Replace {
+        record: AddRecord,
+        link: usize,
+    },
     Tombstone,
 }
 
@@ -315,29 +352,55 @@ fn coalesce(chain: &[Overlay]) -> Result<BTreeMap<Identity, FinalOp>> {
             let id = identity(record.cell, record.pos);
             let prior = net.remove(&id);
             let folded = match (prior, &record.op) {
-                (None, OverlayOp::Add(add)) => Some(FinalOp::Add { record: add.clone(), link }),
-                (None, OverlayOp::Update { class, flags }) => {
-                    Some(FinalOp::Update { class: *class, flags: *flags })
-                }
+                (None, OverlayOp::Add(add)) => Some(FinalOp::Add {
+                    record: add.clone(),
+                    link,
+                }),
+                (None, OverlayOp::Update { class, flags }) => Some(FinalOp::Update {
+                    class: *class,
+                    flags: *flags,
+                }),
                 (None, OverlayOp::Tombstone) => Some(FinalOp::Tombstone),
-                (Some(FinalOp::Add { record: mut add, link: added }), OverlayOp::Update { class, flags }) => {
+                (
+                    Some(FinalOp::Add {
+                        record: mut add,
+                        link: added,
+                    }),
+                    OverlayOp::Update { class, flags },
+                ) => {
                     add.class = *class;
                     add.flags = *flags;
                     // The append position belongs to the link that ADDED it.
-                    Some(FinalOp::Add { record: add, link: added })
+                    Some(FinalOp::Add {
+                        record: add,
+                        link: added,
+                    })
                 }
                 (Some(FinalOp::Add { .. }), OverlayOp::Tombstone) => None,
                 (Some(FinalOp::Update { .. }), OverlayOp::Update { class, flags }) => {
-                    Some(FinalOp::Update { class: *class, flags: *flags })
+                    Some(FinalOp::Update {
+                        class: *class,
+                        flags: *flags,
+                    })
                 }
                 (Some(FinalOp::Update { .. }), OverlayOp::Tombstone) => Some(FinalOp::Tombstone),
-                (Some(FinalOp::Tombstone), OverlayOp::Add(add)) => {
-                    Some(FinalOp::Replace { record: add.clone(), link })
-                }
-                (Some(FinalOp::Replace { record: mut add, link: added }), OverlayOp::Update { class, flags }) => {
+                (Some(FinalOp::Tombstone), OverlayOp::Add(add)) => Some(FinalOp::Replace {
+                    record: add.clone(),
+                    link,
+                }),
+                (
+                    Some(FinalOp::Replace {
+                        record: mut add,
+                        link: added,
+                    }),
+                    OverlayOp::Update { class, flags },
+                ) => {
                     add.class = *class;
                     add.flags = *flags;
-                    Some(FinalOp::Replace { record: add, link: added })
+                    Some(FinalOp::Replace {
+                        record: add,
+                        link: added,
+                    })
                 }
                 (Some(FinalOp::Replace { .. }), OverlayOp::Tombstone) => Some(FinalOp::Tombstone),
                 (prior, op) => bail!(
@@ -386,7 +449,9 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
     ensure!(!chain.is_empty(), "no overlays to apply");
     let base = crate::Galaxy::open(base_dir).context("opening the base index")?;
     if base.presence().is_some_and(|p| p.missing() > 0) {
-        bail!("the base index is a sparse install with unfetched cells; overlays need a whole base");
+        bail!(
+            "the base index is a sparse install with unfetched cells; overlays need a whole base"
+        );
     }
     let actual = stars_sha256(base_dir)?;
     if actual != chain[0].base_stars_sha256 {
@@ -407,14 +472,10 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
     let expected = u64::try_from(expected).context("overlay tombstones exceed the base count")?;
 
     std::fs::create_dir_all(out_dir)?;
-    let mut stars = BufWriter::with_capacity(
-        1 << 20,
-        std::fs::File::create(out_dir.join("stars.bin"))?,
-    );
-    let names = BufWriter::with_capacity(
-        1 << 20,
-        std::fs::File::create(out_dir.join("names.bin"))?,
-    );
+    let mut stars =
+        BufWriter::with_capacity(1 << 20, std::fs::File::create(out_dir.join("stars.bin"))?);
+    let names =
+        BufWriter::with_capacity(1 << 20, std::fs::File::create(out_dir.join("names.bin"))?);
     let mut cells = BufWriter::new(std::fs::File::create(out_dir.join("cells.bin"))?);
     let mut header = Vec::with_capacity(HEADER_LEN);
     header.extend_from_slice(MAGIC);
@@ -449,7 +510,13 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
             Ok(())
         }
     }
-    let mut em = Emitter { stars, names, buf: Vec::with_capacity(RECORD_LEN), name_off: 0, written: 0 };
+    let mut em = Emitter {
+        stars,
+        names,
+        buf: Vec::with_capacity(RECORD_LEN),
+        name_off: 0,
+        written: 0,
+    };
     let add_record = |cell_pos: &Identity, add: &AddRecord| -> StarRecord {
         let bytes = cell_pos.1;
         let axis = |i: usize| f32::from_le_bytes(bytes[i..i + 4].try_into().unwrap());
@@ -479,17 +546,25 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
         n
     };
     let write_cell = |key: u64,
-                          count: u64,
-                          start: u64,
-                          cells: &mut BufWriter<std::fs::File>,
-                          stats: &mut ApplyStats|
+                      count: u64,
+                      start: u64,
+                      cells: &mut BufWriter<std::fs::File>,
+                      stats: &mut ApplyStats|
      -> Result<()> {
         if count == 0 {
             return Ok(()); // a cell emptied by tombstones vanishes
         }
         cells.write_all(&key.to_le_bytes())?;
-        cells.write_all(&u32::try_from(start).context("record index overflow")?.to_le_bytes())?;
-        cells.write_all(&u32::try_from(count).context("cell count overflow")?.to_le_bytes())?;
+        cells.write_all(
+            &u32::try_from(start)
+                .context("record index overflow")?
+                .to_le_bytes(),
+        )?;
+        cells.write_all(
+            &u32::try_from(count)
+                .context("cell count overflow")?
+                .to_le_bytes(),
+        )?;
         stats.cells += 1;
         Ok(())
     };
@@ -564,7 +639,11 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
                     em.emit(&record, base.name(&record).as_bytes())?;
                 }
                 Some(FinalOp::Update { class, flags }) => {
-                    let patched = StarRecord { class: *class, flags: *flags, ..record };
+                    let patched = StarRecord {
+                        class: *class,
+                        flags: *flags,
+                        ..record
+                    };
                     em.emit(&patched, base.name(&record).as_bytes())?;
                     stats.updates += 1;
                 }
@@ -601,7 +680,13 @@ pub fn apply_overlays(base_dir: &Path, chain: &[Overlay], out_dir: &Path) -> Res
         for (_, id, add) in &appends {
             em.emit(&add_record(id, add), add.name.as_bytes())?;
         }
-        write_cell(key, em.written - start_written, start_written, &mut cells, &mut stats)?;
+        write_cell(
+            key,
+            em.written - start_written,
+            start_written,
+            &mut cells,
+            &mut stats,
+        )?;
         base_cell += 1;
     }
     drain_new_cells!(u64::MAX);
@@ -654,19 +739,31 @@ fn write_byname(dir: &Path, count: usize) -> Result<()> {
 /// system at `pos` (cell key derived, never trusted from the caller).
 pub fn add_at(pos: [f32; 3], add: AddRecord) -> OverlayRecord {
     let (cx, cy, cz) = cell_of_with(pos, crate::format::CELL_LY);
-    OverlayRecord { cell: morton_cell_key(cx, cy, cz), pos, op: OverlayOp::Add(add) }
+    OverlayRecord {
+        cell: morton_cell_key(cx, cy, cz),
+        pos,
+        op: OverlayOp::Add(add),
+    }
 }
 
 /// See [`add_at`].
 pub fn update_at(pos: [f32; 3], class: u8, flags: u8) -> OverlayRecord {
     let (cx, cy, cz) = cell_of_with(pos, crate::format::CELL_LY);
-    OverlayRecord { cell: morton_cell_key(cx, cy, cz), pos, op: OverlayOp::Update { class, flags } }
+    OverlayRecord {
+        cell: morton_cell_key(cx, cy, cz),
+        pos,
+        op: OverlayOp::Update { class, flags },
+    }
 }
 
 /// See [`add_at`].
 pub fn tombstone_at(pos: [f32; 3]) -> OverlayRecord {
     let (cx, cy, cz) = cell_of_with(pos, crate::format::CELL_LY);
-    OverlayRecord { cell: morton_cell_key(cx, cy, cz), pos, op: OverlayOp::Tombstone }
+    OverlayRecord {
+        cell: morton_cell_key(cx, cy, cz),
+        pos,
+        op: OverlayOp::Tombstone,
+    }
 }
 
 // CELL_LEN is part of the format contract the apply writes; referenced so
@@ -688,8 +785,7 @@ mod tests {
 
     fn base_index() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        crate::import::import_reader(Box::new(SAMPLE.as_bytes()), dir.path(), &mut |_| {})
-            .unwrap();
+        crate::import::import_reader(Box::new(SAMPLE.as_bytes()), dir.path(), &mut |_| {}).unwrap();
         dir
     }
 
@@ -716,7 +812,10 @@ mod tests {
     #[test]
     fn the_wire_round_trips_including_unknown_class_adds() {
         let records = vec![
-            add_at([12.0, 3.0, -7.5], add("New Discovery", 99, StarClass::Unknown)),
+            add_at(
+                [12.0, 3.0, -7.5],
+                add("New Discovery", 99, StarClass::Unknown),
+            ),
             update_at([0.0, 0.0, 0.0], StarClass::G.code(), 1),
             tombstone_at([500.0, 0.0, 0.0]),
         ];
@@ -757,7 +856,10 @@ mod tests {
 
         let mut trailing = bytes.clone();
         trailing[40..44].copy_from_slice(&0u32.to_le_bytes()); // claim zero records
-        assert!(Overlay::read_from(trailing.as_slice()).is_err(), "body bytes with no records to own them");
+        assert!(
+            Overlay::read_from(trailing.as_slice()).is_err(),
+            "body bytes with no records to own them"
+        );
 
         // Duplicate identities refuse at write time too.
         let dup = Overlay {
@@ -786,7 +888,10 @@ mod tests {
             vec![
                 update_at([500.0, 0.0, 0.0], StarClass::Neutron.code(), 1),
                 add_at([2.0, -3.0, 4.0], add("Sol Sibling", 500, StarClass::M)),
-                add_at([4000.0, 120.0, -900.0], add("Frontier AB-C d1", 501, StarClass::Unknown)),
+                add_at(
+                    [4000.0, 120.0, -900.0],
+                    add("Frontier AB-C d1", 501, StarClass::Unknown),
+                ),
                 tombstone_at([-10.0, 5.0, 20.0]),
             ],
         );
@@ -797,7 +902,8 @@ mod tests {
             (2, 1, 1, 5)
         );
 
-        Galaxy::validate_dir(out.path()).expect("the merged index must validate like a published one");
+        Galaxy::validate_dir(out.path())
+            .expect("the merged index must validate like a published one");
         let g = Galaxy::open(out.path()).unwrap();
         assert_eq!(g.count, 5);
         assert_eq!(g.find("Jackson's Lighthouse"), None, "tombstoned");
@@ -815,7 +921,9 @@ mod tests {
             .into_iter()
             .map(|(i, _)| g.name(&g.record(i)).to_string())
             .collect();
-        assert!(near_sol.contains(&"Sol".to_string()) && near_sol.contains(&"Sol Sibling".to_string()));
+        assert!(
+            near_sol.contains(&"Sol".to_string()) && near_sol.contains(&"Sol Sibling".to_string())
+        );
     }
 
     /// A two-overlay chain coalesces into one pass, and its output is
@@ -842,7 +950,12 @@ mod tests {
             ],
         );
         let sequential = tempfile::tempdir().unwrap();
-        apply_overlays(after1.path(), std::slice::from_ref(&day2), sequential.path()).unwrap();
+        apply_overlays(
+            after1.path(),
+            std::slice::from_ref(&day2),
+            sequential.path(),
+        )
+        .unwrap();
 
         let chained = tempfile::tempdir().unwrap();
         let stats = apply_overlays(base.path(), &[day1, day2], chained.path()).unwrap();
@@ -866,7 +979,10 @@ mod tests {
         let base = base_index();
         let out = || tempfile::tempdir().unwrap();
 
-        assert!(apply_overlays(base.path(), &[], out().path()).is_err(), "empty chain");
+        assert!(
+            apply_overlays(base.path(), &[], out().path()).is_err(),
+            "empty chain"
+        );
 
         let mut wrong_base = overlay_for(base.path(), vec![tombstone_at([0.0, 0.0, 0.0])]);
         wrong_base.base_stars_sha256 = [9u8; 32];
@@ -874,13 +990,22 @@ mod tests {
         assert!(err.to_string().contains("not the overlay's base"), "{err}");
 
         let miss = overlay_for(base.path(), vec![update_at([77.0, 77.0, 77.0], 1, 1)]);
-        assert!(apply_overlays(base.path(), &[miss], out().path()).is_err(), "update with no record");
+        assert!(
+            apply_overlays(base.path(), &[miss], out().path()).is_err(),
+            "update with no record"
+        );
 
         let collide = overlay_for(
             base.path(),
-            vec![add_at([0.0, 0.0, 0.0], add("Sol Imposter", 999, StarClass::G))],
+            vec![add_at(
+                [0.0, 0.0, 0.0],
+                add("Sol Imposter", 999, StarClass::G),
+            )],
         );
-        assert!(apply_overlays(base.path(), &[collide], out().path()).is_err(), "add on an existing identity");
+        assert!(
+            apply_overlays(base.path(), &[collide], out().path()).is_err(),
+            "add on an existing identity"
+        );
 
         // A sparse install (holes not yet fetched) refuses outright.
         let g = Galaxy::open(base.path()).unwrap();
@@ -896,7 +1021,8 @@ mod tests {
         for i in 1..cells {
             p.mark_present(i);
         }
-        p.write(&base.path().join(crate::presence::PRESENT_FILE)).unwrap();
+        p.write(&base.path().join(crate::presence::PRESENT_FILE))
+            .unwrap();
         let sparse = overlay_for(base.path(), vec![tombstone_at([500.0, 0.0, 0.0])]);
         let err = apply_overlays(base.path(), &[sparse], out().path()).unwrap_err();
         assert!(err.to_string().contains("sparse"), "{err}");
@@ -943,7 +1069,12 @@ mod tests {
             ],
         );
         let sequential = tempfile::tempdir().unwrap();
-        apply_overlays(after1.path(), std::slice::from_ref(&day2), sequential.path()).unwrap();
+        apply_overlays(
+            after1.path(),
+            std::slice::from_ref(&day2),
+            sequential.path(),
+        )
+        .unwrap();
 
         let chained = tempfile::tempdir().unwrap();
         apply_overlays(base.path(), &[day1, day2], chained.path()).unwrap();
@@ -968,7 +1099,10 @@ mod tests {
             vec![
                 add_at([2.0, -3.0, 4.0], add("Det A", 700, StarClass::M)),
                 add_at([1.0, -3.0, 4.0], add("Det B", 701, StarClass::K)),
-                add_at([4000.0, 120.0, -900.0], add("Det C", 702, StarClass::Unknown)),
+                add_at(
+                    [4000.0, 120.0, -900.0],
+                    add("Det C", 702, StarClass::Unknown),
+                ),
                 update_at([64.15625, -12.28125, 98.34375], StarClass::K.code(), 1),
                 tombstone_at([-10.0, 5.0, 20.0]),
             ],
@@ -986,14 +1120,14 @@ mod tests {
         }
         // The rename path: tombstone + add at the same identity replaces
         // the record whole, in one chain.
-        let rename = overlay_for(
-            base.path(),
-            vec![tombstone_at([0.0, 0.0, 0.0])],
-        );
+        let rename = overlay_for(base.path(), vec![tombstone_at([0.0, 0.0, 0.0])]);
         let rename2 = Overlay {
             base_stars_sha256: rename.base_stars_sha256,
             created_at: 2,
-            records: vec![add_at([0.0, 0.0, 0.0], add("Sol (Renamed)", 1, StarClass::G))],
+            records: vec![add_at(
+                [0.0, 0.0, 0.0],
+                add("Sol (Renamed)", 1, StarClass::G),
+            )],
         };
         let out = tempfile::tempdir().unwrap();
         let stats = apply_overlays(base.path(), &[rename, rename2], out.path()).unwrap();

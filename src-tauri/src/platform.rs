@@ -32,13 +32,23 @@ fn home() -> Option<PathBuf> {
 /// * Windows: `%LOCALAPPDATA%\edda`
 /// * macOS: `~/Library/Application Support/edda`
 /// * Linux: `$XDG_DATA_HOME/edda`, else `~/.local/share/edda`
-pub fn data_dir_under(home: &Path, local_app_data: Option<&Path>, xdg_data_home: Option<&Path>) -> PathBuf {
+pub fn data_dir_under(
+    home: &Path,
+    local_app_data: Option<&Path>,
+    xdg_data_home: Option<&Path>,
+) -> PathBuf {
     if cfg!(windows) {
-        local_app_data.map(Path::to_path_buf).unwrap_or_else(|| home.join("AppData/Local")).join(APP_DIR)
+        local_app_data
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| home.join("AppData/Local"))
+            .join(APP_DIR)
     } else if cfg!(target_os = "macos") {
         home.join("Library/Application Support").join(APP_DIR)
     } else {
-        xdg_data_home.map(Path::to_path_buf).unwrap_or_else(|| home.join(".local/share")).join(APP_DIR)
+        xdg_data_home
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| home.join(".local/share"))
+            .join(APP_DIR)
     }
 }
 
@@ -46,17 +56,26 @@ pub fn data_dir_under(home: &Path, local_app_data: Option<&Path>, xdg_data_home:
 /// otherwise. Falls back to the working directory when the environment
 /// gives no home at all (a bare container); never panics.
 pub fn default_data_dir() -> PathBuf {
-    let Some(home) = home() else { return PathBuf::from(".").join(APP_DIR) };
+    let Some(home) = home() else {
+        return PathBuf::from(".").join(APP_DIR);
+    };
     data_dir_under(
         &home,
-        std::env::var_os("LOCALAPPDATA").map(PathBuf::from).as_deref(),
-        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).as_deref(),
+        std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .as_deref(),
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .as_deref(),
     )
 }
 
 /// The parent of [`default_data_dir`]: where the folder picker starts.
 pub fn default_data_parent() -> PathBuf {
-    default_data_dir().parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."))
+    default_data_dir()
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// The file that remembers a custom data location. It lives in the
@@ -67,7 +86,11 @@ pub fn pointer_file() -> PathBuf {
 
 /// Executable file name for a sidecar (`piper` -> `piper.exe` on Windows).
 pub fn exe(stem: &str) -> String {
-    if cfg!(windows) { format!("{stem}.exe") } else { stem.to_string() }
+    if cfg!(windows) {
+        format!("{stem}.exe")
+    } else {
+        stem.to_string()
+    }
 }
 
 /// Dynamic library file name for a stem: `onnxruntime.dll`,
@@ -90,7 +113,9 @@ pub fn dylib(stem: &str) -> String {
 
 /// Whether a Piper sidecar folder is complete for this host.
 pub fn piper_installed(dir: &Path) -> bool {
-    dir.join(exe("piper")).is_file() && dir.join(dylib("onnxruntime")).is_file() && dir.join("espeak-ng-data").is_dir()
+    dir.join(exe("piper")).is_file()
+        && dir.join(dylib("onnxruntime")).is_file()
+        && dir.join("espeak-ng-data").is_dir()
 }
 
 /// Piper release archive for this host, if one is published.
@@ -127,7 +152,11 @@ pub fn game_process_names() -> &'static [&'static str] {
     if cfg!(target_os = "macos") {
         &[]
     } else {
-        &["EliteDangerous64.exe", "EliteDangerous64", "EliteDangerous32.exe"]
+        &[
+            "EliteDangerous64.exe",
+            "EliteDangerous64",
+            "EliteDangerous32.exe",
+        ]
     }
 }
 
@@ -139,11 +168,13 @@ const STEAM_APP_ID: &str = "359320";
 pub fn journal_dir_candidates_under(home: &Path) -> Vec<PathBuf> {
     const FRONTIER: &str = "Saved Games/Frontier Developments/Elite Dangerous";
     if cfg!(target_os = "linux") {
-        let pfx = format!("steamapps/compatdata/{STEAM_APP_ID}/pfx/drive_c/users/steamuser/{FRONTIER}");
+        let pfx =
+            format!("steamapps/compatdata/{STEAM_APP_ID}/pfx/drive_c/users/steamuser/{FRONTIER}");
         vec![
             home.join(".steam/steam").join(&pfx),
             home.join(".local/share/Steam").join(&pfx),
-            home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam").join(&pfx),
+            home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam")
+                .join(&pfx),
         ]
     } else {
         Vec::new()
@@ -167,7 +198,11 @@ mod tests {
     #[test]
     fn default_data_dir_follows_the_host_convention() {
         let home = Path::new("/home/cmdr");
-        let got = data_dir_under(home, Some(Path::new("C:/Users/cmdr/AppData/Local")), Some(Path::new("/home/cmdr/xdg")));
+        let got = data_dir_under(
+            home,
+            Some(Path::new("C:/Users/cmdr/AppData/Local")),
+            Some(Path::new("/home/cmdr/xdg")),
+        );
         let want: PathBuf = if cfg!(windows) {
             PathBuf::from("C:/Users/cmdr/AppData/Local").join("edda")
         } else if cfg!(target_os = "macos") {
@@ -178,7 +213,10 @@ mod tests {
         assert_eq!(got, want);
         // Linux without XDG_DATA_HOME falls back to ~/.local/share.
         if cfg!(target_os = "linux") {
-            assert_eq!(data_dir_under(home, None, None), home.join(".local/share/edda"));
+            assert_eq!(
+                data_dir_under(home, None, None),
+                home.join(".local/share/edda")
+            );
         }
     }
 
@@ -215,7 +253,10 @@ mod tests {
     fn game_process_names_cover_proton_on_linux_and_nothing_on_macos() {
         let names = game_process_names();
         if cfg!(target_os = "macos") {
-            assert!(names.is_empty(), "the game does not run on macOS: {names:?}");
+            assert!(
+                names.is_empty(),
+                "the game does not run on macOS: {names:?}"
+            );
         } else {
             // Under Proton the Windows binary keeps its .exe name.
             assert!(names.contains(&"EliteDangerous64.exe"), "{names:?}");

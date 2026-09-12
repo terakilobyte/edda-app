@@ -47,7 +47,11 @@ impl LoadoutPhysics {
             if self.mk2 { " Mk II" } else { "" },
             self.model.max_fuel_per_jump,
             self.model.capacity,
-            if self.booster_ly > 0.0 { format!(" · booster +{} ly", self.booster_ly) } else { String::new() },
+            if self.booster_ly > 0.0 {
+                format!(" · booster +{} ly", self.booster_ly)
+            } else {
+                String::new()
+            },
         )
     }
 }
@@ -80,9 +84,12 @@ impl std::error::Error for LoadoutError {}
 /// whose event is `Loadout`, or a bare `Loadout` object. Case-blind on
 /// the event name; a SLEF with several builds takes the first.
 pub fn loadout_from_paste(text: &str) -> Result<Value, LoadoutError> {
-    let value: Value = serde_json::from_str(text.trim()).map_err(|e| LoadoutError::NotJson(e.to_string()))?;
+    let value: Value =
+        serde_json::from_str(text.trim()).map_err(|e| LoadoutError::NotJson(e.to_string()))?;
     let is_loadout = |v: &Value| {
-        v.get("event").and_then(Value::as_str).is_some_and(|e| e.eq_ignore_ascii_case("loadout"))
+        v.get("event")
+            .and_then(Value::as_str)
+            .is_some_and(|e| e.eq_ignore_ascii_case("loadout"))
             || (v.get("Modules").is_some() && v.get("Ship").is_some())
     };
     match &value {
@@ -105,7 +112,11 @@ pub fn loadout_from_paste(text: &str) -> Result<Value, LoadoutError> {
 /// The physics of a `Loadout`, with `cargo` tonnes aboard. `observed_cap`
 /// is the most fuel this hull has been seen burning in one jump (the
 /// desktop's first-hand figure); it can only raise the drive cap.
-pub fn physics_from_loadout(v: &Value, cargo: f32, observed_cap: Option<f32>) -> Result<LoadoutPhysics, LoadoutError> {
+pub fn physics_from_loadout(
+    v: &Value,
+    cargo: f32,
+    observed_cap: Option<f32>,
+) -> Result<LoadoutPhysics, LoadoutError> {
     let f = |k: &str| v.get(k).and_then(Value::as_f64).map(|x| x as f32);
     let unladen = f("UnladenMass").ok_or(LoadoutError::Missing("UnladenMass"))?;
     let capacity = v
@@ -114,26 +125,51 @@ pub fn physics_from_loadout(v: &Value, cargo: f32, observed_cap: Option<f32>) ->
         .map(|x| x as f32)
         .ok_or(LoadoutError::Missing("FuelCapacity.Main"))?;
     let max_range = f("MaxJumpRange").ok_or(LoadoutError::Missing("MaxJumpRange"))?;
-    let ship = v.get("Ship").and_then(Value::as_str).unwrap_or("").trim().to_ascii_lowercase();
-    let ship_name = v.get("ShipName").and_then(Value::as_str).map(|s| s.trim().to_owned()).filter(|s| !s.is_empty());
+    let ship = v
+        .get("Ship")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let ship_name = v
+        .get("ShipName")
+        .and_then(Value::as_str)
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty());
     let modules = v.get("Modules").and_then(Value::as_array);
     let mut fsd_item = String::new();
     let mut fsd_cap_mod: Option<f32> = None;
     let mut booster = 0.0f32;
     if let Some(ms) = modules {
         for m in ms {
-            let item = m.get("Item").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let item = m
+                .get("Item")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
             if item.contains("int_hyperdrive") {
                 fsd_item = item.clone();
-                if let Some(mods) = m.pointer("/Engineering/Modifiers").and_then(Value::as_array) {
+                if let Some(mods) = m
+                    .pointer("/Engineering/Modifiers")
+                    .and_then(Value::as_array)
+                {
                     for md in mods {
-                        if md.get("Label").and_then(Value::as_str).is_some_and(|l| l.eq_ignore_ascii_case("MaxFuelPerJump")) {
+                        if md
+                            .get("Label")
+                            .and_then(Value::as_str)
+                            .is_some_and(|l| l.eq_ignore_ascii_case("MaxFuelPerJump"))
+                        {
                             fsd_cap_mod = md.get("Value").and_then(Value::as_f64).map(|x| x as f32);
                         }
                     }
                 }
             } else if item.contains("guardianfsdbooster") {
-                let size = item.split("size").nth(1).and_then(|s| s.chars().next()).and_then(|c| c.to_digit(10)).unwrap_or(0) as u8;
+                let size = item
+                    .split("size")
+                    .nth(1)
+                    .and_then(|s| s.chars().next())
+                    .and_then(|c| c.to_digit(10))
+                    .unwrap_or(0) as u8;
                 booster = guardian_booster_ly(size);
             }
         }
@@ -141,7 +177,12 @@ pub fn physics_from_loadout(v: &Value, cargo: f32, observed_cap: Option<f32>) ->
     if fsd_item.is_empty() {
         return Err(LoadoutError::NoDrive);
     }
-    let size = fsd_item.split("size").nth(1).and_then(|s| s.chars().next()).and_then(|c| c.to_digit(10)).unwrap_or(5) as u8;
+    let size = fsd_item
+        .split("size")
+        .nth(1)
+        .and_then(|s| s.chars().next())
+        .and_then(|c| c.to_digit(10))
+        .unwrap_or(5) as u8;
     let rating = fsd_item
         .split("class")
         .nth(1)
@@ -160,13 +201,26 @@ pub fn physics_from_loadout(v: &Value, cargo: f32, observed_cap: Option<f32>) ->
     // Fuel cap: engineered value if present, else the base table (+4 % for
     // SCO), and never below the most this ship has actually burned in one
     // jump -- first-hand beats the table.
-    let table = if mk2 { Some(MK2_SCO_MAX_FUEL) } else { base_max_fuel(size, rating).map(|b| if sco { b * 1.04 } else { b }) };
-    let cap = [fsd_cap_mod, observed_cap, table].into_iter().flatten().fold(0.0f32, f32::max);
+    let table = if mk2 {
+        Some(MK2_SCO_MAX_FUEL)
+    } else {
+        base_max_fuel(size, rating).map(|b| if sco { b * 1.04 } else { b })
+    };
+    let cap = [fsd_cap_mod, observed_cap, table]
+        .into_iter()
+        .flatten()
+        .fold(0.0f32, f32::max);
     if cap <= 0.0 {
         return Err(LoadoutError::NoDrive);
     }
-    let model = FuelModel::from_loadout(unladen, capacity, cap, size, sco, mk2, max_range, booster, cargo);
-    let boost = if mk2 { BoostProfile::MK2_SCO } else { BoostProfile::default() };
+    let model = FuelModel::from_loadout(
+        unladen, capacity, cap, size, sco, mk2, max_range, booster, cargo,
+    );
+    let boost = if mk2 {
+        BoostProfile::MK2_SCO
+    } else {
+        BoostProfile::default()
+    };
     Ok(LoadoutPhysics {
         ship,
         ship_name,
@@ -194,8 +248,14 @@ mod tests {
     fn a_slef_paste_becomes_the_same_physics_the_journal_would() {
         let loadout = loadout_from_paste(SLEF).unwrap();
         let p = physics_from_loadout(&loadout, 0.0, None).unwrap();
-        assert_eq!((p.ship.as_str(), p.ship_name.as_deref()), ("cutter", Some("Treasure Goblin")));
-        assert_eq!((p.fsd_size, p.fsd_rating, p.sco, p.mk2), (7, 'A', false, false));
+        assert_eq!(
+            (p.ship.as_str(), p.ship_name.as_deref()),
+            ("cutter", Some("Treasure Goblin"))
+        );
+        assert_eq!(
+            (p.fsd_size, p.fsd_rating, p.sco, p.mk2),
+            (7, 'A', false, false)
+        );
         assert_eq!(p.booster_ly, 10.5);
         assert_eq!(p.model.max_fuel_per_jump, 12.8);
         assert_eq!(p.model.capacity, 32.0);
@@ -206,24 +266,49 @@ mod tests {
         assert!((one_jump - 25.83).abs() < 0.05, "{one_jump}");
         assert!(p.model.range_at(32.0) < one_jump, "a full tank is heavier");
         assert_eq!(p.boost, BoostProfile::default());
-        assert!(p.summary().contains("size 7A") && p.summary().contains("booster +10.5 ly"), "{}", p.summary());
+        assert!(
+            p.summary().contains("size 7A") && p.summary().contains("booster +10.5 ly"),
+            "{}",
+            p.summary()
+        );
 
         // The bare event and a single SLEF object are the same paste.
         let bare = serde_json::to_string(&loadout).unwrap();
-        assert_eq!(physics_from_loadout(&loadout_from_paste(&bare).unwrap(), 0.0, None).unwrap(), p);
+        assert_eq!(
+            physics_from_loadout(&loadout_from_paste(&bare).unwrap(), 0.0, None).unwrap(),
+            p
+        );
         let single = format!(r#"{{"header":{{}},"data":{}}}"#, bare);
-        assert_eq!(physics_from_loadout(&loadout_from_paste(&single).unwrap(), 0.0, None).unwrap(), p);
+        assert_eq!(
+            physics_from_loadout(&loadout_from_paste(&single).unwrap(), 0.0, None).unwrap(),
+            p
+        );
     }
 
     #[test]
     fn a_paste_that_is_not_a_loadout_says_so() {
-        assert!(matches!(loadout_from_paste("hello"), Err(LoadoutError::NotJson(_))));
-        assert_eq!(loadout_from_paste(r#"{"event":"Docked"}"#), Err(LoadoutError::NotALoadout));
-        assert_eq!(loadout_from_paste(r#"[{"header":{},"data":{"event":"Shipyard"}}]"#), Err(LoadoutError::NotALoadout));
+        assert!(matches!(
+            loadout_from_paste("hello"),
+            Err(LoadoutError::NotJson(_))
+        ));
+        assert_eq!(
+            loadout_from_paste(r#"{"event":"Docked"}"#),
+            Err(LoadoutError::NotALoadout)
+        );
+        assert_eq!(
+            loadout_from_paste(r#"[{"header":{},"data":{"event":"Shipyard"}}]"#),
+            Err(LoadoutError::NotALoadout)
+        );
         let no_drive = serde_json::json!({"event":"Loadout","Ship":"sidewinder","UnladenMass":25.0,"MaxJumpRange":7.5,"FuelCapacity":{"Main":2},"Modules":[]});
-        assert_eq!(physics_from_loadout(&no_drive, 0.0, None), Err(LoadoutError::NoDrive));
+        assert_eq!(
+            physics_from_loadout(&no_drive, 0.0, None),
+            Err(LoadoutError::NoDrive)
+        );
         let no_mass = serde_json::json!({"event":"Loadout","Ship":"sidewinder","Modules":[{"Item":"int_hyperdrive_size2_class1"}]});
-        assert_eq!(physics_from_loadout(&no_mass, 0.0, None), Err(LoadoutError::Missing("UnladenMass")));
+        assert_eq!(
+            physics_from_loadout(&no_mass, 0.0, None),
+            Err(LoadoutError::Missing("UnladenMass"))
+        );
     }
 
     /// The Mk II SCO drive takes its own cap and the six-times neutron
@@ -239,8 +324,26 @@ mod tests {
         assert_eq!(p.boost, BoostProfile::MK2_SCO);
         let stock = serde_json::json!({"event":"Loadout","Ship":"asp","UnladenMass":280.0,"MaxJumpRange":38.0,"FuelCapacity":{"Main":32},
             "Modules":[{"Item":"int_hyperdrive_size5_class5"}]});
-        assert_eq!(physics_from_loadout(&stock, 0.0, None).unwrap().model.max_fuel_per_jump, 5.0);
-        assert_eq!(physics_from_loadout(&stock, 0.0, Some(5.4)).unwrap().model.max_fuel_per_jump, 5.4);
-        assert_eq!(physics_from_loadout(&stock, 100.0, None).unwrap().model.cargo, 100.0);
+        assert_eq!(
+            physics_from_loadout(&stock, 0.0, None)
+                .unwrap()
+                .model
+                .max_fuel_per_jump,
+            5.0
+        );
+        assert_eq!(
+            physics_from_loadout(&stock, 0.0, Some(5.4))
+                .unwrap()
+                .model
+                .max_fuel_per_jump,
+            5.4
+        );
+        assert_eq!(
+            physics_from_loadout(&stock, 100.0, None)
+                .unwrap()
+                .model
+                .cargo,
+            100.0
+        );
     }
 }

@@ -19,15 +19,21 @@ pub fn origin_coords(conn: &Connection, system: &str) -> CapResult<(f64, f64, f6
     if let Some([x, y, z]) = crate::routing::journal_coords(conn, system) {
         return Ok((x as f64, y as f64, z as f64));
     }
-    Err(CapError::not_found(format!("no coordinates known for system {system:?}: not in your journal"))
-        .hint("the community API resolves any system by name; pass the system name, not coordinates"))
+    Err(CapError::not_found(format!(
+        "no coordinates known for system {system:?}: not in your journal"
+    ))
+    .hint("the community API resolves any system by name; pass the system name, not coordinates"))
 }
 
 /// Coordinates for distance arithmetic without a network call: the
 /// journal (visited systems) or the bundled bubble index (populated
 /// ones); `None` for anything else - a missing distance, never a wrong
 /// one.
-pub fn coords_hint(conn: &Connection, galaxy: Option<&ed_galaxy::Galaxy>, name: &str) -> Option<(f64, f64, f64)> {
+pub fn coords_hint(
+    conn: &Connection,
+    galaxy: Option<&ed_galaxy::Galaxy>,
+    name: &str,
+) -> Option<(f64, f64, f64)> {
     if let Some([x, y, z]) = crate::routing::journal_coords(conn, name) {
         return Some((x as f64, y as f64, z as f64));
     }
@@ -38,7 +44,10 @@ pub fn coords_hint(conn: &Connection, galaxy: Option<&ed_galaxy::Galaxy>, name: 
 
 /// The commander's current system from the journal, if known.
 pub fn current_system(conn: &Connection) -> Option<String> {
-    query::location(conn).ok().flatten().and_then(|l| l.system_name)
+    query::location(conn)
+        .ok()
+        .flatten()
+        .and_then(|l| l.system_name)
 }
 
 /// A system name from the request, else the current one, else an error.
@@ -48,7 +57,10 @@ pub fn system_or_current(conn: &Connection, requested: Option<&str>) -> CapResul
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .or_else(|| current_system(conn))
-        .ok_or_else(|| CapError::invalid("no origin system given and the current system is unknown").hint("pass system"))
+        .ok_or_else(|| {
+            CapError::invalid("no origin system given and the current system is unknown")
+                .hint("pass system")
+        })
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -87,14 +99,23 @@ pub struct NearestServiceRequest {
 
 impl Default for NearestServiceRequest {
     fn default() -> Self {
-        NearestServiceRequest { system: None, service: String::new(), min_pad: None, radius_ly: 50.0, include_carriers: false }
+        NearestServiceRequest {
+            system: None,
+            service: String::new(),
+            min_pad: None,
+            radius_ly: 50.0,
+            include_carriers: false,
+        }
     }
 }
 
 impl NearestServiceRequest {
     /// `"Raw Material Trader"` -> `raw_material_trader`.
     pub fn service_key(&self) -> String {
-        self.service.trim().to_ascii_lowercase().replace([' ', '-'], "_")
+        self.service
+            .trim()
+            .to_ascii_lowercase()
+            .replace([' ', '-'], "_")
     }
     pub fn pad(&self) -> Option<PadSize> {
         self.min_pad.as_deref().and_then(PadSize::parse)
@@ -112,7 +133,10 @@ pub struct SystemsNearRequest {
 
 impl Default for SystemsNearRequest {
     fn default() -> Self {
-        SystemsNearRequest { system: String::new(), radius_ly: 20.0 }
+        SystemsNearRequest {
+            system: String::new(),
+            radius_ly: 20.0,
+        }
     }
 }
 
@@ -179,10 +203,15 @@ impl Default for MarketSearchRequest {
 /// Origin name and the pad the ship needs: what the journal contributes
 /// to a market search. The server resolves the name to coordinates. The
 /// pad fails closed through `ed_route::request`.
-pub fn market_search_context(conn: &Connection, req: &MarketSearchRequest) -> CapResult<(String, Option<PadSize>)> {
+pub fn market_search_context(
+    conn: &Connection,
+    req: &MarketSearchRequest,
+) -> CapResult<(String, Option<PadSize>)> {
     let system = system_or_current(conn, req.system.as_deref())?;
     let hull: Option<String> = conn
-        .query_row("SELECT ship FROM loadout WHERE id=1", [], |r| r.get::<_, Option<String>>(0))
+        .query_row("SELECT ship FROM loadout WHERE id=1", [], |r| {
+            r.get::<_, Option<String>>(0)
+        })
         .ok()
         .flatten();
     let min_pad = ed_route::request::pad_requirement(req.min_pad.as_deref(), hull.as_deref())?;
@@ -211,9 +240,13 @@ mod origin_tests {
                 [jump.to_string()],
             )
             .unwrap();
-        let (x, y, z) = origin_coords(store.conn(), "crucis sector fw-w b1-4").expect("journal knows it");
+        let (x, y, z) =
+            origin_coords(store.conn(), "crucis sector fw-w b1-4").expect("journal knows it");
         assert_eq!((x, y, z), (12.5, -3.25, 40.0));
         let err = origin_coords(store.conn(), "Never Visited").unwrap_err();
-        assert!(format!("{err:?}").contains("no coordinates known"), "{err:?}");
+        assert!(
+            format!("{err:?}").contains("no coordinates known"),
+            "{err:?}"
+        );
     }
 }

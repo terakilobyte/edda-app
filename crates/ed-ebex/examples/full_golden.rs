@@ -120,8 +120,20 @@ fn main() -> anyhow::Result<()> {
 
     // Stars: a provisional (negative) address sorts first, signed.
     let mut stars = Vec::new();
-    StarRecord { address: -42, class: 2, scoopable: true, observed_at: 150 }.encode_into(&mut stars);
-    StarRecord { address: 10_477_373_803, class: 14, scoopable: false, observed_at: 150 }.encode_into(&mut stars);
+    StarRecord {
+        address: -42,
+        class: 2,
+        scoopable: true,
+        observed_at: 150,
+    }
+    .encode_into(&mut stars);
+    StarRecord {
+        address: 10_477_373_803,
+        class: 14,
+        scoopable: false,
+        observed_at: 150,
+    }
+    .encode_into(&mut stars);
 
     let bytes = encode_snapshot(
         SnapshotHeader {
@@ -186,7 +198,13 @@ fn main() -> anyhow::Result<()> {
                 shipyards,
                 station_snapshots(),
             ),
-            section(SECTION_STARS, STAR_SCHEMA_V1, STAR_RECORD_BYTES, stars, vec![]),
+            section(
+                SECTION_STARS,
+                STAR_SCHEMA_V1,
+                STAR_RECORD_BYTES,
+                stars,
+                vec![],
+            ),
         ],
     )?;
     for chunk in bytes.chunks(32) {

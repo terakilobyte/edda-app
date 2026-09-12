@@ -23,7 +23,10 @@ pub fn all() -> Vec<KnownSite> {
 /// Sites listing `material` (case-insensitive display name).
 pub fn for_material(material: &str) -> Vec<KnownSite> {
     let want = material.to_lowercase();
-    all().into_iter().filter(|s| s.materials.iter().any(|m| m.to_lowercase() == want)).collect()
+    all()
+        .into_iter()
+        .filter(|s| s.materials.iter().any(|m| m.to_lowercase() == want))
+        .collect()
 }
 
 #[cfg(test)]
@@ -40,7 +43,11 @@ mod tests {
             .collect();
         for site in all() {
             for m in &site.materials {
-                assert!(known.contains(&m.to_lowercase()), "{m:?} at {} is not a blueprint ingredient", site.site);
+                assert!(
+                    known.contains(&m.to_lowercase()),
+                    "{m:?} at {} is not a blueprint ingredient",
+                    site.site
+                );
             }
         }
         assert_eq!(for_material("tellurium").len(), 1);

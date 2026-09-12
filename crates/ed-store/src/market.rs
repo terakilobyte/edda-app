@@ -166,7 +166,11 @@ pub struct HydrationStats {
 /// data it describes) and cleared on completion. Identity is the
 /// snapshot's (sequence, watermark) — a different artifact never
 /// fast-forwards.
-fn stamp_checkpoint(tx: &Connection, station: i64, metadata: &ed_ebex::SnapshotMetadata) -> Result<()> {
+fn stamp_checkpoint(
+    tx: &Connection,
+    station: i64,
+    metadata: &ed_ebex::SnapshotMetadata,
+) -> Result<()> {
     for (key, value) in [
         ("hydrate_ckpt_station", station),
         ("hydrate_ckpt_seq", i64::try_from(metadata.sequence)?),
@@ -183,9 +187,16 @@ fn stamp_checkpoint(tx: &Connection, station: i64, metadata: &ed_ebex::SnapshotM
 
 fn read_checkpoint(conn: &Connection, metadata: &ed_ebex::SnapshotMetadata) -> Option<i64> {
     let read = |key: &str| -> Option<i64> {
-        conn.query_row("SELECT value FROM sys_meta WHERE key = ?1", [key], |r| r.get(0)).ok()
+        conn.query_row("SELECT value FROM sys_meta WHERE key = ?1", [key], |r| {
+            r.get(0)
+        })
+        .ok()
     };
-    match (read("hydrate_ckpt_station"), read("hydrate_ckpt_seq"), read("hydrate_ckpt_wm")) {
+    match (
+        read("hydrate_ckpt_station"),
+        read("hydrate_ckpt_seq"),
+        read("hydrate_ckpt_wm"),
+    ) {
         (Some(station), Some(seq), Some(wm))
             if Ok(seq) == i64::try_from(metadata.sequence) && wm == metadata.watermark =>
         {
@@ -330,104 +341,103 @@ pub fn hydrate_prevalidated_with(
     // leave the connection on synchronous=OFF (a latent bug until the
     // cancel path made it reachable on purpose).
     let result = (|| -> Result<HydrationStats> {
-    let mut tx = conn.unchecked_transaction()?;
-    let mut commodity_ids = HashMap::with_capacity(auxiliary.commodities.len());
-    for commodity in &auxiliary.commodities {
-        let id = intern_commodity(
-            &tx,
-            &commodity.symbol,
-            Some(&commodity.name),
-            Some(&commodity.category),
-        )?;
-        commodity_ids.insert(commodity.id, id);
-    }
+        let mut tx = conn.unchecked_transaction()?;
+        let mut commodity_ids = HashMap::with_capacity(auxiliary.commodities.len());
+        for commodity in &auxiliary.commodities {
+            let id = intern_commodity(
+                &tx,
+                &commodity.symbol,
+                Some(&commodity.name),
+                Some(&commodity.category),
+            )?;
+            commodity_ids.insert(commodity.id, id);
+        }
 
-    // Every station with a snapshot, in station order, with its freshness.
-    // Records come grouped by station in the same order (the format
-    // requires it and validate_snapshot checked it), so a board is
-    // complete when the station id changes; stations with no rows at all
-    // are empty snapshots and are written as the stream passes them.
-    let snapshots: BTreeMap<i64, i64> = auxiliary
-        .stations
-        .iter()
-        .map(|s| Ok((i64::try_from(s.station_id)?, s.observed_at)))
-        .collect::<Result<_>>()?;
-    let mut stats = HydrationStats {
-        commodities: auxiliary.commodities.len() as u64,
-        station_snapshots: auxiliary.stations.len() as u64,
-        ..HydrationStats::default()
-    };
-    let stations_total = auxiliary.stations.len() as u64;
-    let mut stations_done: u64 = 0;
-    let mut pending = snapshots.iter().peekable();
-    let mut current: Option<(i64, i64, Vec<MarketRow>)> = None;
-    // Resume: everything at or below the checkpointed station id was
-    // committed by an interrupted run of this exact artifact.
-    let skip_through = read_checkpoint(conn, metadata);
-    let mut high_water: i64 = i64::MIN;
-    if let Some(skip) = skip_through {
-        let skipped = snapshots.range(..=skip).count() as u64;
-        stations_done = skipped;
-        stats.stations_fast_forwarded = skipped;
-        high_water = skip;
-        while pending.peek().is_some_and(|(&id, _)| id <= skip) {
-            pending.next();
-        }
-        tracing::info!(through = skip, stations = skipped, "hydrate: resuming from checkpoint");
-        progress(HydrationProgress { stations_done, stations_total, rows: 0 });
-    }
-    let report = |stations_done: u64, rows: u64, force: bool, progress: &mut dyn FnMut(HydrationProgress)| {
-        if force || stations_done.is_multiple_of(HYDRATE_PROGRESS_EVERY) {
-            progress(HydrationProgress { stations_done, stations_total, rows });
-        }
-    };
-    let flush = |tx: &Connection, board: Option<(i64, i64, Vec<MarketRow>)>, stats: &mut HydrationStats| -> Result<()> {
-        if let Some((station_id, observed_at, rows)) = board {
-            match write_snapshot(tx, station_id, observed_at, &rows)? {
-                SnapshotOutcome::Applied { removed, .. } => stats.removed += removed,
-                SnapshotOutcome::Skipped => stats.stations_skipped += 1,
+        // Every station with a snapshot, in station order, with its freshness.
+        // Records come grouped by station in the same order (the format
+        // requires it and validate_snapshot checked it), so a board is
+        // complete when the station id changes; stations with no rows at all
+        // are empty snapshots and are written as the stream passes them.
+        let snapshots: BTreeMap<i64, i64> = auxiliary
+            .stations
+            .iter()
+            .map(|s| Ok((i64::try_from(s.station_id)?, s.observed_at)))
+            .collect::<Result<_>>()?;
+        let mut stats = HydrationStats {
+            commodities: auxiliary.commodities.len() as u64,
+            station_snapshots: auxiliary.stations.len() as u64,
+            ..HydrationStats::default()
+        };
+        let stations_total = auxiliary.stations.len() as u64;
+        let mut stations_done: u64 = 0;
+        let mut pending = snapshots.iter().peekable();
+        let mut current: Option<(i64, i64, Vec<MarketRow>)> = None;
+        // Resume: everything at or below the checkpointed station id was
+        // committed by an interrupted run of this exact artifact.
+        let skip_through = read_checkpoint(conn, metadata);
+        let mut high_water: i64 = i64::MIN;
+        if let Some(skip) = skip_through {
+            let skipped = snapshots.range(..=skip).count() as u64;
+            stations_done = skipped;
+            stats.stations_fast_forwarded = skipped;
+            high_water = skip;
+            while pending.peek().is_some_and(|(&id, _)| id <= skip) {
+                pending.next();
             }
+            tracing::info!(
+                through = skip,
+                stations = skipped,
+                "hydrate: resuming from checkpoint"
+            );
+            progress(HydrationProgress {
+                stations_done,
+                stations_total,
+                rows: 0,
+            });
         }
-        Ok(())
-    };
-    for record in ed_ebex::market_records(section)? {
-        let station_id = i64::try_from(record.station_id)?;
-        if skip_through.is_some_and(|skip| station_id <= skip) {
-            continue;
-        }
-        let observed_at = *snapshots
-            .get(&station_id)
-            .context("EBEX market row references a station without snapshot freshness")?;
-        ensure!(
-            record.observed_at == observed_at,
-            "EBEX market row freshness differs from its station snapshot"
-        );
-        if current.as_ref().is_some_and(|(id, _, _)| *id != station_id) {
-            // The board before this one is complete, and so is every
-            // station between the two that had no rows (empty boards).
-            if let Some((flushed, _, _)) = current.as_ref() {
-                high_water = *flushed;
+        let report = |stations_done: u64,
+                      rows: u64,
+                      force: bool,
+                      progress: &mut dyn FnMut(HydrationProgress)| {
+            if force || stations_done.is_multiple_of(HYDRATE_PROGRESS_EVERY) {
+                progress(HydrationProgress {
+                    stations_done,
+                    stations_total,
+                    rows,
+                });
             }
-            flush(&tx, current.take(), &mut stats)?;
-            stations_done += 1;
-            report(stations_done, stats.rows, false, progress);
-            if stations_done.is_multiple_of(HYDRATE_COMMIT_EVERY) {
-                stamp_checkpoint(&tx, high_water, metadata)?;
-                tx.commit()?;
-                if cancelled() {
-                    return Err(HydrationCancelled.into());
+        };
+        let flush = |tx: &Connection,
+                     board: Option<(i64, i64, Vec<MarketRow>)>,
+                     stats: &mut HydrationStats|
+         -> Result<()> {
+            if let Some((station_id, observed_at, rows)) = board {
+                match write_snapshot(tx, station_id, observed_at, &rows)? {
+                    SnapshotOutcome::Applied { removed, .. } => stats.removed += removed,
+                    SnapshotOutcome::Skipped => stats.stations_skipped += 1,
                 }
-                tx = conn.unchecked_transaction()?;
             }
-        }
-        while let Some((&id, &at)) = pending.peek() {
-            if id >= station_id {
-                break;
+            Ok(())
+        };
+        for record in ed_ebex::market_records(section)? {
+            let station_id = i64::try_from(record.station_id)?;
+            if skip_through.is_some_and(|skip| station_id <= skip) {
+                continue;
             }
-            pending.next();
-            if current.as_ref().is_none_or(|(cur, _, _)| *cur != id) {
-                flush(&tx, Some((id, at, Vec::new())), &mut stats)?;
-                high_water = id;
+            let observed_at = *snapshots
+                .get(&station_id)
+                .context("EBEX market row references a station without snapshot freshness")?;
+            ensure!(
+                record.observed_at == observed_at,
+                "EBEX market row freshness differs from its station snapshot"
+            );
+            if current.as_ref().is_some_and(|(id, _, _)| *id != station_id) {
+                // The board before this one is complete, and so is every
+                // station between the two that had no rows (empty boards).
+                if let Some((flushed, _, _)) = current.as_ref() {
+                    high_water = *flushed;
+                }
+                flush(&tx, current.take(), &mut stats)?;
                 stations_done += 1;
                 report(stations_done, stats.rows, false, progress);
                 if stations_done.is_multiple_of(HYDRATE_COMMIT_EVERY) {
@@ -439,54 +449,73 @@ pub fn hydrate_prevalidated_with(
                     tx = conn.unchecked_transaction()?;
                 }
             }
+            while let Some((&id, &at)) = pending.peek() {
+                if id >= station_id {
+                    break;
+                }
+                pending.next();
+                if current.as_ref().is_none_or(|(cur, _, _)| *cur != id) {
+                    flush(&tx, Some((id, at, Vec::new())), &mut stats)?;
+                    high_water = id;
+                    stations_done += 1;
+                    report(stations_done, stats.rows, false, progress);
+                    if stations_done.is_multiple_of(HYDRATE_COMMIT_EVERY) {
+                        stamp_checkpoint(&tx, high_water, metadata)?;
+                        tx.commit()?;
+                        if cancelled() {
+                            return Err(HydrationCancelled.into());
+                        }
+                        tx = conn.unchecked_transaction()?;
+                    }
+                }
+            }
+            if pending.peek().is_some_and(|(&id, _)| id == station_id) {
+                pending.next();
+            }
+            let commodity_id = *commodity_ids
+                .get(&record.commodity_id)
+                .context("EBEX market row references unknown commodity")?;
+            let board = current.get_or_insert_with(|| (station_id, observed_at, Vec::new()));
+            board.2.push(MarketRow {
+                commodity_id,
+                buy_price: i64::from(record.buy_price),
+                sell_price: i64::from(record.sell_price),
+                demand: i64::from(record.demand),
+                supply: i64::from(record.supply),
+            });
+            stats.rows += 1;
         }
-        if pending.peek().is_some_and(|(&id, _)| id == station_id) {
-            pending.next();
+        if current.is_some() {
+            flush(&tx, current.take(), &mut stats)?;
+            stations_done += 1;
+            report(stations_done, stats.rows, false, progress);
         }
-        let commodity_id = *commodity_ids
-            .get(&record.commodity_id)
-            .context("EBEX market row references unknown commodity")?;
-        let board = current.get_or_insert_with(|| (station_id, observed_at, Vec::new()));
-        board.2.push(MarketRow {
-            commodity_id,
-            buy_price: i64::from(record.buy_price),
-            sell_price: i64::from(record.sell_price),
-            demand: i64::from(record.demand),
-            supply: i64::from(record.supply),
-        });
-        stats.rows += 1;
-    }
-    if current.is_some() {
-        flush(&tx, current.take(), &mut stats)?;
-        stations_done += 1;
-        report(stations_done, stats.rows, false, progress);
-    }
-    // Stations after the last row: empty boards.
-    for (&id, &at) in pending {
-        flush(&tx, Some((id, at, Vec::new())), &mut stats)?;
-        stations_done += 1;
-        report(stations_done, stats.rows, false, progress);
-    }
-    report(stations_done, stats.rows, true, progress);
+        // Stations after the last row: empty boards.
+        for (&id, &at) in pending {
+            flush(&tx, Some((id, at, Vec::new())), &mut stats)?;
+            stations_done += 1;
+            report(stations_done, stats.rows, false, progress);
+        }
+        report(stations_done, stats.rows, true, progress);
 
-    for (key, value) in [
-        ("ebex_sequence", i64::try_from(metadata.sequence)?),
-        ("ebex_watermark", metadata.watermark),
-    ] {
-        tx.execute(
-            "INSERT INTO sys_meta (key, value) VALUES (?1, ?2)
+        for (key, value) in [
+            ("ebex_sequence", i64::try_from(metadata.sequence)?),
+            ("ebex_watermark", metadata.watermark),
+        ] {
+            tx.execute(
+                "INSERT INTO sys_meta (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![key, value],
-        )?;
-    }
-    // A completed pass owes no resume cursor; a stale one must never
-    // fast-forward a FUTURE artifact that happens to share identity.
-    tx.execute(
+                params![key, value],
+            )?;
+        }
+        // A completed pass owes no resume cursor; a stale one must never
+        // fast-forward a FUTURE artifact that happens to share identity.
+        tx.execute(
         "DELETE FROM sys_meta WHERE key IN ('hydrate_ckpt_station','hydrate_ckpt_seq','hydrate_ckpt_wm')",
         [],
     )?;
-    tx.commit()?;
-    Ok(stats)
+        tx.commit()?;
+        Ok(stats)
     })();
     // Restore durable settings and fold the WAL back in one sequential
     // pass, so steady-state EDDN writes resume on safe defaults — on
@@ -525,8 +554,10 @@ pub fn hydrate_prevalidated_with(
 /// malformed or newer-schema optional section is skipped with a warn,
 /// never an error — old artifacts simply do not carry it.
 fn hydrate_station_details(conn: &Connection, sections: &[ed_ebex::SectionRef<'_>]) -> Result<u64> {
-    let Some(section) =
-        sections.iter().find(|s| s.id == ed_ebex::SECTION_STATION_DETAILS).copied()
+    let Some(section) = sections
+        .iter()
+        .find(|s| s.id == ed_ebex::SECTION_STATION_DETAILS)
+        .copied()
     else {
         return Ok(0);
     };
@@ -576,9 +607,7 @@ fn hydrate_station_details(conn: &Connection, sections: &[ed_ebex::SectionRef<'_
                 record.arrival_ls as f64,
                 types.get(&record.type_id).map(String::as_str),
             ])?;
-            if changed > 0
-                && record.flags & ed_ebex::StationDetailsRecord::HAS_BLACK_MARKET != 0
-            {
+            if changed > 0 && record.flags & ed_ebex::StationDetailsRecord::HAS_BLACK_MARKET != 0 {
                 service.execute([record.station_id as i64])?;
             }
             applied += changed as u64;
@@ -602,7 +631,10 @@ fn hydrate_prohibited_section(
     conn: &Connection,
     sections: &[ed_ebex::SectionRef<'_>],
 ) -> Result<u64> {
-    let Some(section) = sections.iter().find(|s| s.id == ed_ebex::SECTION_PROHIBITED).copied()
+    let Some(section) = sections
+        .iter()
+        .find(|s| s.id == ed_ebex::SECTION_PROHIBITED)
+        .copied()
     else {
         return Ok(0);
     };
@@ -613,16 +645,24 @@ fn hydrate_prohibited_section(
             return Ok(0);
         }
     };
-    let Some(catalog) = sections.iter().find(|s| s.id == ed_ebex::SECTION_COMMODITIES).copied()
+    let Some(catalog) = sections
+        .iter()
+        .find(|s| s.id == ed_ebex::SECTION_COMMODITIES)
+        .copied()
     else {
         tracing::warn!("prohibited section without a commodity catalog; skipped");
         return Ok(0);
     };
-    let strings: HashMap<u32, String> =
-        ed_ebex::string_table(catalog)?.into_iter().map(|s| (s.id, s.value)).collect();
+    let strings: HashMap<u32, String> = ed_ebex::string_table(catalog)?
+        .into_iter()
+        .map(|s| (s.id, s.value))
+        .collect();
     let symbols: HashMap<u32, &str> = ed_ebex::commodity_records(catalog)?
         .filter_map(|record| {
-            Some((u32::from(record.id), strings.get(&record.symbol_id)?.as_str()))
+            Some((
+                u32::from(record.id),
+                strings.get(&record.symbol_id)?.as_str(),
+            ))
         })
         .collect();
     let started = std::time::Instant::now();
@@ -665,18 +705,27 @@ fn hydrate_prohibited_section(
 /// `updated` never regresses.
 fn hydrate_identity(conn: &Connection, sections: &[ed_ebex::SectionRef<'_>]) -> Result<(u64, u64)> {
     let find = |id: u16| sections.iter().find(|s| s.id == id).copied();
-    let (Some(systems), Some(stations)) =
-        (find(ed_ebex::SECTION_SYSTEMS), find(ed_ebex::SECTION_STATIONS))
-    else {
+    let (Some(systems), Some(stations)) = (
+        find(ed_ebex::SECTION_SYSTEMS),
+        find(ed_ebex::SECTION_STATIONS),
+    ) else {
         return Ok((0, 0));
     };
     let started = std::time::Instant::now();
     let tx = conn.unchecked_transaction()?;
     let mut n_systems = 0u64;
     {
-        let strings: HashMap<u32, String> =
-            ed_ebex::string_table(systems)?.into_iter().map(|s| (s.id, s.value)).collect();
-        let lookup = |id: u32| if id == 0 { None } else { strings.get(&id).cloned() };
+        let strings: HashMap<u32, String> = ed_ebex::string_table(systems)?
+            .into_iter()
+            .map(|s| (s.id, s.value))
+            .collect();
+        let lookup = |id: u32| {
+            if id == 0 {
+                None
+            } else {
+                strings.get(&id).cloned()
+            }
+        };
         let mut upsert = tx.prepare_cached(
             "INSERT INTO sys_systems (id64, name, x, y, z, population, controlling_power, power_state, powers)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
@@ -711,8 +760,10 @@ fn hydrate_identity(conn: &Connection, sections: &[ed_ebex::SectionRef<'_>]) -> 
     }
     let mut n_stations = 0u64;
     {
-        let strings: HashMap<u32, String> =
-            ed_ebex::string_table(stations)?.into_iter().map(|s| (s.id, s.value)).collect();
+        let strings: HashMap<u32, String> = ed_ebex::string_table(stations)?
+            .into_iter()
+            .map(|s| (s.id, s.value))
+            .collect();
         let mut upsert = tx.prepare_cached(
             "INSERT INTO sys_stations (id, system_id64, name, has_market, has_outfitting, has_shipyard, is_carrier, updated)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -796,8 +847,14 @@ pub fn refresh_commodity_stats(conn: &Connection) {
                 Ok((
                     r.get::<_, i64>(0)?,
                     [
-                        r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?,
-                        r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                        r.get(7)?,
+                        r.get(8)?,
                     ],
                     r.get::<_, i64>(9)?,
                 ))
@@ -813,7 +870,9 @@ pub fn refresh_commodity_stats(conn: &Connection) {
                  station_boards = ?8
              WHERE commodity_id = ?1",
         )?;
-        for (id, [sell_min, sell_max, sell_mean, sell_sq, buy_min, buy_max, buy_mean, buy_sq], n) in envelopes {
+        for (id, [sell_min, sell_max, sell_mean, sell_sq, buy_min, buy_max, buy_mean, buy_sq], n) in
+            envelopes
+        {
             update.execute(params![
                 id,
                 sell_min,
@@ -832,7 +891,9 @@ pub fn refresh_commodity_stats(conn: &Connection) {
             elapsed_s = started.elapsed().as_secs_f64(),
             "hydrate: commodity price stats refreshed"
         ),
-        Err(error) => tracing::warn!(%error, "commodity price stats not refreshed; guards use prior values"),
+        Err(error) => {
+            tracing::warn!(%error, "commodity price stats not refreshed; guards use prior values")
+        }
     }
 }
 
@@ -1095,8 +1156,16 @@ mod tests {
             .encode_into(&mut st_records);
         }
         let mut market_records = Vec::new();
-        ed_ebex::MarketRecord { station_id: 900, commodity_id: 1, buy_price: 5, sell_price: 100, demand: 7, supply: 8, observed_at: 1_000 }
-            .encode_into(&mut market_records);
+        ed_ebex::MarketRecord {
+            station_id: 900,
+            commodity_id: 1,
+            buy_price: 5,
+            sell_price: 100,
+            demand: 7,
+            supply: 8,
+            observed_at: 1_000,
+        }
+        .encode_into(&mut market_records);
         let mut market_aux = Vec::new();
         market_aux.extend_from_slice(&1u16.to_le_bytes());
         market_aux.extend_from_slice(&1u16.to_le_bytes());
@@ -1110,8 +1179,13 @@ mod tests {
         // The addendum sections (10 + 11): details for both stations and
         // one confiscation pair, resolved through the commodity catalog.
         let mut catalog_records = Vec::new();
-        ed_ebex::CommodityCatalogRecord { id: 1, symbol_id: 1, name_id: 2, category_id: 3 }
-            .encode_into(&mut catalog_records);
+        ed_ebex::CommodityCatalogRecord {
+            id: 1,
+            symbol_id: 1,
+            name_id: 2,
+            category_id: 3,
+        }
+        .encode_into(&mut catalog_records);
         let mut details_records = Vec::new();
         ed_ebex::StationDetailsRecord {
             station_id: 900,
@@ -1136,10 +1210,17 @@ mod tests {
         }
         .encode_into(&mut details_records);
         let mut prohibited_bytes = Vec::new();
-        ed_ebex::ProhibitedRecord { station_id: 900, commodity_id: 1 }
-            .encode_into(&mut prohibited_bytes);
+        ed_ebex::ProhibitedRecord {
+            station_id: 900,
+            commodity_id: 1,
+        }
+        .encode_into(&mut prohibited_bytes);
         let bytes = ed_ebex::encode_snapshot(
-            ed_ebex::SnapshotHeader { sequence: 1, created_at: 90, watermark: 1_000 },
+            ed_ebex::SnapshotHeader {
+                sequence: 1,
+                created_at: 90,
+                watermark: 1_000,
+            },
             vec![
                 ed_ebex::Section {
                     id: ed_ebex::SECTION_SYSTEMS,
@@ -1207,7 +1288,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .unwrap();
-        assert_eq!((name.as_str(), x, power.as_deref()), ("Wongi", 1.0, Some("Aisling Duval")));
+        assert_eq!(
+            (name.as_str(), x, power.as_deref()),
+            ("Wongi", 1.0, Some("Aisling Duval"))
+        );
         let (st_name, has_market, is_carrier, updated): (String, i64, i64, i64) = conn
             .query_row(
                 "SELECT name, has_market, is_carrier, updated FROM sys_stations WHERE id = 900",
@@ -1215,11 +1299,21 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .unwrap();
-        assert_eq!((st_name.as_str(), has_market, is_carrier, updated), ("New Port", 1, 0, 1_000));
+        assert_eq!(
+            (st_name.as_str(), has_market, is_carrier, updated),
+            ("New Port", 1, 0, 1_000)
+        );
         let carrier: i64 = conn
-            .query_row("SELECT is_carrier FROM sys_stations WHERE id = 901", [], |r| r.get(0))
+            .query_row(
+                "SELECT is_carrier FROM sys_stations WHERE id = 901",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert_eq!(carrier, 1, "the callsign seeds is_carrier where the sections cannot");
+        assert_eq!(
+            carrier, 1,
+            "the callsign seeds is_carrier where the sections cannot"
+        );
         let joined: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM sys_market m JOIN sys_stations st ON st.id = m.station_id WHERE st.name = 'New Port'",
@@ -1269,16 +1363,31 @@ mod tests {
         refresh_commodity_stats(&conn);
         let stats = commodity_stats_by_symbol(&conn).unwrap();
         let gold = stats.get("gold").unwrap();
-        assert_eq!(gold.station_boards, 1, "the carrier board is not a station board");
-        assert_eq!(gold.station_sell_max, 9000.0, "envelope max comes from the station");
+        assert_eq!(
+            gold.station_boards, 1,
+            "the carrier board is not a station board"
+        );
+        assert_eq!(
+            gold.station_sell_max, 9000.0,
+            "envelope max comes from the station"
+        );
         assert_eq!(gold.station_buy_min, 8000.0);
         assert!(
             !gold.carrier_sell_outside(50_000),
             "below the boards floor the envelope must not engage"
         );
-        let confident = CommodityStats { station_boards: 1000, ..*gold };
-        assert!(confident.carrier_sell_outside(50_000), "with confidence, 50k is out");
-        assert!(!confident.carrier_sell_outside(9_000), "station-priced carrier is fine");
+        let confident = CommodityStats {
+            station_boards: 1000,
+            ..*gold
+        };
+        assert!(
+            confident.carrier_sell_outside(50_000),
+            "with confidence, 50k is out"
+        );
+        assert!(
+            !confident.carrier_sell_outside(9_000),
+            "station-priced carrier is fine"
+        );
     }
 
     fn row(commodity_id: i64, sell_price: i64) -> MarketRow {
@@ -1362,11 +1471,8 @@ mod tests {
     #[test]
     fn rows_written_before_watermarks_existed_still_count_as_stored() {
         let conn = db();
-        conn.execute(
-            "INSERT INTO sys_market VALUES (7, 10, 0, 5, 1, 0, 100)",
-            [],
-        )
-        .unwrap();
+        conn.execute("INSERT INTO sys_market VALUES (7, 10, 0, 5, 1, 0, 100)", [])
+            .unwrap();
         assert_eq!(watermark(&conn, 7).unwrap(), Some(100));
         assert_eq!(
             write_snapshot(&conn, 7, 100, &[row(11, 1)]).unwrap(),
@@ -1425,8 +1531,16 @@ mod tests {
         for (station_id, prices) in boards {
             // Commodities 1 and 2 alternate so a two-price board is two rows.
             for (i, sell_price) in prices.iter().enumerate() {
-                ed_ebex::MarketRecord { station_id: *station_id, commodity_id: (i as u16 % 2) + 1, buy_price: 5, sell_price: *sell_price, demand: 7, supply: 8, observed_at }
-                    .encode_into(&mut records);
+                ed_ebex::MarketRecord {
+                    station_id: *station_id,
+                    commodity_id: (i as u16 % 2) + 1,
+                    buy_price: 5,
+                    sell_price: *sell_price,
+                    demand: 7,
+                    supply: 8,
+                    observed_at,
+                }
+                .encode_into(&mut records);
                 count += 1;
             }
         }
@@ -1445,7 +1559,11 @@ mod tests {
             auxiliary.extend_from_slice(&observed_at.to_le_bytes());
         }
         ed_ebex::encode_snapshot(
-            ed_ebex::SnapshotHeader { sequence: 1, created_at: 90, watermark: observed_at },
+            ed_ebex::SnapshotHeader {
+                sequence: 1,
+                created_at: 90,
+                watermark: observed_at,
+            },
             vec![ed_ebex::Section {
                 id: ed_ebex::SECTION_MARKETS,
                 schema: ed_ebex::MARKET_SCHEMA_V1,
@@ -1475,13 +1593,25 @@ mod tests {
             cancel.load(Ordering::Relaxed)
         })
         .unwrap_err();
-        assert!(error.downcast_ref::<HydrationCancelled>().is_some(), "{error}");
+        assert!(
+            error.downcast_ref::<HydrationCancelled>().is_some(),
+            "{error}"
+        );
         // The first chunk (2,000 stations) committed before the cancel bit.
         assert_eq!(board(&conn, 1).len(), 1);
-        assert_eq!(board(&conn, 2_050).len(), 0, "past the cancel point: not written");
+        assert_eq!(
+            board(&conn, 2_050).len(),
+            0,
+            "past the cancel point: not written"
+        );
         // Durable settings are restored even on the cancel path.
-        let synchronous: i64 = conn.query_row("PRAGMA galaxy.synchronous", [], |r| r.get(0)).unwrap();
-        assert_eq!(synchronous, 1, "synchronous must be back to NORMAL, never left OFF");
+        let synchronous: i64 = conn
+            .query_row("PRAGMA galaxy.synchronous", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            synchronous, 1,
+            "synchronous must be back to NORMAL, never left OFF"
+        );
         // The rerun is a plain completion over the kept chunks.
         cancel.store(false, Ordering::Relaxed);
         let stats = hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| {
@@ -1520,22 +1650,48 @@ mod tests {
         let bytes = ebex_many(1_000, &boards);
         let metadata = ed_ebex::validate_snapshot(&bytes).unwrap();
         let cancel = AtomicBool::new(true);
-        hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| cancel.load(Ordering::Relaxed)).unwrap_err();
+        hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| {
+            cancel.load(Ordering::Relaxed)
+        })
+        .unwrap_err();
         let ckpt: i64 = conn
-            .query_row("SELECT value FROM sys_meta WHERE key = 'hydrate_ckpt_station'", [], |r| r.get(0))
+            .query_row(
+                "SELECT value FROM sys_meta WHERE key = 'hydrate_ckpt_station'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert_eq!(ckpt, 2_000, "the cursor is the last station of the committed chunk");
+        assert_eq!(
+            ckpt, 2_000,
+            "the cursor is the last station of the committed chunk"
+        );
         cancel.store(false, Ordering::Relaxed);
-        let stats = hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
-        assert_eq!(stats.stations_fast_forwarded, 2_000, "the committed prefix is skipped, not re-compared");
-        assert_eq!(stats.rows, 100, "only the remaining stations' rows are read");
+        let stats =
+            hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
+        assert_eq!(
+            stats.stations_fast_forwarded, 2_000,
+            "the committed prefix is skipped, not re-compared"
+        );
+        assert_eq!(
+            stats.rows, 100,
+            "only the remaining stations' rows are read"
+        );
         assert_eq!(board(&conn, 2_100).len(), 1, "the tail landed");
         assert!(
-            conn.query_row("SELECT value FROM sys_meta WHERE key = 'hydrate_ckpt_station'", [], |r| r.get::<_, i64>(0)).is_err(),
+            conn.query_row(
+                "SELECT value FROM sys_meta WHERE key = 'hydrate_ckpt_station'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .is_err(),
             "completion clears the cursor"
         );
-        let again = hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
-        assert_eq!(again.stations_fast_forwarded, 0, "no stale cursor survives a completed pass");
+        let again =
+            hydrate_prevalidated_with(&conn, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
+        assert_eq!(
+            again.stations_fast_forwarded, 0,
+            "no stale cursor survives a completed pass"
+        );
     }
 
     /// A checkpoint must never fast-forward a DIFFERENT artifact: the
@@ -1549,12 +1705,19 @@ mod tests {
         let bytes_a = ebex_many(1_000, &boards);
         let metadata_a = ed_ebex::validate_snapshot(&bytes_a).unwrap();
         let cancel = AtomicBool::new(true);
-        hydrate_prevalidated_with(&conn, &bytes_a, &metadata_a, &mut |_| {}, &|| cancel.load(Ordering::Relaxed)).unwrap_err();
+        hydrate_prevalidated_with(&conn, &bytes_a, &metadata_a, &mut |_| {}, &|| {
+            cancel.load(Ordering::Relaxed)
+        })
+        .unwrap_err();
         // A NEWER artifact (different watermark) arrives before the rerun.
         let bytes_b = ebex_many(2_000, &boards);
         let metadata_b = ed_ebex::validate_snapshot(&bytes_b).unwrap();
-        let stats = hydrate_prevalidated_with(&conn, &bytes_b, &metadata_b, &mut |_| {}, &|| false).unwrap();
-        assert_eq!(stats.stations_fast_forwarded, 0, "identity mismatch: the whole artifact is walked");
+        let stats = hydrate_prevalidated_with(&conn, &bytes_b, &metadata_b, &mut |_| {}, &|| false)
+            .unwrap();
+        assert_eq!(
+            stats.stations_fast_forwarded, 0,
+            "identity mismatch: the whole artifact is walked"
+        );
         assert_eq!(stats.station_snapshots, 2_100);
         assert_eq!(board(&conn, 2_100).len(), 1);
     }
@@ -1569,7 +1732,8 @@ mod tests {
         let stats_a = hydrate_ebex_with(&a, &bytes, &mut |_| {}).unwrap();
         let b = db();
         let metadata = ed_ebex::validate_snapshot(&bytes).unwrap();
-        let stats_b = hydrate_prevalidated_with(&b, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
+        let stats_b =
+            hydrate_prevalidated_with(&b, &bytes, &metadata, &mut |_| {}, &|| false).unwrap();
         assert_eq!(stats_a.rows, stats_b.rows);
         assert_eq!(stats_a.station_snapshots, stats_b.station_snapshots);
         assert_eq!(board(&a, 10), board(&b, 10));
@@ -1582,22 +1746,40 @@ mod tests {
     #[test]
     fn ebex_hydration_reports_progress_per_station_including_empty_boards() {
         let conn = db();
-        let bytes = ebex_many(1_000, &[(10, &[100, 101]), (11, &[]), (12, &[300]), (13, &[])]);
+        let bytes = ebex_many(
+            1_000,
+            &[(10, &[100, 101]), (11, &[]), (12, &[300]), (13, &[])],
+        );
         let mut seen = Vec::new();
         let stats = hydrate_ebex_with(&conn, &bytes, &mut |p| seen.push(p)).unwrap();
         assert_eq!(stats.rows, 3);
         assert_eq!(stats.station_snapshots, 4);
         // The final report always arrives and says every station is done.
-        assert_eq!(seen.last().copied(), Some(HydrationProgress { stations_done: 4, stations_total: 4, rows: 3 }));
+        assert_eq!(
+            seen.last().copied(),
+            Some(HydrationProgress {
+                stations_done: 4,
+                stations_total: 4,
+                rows: 3
+            })
+        );
         assert!(seen.iter().all(|p| p.stations_total == 4));
         // Every board landed: prices where there were rows, empty boards with their watermark.
         assert_eq!(board(&conn, 10).len(), 2);
         assert_eq!(board(&conn, 11).len(), 0);
         assert_eq!(board(&conn, 12).len(), 1);
-        let wm: i64 = conn.query_row("SELECT observed_at FROM sys_market_watermarks WHERE station_id = 13", [], |r| r.get(0)).unwrap();
+        let wm: i64 = conn
+            .query_row(
+                "SELECT observed_at FROM sys_market_watermarks WHERE station_id = 13",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(wm, 1_000);
         // Reports are periodic: a snapshot bigger than the interval reports before the end.
-        let big: Vec<(u64, &[u32])> = (1..=(HYDRATE_PROGRESS_EVERY + 5)).map(|i| (100 + i, &[1u32][..])).collect();
+        let big: Vec<(u64, &[u32])> = (1..=(HYDRATE_PROGRESS_EVERY + 5))
+            .map(|i| (100 + i, &[1u32][..]))
+            .collect();
         let bytes = ebex_many(2_000, &big);
         let mut seen = Vec::new();
         hydrate_ebex_with(&db(), &bytes, &mut |p| seen.push(p)).unwrap();
@@ -1611,17 +1793,31 @@ mod tests {
     #[test]
     fn ebex_hydration_commits_in_chunks_and_reruns_are_no_ops() {
         let conn = db();
-        let boards: Vec<(u64, &[u32])> = (1..=(HYDRATE_COMMIT_EVERY + 7)).map(|i| (1_000 + i, &[1u32, 2][..])).collect();
+        let boards: Vec<(u64, &[u32])> = (1..=(HYDRATE_COMMIT_EVERY + 7))
+            .map(|i| (1_000 + i, &[1u32, 2][..]))
+            .collect();
         let bytes = ebex_many(5_000, &boards);
         let stats = hydrate_ebex_with(&conn, &bytes, &mut |_| {}).unwrap();
         assert_eq!(stats.station_snapshots, HYDRATE_COMMIT_EVERY + 7);
         assert_eq!(stats.rows, 2 * (HYDRATE_COMMIT_EVERY + 7));
-        let stations: i64 = conn.query_row("SELECT count(DISTINCT station_id) FROM sys_market", [], |r| r.get(0)).unwrap();
+        let stations: i64 = conn
+            .query_row(
+                "SELECT count(DISTINCT station_id) FROM sys_market",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(stations as u64, HYDRATE_COMMIT_EVERY + 7);
-        let sync_mode: i64 = conn.query_row("PRAGMA galaxy.synchronous", [], |r| r.get(0)).unwrap();
+        let sync_mode: i64 = conn
+            .query_row("PRAGMA galaxy.synchronous", [], |r| r.get(0))
+            .unwrap();
         assert_ne!(sync_mode, 0, "synchronous is restored after the load");
         let again = hydrate_ebex_with(&conn, &bytes, &mut |_| {}).unwrap();
-        assert_eq!(again.stations_skipped, HYDRATE_COMMIT_EVERY + 7, "a rerun applies nothing");
+        assert_eq!(
+            again.stations_skipped,
+            HYDRATE_COMMIT_EVERY + 7,
+            "a rerun applies nothing"
+        );
     }
 
     fn ebex(symbol: &str, station_id: u64, observed_at: i64, rows: &[(u32, i64)]) -> Vec<u8> {
@@ -1674,7 +1870,10 @@ mod tests {
 
         // A newer baseline replaces the board and drops silver.
         let stats = hydrate_ebex(&conn, &ebex("gold", 7, 120, &[(6, 120)])).unwrap();
-        assert_eq!((stats.stations_skipped, stats.removed, stats.rows), (0, 2, 1));
+        assert_eq!(
+            (stats.stations_skipped, stats.removed, stats.rows),
+            (0, 2, 1)
+        );
         assert_eq!(board(&conn, 7), vec![("gold".into(), 6, 120)]);
         let (sequence, watermark_meta): (i64, i64) = conn
             .query_row(

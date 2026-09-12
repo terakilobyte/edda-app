@@ -11,12 +11,12 @@ use anyhow::{Context, Result};
 use crate::{
     AvailabilityRecord, SectionPlan, SymbolCatalogRecord, AVAILABILITY_RECORD_BYTES,
     COMMODITY_RECORD_BYTES, COMMODITY_SCHEMA_V1, MARKET_RECORD_BYTES, MARKET_SCHEMA_V1,
-    MODULE_SCHEMA_V1, OUTFITTING_SCHEMA_V1, SECTION_COMMODITIES, SECTION_MARKETS, SECTION_MODULES,
-    SECTION_OUTFITTING, SECTION_PROHIBITED, SECTION_SHIPS, SECTION_SHIPYARDS, SECTION_STARS,
-    SECTION_STATIONS, SECTION_STATION_DETAILS, SECTION_SYSTEMS, SHIPYARD_SCHEMA_V1,
-    SHIP_SCHEMA_V1, STAR_RECORD_BYTES, STAR_SCHEMA_V1, STATION_DETAILS_RECORD_BYTES,
-    STATION_DETAILS_SCHEMA_V1, STATION_RECORD_BYTES, STATION_SCHEMA_V1, PROHIBITED_RECORD_BYTES,
-    PROHIBITED_SCHEMA_V1, SYMBOL_CATALOG_RECORD_BYTES, SYSTEM_RECORD_BYTES, SYSTEM_SCHEMA_V1,
+    MODULE_SCHEMA_V1, OUTFITTING_SCHEMA_V1, PROHIBITED_RECORD_BYTES, PROHIBITED_SCHEMA_V1,
+    SECTION_COMMODITIES, SECTION_MARKETS, SECTION_MODULES, SECTION_OUTFITTING, SECTION_PROHIBITED,
+    SECTION_SHIPS, SECTION_SHIPYARDS, SECTION_STARS, SECTION_STATIONS, SECTION_STATION_DETAILS,
+    SECTION_SYSTEMS, SHIPYARD_SCHEMA_V1, SHIP_SCHEMA_V1, STAR_RECORD_BYTES, STAR_SCHEMA_V1,
+    STATION_DETAILS_RECORD_BYTES, STATION_DETAILS_SCHEMA_V1, STATION_RECORD_BYTES,
+    STATION_SCHEMA_V1, SYMBOL_CATALOG_RECORD_BYTES, SYSTEM_RECORD_BYTES, SYSTEM_SCHEMA_V1,
 };
 
 /// Whether a community-baseline section is published with the required
@@ -33,19 +33,69 @@ pub fn community_section_required(id: u16) -> bool {
 /// publisher's plan and the validators derive from.
 pub fn community_section_plans() -> [SectionPlan; 10] {
     [
-        SectionPlan { id: SECTION_SYSTEMS, schema: SYSTEM_SCHEMA_V1, required: community_section_required(SECTION_SYSTEMS), record_size: SYSTEM_RECORD_BYTES },
-        SectionPlan { id: SECTION_STATIONS, schema: STATION_SCHEMA_V1, required: community_section_required(SECTION_STATIONS), record_size: STATION_RECORD_BYTES },
-        SectionPlan { id: SECTION_COMMODITIES, schema: COMMODITY_SCHEMA_V1, required: community_section_required(SECTION_COMMODITIES), record_size: COMMODITY_RECORD_BYTES },
-        SectionPlan { id: SECTION_MARKETS, schema: MARKET_SCHEMA_V1, required: community_section_required(SECTION_MARKETS), record_size: MARKET_RECORD_BYTES },
-        SectionPlan { id: SECTION_MODULES, schema: MODULE_SCHEMA_V1, required: community_section_required(SECTION_MODULES), record_size: SYMBOL_CATALOG_RECORD_BYTES },
-        SectionPlan { id: SECTION_OUTFITTING, schema: OUTFITTING_SCHEMA_V1, required: community_section_required(SECTION_OUTFITTING), record_size: AVAILABILITY_RECORD_BYTES },
-        SectionPlan { id: SECTION_SHIPS, schema: SHIP_SCHEMA_V1, required: community_section_required(SECTION_SHIPS), record_size: SYMBOL_CATALOG_RECORD_BYTES },
-        SectionPlan { id: SECTION_SHIPYARDS, schema: SHIPYARD_SCHEMA_V1, required: community_section_required(SECTION_SHIPYARDS), record_size: AVAILABILITY_RECORD_BYTES },
+        SectionPlan {
+            id: SECTION_SYSTEMS,
+            schema: SYSTEM_SCHEMA_V1,
+            required: community_section_required(SECTION_SYSTEMS),
+            record_size: SYSTEM_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_STATIONS,
+            schema: STATION_SCHEMA_V1,
+            required: community_section_required(SECTION_STATIONS),
+            record_size: STATION_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_COMMODITIES,
+            schema: COMMODITY_SCHEMA_V1,
+            required: community_section_required(SECTION_COMMODITIES),
+            record_size: COMMODITY_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_MARKETS,
+            schema: MARKET_SCHEMA_V1,
+            required: community_section_required(SECTION_MARKETS),
+            record_size: MARKET_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_MODULES,
+            schema: MODULE_SCHEMA_V1,
+            required: community_section_required(SECTION_MODULES),
+            record_size: SYMBOL_CATALOG_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_OUTFITTING,
+            schema: OUTFITTING_SCHEMA_V1,
+            required: community_section_required(SECTION_OUTFITTING),
+            record_size: AVAILABILITY_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_SHIPS,
+            schema: SHIP_SCHEMA_V1,
+            required: community_section_required(SECTION_SHIPS),
+            record_size: SYMBOL_CATALOG_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_SHIPYARDS,
+            schema: SHIPYARD_SCHEMA_V1,
+            required: community_section_required(SECTION_SHIPYARDS),
+            record_size: AVAILABILITY_RECORD_BYTES,
+        },
         // 2026-09-04 addendum, both OPTIONAL: old clients skip them, and
         // the sections may legitimately be thin while the Docked-event
         // ingest is young (lean now, fatter as the data grows).
-        SectionPlan { id: SECTION_STATION_DETAILS, schema: STATION_DETAILS_SCHEMA_V1, required: false, record_size: STATION_DETAILS_RECORD_BYTES },
-        SectionPlan { id: SECTION_PROHIBITED, schema: PROHIBITED_SCHEMA_V1, required: false, record_size: PROHIBITED_RECORD_BYTES },
+        SectionPlan {
+            id: SECTION_STATION_DETAILS,
+            schema: STATION_DETAILS_SCHEMA_V1,
+            required: false,
+            record_size: STATION_DETAILS_RECORD_BYTES,
+        },
+        SectionPlan {
+            id: SECTION_PROHIBITED,
+            schema: PROHIBITED_SCHEMA_V1,
+            required: false,
+            record_size: PROHIBITED_RECORD_BYTES,
+        },
     ]
 }
 
@@ -53,7 +103,12 @@ pub fn community_section_plans() -> [SectionPlan; 10] {
 /// into star overrides by clients that know it and skipped by ones that
 /// do not, and nothing else in the artifact depends on it.
 pub fn stars_section_plan() -> SectionPlan {
-    SectionPlan { id: SECTION_STARS, schema: STAR_SCHEMA_V1, required: false, record_size: STAR_RECORD_BYTES }
+    SectionPlan {
+        id: SECTION_STARS,
+        schema: STAR_SCHEMA_V1,
+        required: false,
+        record_size: STAR_RECORD_BYTES,
+    }
 }
 
 fn checked_u64(value: i64, field: &str) -> Result<u64> {
@@ -221,7 +276,11 @@ mod tests {
             ALL_V1_SECTIONS.to_vec()
         );
         assert_eq!(
-            plans.iter().filter(|p| p.required).map(|p| p.id).collect::<Vec<_>>(),
+            plans
+                .iter()
+                .filter(|p| p.required)
+                .map(|p| p.id)
+                .collect::<Vec<_>>(),
             vec![SECTION_MARKETS],
             "markets is the one required community section"
         );
@@ -241,7 +300,11 @@ mod tests {
         )
         .unwrap();
         let bytes = encode_snapshot(
-            SnapshotHeader { sequence: 1, created_at: 90, watermark: 81 },
+            SnapshotHeader {
+                sequence: 1,
+                created_at: 90,
+                watermark: 81,
+            },
             vec![Section {
                 id: SECTION_MARKETS,
                 schema: MARKET_SCHEMA_V1,
@@ -260,12 +323,21 @@ mod tests {
             decoded
                 .commodities
                 .iter()
-                .map(|c| (c.id, c.symbol.as_str(), c.name.as_str(), c.category.as_str()))
+                .map(|c| (
+                    c.id,
+                    c.symbol.as_str(),
+                    c.name.as_str(),
+                    c.category.as_str()
+                ))
                 .collect::<Vec<_>>(),
             vec![(1, "gold", "Gold", "Metals"), (2, "silver", "", "")]
         );
         assert_eq!(
-            decoded.stations.iter().map(|s| (s.station_id, s.observed_at)).collect::<Vec<_>>(),
+            decoded
+                .stations
+                .iter()
+                .map(|s| (s.station_id, s.observed_at))
+                .collect::<Vec<_>>(),
             vec![(7, 80), (9, 81)]
         );
     }
@@ -275,7 +347,11 @@ mod tests {
     fn symbol_catalog_round_trips() {
         let catalog = encode_symbol_catalog(&["adder".into(), "anaconda".into()]).unwrap();
         let bytes = encode_snapshot(
-            SnapshotHeader { sequence: 1, created_at: 1, watermark: 1 },
+            SnapshotHeader {
+                sequence: 1,
+                created_at: 1,
+                watermark: 1,
+            },
             vec![Section {
                 id: SECTION_SHIPS,
                 schema: SHIP_SCHEMA_V1,
@@ -289,8 +365,7 @@ mod tests {
         .unwrap();
         let ships = section(&bytes, SECTION_SHIPS).unwrap().unwrap();
         let strings = string_table(ships).unwrap();
-        let by_id: BTreeMap<u32, &str> =
-            strings.iter().map(|s| (s.id, s.value.as_str())).collect();
+        let by_id: BTreeMap<u32, &str> = strings.iter().map(|s| (s.id, s.value.as_str())).collect();
         let decoded: Vec<(u32, &str)> = ship_records(ships)
             .unwrap()
             .map(|record| (record.id, by_id[&record.symbol_id]))
@@ -310,8 +385,20 @@ mod tests {
             .chunks_exact(AVAILABILITY_RECORD_BYTES as usize)
             .map(|chunk| AvailabilityRecord::decode(chunk).unwrap())
             .collect();
-        assert_eq!(decoded[0], AvailabilityRecord { station_id: 7, item_id: catalog.ids["beam"] });
-        assert_eq!(decoded[1], AvailabilityRecord { station_id: 9, item_id: catalog.ids["pulse"] });
+        assert_eq!(
+            decoded[0],
+            AvailabilityRecord {
+                station_id: 7,
+                item_id: catalog.ids["beam"]
+            }
+        );
+        assert_eq!(
+            decoded[1],
+            AvailabilityRecord {
+                station_id: 9,
+                item_id: catalog.ids["pulse"]
+            }
+        );
         assert!(encode_availability(&[(7, "missing".into())], &catalog.ids).is_err());
     }
 

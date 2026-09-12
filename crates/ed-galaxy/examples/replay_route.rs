@@ -84,7 +84,14 @@ fn replay_ours(path: &str) -> anyhow::Result<()> {
         total_viol += viol;
         if viol > 0 {
             routes_hit += 1;
-            println!("  {} -> {} [{}{}]: {viol} hops the shipped margin forbids (of {})", r.from, r.to, r.ship, if r.min_fuel { " MF" } else { "" }, r.jumps);
+            println!(
+                "  {} -> {} [{}{}]: {viol} hops the shipped margin forbids (of {})",
+                r.from,
+                r.to,
+                r.ship,
+                if r.min_fuel { " MF" } else { "" },
+                r.jumps
+            );
         }
     }
     println!("
@@ -96,15 +103,23 @@ fn main() -> anyhow::Result<()> {
     if std::env::args().nth(1).as_deref() == Some("--ours") {
         return replay_ours(&std::env::args().nth(2).expect("--ours <routes.jsonl>"));
     }
-    let path = std::env::args().nth(1).expect("usage: replay_route <spansh.json>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: replay_route <spansh.json>");
     let route: SpanshRoute = serde_json::from_reader(std::fs::File::open(&path)?)?;
     let model = FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
     let boost_profile = BoostProfile::MK2_SCO;
     let hops = &route.jumps;
-    println!("{} hops ({} jumps) from {}", hops.len(), hops.len() - 1, hops[0].name);
+    println!(
+        "{} hops ({} jumps) from {}",
+        hops.len(),
+        hops.len() - 1,
+        hops[0].name
+    );
 
     let mut fuel = hops[0].fuel_in_tank.min(model.capacity);
-    let (mut violations, mut min_margin, mut our_burn, mut their_burn) = (0u32, f32::MAX, 0.0f32, 0.0f32);
+    let (mut violations, mut min_margin, mut our_burn, mut their_burn) =
+        (0u32, f32::MAX, 0.0f32, 0.0f32);
     let mut refuels = 0u32;
     for i in 1..hops.len() {
         let (from, to) = (&hops[i - 1], &hops[i]);
@@ -112,10 +127,17 @@ fn main() -> anyhow::Result<()> {
             fuel = model.capacity;
             refuels += 1;
         }
-        let boost = if from.has_neutron { boost_profile.neutron } else { 1.0 };
+        let boost = if from.has_neutron {
+            boost_profile.neutron
+        } else {
+            1.0
+        };
         let geom = ed_galaxy::format::dist([from.x, from.y, from.z], [to.x, to.y, to.z]);
         if (geom - to.distance).abs() > 0.5 {
-            println!("  hop {i}: coordinate/distance mismatch {geom:.1} vs {:.1}", to.distance);
+            println!(
+                "  hop {i}: coordinate/distance mismatch {geom:.1} vs {:.1}",
+                to.distance
+            );
         }
         let reach = model.reach(fuel, boost);
         let margin = reach - to.distance;
@@ -127,7 +149,9 @@ fn main() -> anyhow::Result<()> {
             }
             None => {
                 violations += 1;
-                let burn = model.fuel_for(to.distance, fuel, boost).min(model.max_fuel_per_jump);
+                let burn = model
+                    .fuel_for(to.distance, fuel, boost)
+                    .min(model.max_fuel_per_jump);
                 println!(
                     "  VIOLATION hop {i} -> {}: throw {:.1} ly, our reach {:.1} ly (fuel {:.1} t, x{boost}), short {:.1} ly",
                     to.name, to.distance, reach, fuel, to.distance - reach
@@ -140,7 +164,10 @@ fn main() -> anyhow::Result<()> {
         // Their ledger sanity: our simulated tank vs theirs on arrival.
         let drift = fuel - to.fuel_in_tank;
         if drift.abs() > 3.0 && !from.must_refuel {
-            println!("  hop {i}: tank drift {drift:+.1} t (ours {fuel:.1}, theirs {:.1})", to.fuel_in_tank);
+            println!(
+                "  hop {i}: tank drift {drift:+.1} t (ours {fuel:.1}, theirs {:.1})",
+                to.fuel_in_tank
+            );
         }
     }
     println!(

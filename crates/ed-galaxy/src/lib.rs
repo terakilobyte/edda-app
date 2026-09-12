@@ -16,14 +16,14 @@ pub mod alt;
 pub mod boost_side;
 pub mod carrier;
 pub mod cgraph;
-pub mod fuel;
 pub mod format;
+pub mod fuel;
 pub mod import;
 pub mod loadout;
+pub mod long_range;
 pub mod overlay;
 pub mod presence;
 pub mod router;
-pub mod long_range;
 pub mod star;
 
 pub use format::{Galaxy, StarRecord};
@@ -34,7 +34,13 @@ pub use star::{StarClass, StarClassCode};
 /// drop the thread's priority) so a two-minute plot never starves the app.
 /// Call once at startup; later calls are ignored.
 pub fn init_thread_pool(on_start: fn()) {
-    let cpus = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    let cpus = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
     let n = cpus.saturating_sub(2).max(1);
-    let _ = rayon::ThreadPoolBuilder::new().num_threads(n).thread_name(|i| format!("planner-{i}")).start_handler(move |_| on_start()).build_global();
+    let _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(n)
+        .thread_name(|i| format!("planner-{i}"))
+        .start_handler(move |_| on_start())
+        .build_global();
 }

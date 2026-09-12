@@ -30,7 +30,11 @@ fn main() -> anyhow::Result<()> {
         .and_then(|s| s.coords)
         .ok_or_else(|| anyhow::anyhow!("unknown system {system}"))?;
 
-    let ship = Ship { cargo_capacity: cargo, jump_range_ly: range, laden_range_ly: range };
+    let ship = Ship {
+        cargo_capacity: cargo,
+        jump_range_ly: range,
+        laden_range_ly: range,
+    };
     let radius: f64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(40.0);
     // 0 means uncapped, matching the app (request.rs maps 0 to usize::MAX).
     // The raw 0 used to reach Constraints and cap the search at ONE station
@@ -39,10 +43,25 @@ fn main() -> anyhow::Result<()> {
         0 => usize::MAX,
         cap => cap,
     };
-    let c = Constraints { min_pad: pad, radius_ly: radius, max_age_hours: max_age, max_stations: cap, ..Default::default() };
+    let c = Constraints {
+        min_pad: pad,
+        radius_ly: radius,
+        max_age_hours: max_age,
+        max_stations: cap,
+        ..Default::default()
+    };
 
     let t = std::time::Instant::now();
-    let r = find(conn, &system, origin, None, &ship, &c, 12, &ed_route::profit::SearchControl::none())?;
+    let r = find(
+        conn,
+        &system,
+        origin,
+        None,
+        &ship,
+        &c,
+        12,
+        &ed_route::profit::SearchControl::none(),
+    )?;
     let elapsed = t.elapsed();
 
     println!(

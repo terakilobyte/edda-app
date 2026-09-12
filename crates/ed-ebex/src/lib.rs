@@ -156,8 +156,14 @@ impl StarRecord {
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self> {
-        ensure!(bytes.len() == STAR_RECORD_BYTES as usize, "invalid EBEX star record size");
-        ensure!(bytes[10..16].iter().all(|b| *b == 0), "reserved EBEX star record bytes are not zero");
+        ensure!(
+            bytes.len() == STAR_RECORD_BYTES as usize,
+            "invalid EBEX star record size"
+        );
+        ensure!(
+            bytes[10..16].iter().all(|b| *b == 0),
+            "reserved EBEX star record bytes are not zero"
+        );
         ensure!(bytes[9] <= 1, "invalid EBEX star scoopable flag");
         Ok(Self {
             address: read_i64(bytes, 0)?,
@@ -411,7 +417,8 @@ impl StationDetailsRecord {
         );
         let flags = read_u32(bytes, 8)?;
         ensure!(
-            flags & !(Self::IS_CARRIER | Self::HAS_BLACK_MARKET | Self::HAS_PADS | Self::HAS_ARRIVAL)
+            flags
+                & !(Self::IS_CARRIER | Self::HAS_BLACK_MARKET | Self::HAS_PADS | Self::HAS_ARRIVAL)
                 == 0,
             "unknown EBEX station details flags"
         );
@@ -421,9 +428,7 @@ impl StationDetailsRecord {
             pad_small: read_u16(bytes, 12)?,
             pad_medium: read_u16(bytes, 14)?,
             pad_large: read_u16(bytes, 16)?,
-            arrival_ls: f32::from_le_bytes(
-                bytes[18..22].try_into().expect("length checked above"),
-            ),
+            arrival_ls: f32::from_le_bytes(bytes[18..22].try_into().expect("length checked above")),
             type_id: read_u32(bytes, 22)?,
         })
     }
@@ -946,8 +951,14 @@ pub fn market_dictionary(section: SectionRef<'_>) -> Result<Vec<CommodityDefinit
 /// Iterate a stars-v1 section's records.
 pub fn star_records(section: SectionRef<'_>) -> Result<impl Iterator<Item = StarRecord> + '_> {
     ensure!(section.id == SECTION_STARS, "not an EBEX stars section");
-    ensure!(section.schema == STAR_SCHEMA_V1, "unsupported EBEX stars schema");
-    ensure!(section.record_size == STAR_RECORD_BYTES, "invalid EBEX stars record size");
+    ensure!(
+        section.schema == STAR_SCHEMA_V1,
+        "unsupported EBEX stars schema"
+    );
+    ensure!(
+        section.record_size == STAR_RECORD_BYTES,
+        "invalid EBEX stars record size"
+    );
     Ok(section
         .records
         .chunks_exact(STAR_RECORD_BYTES as usize)
@@ -957,11 +968,17 @@ pub fn star_records(section: SectionRef<'_>) -> Result<impl Iterator<Item = Star
 /// Validate a stars-v1 section: strictly sorted by address, reserved bytes
 /// zero, one record per system.
 pub fn validate_stars_section(section: SectionRef<'_>) -> Result<()> {
-    ensure!(section.auxiliary.is_empty(), "EBEX stars section carries no auxiliary region");
+    ensure!(
+        section.auxiliary.is_empty(),
+        "EBEX stars section carries no auxiliary region"
+    );
     let mut previous = None;
     for chunk in section.records.chunks_exact(STAR_RECORD_BYTES as usize) {
         let record = StarRecord::decode(chunk)?;
-        ensure!(previous.is_none_or(|p| record.address > p), "EBEX star records are not strictly sorted");
+        ensure!(
+            previous.is_none_or(|p| record.address > p),
+            "EBEX star records are not strictly sorted"
+        );
         previous = Some(record.address);
     }
     Ok(())
@@ -1318,7 +1335,12 @@ pub fn decompress_file_with_progress(
         1 << 20,
         std::fs::File::open(source).with_context(|| format!("opening {}", source.display()))?,
     );
-    let mut reader = Counting { inner: input, consumed: 0, reported: 0, report: &mut on_progress };
+    let mut reader = Counting {
+        inner: input,
+        consumed: 0,
+        reported: 0,
+        report: &mut on_progress,
+    };
     let mut decoder = zstd::stream::Decoder::new(&mut reader).context("starting zstd")?;
     let mut output = BufWriter::with_capacity(
         1 << 20,
@@ -1334,10 +1356,7 @@ pub fn decompress_file_with_progress(
 /// eats the input — REAL progress for a phase that otherwise sits silent
 /// for minutes on a big snapshot (item 47: monitor everything, guess
 /// nothing). The callback fires about every 8 MiB and once at the end.
-pub fn decompress_with_progress(
-    bytes: &[u8],
-    mut on_progress: impl FnMut(u64),
-) -> Result<Vec<u8>> {
+pub fn decompress_with_progress(bytes: &[u8], mut on_progress: impl FnMut(u64)) -> Result<Vec<u8>> {
     const EVERY: u64 = 8 << 20;
     struct Counting<'a, F: FnMut(u64)> {
         inner: &'a [u8],
@@ -1357,7 +1376,12 @@ pub fn decompress_with_progress(
         }
     }
     let total = bytes.len() as u64;
-    let mut reader = Counting { inner: bytes, consumed: 0, reported: 0, report: &mut on_progress };
+    let mut reader = Counting {
+        inner: bytes,
+        consumed: 0,
+        reported: 0,
+        report: &mut on_progress,
+    };
     let mut out = Vec::new();
     std::io::Read::read_to_end(
         &mut zstd::stream::Decoder::new(&mut reader).context("starting zstd")?,
@@ -1460,30 +1484,85 @@ mod tests {
     fn star_records_round_trip_and_validate() {
         let mut records = Vec::new();
         // A provisional (negative) address is legal and sorts first, signed.
-        for (address, class, scoopable) in [(-7i64, 2u8, false), (5, 3, true), (9, 14, false), (10_477_373_803, 1, true)] {
-            StarRecord { address, class, scoopable, observed_at: 1_700_000_000 }.encode_into(&mut records);
+        for (address, class, scoopable) in [
+            (-7i64, 2u8, false),
+            (5, 3, true),
+            (9, 14, false),
+            (10_477_373_803, 1, true),
+        ] {
+            StarRecord {
+                address,
+                class,
+                scoopable,
+                observed_at: 1_700_000_000,
+            }
+            .encode_into(&mut records);
         }
         assert_eq!(records.len(), 4 * STAR_RECORD_BYTES as usize);
         let bytes = encode_snapshot(
-            SnapshotHeader { sequence: 1, created_at: 1, watermark: 1 },
-            vec![Section { id: SECTION_STARS, schema: STAR_SCHEMA_V1, required: false, record_count: 4, record_size: STAR_RECORD_BYTES, records: records.clone(), auxiliary: vec![] }],
+            SnapshotHeader {
+                sequence: 1,
+                created_at: 1,
+                watermark: 1,
+            },
+            vec![Section {
+                id: SECTION_STARS,
+                schema: STAR_SCHEMA_V1,
+                required: false,
+                record_count: 4,
+                record_size: STAR_RECORD_BYTES,
+                records: records.clone(),
+                auxiliary: vec![],
+            }],
         )
         .unwrap();
         let stars = section(&bytes, SECTION_STARS).unwrap().unwrap();
         validate_stars_section(stars).unwrap();
         let decoded: Vec<StarRecord> = star_records(stars).unwrap().collect();
         assert_eq!(decoded[0].address, -7);
-        assert_eq!(decoded[2], StarRecord { address: 9, class: 14, scoopable: false, observed_at: 1_700_000_000 });
+        assert_eq!(
+            decoded[2],
+            StarRecord {
+                address: 9,
+                class: 14,
+                scoopable: false,
+                observed_at: 1_700_000_000
+            }
+        );
         assert_eq!(decoded[3].address, 10_477_373_803);
         // Optional: a client that only knows the market baseline accepts the container.
         validate_required_sections(&bytes, MARKET_BASELINE_SECTIONS).unwrap();
         // Out of order is refused.
         let mut swapped = Vec::new();
-        StarRecord { address: 9, class: 1, scoopable: true, observed_at: 1 }.encode_into(&mut swapped);
-        StarRecord { address: 5, class: 1, scoopable: true, observed_at: 1 }.encode_into(&mut swapped);
+        StarRecord {
+            address: 9,
+            class: 1,
+            scoopable: true,
+            observed_at: 1,
+        }
+        .encode_into(&mut swapped);
+        StarRecord {
+            address: 5,
+            class: 1,
+            scoopable: true,
+            observed_at: 1,
+        }
+        .encode_into(&mut swapped);
         let bad = encode_snapshot(
-            SnapshotHeader { sequence: 1, created_at: 1, watermark: 1 },
-            vec![Section { id: SECTION_STARS, schema: STAR_SCHEMA_V1, required: false, record_count: 2, record_size: STAR_RECORD_BYTES, records: swapped, auxiliary: vec![] }],
+            SnapshotHeader {
+                sequence: 1,
+                created_at: 1,
+                watermark: 1,
+            },
+            vec![Section {
+                id: SECTION_STARS,
+                schema: STAR_SCHEMA_V1,
+                required: false,
+                record_count: 2,
+                record_size: STAR_RECORD_BYTES,
+                records: swapped,
+                auxiliary: vec![],
+            }],
         )
         .unwrap();
         assert!(validate_stars_section(section(&bad, SECTION_STARS).unwrap().unwrap()).is_err());
@@ -1666,7 +1745,11 @@ mod tests {
         // required, so a market-only client accepts the whole container.
         validate_required_sections(&bytes, MARKET_BASELINE_SECTIONS).unwrap();
         assert_eq!(
-            found.iter().filter(|s| s.required).map(|s| s.id).collect::<Vec<_>>(),
+            found
+                .iter()
+                .filter(|s| s.required)
+                .map(|s| s.id)
+                .collect::<Vec<_>>(),
             vec![SECTION_MARKETS]
         );
 
@@ -1729,8 +1812,18 @@ mod tests {
         assert_eq!(
             star_list,
             vec![
-                StarRecord { address: -42, class: 2, scoopable: true, observed_at: 150 },
-                StarRecord { address: 10_477_373_803, class: 14, scoopable: false, observed_at: 150 },
+                StarRecord {
+                    address: -42,
+                    class: 2,
+                    scoopable: true,
+                    observed_at: 150
+                },
+                StarRecord {
+                    address: 10_477_373_803,
+                    class: 14,
+                    scoopable: false,
+                    observed_at: 150
+                },
             ],
             "signed addresses: the provisional star sorts first"
         );

@@ -607,8 +607,12 @@ pub fn owned_ships(conn: &Connection) -> Result<std::collections::HashSet<i64>> 
     let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     for row in rows {
         let (event, raw) = row?;
-        let v: Value = serde_json::from_str(&raw)
-            .with_context(|| format!("malformed {event} event: {}", raw.chars().take(80).collect::<String>()))?;
+        let v: Value = serde_json::from_str(&raw).with_context(|| {
+            format!(
+                "malformed {event} event: {}",
+                raw.chars().take(80).collect::<String>()
+            )
+        })?;
         let id = |key: &str| v.get(key).and_then(Value::as_i64);
         match event.as_str() {
             "Loadout" => {
@@ -621,7 +625,11 @@ pub fn owned_ships(conn: &Connection) -> Result<std::collections::HashSet<i64>> 
                 owned.clear();
                 for key in ["ShipsHere", "ShipsRemote"] {
                     if let Some(ships) = v.get(key).and_then(Value::as_array) {
-                        owned.extend(ships.iter().filter_map(|ship| ship.get("ShipID").and_then(Value::as_i64)));
+                        owned.extend(
+                            ships
+                                .iter()
+                                .filter_map(|ship| ship.get("ShipID").and_then(Value::as_i64)),
+                        );
                     }
                 }
                 if let Some(ship_id) = current {
@@ -676,14 +684,44 @@ mod owned_ships_tests {
     #[test]
     fn owned_ships_replays_purchases_swaps_and_rebuy_sales() {
         let conn = db();
-        insert(&conn, 1, "Loadout", r#"{"event":"Loadout","ShipID":1,"Ship":"cutter"}"#);
-        insert(&conn, 2, "StoredShips", r#"{"event":"StoredShips","ShipsHere":[{"ShipID":2}],"ShipsRemote":[{"ShipID":3}]}"#);
-        insert(&conn, 3, "ShipyardNew", r#"{"event":"ShipyardNew","NewShipID":4}"#);
+        insert(
+            &conn,
+            1,
+            "Loadout",
+            r#"{"event":"Loadout","ShipID":1,"Ship":"cutter"}"#,
+        );
+        insert(
+            &conn,
+            2,
+            "StoredShips",
+            r#"{"event":"StoredShips","ShipsHere":[{"ShipID":2}],"ShipsRemote":[{"ShipID":3}]}"#,
+        );
+        insert(
+            &conn,
+            3,
+            "ShipyardNew",
+            r#"{"event":"ShipyardNew","NewShipID":4}"#,
+        );
         // Swap into 3, storing 4; then buy 5 selling 2.
-        insert(&conn, 4, "ShipyardSwap", r#"{"event":"ShipyardSwap","ShipID":3,"StoreShipID":4}"#);
-        insert(&conn, 5, "ShipyardBuy", r#"{"event":"ShipyardBuy","ShipID":5,"SellShipID":2}"#);
+        insert(
+            &conn,
+            4,
+            "ShipyardSwap",
+            r#"{"event":"ShipyardSwap","ShipID":3,"StoreShipID":4}"#,
+        );
+        insert(
+            &conn,
+            5,
+            "ShipyardBuy",
+            r#"{"event":"ShipyardBuy","ShipID":5,"SellShipID":2}"#,
+        );
         // Lost ship 5 and did not rebuy it.
-        insert(&conn, 6, "SellShipOnRebuy", r#"{"event":"SellShipOnRebuy","SellShipID":5}"#);
+        insert(
+            &conn,
+            6,
+            "SellShipOnRebuy",
+            r#"{"event":"SellShipOnRebuy","SellShipID":5}"#,
+        );
         let mut got: Vec<i64> = owned_ships(&conn).unwrap().into_iter().collect();
         got.sort();
         assert_eq!(got, vec![1, 3, 4]);
@@ -704,7 +742,11 @@ mod owned_ships_tests {
         );
         derive_all(&conn).unwrap();
         let security: String = conn
-            .query_row("SELECT system_security FROM location WHERE id = 1", [], |r| r.get(0))
+            .query_row(
+                "SELECT system_security FROM location WHERE id = 1",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(security, "Anarchy");
     }
@@ -713,7 +755,12 @@ mod owned_ships_tests {
     fn a_malformed_event_is_an_error_not_an_empty_hangar() {
         let conn = db();
         insert(&conn, 1, "Loadout", r#"{"event":"Loadout","ShipID":1}"#);
-        insert(&conn, 2, "ShipyardSwap", r#"{"event":"ShipyardSwap","ShipID":"#);
+        insert(
+            &conn,
+            2,
+            "ShipyardSwap",
+            r#"{"event":"ShipyardSwap","ShipID":"#,
+        );
         let err = owned_ships(&conn).unwrap_err().to_string();
         assert!(err.contains("ShipyardSwap"), "{err}");
     }

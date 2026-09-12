@@ -52,7 +52,9 @@ pub enum Command {
     /// Item 47: diff EDDN/EDSM knowledge against the published routing
     /// index and, when the day changed something, publish the EDGO
     /// overlay and the applied next version with the chain extended.
-    ReconcileRouting { artifact_dir: Option<PathBuf> },
+    ReconcileRouting {
+        artifact_dir: Option<PathBuf>,
+    },
 }
 
 pub fn parse_command(args: Vec<String>) -> Result<Command> {

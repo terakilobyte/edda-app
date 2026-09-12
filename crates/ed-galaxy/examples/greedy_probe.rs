@@ -32,22 +32,42 @@ fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let dir = Path::new(args.first().map(String::as_str).unwrap_or(".data/galaxy"));
     let from = args.get(1).map(String::as_str).unwrap_or("SynthStart");
-    let to = args.get(2).filter(|a| !a.starts_with("--")).map(String::as_str).unwrap_or("SynthGoal");
-    let ship = args.iter().position(|a| a == "--ship").and_then(|i| args.get(i + 1)).map(String::as_str).unwrap_or("explorer");
+    let to = args
+        .get(2)
+        .filter(|a| !a.starts_with("--"))
+        .map(String::as_str)
+        .unwrap_or("SynthGoal");
+    let ship = args
+        .iter()
+        .position(|a| a == "--ship")
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str)
+        .unwrap_or("explorer");
 
     let g = Galaxy::open(dir)?;
     let sub = Galaxy::open(&ed_galaxy::long_range::neutron_dir(dir))?;
     let (model, boost) = match ship {
-        "mandalay" => (FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0), BoostProfile::default()),
-        _ => (FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0), BoostProfile::MK2_SCO),
+        "mandalay" => (
+            FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0),
+            BoostProfile::default(),
+        ),
+        _ => (
+            FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0),
+            BoostProfile::MK2_SCO,
+        ),
     };
     let range = model.range_at(model.capacity);
 
-    let a = g.find(from).ok_or_else(|| anyhow::anyhow!("unknown {from}"))?;
+    let a = g
+        .find(from)
+        .ok_or_else(|| anyhow::anyhow!("unknown {from}"))?;
     let goal_pos: [f32; 3];
     let b_main: u32;
     if let Some(i) = args.iter().position(|x| x == "--to-xyz") {
-        let p: Vec<f32> = args[i + 1].split(',').filter_map(|v| v.parse().ok()).collect();
+        let p: Vec<f32> = args[i + 1]
+            .split(',')
+            .filter_map(|v| v.parse().ok())
+            .collect();
         anyhow::ensure!(p.len() == 3, "--to-xyz wants x,y,z");
         // Snap to the nearest highway star so the goal is reachable in kind.
         let want = [p[0], p[1], p[2]];
@@ -60,8 +80,15 @@ fn main() -> anyhow::Result<()> {
         }
         goal_pos = sub.pos_of(best.1);
         let r = sub.record(best.1);
-        b_main = g.find(sub.name(&r)).ok_or_else(|| anyhow::anyhow!("snap target not in main index"))?;
-        println!("goal snapped to {} at {:?} ({:.0} ly from asked)", sub.name(&r), goal_pos, best.0);
+        b_main = g
+            .find(sub.name(&r))
+            .ok_or_else(|| anyhow::anyhow!("snap target not in main index"))?;
+        println!(
+            "goal snapped to {} at {:?} ({:.0} ly from asked)",
+            sub.name(&r),
+            goal_pos,
+            best.0
+        );
     } else {
         b_main = g.find(to).ok_or_else(|| anyhow::anyhow!("unknown {to}"))?;
         goal_pos = g.record(b_main).pos();
@@ -86,7 +113,10 @@ fn main() -> anyhow::Result<()> {
         let r = sub.record(nearest.1);
         sub.class(&r)
     };
-    println!("chain starts {:.0} ly out, at the nearest highway star", nearest.0);
+    println!(
+        "chain starts {:.0} ly out, at the nearest highway star",
+        nearest.0
+    );
     let mut chain: Vec<u32> = vec![nearest.1]; // sub-index picks, in order
     let mut jumps = 0u32;
     let mut scanned = 0u64; // what the full sphere visits (today's cost)
@@ -103,14 +133,22 @@ fn main() -> anyhow::Result<()> {
         // cones are then graded against the collected shell.
         let mut cands: Vec<(u32, [f32; 3], f32, f32)> = Vec::new(); // sub idx, pos, d, cos(angle to goal)
         let to_goal = format::dist(pos, goal_pos);
-        let gdir = [(goal_pos[0] - pos[0]) / to_goal, (goal_pos[1] - pos[1]) / to_goal, (goal_pos[2] - pos[2]) / to_goal];
+        let gdir = [
+            (goal_pos[0] - pos[0]) / to_goal,
+            (goal_pos[1] - pos[1]) / to_goal,
+            (goal_pos[2] - pos[2]) / to_goal,
+        ];
         sub.for_each_within_toward(pos, reach, Some((goal_pos, to_goal)), |i, d| {
             scanned += 1;
             if d < 1.0 {
                 return; // self
             }
             let p = sub.pos_of(i);
-            let dir = [(p[0] - pos[0]) / d, (p[1] - pos[1]) / d, (p[2] - pos[2]) / d];
+            let dir = [
+                (p[0] - pos[0]) / d,
+                (p[1] - pos[1]) / d,
+                (p[2] - pos[2]) / d,
+            ];
             let cos = dir[0] * gdir[0] + dir[1] * gdir[1] + dir[2] * gdir[2];
             cands.push((i, p, d, cos));
         });
@@ -170,23 +208,44 @@ fn main() -> anyhow::Result<()> {
         jumps += 1; // the final hop onto the goal
     }
     let greedy_ms = t.elapsed().as_millis();
-    let status = if stuck { format!("STUCK at {pos:?} ({:.0} ly short)", format::dist(pos, goal_pos)) } else { "ok".into() };
+    let status = if stuck {
+        format!(
+            "STUCK at {pos:?} ({:.0} ly short)",
+            format::dist(pos, goal_pos)
+        )
+    } else {
+        "ok".into()
+    };
     println!("greedy : {jumps} jumps, {greedy_ms} ms, {status}");
     println!(
         "work   : scanned {scanned} (full sphere), in-cone {in_cone} ({:.1}x less), {widens} widen events",
         scanned as f64 / in_cone.max(1) as f64
     );
-    let named: Vec<String> = THETAS_DEG.iter().zip(theta_hist).filter(|(_, n)| *n > 0).map(|(t, n)| format!("{t}deg x{n}")).collect();
+    let named: Vec<String> = THETAS_DEG
+        .iter()
+        .zip(theta_hist)
+        .filter(|(_, n)| *n > 0)
+        .map(|(t, n)| format!("{t}deg x{n}"))
+        .collect();
     println!("cones  : {}", named.join(", "));
 
     // --- the reference plot ---
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control {
+        cancelled: &|| false,
+        progress: &|_, _| {},
+        stage: &|_, _, _| {},
+        found: &|_| {},
+        trace: &|_, _, _| {},
+    };
     let req = RouteRequest {
         from: a,
         to: b_main,
         range_ly: range,
         supercharge: true,
-        boost: BoostProfile { white_dwarf: 1.0, ..boost },
+        boost: BoostProfile {
+            white_dwarf: 1.0,
+            ..boost
+        },
         fuel: Some(model),
         start_fuel: model.capacity,
         thorough: false,
@@ -195,7 +254,12 @@ fn main() -> anyhow::Result<()> {
     };
     let t = Instant::now();
     let r = plan_best(&g, Some(&sub), &req, &ctl)?;
-    println!("planner: {} jumps, {} refuels, {} ms", r.jumps, r.refuel_stops, t.elapsed().as_millis());
+    println!(
+        "planner: {} jumps, {} refuels, {} ms",
+        r.jumps,
+        r.refuel_stops,
+        t.elapsed().as_millis()
+    );
 
     // --- does the greedy chain survive the fuel model? ---
     // Forward fuel simulation first (eager top-up wherever the star can
@@ -249,14 +313,26 @@ fn main() -> anyhow::Result<()> {
             fuel = model.capacity;
             stops += 1;
         }
-        if model.jump(d_goal, fuel, boost.for_class(prev_class)).is_none() {
+        if model
+            .jump(d_goal, fuel, boost.for_class(prev_class))
+            .is_none()
+        {
             broken += 1;
         }
-        println!("fuelsim: {stops} top-ups, {broken} broken hops{}", if broken > 0 { " -> chain NOT fuel-feasible as flown" } else { "" });
+        println!(
+            "fuelsim: {stops} top-ups, {broken} broken hops{}",
+            if broken > 0 {
+                " -> chain NOT fuel-feasible as flown"
+            } else {
+                ""
+            }
+        );
 
         for (&i, &est) in ends.iter().zip(&ests) {
             let r = sub.record(i);
-            let main = g.find(sub.name(&r)).ok_or_else(|| anyhow::anyhow!("chain star not in main index"))?;
+            let main = g
+                .find(sub.name(&r))
+                .ok_or_else(|| anyhow::anyhow!("chain star not in main index"))?;
             if main != b_main {
                 waypoints.push((main, est));
             }
@@ -265,11 +341,23 @@ fn main() -> anyhow::Result<()> {
         waypoints.push((b_main, 0.0));
         let straight = format::dist(g.record(a).pos(), goal_pos);
         let t = Instant::now();
-        match ed_galaxy::long_range::refine_waypoints(&g, &req, &ctl, waypoints, model.capacity, Some(model), 0, straight, Instant::now()) {
-            Ok(r) => println!(
+        match ed_galaxy::long_range::refine_waypoints(
+            &g,
+            &req,
+            &ctl,
+            waypoints,
+            model.capacity,
+            Some(model),
+            0,
+            straight,
+            Instant::now(),
+        ) {
+            Ok(r) => {
+                println!(
                 "refine : greedy chain settles at {} jumps, {} refuels, {} ms (chain was {jumps})",
                 r.jumps, r.refuel_stops, t.elapsed().as_millis()
-            ),
+            )
+            }
             Err(e) => println!("refine : greedy chain does NOT survive the fuel model: {e:?}"),
         }
     }

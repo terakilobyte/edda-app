@@ -93,7 +93,11 @@ pub struct Constraints {
 mod infinity_as_null {
     use serde::{Deserialize, Deserializer, Serializer};
     pub fn serialize<S: Serializer>(v: &f64, s: S) -> Result<S::Ok, S::Error> {
-        if v.is_finite() { s.serialize_some(v) } else { s.serialize_none() }
+        if v.is_finite() {
+            s.serialize_some(v)
+        } else {
+            s.serialize_none()
+        }
     }
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
         Ok(Option::<f64>::deserialize(d)?.unwrap_or(f64::INFINITY))
@@ -535,8 +539,11 @@ fn silence_untradeable_sells(
         }
         prohibited.insert(st.station_id, confiscates);
     }
-    let carriers: std::collections::HashSet<i64> =
-        stations.iter().filter(|s| s.is_carrier).map(|s| s.station_id).collect();
+    let carriers: std::collections::HashSet<i64> = stations
+        .iter()
+        .filter(|s| s.is_carrier)
+        .map(|s| s.station_id)
+        .collect();
     let mut enveloped = 0usize;
     for row in rows.iter_mut() {
         let stat = stats.get(&row.symbol);
@@ -574,7 +581,10 @@ pub fn silence_prohibited(
         if row.sell_price <= 0 {
             continue;
         }
-        if prohibited.get(&row.station_id).is_some_and(|p| p.contains(&row.symbol)) {
+        if prohibited
+            .get(&row.station_id)
+            .is_some_and(|p| p.contains(&row.symbol))
+        {
             row.sell_price = 0;
             row.demand = 0;
             confiscated += 1;
@@ -597,7 +607,14 @@ pub struct Prepared {
 
 /// Public with `MarketRow` and [`round_trips`]: the remote-trade
 /// composer builds legs from API rows through exactly this math.
-pub fn make_leg(from: &StationRef, to: &StationRef, a: &MarketRow, b: &MarketRow, ship: &Ship, timing: &cost::Timing) -> Leg {
+pub fn make_leg(
+    from: &StationRef,
+    to: &StationRef,
+    a: &MarketRow,
+    b: &MarketRow,
+    ship: &Ship,
+    timing: &cost::Timing,
+) -> Leg {
     let tons = ship.cargo_capacity.min(a.supply).min(b.demand).max(0);
     let per_ton = b.sell_price - a.buy_price;
     let profit = per_ton * tons;
@@ -634,16 +651,31 @@ pub fn make_leg(from: &StationRef, to: &StationRef, a: &MarketRow, b: &MarketRow
 /// Loaded out, empty back: different ranges, different jump counts. The
 /// one place the leg's timing arithmetic lives — `make_leg` and the
 /// pre-materialisation score both use it.
-fn cycle(from: &StationRef, to: &StationRef, distance: f64, ship: &Ship, timing: &cost::Timing) -> (cost::Duration, cost::Duration, f64) {
-    let duration = timing.leg_seconds_at_range(distance, to.arrival_ls.unwrap_or(0.0), ship.laden_range_ly);
-    let return_duration = timing.leg_seconds_at_range(distance, from.arrival_ls.unwrap_or(0.0), ship.jump_range_ly);
+fn cycle(
+    from: &StationRef,
+    to: &StationRef,
+    distance: f64,
+    ship: &Ship,
+    timing: &cost::Timing,
+) -> (cost::Duration, cost::Duration, f64) {
+    let duration =
+        timing.leg_seconds_at_range(distance, to.arrival_ls.unwrap_or(0.0), ship.laden_range_ly);
+    let return_duration =
+        timing.leg_seconds_at_range(distance, from.arrival_ls.unwrap_or(0.0), ship.jump_range_ly);
     let cycle_hours = (duration.seconds + return_duration.seconds) / 3600.0;
     (duration, return_duration, cycle_hours)
 }
 
 /// `profit_per_hour_repeat` of a pair's primary commodity before the hold
 /// is filled: `make_leg`'s number without the allocations.
-fn pair_rate(from: &StationRef, to: &StationRef, per_ton: i64, avail: i64, ship: &Ship, timing: &cost::Timing) -> f64 {
+fn pair_rate(
+    from: &StationRef,
+    to: &StationRef,
+    per_ton: i64,
+    avail: i64,
+    ship: &Ship,
+    timing: &cost::Timing,
+) -> f64 {
     let tons = ship.cargo_capacity.min(avail).max(0);
     let (_, _, cycle_hours) = cycle(from, to, from.distance_to(to), ship, timing);
     (per_ton * tons) as f64 / cycle_hours.max(1e-6)
@@ -865,7 +897,10 @@ fn best_legs(
     };
     let mut legs: Vec<Leg> = Vec::with_capacity(cands.len().min(MATERIALISED_LEGS));
     for ((from_id, to_id), mut v) in cands {
-        if keep.as_ref().is_some_and(|k| !k.contains(&(from_id, to_id))) {
+        if keep
+            .as_ref()
+            .is_some_and(|k| !k.contains(&(from_id, to_id)))
+        {
             continue;
         }
         v.sort_by(|x, y| y.0.cmp(&x.0));
@@ -1058,7 +1093,8 @@ pub fn round_trips(legs: &[Leg], limit: usize) -> Vec<RoundTrip> {
         // a dead heat (same profit both ways, same distance) is broken by
         // station id, or the loop would be listed twice.
         if out.profit_per_hour < back.profit_per_hour
-            || (out.profit_per_hour == back.profit_per_hour && out.from.station_id > back.from.station_id)
+            || (out.profit_per_hour == back.profit_per_hour
+                && out.from.station_id > back.from.station_id)
         {
             continue;
         }
@@ -1143,8 +1179,22 @@ pub fn find_at(
     excluded.confiscated_sales = confiscated;
     excluded.carrier_price_outliers = enveloped;
     timing.guards_ms = phase.elapsed().as_millis() as u64;
-    let prepared = Prepared { stations, rows, excluded, timing };
-    Ok(assemble(origin_name, origin, from_station, ship, c, limit, prepared, ctl))
+    let prepared = Prepared {
+        stations,
+        rows,
+        excluded,
+        timing,
+    };
+    Ok(assemble(
+        origin_name,
+        origin,
+        from_station,
+        ship,
+        c,
+        limit,
+        prepared,
+        ctl,
+    ))
 }
 
 /// The pipeline after the data is in hand: best legs, round trips from
@@ -1161,14 +1211,22 @@ pub fn assemble(
     prepared: Prepared,
     ctl: &SearchControl,
 ) -> ProfitReport {
-    let Prepared { stations, rows, excluded, mut timing } = prepared;
+    let Prepared {
+        stations,
+        rows,
+        excluded,
+        mut timing,
+    } = prepared;
     (ctl.progress)(stations.len(), stations.len());
     let phase = std::time::Instant::now();
     let sources: Option<Vec<i64>> = from_station.map(|id| vec![id]);
     // The undock term follows the ship's pad unless the commander
     // measured it (maintainer, 2026-09-09) — resolved once here, for the
     // server and the client alike, whatever the wire carried.
-    let resolved = Constraints { timing: c.timing.resolve(c.min_pad), ..c.clone() };
+    let resolved = Constraints {
+        timing: c.timing.resolve(c.min_pad),
+        ..c.clone()
+    };
     let c = &resolved;
     let all = best_legs(&stations, &rows, sources.as_deref(), ship, c, ctl);
     // Round trips pair from the FULL leg set. Pairing from the diversified
@@ -1231,25 +1289,63 @@ mod tests {
     #[test]
     fn assemble_pairs_round_trips_from_the_full_set() {
         let station = |id: i64, x: f64| StationRef {
-            station_id: id, station: format!("S{id}"), system: format!("Sys{id}"), system_id64: id * 10,
-            x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
-            class: StationClass::of(Some("Coriolis")), is_carrier: false,
-            controlling_power: None, power_state: None, powers: Vec::new(),
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id * 10,
+            x,
+            y: 0.0,
+            z: 0.0,
+            arrival_ls: Some(100.0),
+            max_pad: Some(PadSize::Large),
+            class: StationClass::of(Some("Coriolis")),
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
         };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
-            station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
-            demand: if sell > 0 { 1000 } else { 0 }, supply: if buy > 0 { 1000 } else { 0 }, age_hours: 1.0,
+            station_id: st,
+            symbol: sym.into(),
+            name: None,
+            buy_price: buy,
+            sell_price: sell,
+            demand: if sell > 0 { 1000 } else { 0 },
+            supply: if buy > 0 { 1000 } else { 0 },
+            age_hours: 1.0,
         };
         let prepared = Prepared {
             stations: vec![station(1, 0.0), station(2, 10.0)],
-            rows: vec![row(1, "gold", 100, 0), row(2, "gold", 0, 200), row(2, "silver", 50, 0), row(1, "silver", 0, 150)],
+            rows: vec![
+                row(1, "gold", 100, 0),
+                row(2, "gold", 0, 200),
+                row(2, "silver", 50, 0),
+                row(1, "silver", 0, 150),
+            ],
             excluded: Excluded::default(),
             timing: SearchTiming::default(),
         };
-        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
-        let report = assemble("Sys1", (0.0, 0.0, 0.0), None, &ship, &Constraints::default(), 1, prepared, &SearchControl::none());
+        let ship = Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        };
+        let report = assemble(
+            "Sys1",
+            (0.0, 0.0, 0.0),
+            None,
+            &ship,
+            &Constraints::default(),
+            1,
+            prepared,
+            &SearchControl::none(),
+        );
         assert_eq!(report.legs.len(), 1, "limit applies to the legs list");
-        assert_eq!(report.round_trips.len(), 1, "the loop is found from the full set");
+        assert_eq!(
+            report.round_trips.len(),
+            1,
+            "the loop is found from the full set"
+        );
         assert_eq!(report.stations_considered, 2);
         assert!(report.timing.pairing_ms < 1_000);
     }
@@ -1261,27 +1357,56 @@ mod tests {
     #[test]
     fn pairs_past_the_materialisation_bound_are_ranked_before_they_become_legs() {
         let station = |id: i64| StationRef {
-            station_id: id, station: format!("S{id}"), system: format!("Sys{id}"), system_id64: id * 10,
-            x: (id % 20) as f64 * 3.0, y: (id / 20) as f64 * 3.0, z: 0.0,
-            arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
-            class: StationClass::of(Some("Coriolis")), is_carrier: false,
-            controlling_power: None, power_state: None, powers: Vec::new(),
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id * 10,
+            x: (id % 20) as f64 * 3.0,
+            y: (id / 20) as f64 * 3.0,
+            z: 0.0,
+            arrival_ls: Some(100.0),
+            max_pad: Some(PadSize::Large),
+            class: StationClass::of(Some("Coriolis")),
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
         };
         let row = |st: i64| MarketRow {
-            station_id: st, symbol: "gold".into(), name: None, buy_price: 100, sell_price: 200,
-            demand: 1000, supply: 1000, age_hours: 1.0,
+            station_id: st,
+            symbol: "gold".into(),
+            name: None,
+            buy_price: 100,
+            sell_price: 200,
+            demand: 1000,
+            supply: 1000,
+            age_hours: 1.0,
         };
-        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
-        let c = Constraints { max_leg_ly: 0.0, ..Constraints::default() };
+        let ship = Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        };
+        let c = Constraints {
+            max_leg_ly: 0.0,
+            ..Constraints::default()
+        };
         let stations: Vec<StationRef> = (1..=400).map(station).collect();
         let rows: Vec<MarketRow> = (1..=400).map(row).collect();
         let legs = best_legs(&stations, &rows, None, &ship, &c, &SearchControl::none());
         assert_eq!(legs.len(), MATERIALISED_LEGS, "bounded, not 159,600");
         // Every hop inside laden range is one jump and ties on rate; the
         // winner must be one of those, never a multi-jump haul.
-        assert_eq!(legs[0].jumps, 1, "the best leg is still a one-jump hop ({} ly)", legs[0].distance_ly);
+        assert_eq!(
+            legs[0].jumps, 1,
+            "the best leg is still a one-jump hop ({} ly)",
+            legs[0].distance_ly
+        );
         let longest = legs.iter().map(|l| l.distance_ly).fold(0.0, f64::max);
-        assert!(longest < 60.0, "the long hops are what the bound dropped, longest kept {longest}");
+        assert!(
+            longest < 60.0,
+            "the long hops are what the bound dropped, longest kept {longest}"
+        );
         let few: Vec<StationRef> = (1..=100).map(station).collect();
         let few_rows: Vec<MarketRow> = (1..=100).map(row).collect();
         let legs = best_legs(&few, &few_rows, None, &ship, &c, &SearchControl::none());
@@ -1293,33 +1418,89 @@ mod tests {
     #[test]
     fn a_tied_pair_is_one_round_trip() {
         let station = |id: i64, x: f64| StationRef {
-            station_id: id, station: format!("S{id}"), system: format!("Sys{id}"), system_id64: id * 10,
-            x, y: 0.0, z: 0.0, arrival_ls: None, max_pad: Some(PadSize::Large),
-            class: StationClass::of(Some("Coriolis")), is_carrier: false,
-            controlling_power: None, power_state: None, powers: Vec::new(),
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id * 10,
+            x,
+            y: 0.0,
+            z: 0.0,
+            arrival_ls: None,
+            max_pad: Some(PadSize::Large),
+            class: StationClass::of(Some("Coriolis")),
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
         };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
-            station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
-            demand: if sell > 0 { 1000 } else { 0 }, supply: if buy > 0 { 1000 } else { 0 }, age_hours: 1.0,
+            station_id: st,
+            symbol: sym.into(),
+            name: None,
+            buy_price: buy,
+            sell_price: sell,
+            demand: if sell > 0 { 1000 } else { 0 },
+            supply: if buy > 0 { 1000 } else { 0 },
+            age_hours: 1.0,
         };
         let prepared = Prepared {
             stations: vec![station(1, 0.0), station(2, 10.0)],
-            rows: vec![row(1, "gold", 100, 0), row(2, "gold", 0, 200), row(2, "silver", 50, 0), row(1, "silver", 0, 150)],
+            rows: vec![
+                row(1, "gold", 100, 0),
+                row(2, "gold", 0, 200),
+                row(2, "silver", 50, 0),
+                row(1, "silver", 0, 150),
+            ],
             excluded: Excluded::default(),
             timing: SearchTiming::default(),
         };
-        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
-        let report = assemble("Sys1", (0.0, 0.0, 0.0), None, &ship, &Constraints::default(), 10, prepared, &SearchControl::none());
+        let ship = Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        };
+        let report = assemble(
+            "Sys1",
+            (0.0, 0.0, 0.0),
+            None,
+            &ship,
+            &Constraints::default(),
+            10,
+            prepared,
+            &SearchControl::none(),
+        );
         assert_eq!(report.legs.len(), 2);
-        assert_eq!(report.round_trips.len(), 1, "one loop, not one per direction");
+        assert_eq!(
+            report.round_trips.len(),
+            1,
+            "one loop, not one per direction"
+        );
         assert_eq!(report.round_trips[0].out.from.station_id, 1);
     }
 
     #[test]
     fn silence_prohibited_zeroes_the_sale_and_counts_it() {
         let mut rows = vec![
-            MarketRow { station_id: 2, symbol: "gold".into(), name: None, buy_price: 0, sell_price: 200, demand: 10, supply: 0, age_hours: 0.0 },
-            MarketRow { station_id: 2, symbol: "silver".into(), name: None, buy_price: 0, sell_price: 100, demand: 10, supply: 0, age_hours: 0.0 },
+            MarketRow {
+                station_id: 2,
+                symbol: "gold".into(),
+                name: None,
+                buy_price: 0,
+                sell_price: 200,
+                demand: 10,
+                supply: 0,
+                age_hours: 0.0,
+            },
+            MarketRow {
+                station_id: 2,
+                symbol: "silver".into(),
+                name: None,
+                buy_price: 0,
+                sell_price: 100,
+                demand: 10,
+                supply: 0,
+                age_hours: 0.0,
+            },
         ];
         let mut prohibited = std::collections::HashMap::new();
         prohibited.insert(2, std::collections::HashSet::from(["gold".to_string()]));
@@ -1333,22 +1514,87 @@ mod tests {
     #[test]
     fn report_round_trips_through_serde() {
         let station = |id: i64, x: f64| StationRef {
-            station_id: id, station: format!("S{id}"), system: format!("Sys{id}"), system_id64: id * 10,
-            x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
-            class: StationClass::of(Some("Coriolis")), is_carrier: false,
-            controlling_power: None, power_state: None, powers: Vec::new(),
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id * 10,
+            x,
+            y: 0.0,
+            z: 0.0,
+            arrival_ls: Some(100.0),
+            max_pad: Some(PadSize::Large),
+            class: StationClass::of(Some("Coriolis")),
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
         };
-        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
-        let buy = MarketRow { station_id: 1, symbol: "gold".into(), name: Some("Gold".into()), buy_price: 100, sell_price: 0, demand: 0, supply: 500, age_hours: 1.0 };
-        let sell = MarketRow { station_id: 2, symbol: "gold".into(), name: Some("Gold".into()), buy_price: 0, sell_price: 200, demand: 500, supply: 0, age_hours: 1.0 };
-        let leg = make_leg(&station(1, 0.0), &station(2, 10.0), &buy, &sell, &ship, &cost::Timing::default());
+        let ship = Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        };
+        let buy = MarketRow {
+            station_id: 1,
+            symbol: "gold".into(),
+            name: Some("Gold".into()),
+            buy_price: 100,
+            sell_price: 0,
+            demand: 0,
+            supply: 500,
+            age_hours: 1.0,
+        };
+        let sell = MarketRow {
+            station_id: 2,
+            symbol: "gold".into(),
+            name: Some("Gold".into()),
+            buy_price: 0,
+            sell_price: 200,
+            demand: 500,
+            supply: 0,
+            age_hours: 1.0,
+        };
+        let leg = make_leg(
+            &station(1, 0.0),
+            &station(2, 10.0),
+            &buy,
+            &sell,
+            &ship,
+            &cost::Timing::default(),
+        );
         let report = ProfitReport {
-            origin: "Sys1".into(), timing: SearchTiming::default(), constraints: Constraints::default(),
-            ship: ShipSummary { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 },
-            stations_considered: 2, excluded: Excluded::default(), legs: vec![leg.clone()],
-            round_trips: vec![RoundTrip { out: leg.clone(), back: leg.clone(), profit: 2 * leg.profit, profit_per_hour: 1.0, duration: leg.duration }],
-            rings: vec![Ring { legs: vec![leg.clone()], stops: 3, profit: leg.profit, duration: leg.duration, profit_per_hour: 1.0 }],
-            confidence: Confidence::Estimated, note: "n".into(), coverage: None, offer: None, fallback: None, reach_ly: None, board: None,
+            origin: "Sys1".into(),
+            timing: SearchTiming::default(),
+            constraints: Constraints::default(),
+            ship: ShipSummary {
+                cargo_capacity: 100,
+                jump_range_ly: 30.0,
+                laden_range_ly: 25.0,
+            },
+            stations_considered: 2,
+            excluded: Excluded::default(),
+            legs: vec![leg.clone()],
+            round_trips: vec![RoundTrip {
+                out: leg.clone(),
+                back: leg.clone(),
+                profit: 2 * leg.profit,
+                profit_per_hour: 1.0,
+                duration: leg.duration,
+            }],
+            rings: vec![Ring {
+                legs: vec![leg.clone()],
+                stops: 3,
+                profit: leg.profit,
+                duration: leg.duration,
+                profit_per_hour: 1.0,
+            }],
+            confidence: Confidence::Estimated,
+            note: "n".into(),
+            coverage: None,
+            offer: None,
+            fallback: None,
+            reach_ly: None,
+            board: None,
         };
         let text = serde_json::to_string(&report).unwrap();
         let back: ProfitReport = serde_json::from_str(&text).unwrap();
@@ -1392,7 +1638,12 @@ mod tests {
     fn profit_finder_does_not_name_galaxy_tables() {
         let source = include_str!("profit.rs");
         let (code, _tests) = source.split_once("#[cfg(test)]").unwrap();
-        for table in ["sys_market", "sys_stations", "sys_systems", "sys_commodities"] {
+        for table in [
+            "sys_market",
+            "sys_stations",
+            "sys_systems",
+            "sys_commodities",
+        ] {
             assert!(!code.contains(table), "profit.rs names {table}");
         }
         assert!(!code.contains("INDEXED BY"));
@@ -1685,8 +1936,14 @@ mod tests {
         )
         .unwrap();
         let leg = r.legs.iter().find(|l| l.to.station == "Outpost A").unwrap();
-        assert_eq!(leg.symbol, "beer", "the 150 t gold board is under the 200 t floor");
-        assert!(leg.extra.is_empty(), "no thin board sneaks back in as a hold-filler");
+        assert_eq!(
+            leg.symbol, "beer",
+            "the 150 t gold board is under the 200 t floor"
+        );
+        assert!(
+            leg.extra.is_empty(),
+            "no thin board sneaks back in as a hold-filler"
+        );
     }
 
     #[test]

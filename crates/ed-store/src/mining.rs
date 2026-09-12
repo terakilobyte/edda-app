@@ -69,7 +69,11 @@ impl Fix {
     /// How precise this fix is, for the UI to say plainly what will be
     /// saved before the commander commits to it.
     pub fn grain(&self) -> &'static str {
-        match (self.latitude.is_some() && self.longitude.is_some(), self.body.is_some(), self.station.is_some()) {
+        match (
+            self.latitude.is_some() && self.longitude.is_some(),
+            self.body.is_some(),
+            self.station.is_some(),
+        ) {
             (true, _, _) => "surface",
             (_, true, _) => "body",
             (_, _, true) => "station",
@@ -115,10 +119,20 @@ pub fn here(conn: &Connection) -> Result<Fix> {
 
 /// Save a bookmark at the given fix. Everything but the label and the
 /// system is optional, because the game does not always say.
-pub fn mark_add(conn: &Connection, label: &str, fix: &Fix, body: Option<&str>, note: Option<&str>) -> Result<i64> {
+pub fn mark_add(
+    conn: &Connection,
+    label: &str,
+    fix: &Fix,
+    body: Option<&str>,
+    note: Option<&str>,
+) -> Result<i64> {
     // A body typed by the commander wins over the one the game reported:
     // they may be naming a ring or a site the fix cannot see.
-    let body = body.map(str::trim).filter(|b| !b.is_empty()).map(str::to_string).or_else(|| fix.body.clone());
+    let body = body
+        .map(str::trim)
+        .filter(|b| !b.is_empty())
+        .map(str::to_string)
+        .or_else(|| fix.body.clone());
     conn.execute(
         "INSERT INTO user_marks (label, system, system_id64, body, note, created_ts, station, latitude, longitude)
          VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?6, ?7, ?8)",
@@ -204,8 +218,11 @@ pub fn ring_type_for(name: &str) -> Option<(&'static str, &'static str)> {
         "gold" | "silver" | "palladium" | "osmium" | "bertrandite" | "indite" | "gallite"
         | "praseodymium" | "samarium" => Some(("Metallic", "laser-mined from Metallic rings")),
         "bauxite" | "cobalt" | "rutile" => Some(("Rocky", "laser-mined from Rocky rings")),
-        "hydrogenperoxide" | "liquidoxygen" | "methanolmonohydratecrystal"
-        | "lithiumhydroxide" | "water" => Some(("Icy", "mined from Icy rings")),
+        "hydrogenperoxide"
+        | "liquidoxygen"
+        | "methanolmonohydratecrystal"
+        | "lithiumhydroxide"
+        | "water" => Some(("Icy", "mined from Icy rings")),
         _ => None,
     }
 }
@@ -249,14 +266,24 @@ mod tests {
             system_id64: id64,
             ..Fix::default()
         };
-        mark_add(&conn, "Iridium", &at("Far", Some(3)), Some("Far 1"), Some("22 sites, gold too")).unwrap();
+        mark_add(
+            &conn,
+            "Iridium",
+            &at("Far", Some(3)),
+            Some("Far 1"),
+            Some("22 sites, gold too"),
+        )
+        .unwrap();
         mark_add(&conn, "Gold", &at("Near", None), None, None).unwrap();
         mark_add(&conn, "Iridium", &at("Uncharted Depths", None), None, None).unwrap();
         let all = marks_near(&conn, Some((0.0, 0.0, 0.0)), "").unwrap();
         assert_eq!(all.len(), 3);
         assert_eq!(all[0].system, "Near");
         assert_eq!(all[1].system, "Far");
-        assert!(all[2].distance_ly.is_none(), "unknown system sinks with no distance");
+        assert!(
+            all[2].distance_ly.is_none(),
+            "unknown system sinks with no distance"
+        );
         let iridium = marks_near(&conn, Some((0.0, 0.0, 0.0)), "irid").unwrap();
         assert_eq!(iridium.len(), 2);
         assert!(mark_remove(&conn, iridium[0].id).unwrap());
@@ -282,34 +309,89 @@ mod tests {
         };
         mark_add(&conn, "Antimony", &surface, None, Some("brain trees")).unwrap();
         // System only: in supercruise the game names nothing else.
-        mark_add(&conn, "Passing thought", &Fix { system: "Near".into(), ..Fix::default() }, None, None).unwrap();
+        mark_add(
+            &conn,
+            "Passing thought",
+            &Fix {
+                system: "Near".into(),
+                ..Fix::default()
+            },
+            None,
+            None,
+        )
+        .unwrap();
 
         let all = marks_near(&conn, Some((0.0, 0.0, 0.0)), "").unwrap();
-        let anti = all.iter().find(|m| m.label == "Antimony").expect("the surface bookmark");
+        let anti = all
+            .iter()
+            .find(|m| m.label == "Antimony")
+            .expect("the surface bookmark");
         assert_eq!(anti.body.as_deref(), Some("Far 1 A"));
         assert_eq!(anti.latitude, Some(-22.4137));
         assert_eq!(anti.longitude, Some(118.7642));
-        assert!(anti.where_text().contains("Far 1 A @ -22.4137, 118.7642"), "{}", anti.where_text());
+        assert!(
+            anti.where_text().contains("Far 1 A @ -22.4137, 118.7642"),
+            "{}",
+            anti.where_text()
+        );
 
         let thought = all.iter().find(|m| m.label == "Passing thought").unwrap();
-        assert!(thought.body.is_none() && thought.latitude.is_none(), "nothing is invented");
-        assert_eq!(thought.where_text(), "Near", "the system alone, said plainly");
+        assert!(
+            thought.body.is_none() && thought.latitude.is_none(),
+            "nothing is invented"
+        );
+        assert_eq!(
+            thought.where_text(),
+            "Near",
+            "the system alone, said plainly"
+        );
 
         // A typed body beats the fix's: the commander may be naming a
         // ring or a site the surface fix cannot see.
         mark_add(&conn, "Platinum", &surface, Some("Far 1 A Ring"), None).unwrap();
         let ring = marks_near(&conn, None, "Platinum").unwrap();
         assert_eq!(ring[0].body.as_deref(), Some("Far 1 A Ring"));
-        assert_eq!(ring[0].latitude, Some(-22.4137), "the position it was taken at survives");
+        assert_eq!(
+            ring[0].latitude,
+            Some(-22.4137),
+            "the position it was taken at survives"
+        );
 
         // The grain ladder, most precise first.
         assert_eq!(surface.grain(), "surface");
-        assert_eq!(Fix { system: "S".into(), body: Some("B".into()), ..Fix::default() }.grain(), "body");
-        assert_eq!(Fix { system: "S".into(), station: Some("P".into()), ..Fix::default() }.grain(), "station");
-        assert_eq!(Fix { system: "S".into(), ..Fix::default() }.grain(), "system");
+        assert_eq!(
+            Fix {
+                system: "S".into(),
+                body: Some("B".into()),
+                ..Fix::default()
+            }
+            .grain(),
+            "body"
+        );
+        assert_eq!(
+            Fix {
+                system: "S".into(),
+                station: Some("P".into()),
+                ..Fix::default()
+            }
+            .grain(),
+            "station"
+        );
+        assert_eq!(
+            Fix {
+                system: "S".into(),
+                ..Fix::default()
+            }
+            .grain(),
+            "system"
+        );
 
         // Bookmarks are searched by label OR note, so a material farm
         // found by name is found again by what it yields.
-        assert_eq!(marks_near(&conn, None, "brain").unwrap().len(), 1, "the note is searchable too");
+        assert_eq!(
+            marks_near(&conn, None, "brain").unwrap().len(),
+            1,
+            "the note is searchable too"
+        );
     }
 }

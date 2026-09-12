@@ -171,6 +171,15 @@ pub struct StationIdentity {
     pub pad_small: Option<i64>,
     pub pad_medium: Option<i64>,
     pub pad_large: Option<i64>,
+    /// Station economy, government and controlling faction. The client
+    /// types material traders by economy, so a null here is the
+    /// difference between "no traders within range" and a usable list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_economy: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub government: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controlling_faction: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub services: Vec<String>,
 }
@@ -183,7 +192,9 @@ impl StationIdentity {
     }
     /// The journal service token for a black-market contact.
     pub fn has_black_market(&self) -> bool {
-        self.services.iter().any(|s| s.eq_ignore_ascii_case("blackmarket"))
+        self.services
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case("blackmarket"))
     }
 }
 

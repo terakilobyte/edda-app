@@ -78,7 +78,9 @@ fn fit_all(conn: &rusqlite::Connection) -> HashMap<String, TimeFit> {
             r.get::<_, f64>(4)?,
         ))
     });
-    let Ok(rows) = rows else { return HashMap::new() };
+    let Ok(rows) = rows else {
+        return HashMap::new();
+    };
     for row in rows.flatten() {
         let (file, event, ev_ship, ev_scooped, epoch) = row;
         match event.as_str() {
@@ -91,32 +93,38 @@ fn fit_all(conn: &rusqlite::Connection) -> HashMap<String, TimeFit> {
             "JetConeBoost" => dove = true,
             "NavRoute" => route_active = true,
             "NavRouteClear" => route_active = false,
-            "SupercruiseExit" | "Touchdown" | "Docked" | "Undocked" | "SAAScanComplete" => dirty = true,
-            "FSDJump"
-                if epoch > 0.0 => {
-                    if let Some((ref lf, lt)) = last_jump {
-                        let gap = epoch - lt;
-                        // Gaps never span journal files: a new file is a
-                        // new session, and the "gap" would be the night.
-                        // 28a: transit-only — a route must be active,
-                        // and the gap must contain no station/surface
-                        // business. Everything else is life, not cadence.
-                        if *lf == file && route_active && !dirty && (GAP_MIN_S..=GAP_MAX_S).contains(&gap) && !ship.is_empty() {
-                            if scooped > 0.5 {
-                                scoop.entry(ship.clone()).or_default().push((gap, scooped));
-                            } else if dove {
-                                // 28b: the jet dive is its own cadence.
-                                dive.entry(ship.clone()).or_default().push(gap);
-                            } else {
-                                plain.entry(ship.clone()).or_default().push(gap);
-                            }
+            "SupercruiseExit" | "Touchdown" | "Docked" | "Undocked" | "SAAScanComplete" => {
+                dirty = true
+            }
+            "FSDJump" if epoch > 0.0 => {
+                if let Some((ref lf, lt)) = last_jump {
+                    let gap = epoch - lt;
+                    // Gaps never span journal files: a new file is a
+                    // new session, and the "gap" would be the night.
+                    // 28a: transit-only — a route must be active,
+                    // and the gap must contain no station/surface
+                    // business. Everything else is life, not cadence.
+                    if *lf == file
+                        && route_active
+                        && !dirty
+                        && (GAP_MIN_S..=GAP_MAX_S).contains(&gap)
+                        && !ship.is_empty()
+                    {
+                        if scooped > 0.5 {
+                            scoop.entry(ship.clone()).or_default().push((gap, scooped));
+                        } else if dove {
+                            // 28b: the jet dive is its own cadence.
+                            dive.entry(ship.clone()).or_default().push(gap);
+                        } else {
+                            plain.entry(ship.clone()).or_default().push(gap);
                         }
                     }
-                    last_jump = Some((file, epoch));
-                    scooped = 0.0;
-                    dirty = false;
-                    dove = false;
                 }
+                last_jump = Some((file, epoch));
+                scooped = 0.0;
+                dirty = false;
+                dove = false;
+            }
             _ => {}
         }
     }
@@ -144,7 +152,17 @@ fn fit_all(conn: &rusqlite::Connection) -> HashMap<String, TimeFit> {
             median(&mut d).clamp(0.0, 240.0) as f32
         });
         if t_jump.is_some() || overhead.is_some() || dive_extra.is_some() {
-            out.insert(ship, TimeFit { t_jump_s: t_jump, stop_overhead_s: overhead, dive_extra_s: dive_extra, plain_gaps: n, scoop_gaps: sn, dive_gaps: dn });
+            out.insert(
+                ship,
+                TimeFit {
+                    t_jump_s: t_jump,
+                    stop_overhead_s: overhead,
+                    dive_extra_s: dive_extra,
+                    plain_gaps: n,
+                    scoop_gaps: sn,
+                    dive_gaps: dn,
+                },
+            );
         }
     }
     out
@@ -155,14 +173,18 @@ fn fit_all(conn: &rusqlite::Connection) -> HashMap<String, TimeFit> {
 pub fn fit_for_ship(conn: &rusqlite::Connection, ship: &str) -> Option<TimeFit> {
     static CACHE: Mutex<Option<(i64, HashMap<String, TimeFit>)>> = Mutex::new(None);
     let latest: i64 = conn
-        .query_row("SELECT COALESCE(MAX(rowid),0) FROM events", [], |r| r.get(0))
+        .query_row("SELECT COALESCE(MAX(rowid),0) FROM events", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
     let stale = guard.as_ref().is_none_or(|(seen, _)| *seen != latest);
     if stale {
         *guard = Some((latest, fit_all(conn)));
     }
-    guard.as_ref().and_then(|(_, m)| m.get(&ship.to_ascii_lowercase()).copied())
+    guard
+        .as_ref()
+        .and_then(|(_, m)| m.get(&ship.to_ascii_lowercase()).copied())
 }
 
 #[cfg(test)]
@@ -189,37 +211,74 @@ mod tests {
     #[test]
     fn fits_jump_cadence_and_scoop_overhead_per_ship() {
         let mut lines: Vec<(String, String)> = vec![
-            ("Loadout".into(), r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#.into()),
-            ("NavRoute".into(), r#"{"timestamp":"2026-09-01T00:00:01Z"}"#.into()),
+            (
+                "Loadout".into(),
+                r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#.into(),
+            ),
+            (
+                "NavRoute".into(),
+                r#"{"timestamp":"2026-09-01T00:00:01Z"}"#.into(),
+            ),
         ];
         let mut t = 0i64;
-        let stamp = |t: i64| format!("2026-09-01T{:02}:{:02}:{:02}Z", t / 3600, (t % 3600) / 60, t % 60);
+        let stamp = |t: i64| {
+            format!(
+                "2026-09-01T{:02}:{:02}:{:02}Z",
+                t / 3600,
+                (t % 3600) / 60,
+                t % 60
+            )
+        };
         for i in 0..26 {
             t += 90;
-            lines.push(("FSDJump".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FSDJump".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
             let _ = i;
         }
         for _ in 0..11 {
             t += 75;
-            lines.push(("FuelScoop".into(), format!(r#"{{"Scooped":4.5,"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FuelScoop".into(),
+                format!(r#"{{"Scooped":4.5,"timestamp":"{}"}}"#, stamp(t)),
+            ));
             t += 75;
-            lines.push(("FSDJump".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FSDJump".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
         }
         // 28b: nine dive gaps at 130 s — JetConeBoost inside the gap
         // classifies it as a dive, not a plain jump, and the surcharge
         // fits to 130 - 90 = 40 s.
         for _ in 0..9 {
             t += 65;
-            lines.push(("JetConeBoost".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "JetConeBoost".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
             t += 65;
-            lines.push(("FSDJump".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FSDJump".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
         }
-        let store = store_with_journal(&lines.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect::<Vec<_>>());
+        let store = store_with_journal(
+            &lines
+                .iter()
+                .map(|(a, b)| (a.as_str(), b.as_str()))
+                .collect::<Vec<_>>(),
+        );
         let fit = fit_for_ship(store.conn(), "Mandalay").expect("fit exists");
         assert_eq!(fit.t_jump_s, Some(90.0), "{fit:?}");
         assert_eq!(fit.stop_overhead_s, Some(60.0), "{fit:?}");
         assert_eq!(fit.dive_extra_s, Some(40.0), "{fit:?}");
-        assert!(fit.plain_gaps >= MIN_PLAIN_GAPS && fit.scoop_gaps >= MIN_SCOOP_GAPS && fit.dive_gaps == 9);
+        assert!(
+            fit.plain_gaps >= MIN_PLAIN_GAPS
+                && fit.scoop_gaps >= MIN_SCOOP_GAPS
+                && fit.dive_gaps == 9
+        );
     }
 
     /// Item 28a: gaps outside an active route, and gaps carrying
@@ -227,30 +286,55 @@ mod tests {
     /// never reach the fit — even at volumes over the floor.
     #[test]
     fn off_route_and_dirty_gaps_are_excluded() {
-        let stamp = |t: i64| format!("2026-09-01T{:02}:{:02}:{:02}Z", t / 3600, (t % 3600) / 60, t % 60);
-        let mut lines: Vec<(String, String)> = vec![
-            ("Loadout".into(), r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#.into()),
-        ];
+        let stamp = |t: i64| {
+            format!(
+                "2026-09-01T{:02}:{:02}:{:02}Z",
+                t / 3600,
+                (t % 3600) / 60,
+                t % 60
+            )
+        };
+        let mut lines: Vec<(String, String)> = vec![(
+            "Loadout".into(),
+            r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#.into(),
+        )];
         let mut t = 0i64;
         // 30 perfect 90 s gaps with NO route plotted: all ignored.
         for _ in 0..31 {
             t += 90;
-            lines.push(("FSDJump".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FSDJump".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
         }
         // Route goes active; 25 gaps of 90 s, but every third gap has a
         // docking in the middle and must be discarded.
-        lines.push(("NavRoute".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+        lines.push((
+            "NavRoute".into(),
+            format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+        ));
         for i in 0..25 {
             if i % 3 == 0 {
                 t += 45;
-                lines.push(("Docked".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+                lines.push((
+                    "Docked".into(),
+                    format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+                ));
                 t += 45;
             } else {
                 t += 90;
             }
-            lines.push(("FSDJump".into(), format!(r#"{{"timestamp":"{}"}}"#, stamp(t))));
+            lines.push((
+                "FSDJump".into(),
+                format!(r#"{{"timestamp":"{}"}}"#, stamp(t)),
+            ));
         }
-        let store = store_with_journal(&lines.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect::<Vec<_>>());
+        let store = store_with_journal(
+            &lines
+                .iter()
+                .map(|(a, b)| (a.as_str(), b.as_str()))
+                .collect::<Vec<_>>(),
+        );
         // 16 clean on-route gaps < the 20 floor: no fit may exist.
         assert!(fit_for_ship(store.conn(), "mandalay").is_none());
     }
@@ -260,7 +344,10 @@ mod tests {
     #[test]
     fn too_little_history_yields_no_fit() {
         let lines = vec![
-            ("Loadout", r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#),
+            (
+                "Loadout",
+                r#"{"Ship":"mandalay","timestamp":"2026-09-01T00:00:00Z"}"#,
+            ),
             ("FSDJump", r#"{"timestamp":"2026-09-01T00:02:00Z"}"#),
             ("FSDJump", r#"{"timestamp":"2026-09-01T00:04:00Z"}"#),
         ];

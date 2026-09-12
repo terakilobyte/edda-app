@@ -35,9 +35,11 @@ const SHERPA_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/downloa
 const PARAKEET_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2";
 const PARAKEET_DIR: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
 #[cfg(target_os = "linux")]
-const LIB_URL: &str = "https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-x86_64-0.3.45.zip";
+const LIB_URL: &str =
+    "https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-linux-x86_64-0.3.45.zip";
 #[cfg(not(target_os = "linux"))]
-const LIB_URL: &str = "https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-win64-0.3.45.zip";
+const LIB_URL: &str =
+    "https://github.com/alphacep/vosk-api/releases/download/v0.3.45/vosk-win64-0.3.45.zip";
 
 /// Where push-to-talk comes from.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -49,9 +51,12 @@ pub enum PttSource {
     /// A global hotkey, e.g. "Ctrl+Alt+Space" (never Shift: the game's UIFocus key).
     Keyboard { hotkey: String },
     /// A joystick button (WinMM device id, 1-based button), vJoy included.
-    Joystick { device: u32, button: u32, name: String },
+    Joystick {
+        device: u32,
+        button: u32,
+        name: String,
+    },
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ListenConfig {
@@ -81,7 +86,16 @@ pub struct ListenConfig {
 
 impl Default for ListenConfig {
     fn default() -> Self {
-        ListenConfig { enabled: false, wake_word: "hey edda".into(), ptt_hotkey: String::new(), ptt: Some(PttSource::default()), mic_device: None, output_device: None, model: None, window_secs: 6 }
+        ListenConfig {
+            enabled: false,
+            wake_word: "hey edda".into(),
+            ptt_hotkey: String::new(),
+            ptt: Some(PttSource::default()),
+            mic_device: None,
+            output_device: None,
+            model: None,
+            window_secs: 6,
+        }
     }
 }
 
@@ -146,7 +160,9 @@ impl ListenConfig {
         match &self.ptt {
             Some(p) => p.clone(),
             None if self.ptt_hotkey.trim().is_empty() => PttSource::None,
-            None => PttSource::Keyboard { hotkey: self.ptt_hotkey.clone() },
+            None => PttSource::Keyboard {
+                hotkey: self.ptt_hotkey.clone(),
+            },
         }
     }
 }
@@ -164,9 +180,19 @@ fn is_model(p: &Path) -> bool {
 /// is the wake grammar (and fallback dictation); small does both.
 fn find_model(dir: &Path) -> Option<PathBuf> {
     let candidates = |f: fn(&str) -> bool| {
-        std::fs::read_dir(dir).ok().into_iter().flatten().flatten().map(|e| e.path()).find(move |p| {
-            is_model(p) && p.file_name().is_some_and(|n| { let n = n.to_string_lossy(); n != BANNED_MODEL_DIR && f(&n) })
-        })
+        std::fs::read_dir(dir)
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|e| e.path())
+            .find(move |p| {
+                is_model(p)
+                    && p.file_name().is_some_and(|n| {
+                        let n = n.to_string_lossy();
+                        n != BANNED_MODEL_DIR && f(&n)
+                    })
+            })
     };
     candidates(|n| n.contains("small")).or_else(|| candidates(|_| true))
 }
@@ -183,18 +209,34 @@ pub struct AudioDevices {
 #[tauri::command]
 pub async fn audio_devices(state: State<'_, AppState>) -> Result<AudioDevices, String> {
     Ok({
-    let cfg = config_of(&state);
-    let dir = tools_dir(&state);
-    let mut models: Vec<String> = std::fs::read_dir(&dir).ok().map(|r| r.flatten().map(|e| e.path()).filter(|p| is_model(p)).filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned())).collect()).unwrap_or_default();
-    if parakeet_installed(&dir) {
-        models.push(PARAKEET_DIR.into());
-    }
-    AudioDevices { inputs: ed_listen::list_inputs(), outputs: ed_voice::list_outputs(), mic_device: cfg.mic_device, output_device: cfg.output_device, models_installed: models }
+        let cfg = config_of(&state);
+        let dir = tools_dir(&state);
+        let mut models: Vec<String> = std::fs::read_dir(&dir)
+            .ok()
+            .map(|r| {
+                r.flatten()
+                    .map(|e| e.path())
+                    .filter(|p| is_model(p))
+                    .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if parakeet_installed(&dir) {
+            models.push(PARAKEET_DIR.into());
+        }
+        AudioDevices {
+            inputs: ed_listen::list_inputs(),
+            outputs: ed_voice::list_outputs(),
+            mic_device: cfg.mic_device,
+            output_device: cfg.output_device,
+            models_installed: models,
+        }
     })
 }
 
 fn parakeet_installed(dir: &Path) -> bool {
-    ed_listen::parakeet::is_model_dir(&dir.join(PARAKEET_DIR)) && ed_listen::parakeet::find_lib(dir).is_some()
+    ed_listen::parakeet::is_model_dir(&dir.join(PARAKEET_DIR))
+        && ed_listen::parakeet::find_lib(dir).is_some()
 }
 
 fn find_lib(dir: &Path) -> Option<PathBuf> {
@@ -202,7 +244,11 @@ fn find_lib(dir: &Path) -> Option<PathBuf> {
     if dir.join(&lib).is_file() {
         return Some(dir.to_path_buf());
     }
-    std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).find(|p| p.join(&lib).is_file())
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.join(&lib).is_file())
 }
 
 #[derive(Debug, Serialize)]
@@ -230,42 +276,59 @@ fn phase_name(p: u8) -> &'static str {
 }
 
 pub fn config_of(state: &AppState) -> ListenConfig {
-    state.config.lock().unwrap_or_else(|e| e.into_inner()).listen.clone().unwrap_or_default()
+    state
+        .config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .listen
+        .clone()
+        .unwrap_or_default()
 }
 
 #[tauri::command]
 pub async fn listen_status(state: State<'_, AppState>) -> Result<ListenStatus, String> {
     Ok({
-    let dir = tools_dir(&state);
-    let model = find_model(&dir);
-    let lib = find_lib(&dir);
-    let parakeet_ready = parakeet_installed(&dir);
-    let (running, phase, setup_running) = {
-        let l = listen(&state);
-        (l.run, l.phase, l.setup_running)
-    };
-    ListenStatus {
-        ready: model.is_some() && lib.is_some(),
-        parakeet_ready,
-        dictation: if parakeet_ready && config_of(&state).model.as_deref() == Some("parakeet") { "parakeet" } else { "vosk" },
-        running,
-        phase: phase_name(phase),
-        model_dir: model.map(|p| p.display().to_string()),
-        lib_dir: lib.map(|p| p.display().to_string()),
-        setup_running,
-        config: config_of(&state),
-    }
+        let dir = tools_dir(&state);
+        let model = find_model(&dir);
+        let lib = find_lib(&dir);
+        let parakeet_ready = parakeet_installed(&dir);
+        let (running, phase, setup_running) = {
+            let l = listen(&state);
+            (l.run, l.phase, l.setup_running)
+        };
+        ListenStatus {
+            ready: model.is_some() && lib.is_some(),
+            parakeet_ready,
+            dictation: if parakeet_ready && config_of(&state).model.as_deref() == Some("parakeet") {
+                "parakeet"
+            } else {
+                "vosk"
+            },
+            running,
+            phase: phase_name(phase),
+            model_dir: model.map(|p| p.display().to_string()),
+            lib_dir: lib.map(|p| p.display().to_string()),
+            setup_running,
+            config: config_of(&state),
+        }
     })
 }
 
 #[tauri::command]
-pub async fn listen_config_set(app: AppHandle, state: State<'_, AppState>, config: ListenConfig) -> Result<ListenConfig, String> {
+pub async fn listen_config_set(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    config: ListenConfig,
+) -> Result<ListenConfig, String> {
     {
         let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.listen = Some(config.clone());
         cfg.save(&state.data_dir).map_err(|e| e.to_string())?;
     }
-    state.voice.audio().set_output_device(config.output_device.clone());
+    state
+        .voice
+        .audio()
+        .set_output_device(config.output_device.clone());
     // Re-register the PTT source; restart the listener if it is running.
     register_ptt_source(&app, &config.ptt_source())?;
     if listen(&state).run {
@@ -279,7 +342,12 @@ pub async fn listen_config_set(app: AppHandle, state: State<'_, AppState>, confi
 
 /// Download and unpack the model and library. Progress on `listen-setup`.
 #[tauri::command]
-pub async fn listen_setup(app: AppHandle, state: State<'_, AppState>, model: Option<String>, wake_word: Option<bool>) -> Result<(), String> {
+pub async fn listen_setup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    model: Option<String>,
+    wake_word: Option<bool>,
+) -> Result<(), String> {
     let _ = wake_word;
     {
         let mut l = listen(&state);
@@ -310,7 +378,10 @@ pub async fn listen_setup(app: AppHandle, state: State<'_, AppState>, model: Opt
     if find_lib(&dir).is_none() {
         jobs.push(("Vosk library", LIB_URL));
     }
-    let jobs: Vec<(String, String)> = jobs.into_iter().map(|(a, b)| (a.into(), b.into())).collect();
+    let jobs: Vec<(String, String)> = jobs
+        .into_iter()
+        .map(|(a, b)| (a.into(), b.into()))
+        .collect();
     tauri::async_runtime::spawn(async move {
         // Voice setup outranks the heavy data sync (sequencing ruling
         // 2026-09-04) — the community sync pauses at its phase
@@ -366,7 +437,10 @@ pub async fn listen_setup(app: AppHandle, state: State<'_, AppState>, model: Opt
         listen(&app2.state::<AppState>()).setup_running = false;
         match r {
             Ok(()) => {
-                let _ = app2.emit(crate::events::LISTEN_SETUP, serde_json::json!({ "phase": "done", "status": "ok" }));
+                let _ = app2.emit(
+                    crate::events::LISTEN_SETUP,
+                    serde_json::json!({ "phase": "done", "status": "ok" }),
+                );
             }
             Err(e) => {
                 let _ = app2.emit(crate::events::LISTEN_SETUP, serde_json::json!({ "phase": "done", "status": "error", "error": e.to_string() }));
@@ -387,9 +461,13 @@ pub async fn listen_models_remove(state: State<'_, AppState>) -> Result<(), Stri
     listen(&state).parakeet = None;
     let dir = tools_dir(&state);
     tauri::async_runtime::spawn_blocking(move || {
-        if dir.exists() { std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?; }
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+        }
         Ok::<(), String>(())
-    }).await.map_err(|e| e.to_string())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn untar_bz2_to(file: &Path, dir: &Path) -> anyhow::Result<()> {
@@ -398,7 +476,9 @@ fn untar_bz2_to(file: &Path, dir: &Path) -> anyhow::Result<()> {
     let mut ar = tar::Archive::new(bz);
     for entry in ar.entries()? {
         let mut e = entry?;
-        let Ok(rel) = e.path().map(|p| p.into_owned()) else { continue };
+        let Ok(rel) = e.path().map(|p| p.into_owned()) else {
+            continue;
+        };
         // Test wavs are dead weight; everything else lands as-is.
         if rel.components().any(|c| c.as_os_str() == "test_wavs") {
             continue;
@@ -421,7 +501,9 @@ fn unzip_file_to(file: &Path, dir: &Path) -> anyhow::Result<()> {
     let mut z = zip::ZipArchive::new(std::io::BufReader::new(f))?;
     for i in 0..z.len() {
         let mut f = z.by_index(i)?;
-        let Some(rel) = f.enclosed_name() else { continue };
+        let Some(rel) = f.enclosed_name() else {
+            continue;
+        };
         let out = dir.join(rel);
         if f.is_dir() {
             std::fs::create_dir_all(&out)?;
@@ -539,7 +621,10 @@ pub async fn ptt_capture(secs: Option<u64>) -> Result<PttSource, String> {
     let secs = secs.unwrap_or(8).clamp(2, 30);
     tauri::async_runtime::spawn_blocking(move || {
         let devices = ed_input::joy::devices();
-        let baseline: Vec<(u32, u32)> = devices.iter().map(|d| (d.id, ed_input::joy::buttons(d.id).unwrap_or(0))).collect();
+        let baseline: Vec<(u32, u32)> = devices
+            .iter()
+            .map(|d| (d.id, ed_input::joy::buttons(d.id).unwrap_or(0)))
+            .collect();
         ed_input::record::start()?;
         let started = std::time::Instant::now();
         let result: Option<PttSource> = loop {
@@ -553,8 +638,16 @@ pub async fn ptt_capture(secs: Option<u64>) -> Result<PttSource, String> {
                 let fresh = now & !base;
                 (fresh != 0).then(|| {
                     let button = fresh.trailing_zeros() + 1;
-                    let name = devices.iter().find(|d| d.id == *id).map(|d| d.name.clone()).unwrap_or_default();
-                    PttSource::Joystick { device: *id, button, name: format!("{name} button {button}") }
+                    let name = devices
+                        .iter()
+                        .find(|d| d.id == *id)
+                        .map(|d| d.name.clone())
+                        .unwrap_or_default();
+                    PttSource::Joystick {
+                        device: *id,
+                        button,
+                        name: format!("{name} button {button}"),
+                    }
                 })
             });
             if let Some(hit) = joy_hit {
@@ -565,7 +658,11 @@ pub async fn ptt_capture(secs: Option<u64>) -> Result<PttSource, String> {
                 let p = ed_input::joy::pov(d.id)?;
                 let dir = ed_input::joy::hat_dir(p);
                 let button = ed_input::joy::HAT_BASE + dir;
-                Some(PttSource::Joystick { device: d.id, button, name: format!("{} {}", d.name, ed_input::joy::hat_name(button)) })
+                Some(PttSource::Joystick {
+                    device: d.id,
+                    button,
+                    name: format!("{} {}", d.name, ed_input::joy::hat_name(button)),
+                })
             });
             if let Some(hit) = hat_hit {
                 break Some(hit);
@@ -575,15 +672,37 @@ pub async fn ptt_capture(secs: Option<u64>) -> Result<PttSource, String> {
             let mut held: Vec<&str> = Vec::new();
             let mut found: Option<String> = None;
             for e in &events {
-                let Some(name) = ed_input::record::key_name(e.sc) else { continue };
-                let is_mod = matches!(name, "LeftShift" | "RightShift" | "LeftControl" | "RightControl" | "LeftAlt" | "RightAlt");
+                let Some(name) = ed_input::record::key_name(e.sc) else {
+                    continue;
+                };
+                let is_mod = matches!(
+                    name,
+                    "LeftShift"
+                        | "RightShift"
+                        | "LeftControl"
+                        | "RightControl"
+                        | "LeftAlt"
+                        | "RightAlt"
+                );
                 if is_mod {
-                    if e.down { if !held.contains(&name) { held.push(name) } } else { held.retain(|h| *h != name) }
+                    if e.down {
+                        if !held.contains(&name) {
+                            held.push(name)
+                        }
+                    } else {
+                        held.retain(|h| *h != name)
+                    }
                 } else if e.down {
                     let mut parts: Vec<String> = Vec::new();
-                    if held.iter().any(|m| m.contains("Control")) { parts.push("Ctrl".into()) }
-                    if held.iter().any(|m| m.contains("Alt")) { parts.push("Alt".into()) }
-                    if held.iter().any(|m| m.contains("Shift")) { parts.push("Shift".into()) }
+                    if held.iter().any(|m| m.contains("Control")) {
+                        parts.push("Ctrl".into())
+                    }
+                    if held.iter().any(|m| m.contains("Alt")) {
+                        parts.push("Alt".into())
+                    }
+                    if held.iter().any(|m| m.contains("Shift")) {
+                        parts.push("Shift".into())
+                    }
                     parts.push(shortcut_code(name));
                     found = Some(parts.join("+"));
                     break;
@@ -615,7 +734,9 @@ fn shortcut_code(name: &str) -> String {
         "RightBracket" => "BracketRight".into(),
         "SemiColon" => "Semicolon".into(),
         "Apostrophe" => "Quote".into(),
-        n if n.starts_with("Numpad_") => n.replace("Numpad_", "Numpad").replace("NumpadAdd", "NumpadAdd"),
+        n if n.starts_with("Numpad_") => n
+            .replace("Numpad_", "Numpad")
+            .replace("NumpadAdd", "NumpadAdd"),
         other => other.to_string(),
     }
 }
@@ -629,8 +750,12 @@ fn register_ptt(app: &AppHandle, hotkey: &str) -> Result<(), String> {
     if hotkey.trim().is_empty() {
         return Ok(());
     }
-    let sc: Shortcut = hotkey.parse().map_err(|e| format!("bad hotkey {hotkey:?}: {e}"))?;
-    app.global_shortcut().register(sc).map_err(|e| format!("could not register {hotkey}: {e}"))?;
+    let sc: Shortcut = hotkey
+        .parse()
+        .map_err(|e| format!("bad hotkey {hotkey:?}: {e}"))?;
+    app.global_shortcut()
+        .register(sc)
+        .map_err(|e| format!("could not register {hotkey}: {e}"))?;
     cur.ptt_shortcut = Some(sc);
     Ok(())
 }
@@ -638,7 +763,10 @@ fn register_ptt(app: &AppHandle, hotkey: &str) -> Result<(), String> {
 pub fn setup(app: &AppHandle) {
     let state = app.state::<AppState>();
     let cfg = config_of(&state);
-    state.voice.audio().set_output_device(cfg.output_device.clone());
+    state
+        .voice
+        .audio()
+        .set_output_device(cfg.output_device.clone());
     if let Err(e) = register_ptt_source(app, &cfg.ptt_source()) {
         tracing::warn!(error = %e, "push-to-talk source");
     }
@@ -666,7 +794,10 @@ fn start_listening(app: AppHandle) -> Result<(), String> {
     std::thread::spawn(move || {
         if let Err(e) = listen_loop(&app, &lib, &model, cfg, my_gen) {
             tracing::warn!(error = %e, "listening stopped");
-            let _ = app.emit(crate::events::LISTEN_STATE, serde_json::json!({ "phase": "off", "error": e.to_string() }));
+            let _ = app.emit(
+                crate::events::LISTEN_STATE,
+                serde_json::json!({ "phase": "off", "error": e.to_string() }),
+            );
         }
         // Only the newest loop reports the listener as off.
         listen(&app.state::<AppState>()).loop_ended(my_gen);
@@ -674,12 +805,22 @@ fn start_listening(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_gen: u64) -> anyhow::Result<()> {
+fn listen_loop(
+    app: &AppHandle,
+    lib: &Path,
+    model: &Path,
+    cfg: ListenConfig,
+    my_gen: u64,
+) -> anyhow::Result<()> {
     let engine = ed_listen::Engine::load(lib, model)?;
     let mic = ed_listen::open_mic_named(cfg.mic_device.as_deref())?;
     tracing::info!(model = %model.display(), "speech model");
     let wake = cfg.wake_word.trim().to_lowercase();
-    let mut wake_rec = if wake.is_empty() { None } else { Some(engine.grammar_recognizer(&[wake.as_str()])?) };
+    let mut wake_rec = if wake.is_empty() {
+        None
+    } else {
+        Some(engine.grammar_recognizer(&[wake.as_str()])?)
+    };
     let mut free_rec = engine.recognizer()?;
     let st = app.state::<AppState>();
     let parakeet = if cfg.model.as_deref() == Some("parakeet") {
@@ -690,7 +831,13 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
             // Loaded outside the lock: it takes seconds, and push-to-talk
             // must not wait on it.
             None => match ed_listen::parakeet::find_lib(&dir) {
-                Some(lib_dir) => match ed_listen::parakeet::Parakeet::load(&lib_dir, &dir.join(PARAKEET_DIR), std::thread::available_parallelism().map(|n| n.get() / 2).unwrap_or(4)) {
+                Some(lib_dir) => match ed_listen::parakeet::Parakeet::load(
+                    &lib_dir,
+                    &dir.join(PARAKEET_DIR),
+                    std::thread::available_parallelism()
+                        .map(|n| n.get() / 2)
+                        .unwrap_or(4),
+                ) {
                     Ok(p) => {
                         let p = std::sync::Arc::new(p);
                         listen(&st).parakeet = Some(p.clone());
@@ -718,7 +865,9 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
     let finish = |vosk_text: String, pcm: &mut Vec<i16>| -> String {
         let t = vosk_text.trim().to_lowercase();
         let out = match parakeet.as_ref() {
-            Some(p) if !pcm.is_empty() && direct_order(&t).is_none() && cockpit_order(&t).is_none() => {
+            Some(p)
+                if !pcm.is_empty() && direct_order(&t).is_none() && cockpit_order(&t).is_none() =>
+            {
                 let started = std::time::Instant::now();
                 match p.transcribe(pcm) {
                     Ok(s) if !s.trim().is_empty() => {
@@ -743,7 +892,10 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
             l.phase = p;
             l.ptt
         };
-        let _ = app.emit(crate::events::LISTEN_STATE, serde_json::json!({ "phase": phase_name(p), "ptt": ptt }));
+        let _ = app.emit(
+            crate::events::LISTEN_STATE,
+            serde_json::json!({ "phase": phase_name(p), "ptt": ptt }),
+        );
     };
     set_phase(1);
     let mut order_until: Option<std::time::Instant> = None;
@@ -778,7 +930,10 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
                 } else {
                     "nothing recognised"
                 };
-                let _ = app.emit(crate::events::LISTEN_HEARD, serde_json::json!({ "text": "", "note": note, "peak": peak }));
+                let _ = app.emit(
+                    crate::events::LISTEN_HEARD,
+                    serde_json::json!({ "text": "", "note": note, "peak": peak }),
+                );
             } else {
                 handle_heard(app, &text);
             }
@@ -795,10 +950,20 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
                 last_partial = std::time::Instant::now();
                 let p = free_rec.partial();
                 tracing::debug!(partial = %p, chunks, peak, "listening");
-                let _ = app.emit(crate::events::LISTEN_PARTIAL, serde_json::json!({ "text": p, "peak": peak }));
+                let _ = app.emit(
+                    crate::events::LISTEN_PARTIAL,
+                    serde_json::json!({ "text": p, "peak": peak }),
+                );
             }
             if !ptt && (ended || order_until.is_some_and(|t| std::time::Instant::now() > t)) {
-                let text = finish(if ended { free_rec.result() } else { free_rec.final_result() }, &mut order_pcm);
+                let text = finish(
+                    if ended {
+                        free_rec.result()
+                    } else {
+                        free_rec.final_result()
+                    },
+                    &mut order_pcm,
+                );
                 order_until = None;
                 if !text.trim().is_empty() {
                     handle_heard(app, &text);
@@ -818,7 +983,10 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
                     st.voice.say("Yes, Commander?");
                     free_rec.reset();
                     order_pcm.clear();
-                    order_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(cfg.window_secs.max(2)));
+                    order_until = Some(
+                        std::time::Instant::now()
+                            + std::time::Duration::from_secs(cfg.window_secs.max(2)),
+                    );
                     set_phase(2);
                 }
             }
@@ -831,13 +999,22 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
 fn handle_heard(app: &AppHandle, text: &str) {
     let t = text.trim().to_lowercase();
     if t.is_empty() {
-        let _ = app.emit(crate::events::LISTEN_HEARD, serde_json::json!({ "text": "", "note": "nothing recognised" }));
+        let _ = app.emit(
+            crate::events::LISTEN_HEARD,
+            serde_json::json!({ "text": "", "note": "nothing recognised" }),
+        );
         return;
     }
-    let _ = app.emit(crate::events::LISTEN_HEARD, serde_json::json!({ "text": t }));
+    let _ = app.emit(
+        crate::events::LISTEN_HEARD,
+        serde_json::json!({ "text": t }),
+    );
     let state = app.state::<AppState>();
     listen(&state).phase = 3;
-    let _ = app.emit(crate::events::LISTEN_STATE, serde_json::json!({ "phase": "thinking" }));
+    let _ = app.emit(
+        crate::events::LISTEN_STATE,
+        serde_json::json!({ "phase": "thinking" }),
+    );
     // Route/profit the ship computer produced this turn, for the tabs.
     let mut artefacts: (Option<serde_json::Value>, Option<serde_json::Value>) = (None, None);
     let reply: String = match direct_order(&t) {
@@ -858,29 +1035,57 @@ fn handle_heard(app: &AppHandle, text: &str) {
             }
         }
         Some(Order::StopFollowing) => {
-            let _ = state.with_store(|s| s.conn().execute("DELETE FROM active_route WHERE id = 1", []).map(|_| ()).map_err(|e| e.to_string()));
+            let _ = state.with_store(|s| {
+                s.conn()
+                    .execute("DELETE FROM active_route WHERE id = 1", [])
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            });
             let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(None));
             match crate::follow::clear_in_game(&state) {
-                Ok(m) if m.starts_with("cleared") => "Route cleared, in the app and in the game.".into(),
+                Ok(m) if m.starts_with("cleared") => {
+                    "Route cleared, in the app and in the game.".into()
+                }
                 Ok(_) => "Route cleared.".into(),
                 Err(e) => format!("Route cleared in the app; couldn't clear the game's: {e}"),
             }
         }
-        Some(Order::JumpsLeft) | Some(Order::NextSystem) => match state.with_read(|s| crate::follow::load(s.conn())) {
-            Some(a) => crate::follow::advance_text(&a),
-            None => "No route is being followed.".into(),
-        },
-        Some(Order::Repeat) => state.voice.last_spoken().unwrap_or_else(|| "Nothing to repeat.".into()),
-        Some(Order::Replan) => match tauri::async_runtime::block_on(crate::follow::replan_now(app.clone())) {
-            Ok(m) => m,
-            Err(e) => format!("Couldn't re-plan: {e}"),
-        },
+        Some(Order::JumpsLeft) | Some(Order::NextSystem) => {
+            match state.with_read(|s| crate::follow::load(s.conn())) {
+                Some(a) => crate::follow::advance_text(&a),
+                None => "No route is being followed.".into(),
+            }
+        }
+        Some(Order::Repeat) => state
+            .voice
+            .last_spoken()
+            .unwrap_or_else(|| "Nothing to repeat.".into()),
+        Some(Order::Replan) => {
+            match tauri::async_runtime::block_on(crate::follow::replan_now(app.clone())) {
+                Ok(m) => m,
+                Err(e) => format!("Couldn't re-plan: {e}"),
+            }
+        }
         Some(Order::Watch(id, on)) => {
             let mut ids = crate::callouts::signal_watch();
-            if on { ids.push(id.to_string()); } else { ids.retain(|w| w != id); }
-            let label = crate::callouts::SIGNALS.iter().find(|(i, _, _)| *i == id).map(|(_, l, _)| *l).unwrap_or(id);
+            if on {
+                ids.push(id.to_string());
+            } else {
+                ids.retain(|w| w != id);
+            }
+            let label = crate::callouts::SIGNALS
+                .iter()
+                .find(|(i, _, _)| *i == id)
+                .map(|(_, l, _)| *l)
+                .unwrap_or(id);
             match crate::commands::set_signal_watch(&state, ids) {
-                Ok(()) => if on { format!("Watching for {}.", label.to_lowercase()) } else { format!("No longer watching for {}.", label.to_lowercase()) },
+                Ok(()) => {
+                    if on {
+                        format!("Watching for {}.", label.to_lowercase())
+                    } else {
+                        format!("No longer watching for {}.", label.to_lowercase())
+                    }
+                }
                 Err(e) => format!("Couldn't change the watch list: {e}"),
             }
         }
@@ -889,7 +1094,11 @@ fn handle_heard(app: &AppHandle, text: &str) {
             if on.is_empty() {
                 "Not watching for any signals.".into()
             } else {
-                let labels: Vec<String> = crate::callouts::SIGNALS.iter().filter(|(i, _, _)| on.iter().any(|w| w == i)).map(|(_, l, _)| l.to_lowercase()).collect();
+                let labels: Vec<String> = crate::callouts::SIGNALS
+                    .iter()
+                    .filter(|(i, _, _)| on.iter().any(|w| w == i))
+                    .map(|(_, l, _)| l.to_lowercase())
+                    .collect();
                 format!("Watching for {}.", labels.join(", "))
             }
         }
@@ -929,7 +1138,10 @@ fn handle_heard(app: &AppHandle, text: &str) {
     );
     state.voice.say(&reply);
     listen(&state).phase = 1;
-    let _ = app.emit(crate::events::LISTEN_STATE, serde_json::json!({ "phase": "idle" }));
+    let _ = app.emit(
+        crate::events::LISTEN_STATE,
+        serde_json::json!({ "phase": "idle" }),
+    );
 }
 
 enum Order {
@@ -952,12 +1164,30 @@ fn cockpit_order(t: &str) -> Option<(Vec<(&'static str, u32)>, String)> {
     let has = |words: &[&str]| words.iter().any(|w| t.contains(w));
     // Pips: "full pips to systems" / "four pips to engines" / "two pips to weapons" / "reset pips".
     if t.contains("pip") {
-        let target = if has(&["sys", "shield"]) { Some(("pips_systems", "systems")) } else if has(&["eng", "engine"]) { Some(("pips_engines", "engines")) } else if has(&["wep", "weapon"]) { Some(("pips_weapons", "weapons")) } else { None };
+        let target = if has(&["sys", "shield"]) {
+            Some(("pips_systems", "systems"))
+        } else if has(&["eng", "engine"]) {
+            Some(("pips_engines", "engines"))
+        } else if has(&["wep", "weapon"]) {
+            Some(("pips_weapons", "weapons"))
+        } else {
+            None
+        };
         if has(&["reset", "balance", "even"]) || target.is_none() {
             return Some((vec![("pips_reset", 1)], "Pips reset.".into()));
         }
         let (name, label) = target.unwrap();
-        let n: u32 = if has(&["full", "max", "all", "four", "4"]) { 4 } else if has(&["three", "3"]) { 3 } else if has(&["two", "2"]) { 2 } else if has(&["one", "1"]) { 1 } else { 4 };
+        let n: u32 = if has(&["full", "max", "all", "four", "4"]) {
+            4
+        } else if has(&["three", "3"]) {
+            3
+        } else if has(&["two", "2"]) {
+            2
+        } else if has(&["one", "1"]) {
+            1
+        } else {
+            4
+        };
         // From a 2/2/2 reset each press adds one pip to the target (up to 4).
         let presses = n.saturating_sub(2);
         let mut v = vec![("pips_reset", 1)];
@@ -967,30 +1197,120 @@ fn cockpit_order(t: &str) -> Option<(Vec<(&'static str, u32)>, String)> {
         return Some((v, format!("{n} pips to {label}.")));
     }
     let simple: &[(&[&str], &str, &str)] = &[
-        (&["landing gear", "gear down", "gear up", "lower the gear", "raise the gear", "deploy gear", "retract gear"], "landing_gear", "Landing gear."),
-        (&["cargo scoop", "open the scoop", "close the scoop"], "cargo_scoop", "Cargo scoop."),
-        (&["lights on", "lights off", "toggle lights", "ship lights", "headlights"], "lights", "Lights."),
+        (
+            &[
+                "landing gear",
+                "gear down",
+                "gear up",
+                "lower the gear",
+                "raise the gear",
+                "deploy gear",
+                "retract gear",
+            ],
+            "landing_gear",
+            "Landing gear.",
+        ),
+        (
+            &["cargo scoop", "open the scoop", "close the scoop"],
+            "cargo_scoop",
+            "Cargo scoop.",
+        ),
+        (
+            &[
+                "lights on",
+                "lights off",
+                "toggle lights",
+                "ship lights",
+                "headlights",
+            ],
+            "lights",
+            "Lights.",
+        ),
         (&["night vision"], "night_vision", "Night vision."),
-        (&["hardpoints", "deploy weapons", "retract weapons", "weapons out", "weapons away"], "hardpoints", "Hardpoints."),
+        (
+            &[
+                "hardpoints",
+                "deploy weapons",
+                "retract weapons",
+                "weapons out",
+                "weapons away",
+            ],
+            "hardpoints",
+            "Hardpoints.",
+        ),
         (&["flight assist"], "flight_assist", "Flight assist."),
         (&["heat sink", "heatsink"], "heat_sink", "Heat sink away."),
         (&["chaff"], "chaff", "Chaff."),
         (&["shield cell"], "shield_cell", "Shield cell."),
         (&["silent running"], "silent_running", "Silent running."),
         (&["boost"], "boost", "Boosting."),
-        (&["supercruise", "super cruise"], "supercruise", "Supercruise."),
-        (&["jump", "hyperspace", "engage"], "jump_or_supercruise", "Engaging."),
-        (&["highest threat"], "highest_threat", "Targeting the highest threat."),
-        (&["next hostile", "target next hostile"], "next_hostile", "Next hostile."),
-        (&["next target", "cycle target", "next ship", "target next ship"], "next_target", "Next target."),
-        (&["next subsystem", "cycle subsystem", "power plant", "powerplant", "target the drives", "target drives", "target fsd", "target the fsd"], "next_subsystem", "Next subsystem."),
+        (
+            &["supercruise", "super cruise"],
+            "supercruise",
+            "Supercruise.",
+        ),
+        (
+            &["jump", "hyperspace", "engage"],
+            "jump_or_supercruise",
+            "Engaging.",
+        ),
+        (
+            &["highest threat"],
+            "highest_threat",
+            "Targeting the highest threat.",
+        ),
+        (
+            &["next hostile", "target next hostile"],
+            "next_hostile",
+            "Next hostile.",
+        ),
+        (
+            &[
+                "next target",
+                "cycle target",
+                "next ship",
+                "target next ship",
+            ],
+            "next_target",
+            "Next target.",
+        ),
+        (
+            &[
+                "next subsystem",
+                "cycle subsystem",
+                "power plant",
+                "powerplant",
+                "target the drives",
+                "target drives",
+                "target fsd",
+                "target the fsd",
+            ],
+            "next_subsystem",
+            "Next subsystem.",
+        ),
         (&["discovery scan", "honk"], "discovery_scan", "Scanning."),
         (&["galaxy map"], "galaxy_map", "Galaxy map."),
         (&["system map"], "system_map", "System map."),
-        (&["throttle zero", "all stop", "full stop", "cut throttle"], "throttle_zero", "Throttle zero."),
-        (&["full throttle", "throttle full", "throttle 100"], "throttle_100", "Full throttle."),
-        (&["throttle 75", "three quarters"], "throttle_75", "Throttle 75."),
-        (&["throttle 50", "half throttle"], "throttle_50", "Throttle 50."),
+        (
+            &["throttle zero", "all stop", "full stop", "cut throttle"],
+            "throttle_zero",
+            "Throttle zero.",
+        ),
+        (
+            &["full throttle", "throttle full", "throttle 100"],
+            "throttle_100",
+            "Full throttle.",
+        ),
+        (
+            &["throttle 75", "three quarters"],
+            "throttle_75",
+            "Throttle 75.",
+        ),
+        (
+            &["throttle 50", "half throttle"],
+            "throttle_50",
+            "Throttle 50.",
+        ),
     ];
     for (phrases, name, ack) in simple {
         if has(phrases) {
@@ -1005,19 +1325,57 @@ fn direct_order(t: &str) -> Option<Order> {
     // rest matched as an order.
     let t = t.trim_start_matches(|c: char| !c.is_alphanumeric());
     let guided = t.starts_with("guidance");
-    let t = if let Some(rest) = t.strip_prefix("guidance") { rest.trim_start_matches(|c: char| c == ':' || c == ',' || c.is_whitespace()) } else { t };
+    let t = if let Some(rest) = t.strip_prefix("guidance") {
+        rest.trim_start_matches(|c: char| c == ':' || c == ',' || c.is_whitespace())
+    } else {
+        t
+    };
     let has = |words: &[&str]| words.iter().any(|w| t.contains(w));
     // Combat targeting is not routing: "target next hostile", "next target",
     // "next subsystem", "target the power plant" go to the cockpit keys.
-    if !guided && has(&["hostile", "subsystem", "power plant", "powerplant", "drives", "fsd", "next target", "next ship", "target ahead", "highest threat"]) {
+    if !guided
+        && has(&[
+            "hostile",
+            "subsystem",
+            "power plant",
+            "powerplant",
+            "drives",
+            "fsd",
+            "next target",
+            "next ship",
+            "target ahead",
+            "highest threat",
+        ])
+    {
         return None;
     }
     // Signal watch: "(I'm) looking for X", "watch for X", "stop looking for X", "what are we watching for".
-    if has(&["what are we watching", "what am i watching", "what are you watching", "watch list"]) {
+    if has(&[
+        "what are we watching",
+        "what am i watching",
+        "what are you watching",
+        "watch list",
+    ]) {
         return Some(Order::WatchList);
     }
-    let stop = has(&["stop looking", "stop watching", "no longer looking", "forget about"]);
-    if stop || has(&["looking for", "look for", "watch for", "keep an eye out", "keep an eye on", "let me know if you see", "tell me if you see", "tell me when you see"]) {
+    let stop = has(&[
+        "stop looking",
+        "stop watching",
+        "no longer looking",
+        "forget about",
+    ]);
+    if stop
+        || has(&[
+            "looking for",
+            "look for",
+            "watch for",
+            "keep an eye out",
+            "keep an eye on",
+            "let me know if you see",
+            "tell me if you see",
+            "tell me when you see",
+        ])
+    {
         if let Some((id, _, _)) = crate::callouts::signal_by_words(t) {
             return Some(Order::Watch(id, !stop));
         }
@@ -1027,7 +1385,17 @@ fn direct_order(t: &str) -> Option<Order> {
     }
     // Route targeting: needs "guidance" or a route word, so "target next" alone in a fight is not a route order.
     let route_word = has(&["system", "star", "waypoint", "route", "jump"]);
-    if (guided || route_word) && has(&["target next", "target the next", "next waypoint", "target waypoint", "plot next", "next system", "next star"]) {
+    if (guided || route_word)
+        && has(&[
+            "target next",
+            "target the next",
+            "next waypoint",
+            "target waypoint",
+            "plot next",
+            "next system",
+            "next star",
+        ])
+    {
         Some(Order::TargetNext)
     } else if has(&["skip", "skip this", "skip that"]) {
         Some(Order::Skip)
@@ -1039,7 +1407,16 @@ fn direct_order(t: &str) -> Option<Order> {
         || (route_word && has(&["clear", "cancel"]))
     {
         Some(Order::StopFollowing)
-    } else if has(&["jumps left", "how many jumps", "how far to go", "how far left", "how far is it", "how much further", "how much farther", "remaining jumps"]) {
+    } else if has(&[
+        "jumps left",
+        "how many jumps",
+        "how far to go",
+        "how far left",
+        "how far is it",
+        "how much further",
+        "how much farther",
+        "remaining jumps",
+    ]) {
         Some(Order::JumpsLeft)
     } else if has(&["next system", "what's next", "whats next", "where next"]) {
         Some(Order::NextSystem)
@@ -1061,28 +1438,71 @@ mod tests {
     fn a_fresh_config_has_no_push_to_talk_until_the_commander_sets_one() {
         let config = ListenConfig::default();
         assert_eq!(config.ptt_source(), PttSource::None);
-        assert!(config.ptt_hotkey.is_empty(), "no invented hotkey text: {:?}", config.ptt_hotkey);
+        assert!(
+            config.ptt_hotkey.is_empty(),
+            "no invented hotkey text: {:?}",
+            config.ptt_hotkey
+        );
     }
 
     #[test]
     fn direct_orders_are_recognised_and_questions_fall_through() {
-        assert!(matches!(direct_order("edda target next system"), Some(Order::TargetNext)));
-        assert!(matches!(direct_order("guidance: target next system in route"), Some(Order::TargetNext)));
-        assert!(matches!(direct_order("target next star"), Some(Order::TargetNext)));
+        assert!(matches!(
+            direct_order("edda target next system"),
+            Some(Order::TargetNext)
+        ));
+        assert!(matches!(
+            direct_order("guidance: target next system in route"),
+            Some(Order::TargetNext)
+        ));
+        assert!(matches!(
+            direct_order("target next star"),
+            Some(Order::TargetNext)
+        ));
         assert!(direct_order("target next hostile").is_none());
         assert!(direct_order("target the power plant").is_none());
-        assert!(direct_order("target next").is_none(), "bare 'target next' in a fight is not a route order");
-        assert!(matches!(direct_order("guidance: target next"), Some(Order::TargetNext)));
-        assert!(matches!(direct_order("guidance, how many jumps left"), Some(Order::JumpsLeft)));
-        assert!(matches!(direct_order("how many jumps left"), Some(Order::JumpsLeft)));
-        assert!(matches!(direct_order("stop following the route"), Some(Order::StopFollowing)));
+        assert!(
+            direct_order("target next").is_none(),
+            "bare 'target next' in a fight is not a route order"
+        );
+        assert!(matches!(
+            direct_order("guidance: target next"),
+            Some(Order::TargetNext)
+        ));
+        assert!(matches!(
+            direct_order("guidance, how many jumps left"),
+            Some(Order::JumpsLeft)
+        ));
+        assert!(matches!(
+            direct_order("how many jumps left"),
+            Some(Order::JumpsLeft)
+        ));
+        assert!(matches!(
+            direct_order("stop following the route"),
+            Some(Order::StopFollowing)
+        ));
         assert!(direct_order("what's the best trade from here").is_none());
         assert!(direct_order("how far away from elite combat rank am i").is_none());
-        assert!(matches!(direct_order("how far to go"), Some(Order::JumpsLeft)));
-        assert!(matches!(direct_order("i'm looking for high grade emissions"), Some(Order::Watch("hge", true))));
-        assert!(matches!(direct_order("stop looking for pirates"), Some(Order::Watch("pirates", false))));
-        assert!(matches!(direct_order("tell me when you see a power convoy distress signal"), Some(Order::Watch("power_convoy", true))));
-        assert!(matches!(direct_order("what are we watching for"), Some(Order::WatchList)));
+        assert!(matches!(
+            direct_order("how far to go"),
+            Some(Order::JumpsLeft)
+        ));
+        assert!(matches!(
+            direct_order("i'm looking for high grade emissions"),
+            Some(Order::Watch("hge", true))
+        ));
+        assert!(matches!(
+            direct_order("stop looking for pirates"),
+            Some(Order::Watch("pirates", false))
+        ));
+        assert!(matches!(
+            direct_order("tell me when you see a power convoy distress signal"),
+            Some(Order::Watch("power_convoy", true))
+        ));
+        assert!(matches!(
+            direct_order("what are we watching for"),
+            Some(Order::WatchList)
+        ));
     }
 }
 
@@ -1102,11 +1522,17 @@ mod listen_state_tests {
 
         let second = l.begin_loop();
         assert_ne!(first, second);
-        assert!(!l.is_current(first), "the old loop must stop on its next chunk");
+        assert!(
+            !l.is_current(first),
+            "the old loop must stop on its next chunk"
+        );
         assert!(l.is_current(second));
 
         l.loop_ended(first);
-        assert!(l.run, "an old loop exiting late must not report the listener off");
+        assert!(
+            l.run,
+            "an old loop exiting late must not report the listener off"
+        );
         assert_eq!(l.phase, 1);
 
         l.loop_ended(second);

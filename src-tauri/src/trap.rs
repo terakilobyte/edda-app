@@ -9,8 +9,8 @@
 //! Fleet carriers never count as refuel: they jump away, deny docking, and
 //! may not sell fuel — the callout mentions one instead of trusting it.
 
-use ed_galaxy::fuel::{BoostProfile, FuelModel, REACH_SLACK_LY};
 use crate::exchange::SendApi;
+use ed_galaxy::fuel::{BoostProfile, FuelModel, REACH_SLACK_LY};
 use ed_galaxy::StarClass;
 use ed_store::lookup::PadSize;
 use serde_json::Value;
@@ -58,7 +58,9 @@ pub fn on_target(
     // same reason unknown station pads fail closed below.
     let required_pad = PadSize::for_journal_ship(&ship_ident).unwrap_or(PadSize::Large);
     // One `/v1/stations` call at target time; no answer fails closed.
-    let (station_fits, carrier_present) = crate::remote_lookup::stations_at_blocking(&state, name, required_pad).unwrap_or((false, false));
+    let (station_fits, carrier_present) =
+        crate::remote_lookup::stations_at_blocking(&state, name, required_pad)
+            .unwrap_or((false, false));
     let facts = TargetFacts {
         name: name.to_string(),
         class,
@@ -71,7 +73,11 @@ pub fn on_target(
         injection: crate::routing::injections_status(&state)
             .into_iter()
             .find(|g| g.can_make > 0)
-            .map(|g| Injection { mult: g.mult, grade: g.grade.to_string(), can_make: g.can_make }),
+            .map(|g| Injection {
+                mult: g.mult,
+                grade: g.grade.to_string(),
+                can_make: g.can_make,
+            }),
     };
     let (text, priority) = if has_scoop {
         assess(&model, &profile, fuel_now, &facts, |radius| {
@@ -79,11 +85,19 @@ pub fn on_target(
         })
     } else {
         assess(&model, &profile, fuel_now, &facts, |radius| {
-            crate::remote_lookup::nearest_refuel_blocking(&state, name, required_pad, f64::from(radius)).map(|(d, _)| d)
+            crate::remote_lookup::nearest_refuel_blocking(
+                &state,
+                name,
+                required_pad,
+                f64::from(radius),
+            )
+            .map(|(d, _)| d)
         })
     }?;
     *warned = address;
-    Some(crate::callouts::Callout::new("fuel", ts, priority, true, text))
+    Some(crate::callouts::Callout::new(
+        "fuel", ts, priority, true, text,
+    ))
 }
 
 use crate::status_flags::FSD_SCO_ACTIVE;
@@ -170,7 +184,10 @@ pub fn on_status(
     if st.sco_strand_warned {
         return None;
     }
-    let ts = status.get("timestamp").and_then(Value::as_str).unwrap_or("");
+    let ts = status
+        .get("timestamp")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     let fuel_now = status.pointer("/Fuel/FuelMain").and_then(Value::as_f64)? as f32;
     let (model, profile, _stale_fuel, _ship) = crate::routing::ship_fuel(conn)?;
     // Far from any strand threshold: skip the map work entirely. The
@@ -180,7 +197,10 @@ pub fn on_status(
         return None;
     }
     let (ship_ident, has_scoop) = loadout_ship(conn)?;
-    let here = ed_store::query::location(conn).ok().flatten()?.system_name?;
+    let here = ed_store::query::location(conn)
+        .ok()
+        .flatten()?
+        .system_name?;
     let state = app.state::<crate::state::AppState>();
     let g = resolve_field(&state, &here, &here)?;
     let cur = g.find(&here)?;
@@ -189,7 +209,9 @@ pub fn on_status(
         return None;
     }
     let required_pad = PadSize::for_journal_ship(&ship_ident).unwrap_or(PadSize::Large);
-    if crate::remote_lookup::stations_at_blocking(&state, &here, required_pad).is_some_and(|(fits, _)| fits) {
+    if crate::remote_lookup::stations_at_blocking(&state, &here, required_pad)
+        .is_some_and(|(fits, _)| fits)
+    {
         return None;
     }
     let pos = g.pos_of(cur);
@@ -198,7 +220,12 @@ pub fn on_status(
     let nearest = if has_scoop {
         nearest_scoopable(&g, cur, pos, radius)
     } else {
-        crate::remote_lookup::nearest_refuel_blocking(&state, &here, required_pad, f64::from(radius))
+        crate::remote_lookup::nearest_refuel_blocking(
+            &state,
+            &here,
+            required_pad,
+            f64::from(radius),
+        )
     };
     let text = sco_strand(
         &model,
@@ -350,17 +377,26 @@ impl SphereField {
             .or_else(|| sphere.get("systems").and_then(Value::as_array).cloned())
             .unwrap_or_default();
         for item in &items {
-            let Some(name) = item.get("name").and_then(Value::as_str) else { continue };
+            let Some(name) = item.get("name").and_then(Value::as_str) else {
+                continue;
+            };
             let Some(pos) = coords_of(item) else { continue };
             let class = item
                 .pointer("/primaryStar/type")
                 .and_then(Value::as_str)
                 .map(StarClass::from_subtype)
                 .unwrap_or(StarClass::Unknown);
-            systems.push(SphereSystem { name: name.to_string(), pos, class });
+            systems.push(SphereSystem {
+                name: name.to_string(),
+                pos,
+                class,
+            });
         }
         for anchor in anchors {
-            if !systems.iter().any(|s| s.name.eq_ignore_ascii_case(&anchor.name)) {
+            if !systems
+                .iter()
+                .any(|s| s.name.eq_ignore_ascii_case(&anchor.name))
+            {
                 systems.push(anchor);
             }
         }
@@ -368,7 +404,10 @@ impl SphereField {
     }
 
     fn find(&self, name: &str) -> Option<u32> {
-        self.systems.iter().position(|s| s.name.eq_ignore_ascii_case(name.trim())).map(|i| i as u32)
+        self.systems
+            .iter()
+            .position(|s| s.name.eq_ignore_ascii_case(name.trim()))
+            .map(|i| i as u32)
     }
 
     fn within(&self, pos: [f32; 3], radius: f32) -> Vec<(u32, f32)> {
@@ -376,7 +415,10 @@ impl SphereField {
             .iter()
             .enumerate()
             .filter_map(|(i, s)| {
-                let d = ((s.pos[0] - pos[0]).powi(2) + (s.pos[1] - pos[1]).powi(2) + (s.pos[2] - pos[2]).powi(2)).sqrt();
+                let d = ((s.pos[0] - pos[0]).powi(2)
+                    + (s.pos[1] - pos[1]).powi(2)
+                    + (s.pos[2] - pos[2]).powi(2))
+                .sqrt();
                 (d <= radius).then_some((i as u32, d))
             })
             .collect()
@@ -436,11 +478,11 @@ impl SphereField {
                 .ok()?;
             let mut anchors = vec![target_system];
             let listed = |name: &str| {
-                sphere
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .any(|i| i.get("name").and_then(Value::as_str).is_some_and(|n| n.eq_ignore_ascii_case(name)))
+                sphere.as_array().into_iter().flatten().any(|i| {
+                    i.get("name")
+                        .and_then(Value::as_str)
+                        .is_some_and(|n| n.eq_ignore_ascii_case(name))
+                })
             };
             if !here.eq_ignore_ascii_case(&target) && !listed(&here) {
                 anchors.push(system(here.clone()).await?);
@@ -579,9 +621,8 @@ pub fn assess(
     // the better of the two.
     let escape_plain =
         (escape_range_ly(model, profile, facts.class, fuel_after) - REACH_SLACK_LY).max(0.0);
-    let escape_best = (model.range_at(fuel_after) * star_boost.max(injection_mult)
-        - REACH_SLACK_LY)
-        .max(0.0);
+    let escape_best =
+        (model.range_at(fuel_after) * star_boost.max(injection_mult) - REACH_SLACK_LY).max(0.0);
     let nearest = fuel_within(escape_best);
     if nearest.is_some_and(|d| d <= escape_plain) {
         return None;
@@ -639,21 +680,48 @@ mod tests {
             {"name": "Deep C", "id64": 3, "coords": {"x": 0.0, "y": 60.0, "z": 0.0}, "distance": 60.0, "primaryStar": {"type": "Neutron Star"}}
         ]);
         let anchors = vec![
-            SphereSystem { name: "Deep A".into(), pos: [0.0, 0.0, 0.0], class: StarClass::Unknown },
-            SphereSystem { name: "Origin".into(), pos: [-40.0, 0.0, 0.0], class: StarClass::Unknown },
+            SphereSystem {
+                name: "Deep A".into(),
+                pos: [0.0, 0.0, 0.0],
+                class: StarClass::Unknown,
+            },
+            SphereSystem {
+                name: "Origin".into(),
+                pos: [-40.0, 0.0, 0.0],
+                class: StarClass::Unknown,
+            },
         ];
         let field = Field::Sphere(SphereField::from_parts(anchors, &sphere));
-        let a = field.find("deep a").expect("the sphere's own entry wins over the anchor");
-        assert_eq!(field.class_of(a), StarClass::from_subtype("L (Brown dwarf) Star"));
-        assert!(!field.scoopable(a), "brown dwarfs are not scoopable (KGBFOAM only)");
+        let a = field
+            .find("deep a")
+            .expect("the sphere's own entry wins over the anchor");
+        assert_eq!(
+            field.class_of(a),
+            StarClass::from_subtype("L (Brown dwarf) Star")
+        );
+        assert!(
+            !field.scoopable(a),
+            "brown dwarfs are not scoopable (KGBFOAM only)"
+        );
         let b = field.find("Deep B").unwrap();
         assert!(field.scoopable(b));
-        assert_eq!(field.find("Origin").map(|i| field.pos_of(i)), Some([-40.0, 0.0, 0.0]));
-        assert_eq!(field.within([0.0, 0.0, 0.0], 35.0).len(), 2, "A itself and B");
-        let nearest = nearest_scoopable(&field, a, [0.0, 0.0, 0.0], 100.0).expect("B is the nearest scoop");
+        assert_eq!(
+            field.find("Origin").map(|i| field.pos_of(i)),
+            Some([-40.0, 0.0, 0.0])
+        );
+        assert_eq!(
+            field.within([0.0, 0.0, 0.0], 35.0).len(),
+            2,
+            "A itself and B"
+        );
+        let nearest =
+            nearest_scoopable(&field, a, [0.0, 0.0, 0.0], 100.0).expect("B is the nearest scoop");
         assert_eq!(nearest.1, "Deep B");
         assert!((nearest.0 - 30.0).abs() < 1e-4);
-        assert!(nearest_scoopable(&field, a, [0.0, 0.0, 0.0], 20.0).is_none(), "nothing scoopable within 20 ly");
+        assert!(
+            nearest_scoopable(&field, a, [0.0, 0.0, 0.0], 20.0).is_none(),
+            "nothing scoopable within 20 ly"
+        );
     }
 
     /// A mid-size explorer: 200 t hull, 32 t tank, size 5 drive capped at
@@ -679,8 +747,14 @@ mod tests {
     #[test]
     fn warns_when_nothing_scoopable_is_reachable() {
         let m = model(0.0);
-        let (text, priority) = assess(&m, &BoostProfile::default(), 20.0, &facts(StarClass::T), |_| None)
-            .expect("a dead-end system warns");
+        let (text, priority) = assess(
+            &m,
+            &BoostProfile::default(),
+            20.0,
+            &facts(StarClass::T),
+            |_| None,
+        )
+        .expect("a dead-end system warns");
         assert_eq!(priority, 3, "a hard trap is critical");
         assert!(text.contains("Oevasy SG-Y d0"), "{text}");
         assert!(text.to_lowercase().contains("fuel"), "{text}");
@@ -689,9 +763,13 @@ mod tests {
     #[test]
     fn silent_when_a_scoopable_star_is_within_escape_range() {
         let m = model(0.0);
-        let verdict = assess(&m, &BoostProfile::default(), 20.0, &facts(StarClass::T), |radius| {
-            Some(radius - 1.0)
-        });
+        let verdict = assess(
+            &m,
+            &BoostProfile::default(),
+            20.0,
+            &facts(StarClass::T),
+            |radius| Some(radius - 1.0),
+        );
         assert_eq!(verdict, None);
     }
 
@@ -710,11 +788,21 @@ mod tests {
         let after_laden = fuel_after_jump(&laden, 20.0, f.distance_ly, 1.0).unwrap();
         let reach_empty = escape_range_ly(&empty, &profile, f.class, after_empty);
         let reach_laden = escape_range_ly(&laden, &profile, f.class, after_laden);
-        assert!(reach_empty > reach_laden + 1.0, "cargo must cost range: {reach_empty} vs {reach_laden}");
+        assert!(
+            reach_empty > reach_laden + 1.0,
+            "cargo must cost range: {reach_empty} vs {reach_laden}"
+        );
         let scoop_at = (reach_empty + reach_laden) / 2.0;
         let sees = |radius: f32| (scoop_at <= radius).then_some(scoop_at);
-        assert_eq!(assess(&empty, &profile, 20.0, &f, sees), None, "empty hold reaches the scoop");
-        assert!(assess(&laden, &profile, 20.0, &f, sees).is_some(), "laden hold does not");
+        assert_eq!(
+            assess(&empty, &profile, 20.0, &f, sees),
+            None,
+            "empty hold reaches the scoop"
+        );
+        assert!(
+            assess(&laden, &profile, 20.0, &f, sees).is_some(),
+            "laden hold does not"
+        );
     }
 
     /// A neutron target credits the escape with the SHIP'S boost for that
@@ -726,11 +814,21 @@ mod tests {
         let after = fuel_after_jump(&m, 20.0, f.distance_ly, 1.0).unwrap();
         let standard = escape_range_ly(&m, &BoostProfile::default(), StarClass::Neutron, after);
         let mk2 = escape_range_ly(&m, &BoostProfile::MK2_SCO, StarClass::Neutron, after);
-        assert!((mk2 / standard - 1.5).abs() < 1e-3, "x6 vs x4: {mk2} vs {standard}");
+        assert!(
+            (mk2 / standard - 1.5).abs() < 1e-3,
+            "x6 vs x4: {mk2} vs {standard}"
+        );
         let scoop_at = standard * 1.25; // between x4 and x6 reach
         let sees = |radius: f32| (scoop_at <= radius).then_some(scoop_at);
-        assert!(assess(&m, &BoostProfile::default(), 20.0, &f, sees).is_some(), "x4 drive is trapped");
-        assert_eq!(assess(&m, &BoostProfile::MK2_SCO, 20.0, &f, sees), None, "x6 drive escapes");
+        assert!(
+            assess(&m, &BoostProfile::default(), 20.0, &f, sees).is_some(),
+            "x4 drive is trapped"
+        );
+        assert_eq!(
+            assess(&m, &BoostProfile::MK2_SCO, 20.0, &f, sees),
+            None,
+            "x6 drive escapes"
+        );
     }
 
     #[test]
@@ -738,7 +836,10 @@ mod tests {
         let m = model(0.0);
         let mut f = facts(StarClass::T);
         f.station = true;
-        assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None);
+        assert_eq!(
+            assess(&m, &BoostProfile::default(), 20.0, &f, |_| None),
+            None
+        );
     }
 
     #[test]
@@ -756,7 +857,10 @@ mod tests {
         let m = model(0.0);
         let mut f = facts(StarClass::T);
         f.refuels_on_arrival = true;
-        assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None);
+        assert_eq!(
+            assess(&m, &BoostProfile::default(), 20.0, &f, |_| None),
+            None
+        );
     }
 
     /// Without a fuel scoop, a scoopable star refuels nothing: only a
@@ -771,7 +875,10 @@ mod tests {
             .expect("scoopless ships are trapped by scoopable stars too");
         assert!(text.contains("No fuel scoop is fitted"), "{text}");
         f.station = true;
-        assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None);
+        assert_eq!(
+            assess(&m, &BoostProfile::default(), 20.0, &f, |_| None),
+            None
+        );
     }
 
     /// The overcharge strand guard: silent with a healthy margin, warns
@@ -789,7 +896,10 @@ mod tests {
         );
         let text = sco_strand(&m, burn * 1.1, 1.0, 0.05, "Nowhere XY-Z c0", nearest)
             .expect("inside the margin warns");
-        assert!(text.contains("Fuelum") && text.contains("Abort overcharge"), "{text}");
+        assert!(
+            text.contains("Fuelum") && text.contains("Abort overcharge"),
+            "{text}"
+        );
         assert!(text.contains("seconds of overcharge"), "{text}");
         let text = sco_strand(&m, burn * 1.1, 1.0, 0.05, "Nowhere XY-Z c0", None)
             .expect("no reachable fuel warns immediately");
@@ -801,17 +911,29 @@ mod tests {
     #[test]
     fn sco_burn_medians_bursts_and_falls_back_to_priors() {
         let mut b = ScoBurn::default();
-        assert!((b.rate("mandalay") - 0.083).abs() < 1e-4, "prior before any burst");
-        assert!((b.rate("shiny_new_ship") - 0.4).abs() < 1e-4, "unknown ship default");
+        assert!(
+            (b.rate("mandalay") - 0.083).abs() < 1e-4,
+            "prior before any burst"
+        );
+        assert!(
+            (b.rate("shiny_new_ship") - 0.4).abs() < 1e-4,
+            "unknown ship default"
+        );
         // Normal supercruise drain: 0.1 t over 60 s — ignored twice over.
         b.observe(0.0, 32.0);
         b.observe(60.0, 31.9);
-        assert!((b.rate("mandalay") - 0.083).abs() < 1e-4, "slow drain is not a burst");
+        assert!(
+            (b.rate("mandalay") - 0.083).abs() < 1e-4,
+            "slow drain is not a burst"
+        );
         // Overcharge bursts: ~1.1 t every 2 s.
         b.observe(62.0, 30.8);
         b.observe(64.0, 29.7);
         b.observe(66.0, 28.6);
-        assert!((b.rate("mandalay") - 0.55).abs() < 0.01, "median of measured bursts wins");
+        assert!(
+            (b.rate("mandalay") - 0.55).abs() < 0.01,
+            "median of measured bursts wins"
+        );
     }
 
     /// A nearest option beyond the ship's present reach counts as
@@ -830,7 +952,11 @@ mod tests {
     fn an_injection_escape_softens_the_warning() {
         let m = model(0.0);
         let mut f = facts(StarClass::T);
-        f.injection = Some(Injection { mult: 2.0, grade: "premium".into(), can_make: 2 });
+        f.injection = Some(Injection {
+            mult: 2.0,
+            grade: "premium".into(),
+            can_make: 2,
+        });
         let after = fuel_after_jump(&m, 20.0, f.distance_ly, 1.0).unwrap();
         let scoop_at = m.range_at(after) * 1.5; // beyond plain reach, inside x2
         let sees = |radius: f32| (scoop_at <= radius).then_some(scoop_at);
@@ -846,9 +972,13 @@ mod tests {
     fn an_insufficient_injection_stays_a_hard_trap() {
         let m = model(0.0);
         let mut f = facts(StarClass::T);
-        f.injection = Some(Injection { mult: 2.0, grade: "premium".into(), can_make: 1 });
-        let (text, priority) = assess(&m, &BoostProfile::default(), 20.0, &f, |_| None)
-            .expect("still a trap");
+        f.injection = Some(Injection {
+            mult: 2.0,
+            grade: "premium".into(),
+            can_make: 1,
+        });
+        let (text, priority) =
+            assess(&m, &BoostProfile::default(), 20.0, &f, |_| None).expect("still a trap");
         assert_eq!(priority, 3);
         assert!(text.contains("Not even a premium"), "{text}");
     }
@@ -861,6 +991,9 @@ mod tests {
         let m = model(0.0);
         let mut f = facts(StarClass::T);
         f.distance_ly = 500.0;
-        assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None);
+        assert_eq!(
+            assess(&m, &BoostProfile::default(), 20.0, &f, |_| None),
+            None
+        );
     }
 }

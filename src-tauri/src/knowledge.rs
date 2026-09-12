@@ -6,8 +6,8 @@
 //! one call per 100-ly cell, at most one call a second) and learns the
 //! primary star of every system our index has as unknown. Learned neutrons
 //! make the neutron sub-index stale; it is rebuilt on the next plot.
-use crate::state::AppState;
 use crate::exchange::SendApiBlocking;
+use crate::state::AppState;
 use ed_galaxy::StarClassCode as _;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
@@ -32,7 +32,12 @@ pub struct KnowledgeStatus {
 }
 
 fn cell_key(p: [f32; 3]) -> String {
-    format!("{}:{}:{}", (p[0] / CELL_LY).floor() as i64, (p[1] / CELL_LY).floor() as i64, (p[2] / CELL_LY).floor() as i64)
+    format!(
+        "{}:{}:{}",
+        (p[0] / CELL_LY).floor() as i64,
+        (p[1] / CELL_LY).floor() as i64,
+        (p[2] / CELL_LY).floor() as i64
+    )
 }
 
 fn unknown_stars_from_edsm(
@@ -45,10 +50,16 @@ fn unknown_stars_from_edsm(
             system["name"].as_str(),
             system["id64"].as_u64(),
             system.get("primaryStar"),
-        ) else { continue };
-        let Some(subtype) = primary["type"].as_str() else { continue };
+        ) else {
+            continue;
+        };
+        let Some(subtype) = primary["type"].as_str() else {
+            continue;
+        };
         let class = ed_galaxy::StarClass::from_subtype(subtype);
-        if class == ed_galaxy::StarClass::Unknown { continue; }
+        if class == ed_galaxy::StarClass::Unknown {
+            continue;
+        }
         let ours = galaxy.find(name).map(|i| galaxy.class(&galaxy.record(i)));
         if ours == Some(ed_galaxy::StarClass::Unknown) {
             rows.push((id64, name.to_string(), subtype.to_string(), class));
@@ -74,7 +85,9 @@ pub fn sweep_route(app: AppHandle, hops: Vec<(String, [f32; 3])>) {
 
 fn sweep(app: &AppHandle, hops: Vec<(String, [f32; 3])>) {
     let state = app.state::<AppState>();
-    let Some(galaxy) = state.routing.galaxy(&state.data_dir) else { return };
+    let Some(galaxy) = state.routing.galaxy(&state.data_dir) else {
+        return;
+    };
     // One cell per 100 ly of route, not yet swept recently.
     let mut cells: Vec<(String, [f32; 3])> = Vec::new();
     let mut skipped_known = 0usize;
@@ -105,10 +118,18 @@ fn sweep(app: &AppHandle, hops: Vec<(String, [f32; 3])>) {
         }
     }
     if cells.is_empty() {
-        tracing::info!(skipped_known, "knowledge sweep: nothing to learn along this route");
+        tracing::info!(
+            skipped_known,
+            "knowledge sweep: nothing to learn along this route"
+        );
         return;
     }
-    tracing::info!(cells = cells.len(), skipped_known, hops = hops.len(), "knowledge sweep: asking about the route's surroundings");
+    tracing::info!(
+        cells = cells.len(),
+        skipped_known,
+        hops = hops.len(),
+        "knowledge sweep: asking about the route's surroundings"
+    );
     let client = app.state::<AppState>().http_blocking.clone();
     // The community server proxies EDSM (ledger 2026-09-06): a stale
     // cell costs ONE upstream fetch for the whole fleet, and a cell
@@ -150,7 +171,9 @@ fn sweep(app: &AppHandle, hops: Vec<(String, [f32; 3])>) {
                 continue;
             }
         };
-        let Ok(systems) = serde_json::from_str::<Vec<serde_json::Value>>(&body) else { continue };
+        let Ok(systems) = serde_json::from_str::<Vec<serde_json::Value>>(&body) else {
+            continue;
+        };
         let mut learned = 0u64;
         let mut neutrons = 0u64;
         // Only what our index has as unknown: first-hand data stays first.
@@ -174,12 +197,19 @@ fn sweep(app: &AppHandle, hops: Vec<(String, [f32; 3])>) {
         neutrons_total += neutrons;
         let _ = app.emit(crate::events::KNOWLEDGE_PROGRESS, serde_json::json!({ "cells": cells.len(), "swept": swept, "learned": learned_total, "neutrons": neutrons_total }));
     }
-    tracing::info!(swept, learned = learned_total, neutrons = neutrons_total, "knowledge sweep finished");
+    tracing::info!(
+        swept,
+        learned = learned_total,
+        neutrons = neutrons_total,
+        "knowledge sweep finished"
+    );
     if neutrons_total > 0 {
         // The highway graph is built from the index's neutrons: it is stale
         // now. Rebuilt in the background; plots keep the current one until
         // the new one is ready.
-        state.routing.rebuild_neutrons_in_background(&state.jobs, &state.data_dir);
+        state
+            .routing
+            .rebuild_neutrons_in_background(&state.jobs, &state.data_dir);
     }
 }
 
@@ -194,30 +224,54 @@ mod tests {
 {"id64":42,"name":"Missing Neutron","coords":{"x":100,"y":0,"z":0},"bodies":[]},
 {"id64":43,"name":"Known Main Star","coords":{"x":120,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]}
 ]"#;
-        ed_galaxy::import::import_reader(Box::new(std::io::Cursor::new(dump)), dir.path(), &mut |_| {}).unwrap();
+        ed_galaxy::import::import_reader(
+            Box::new(std::io::Cursor::new(dump)),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let galaxy = ed_galaxy::Galaxy::open(dir.path()).unwrap();
         let response = serde_json::json!([
             {"id64":42,"name":"Missing Neutron","primaryStar":{"type":"Neutron Star"}},
             {"id64":43,"name":"Known Main Star","primaryStar":{"type":"Black Hole"}}
         ]);
         let rows = unknown_stars_from_edsm(&galaxy, response.as_array().unwrap());
-        assert_eq!(rows.len(), 1, "EDSM must not replace a class already present in the dump");
+        assert_eq!(
+            rows.len(),
+            1,
+            "EDSM must not replace a class already present in the dump"
+        );
         let (id64, _, _, class) = &rows[0];
         galaxy.learn_class(*id64, *class);
 
         let idx = galaxy.find("Missing Neutron").unwrap();
         let record = galaxy.record(idx);
-        assert_eq!(galaxy.class_code(idx), ed_galaxy::StarClass::Unknown.code(), "base mmap stays immutable");
+        assert_eq!(
+            galaxy.class_code(idx),
+            ed_galaxy::StarClass::Unknown.code(),
+            "base mmap stays immutable"
+        );
         assert_eq!(galaxy.class(&record), ed_galaxy::StarClass::Neutron);
-        assert_eq!(galaxy.class(&record).boost(), 4.0, "routing sees the learned neutron boost");
-        assert!(!galaxy.scoopable(idx), "a neutron is not itself fuel-scoopable");
+        assert_eq!(
+            galaxy.class(&record).boost(),
+            4.0,
+            "routing sees the learned neutron boost"
+        );
+        assert!(
+            !galaxy.scoopable(idx),
+            "a neutron is not itself fuel-scoopable"
+        );
 
         let neutron_dir = tempfile::tempdir().unwrap();
         ed_galaxy::import::subset(&galaxy, neutron_dir.path(), |r| {
             galaxy.class(r) == ed_galaxy::StarClass::Neutron
-        }).unwrap();
+        })
+        .unwrap();
         let neutrons = ed_galaxy::Galaxy::open(neutron_dir.path()).unwrap();
-        assert!(neutrons.find("Missing Neutron").is_some(), "rebuilt routing accelerator includes the EDSM neutron");
+        assert!(
+            neutrons.find("Missing Neutron").is_some(),
+            "rebuilt routing accelerator includes the EDSM neutron"
+        );
         assert!(neutrons.find("Known Main Star").is_none());
     }
 }
@@ -254,14 +308,21 @@ fn fetch_sphere(
         .map_err(|e| e.to_string())
 }
 
-static COMPANIONS: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, String>>> = std::sync::OnceLock::new();
+static COMPANIONS: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, String>>,
+> = std::sync::OnceLock::new();
 
 /// At a neutron fuel stop: which star to scoop at, and how far -- from
 /// EDSM's body list, once per system, spoken a moment after arrival.
 pub fn announce_companion(app: AppHandle, system: String) {
     std::thread::spawn(move || {
-        let cache = COMPANIONS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-        let line = cache.lock().unwrap_or_else(|e| e.into_inner()).get(&system).cloned();
+        let cache =
+            COMPANIONS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        let line = cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&system)
+            .cloned();
         let line = match line {
             Some(l) => l,
             None => {
@@ -281,13 +342,18 @@ pub fn announce_companion(app: AppHandle, system: String) {
                         .ok()
                 };
                 // Through OUR server only (maintainer, 2026-09-06): no direct EDSM.
-                let body = crate::exchange::endpoint(&state)
-                    .and_then(|base| fetch(format!("{base}/v1/knowledge/bodies?systemName={enc}"), 40));
+                let body = crate::exchange::endpoint(&state).and_then(|base| {
+                    fetch(format!("{base}/v1/knowledge/bodies?systemName={enc}"), 40)
+                });
                 let Some(body) = body else { return };
-                let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) else { return };
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) else {
+                    return;
+                };
                 let mut best: Option<(f64, String)> = None;
                 for b in v["bodies"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
-                    if b["type"].as_str() != Some("Star") || b["isScoopable"].as_bool() != Some(true) {
+                    if b["type"].as_str() != Some("Star")
+                        || b["isScoopable"].as_bool() != Some(true)
+                    {
                         continue;
                     }
                     let d = b["distanceToArrival"].as_f64().unwrap_or(f64::INFINITY);
@@ -297,9 +363,17 @@ pub fn announce_companion(app: AppHandle, system: String) {
                     }
                 }
                 let Some((d, name)) = best else { return };
-                let short = name.strip_prefix(&system).map(|s| s.trim()).filter(|s| !s.is_empty()).map(|s| format!("star {s}")).unwrap_or(name.clone());
+                let short = name
+                    .strip_prefix(&system)
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| format!("star {s}"))
+                    .unwrap_or(name.clone());
                 let l = format!("Scoop at {short}, {:.0} light seconds.", d);
-                cache.lock().unwrap_or_else(|e| e.into_inner()).insert(system.clone(), l.clone());
+                cache
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(system.clone(), l.clone());
                 l
             }
         };
@@ -312,11 +386,27 @@ pub fn announce_companion(app: AppHandle, system: String) {
 
 /// Totals for the Settings page.
 #[tauri::command]
-pub async fn knowledge_status(state: tauri::State<'_, AppState>) -> Result<KnowledgeStatus, String> {
+pub async fn knowledge_status(
+    state: tauri::State<'_, AppState>,
+) -> Result<KnowledgeStatus, String> {
     Ok(state.with_read(|s| {
-        let cells: i64 = s.conn().query_row("SELECT count(*) FROM edsm_sweeps", [], |r| r.get(0)).unwrap_or(0);
-        let last: Option<String> = s.conn().query_row("SELECT max(fetched_at) FROM edsm_sweeps", [], |r| r.get(0)).ok().flatten();
-        let (stars, neutrons) = ed_store::stars::counts_for_source(s.conn(), "edsm").unwrap_or((0, 0));
-        KnowledgeStatus { running: RUNNING.load(Ordering::Relaxed), cells_swept: cells as u64, stars_learned: stars as u64, neutrons_learned: neutrons as u64, last_sweep: last }
+        let cells: i64 = s
+            .conn()
+            .query_row("SELECT count(*) FROM edsm_sweeps", [], |r| r.get(0))
+            .unwrap_or(0);
+        let last: Option<String> = s
+            .conn()
+            .query_row("SELECT max(fetched_at) FROM edsm_sweeps", [], |r| r.get(0))
+            .ok()
+            .flatten();
+        let (stars, neutrons) =
+            ed_store::stars::counts_for_source(s.conn(), "edsm").unwrap_or((0, 0));
+        KnowledgeStatus {
+            running: RUNNING.load(Ordering::Relaxed),
+            cells_swept: cells as u64,
+            stars_learned: stars as u64,
+            neutrons_learned: neutrons as u64,
+            last_sweep: last,
+        }
     }))
 }

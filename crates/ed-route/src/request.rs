@@ -163,9 +163,11 @@ pub fn pad_requirement(
             .ok_or_else(|| ProfitRequestError::BadPad(p.to_string())),
         None => match hull.map(str::trim).filter(|s| !s.is_empty()) {
             None => Err(ProfitRequestError::NoShip),
-            Some(h) => crate::ships::pad_for_ship(h)
-                .map(Some)
-                .ok_or_else(|| ProfitRequestError::PadUnknown { hull: h.to_string() }),
+            Some(h) => crate::ships::pad_for_ship(h).map(Some).ok_or_else(|| {
+                ProfitRequestError::PadUnknown {
+                    hull: h.to_string(),
+                }
+            }),
         },
     }
 }
@@ -253,12 +255,18 @@ pub fn plan(
     if let Some(d) = req.min_demand {
         c.min_demand = d.max(1);
     }
-    Ok(ProfitPlan { ship, constraints: c })
+    Ok(ProfitPlan {
+        ship,
+        constraints: c,
+    })
 }
 
 /// EDDN rows carry only the symbol; resolve every leg's commodity to its
 /// in-game name so no table ever shows "hazardousenvironmentsuits".
-pub fn resolve_commodity_names(report: &mut crate::profit::ProfitReport, catalog: &ed_journal::Catalog) {
+pub fn resolve_commodity_names(
+    report: &mut crate::profit::ProfitReport,
+    catalog: &ed_journal::Catalog,
+) {
     let name_of = |leg: &mut crate::profit::Leg| {
         if leg.commodity.eq_ignore_ascii_case(&leg.symbol) {
             if let Some(item) = catalog.by_symbol(&leg.symbol) {
@@ -308,7 +316,11 @@ mod tests {
         assert_eq!(ship.fuel_main, Some(64.0));
         let plan = plan(&ProfitRequest::default(), &ship, None).unwrap();
         assert_eq!(plan.ship.cargo_capacity, 700);
-        assert!(plan.ship.laden_range_ly < 30.0 && plan.ship.laden_range_ly > 15.0, "laden {}", plan.ship.laden_range_ly);
+        assert!(
+            plan.ship.laden_range_ly < 30.0 && plan.ship.laden_range_ly > 15.0,
+            "laden {}",
+            plan.ship.laden_range_ly
+        );
         assert_eq!(plan.constraints.min_pad, Some(PadSize::Large));
     }
 
@@ -321,48 +333,101 @@ mod tests {
         let c = plan(&req, &live(), None).unwrap().constraints;
         assert_eq!(c.radius_ly, 1.0);
         assert_eq!(c.max_age_hours, 1.0);
-        assert_eq!(c.max_stations, 100, "a station cap below 100 is raised to it");
+        assert_eq!(
+            c.max_stations, 100,
+            "a station cap below 100 is raised to it"
+        );
         assert_eq!(c.max_stops, 12);
         assert_eq!(c.max_leg_ly, 0.0);
-        let c = plan(&ProfitRequest::default(), &live(), None).unwrap().constraints;
+        let c = plan(&ProfitRequest::default(), &live(), None)
+            .unwrap()
+            .constraints;
         assert_eq!(c.max_stations, usize::MAX, "no cap by default");
-        assert_eq!(c.max_age_hours, crate::profit::Constraints::default().max_age_hours);
+        assert_eq!(
+            c.max_age_hours,
+            crate::profit::Constraints::default().max_age_hours
+        );
     }
 
     #[test]
     fn mine_resolves_to_the_pledge_and_any_means_no_filter() {
-        let req = ProfitRequest { buy_power: Some("mine".into()), sell_power: Some("any".into()), sell_state: Some(" Fortified ".into()), ..Default::default() };
-        let c = plan(&req, &live(), Some("Li Yong-Rui")).unwrap().constraints;
+        let req = ProfitRequest {
+            buy_power: Some("mine".into()),
+            sell_power: Some("any".into()),
+            sell_state: Some(" Fortified ".into()),
+            ..Default::default()
+        };
+        let c = plan(&req, &live(), Some("Li Yong-Rui"))
+            .unwrap()
+            .constraints;
         assert_eq!(c.buy_power.as_deref(), Some("Li Yong-Rui"));
         assert_eq!(c.sell_power, None);
         assert_eq!(c.sell_state.as_deref(), Some("Fortified"));
-        assert_eq!(plan(&req, &live(), None).unwrap_err(), ProfitRequestError::NotPledged);
+        assert_eq!(
+            plan(&req, &live(), None).unwrap_err(),
+            ProfitRequestError::NotPledged
+        );
     }
 
     #[test]
     fn no_cargo_is_an_error_that_names_the_fix() {
-        let zero = LoadoutShip { cargo_capacity: Some(0), ..live() };
-        assert_eq!(plan(&ProfitRequest::default(), &zero, None).unwrap_err(), ProfitRequestError::NoCargoRacks);
-        let unknown = LoadoutShip { cargo_capacity: None, ..live() };
-        assert_eq!(plan(&ProfitRequest::default(), &unknown, None).unwrap_err(), ProfitRequestError::CargoUnknown);
-        let req = ProfitRequest { cargo_capacity: Some(64), ..Default::default() };
+        let zero = LoadoutShip {
+            cargo_capacity: Some(0),
+            ..live()
+        };
+        assert_eq!(
+            plan(&ProfitRequest::default(), &zero, None).unwrap_err(),
+            ProfitRequestError::NoCargoRacks
+        );
+        let unknown = LoadoutShip {
+            cargo_capacity: None,
+            ..live()
+        };
+        assert_eq!(
+            plan(&ProfitRequest::default(), &unknown, None).unwrap_err(),
+            ProfitRequestError::CargoUnknown
+        );
+        let req = ProfitRequest {
+            cargo_capacity: Some(64),
+            ..Default::default()
+        };
         assert_eq!(plan(&req, &unknown, None).unwrap().ship.cargo_capacity, 64);
         assert!(!ProfitRequestError::CargoUnknown.hint().is_empty());
     }
 
     #[test]
     fn unknown_hull_refuses_rather_than_disabling_the_pad_filter() {
-        let odd = LoadoutShip { hull: Some("fdev_next_hull".into()), ..live() };
+        let odd = LoadoutShip {
+            hull: Some("fdev_next_hull".into()),
+            ..live()
+        };
         assert_eq!(
             plan(&ProfitRequest::default(), &odd, None).unwrap_err(),
-            ProfitRequestError::PadUnknown { hull: "fdev_next_hull".into() }
+            ProfitRequestError::PadUnknown {
+                hull: "fdev_next_hull".into()
+            }
         );
         // An explicit pad, or an explicit "any", is the commander's call.
-        let req = ProfitRequest { min_pad: Some("large".into()), ..Default::default() };
-        assert_eq!(plan(&req, &odd, None).unwrap().constraints.min_pad, Some(PadSize::Large));
-        let req = ProfitRequest { min_pad: Some("any".into()), ..Default::default() };
+        let req = ProfitRequest {
+            min_pad: Some("large".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            plan(&req, &odd, None).unwrap().constraints.min_pad,
+            Some(PadSize::Large)
+        );
+        let req = ProfitRequest {
+            min_pad: Some("any".into()),
+            ..Default::default()
+        };
         assert_eq!(plan(&req, &odd, None).unwrap().constraints.min_pad, None);
-        let req = ProfitRequest { min_pad: Some("huge".into()), ..Default::default() };
-        assert_eq!(plan(&req, &odd, None).unwrap_err(), ProfitRequestError::BadPad("huge".into()));
+        let req = ProfitRequest {
+            min_pad: Some("huge".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            plan(&req, &odd, None).unwrap_err(),
+            ProfitRequestError::BadPad("huge".into())
+        );
     }
 }

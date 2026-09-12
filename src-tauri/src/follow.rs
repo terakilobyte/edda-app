@@ -33,7 +33,10 @@ const MAP_SETUP_SYSTEM: &str = "Diso";
 /// with positions, no network), the position from the journal.
 fn map_setup_system(state: &AppState) -> String {
     let nearest = crate::capabilities::commander::current_system_name(state).and_then(|here| {
-        let pos = state.read_conn().ok().and_then(|conn| crate::routing::journal_coords(&conn, &here))?;
+        let pos = state
+            .read_conn()
+            .ok()
+            .and_then(|conn| crate::routing::journal_coords(&conn, &here))?;
         let g = state.routing.galaxy(&state.data_dir)?;
         let mut near = g.within(pos, 30.0);
         near.sort_by(|a, b| a.1.total_cmp(&b.1));
@@ -89,15 +92,20 @@ pub async fn map_setup_target(state: State<'_, AppState>) -> Result<String, Stri
     Ok(name)
 }
 
-pub fn map_setup_testing() -> bool { MAP_SETUP_TESTING.load(Ordering::SeqCst) }
+pub fn map_setup_testing() -> bool {
+    MAP_SETUP_TESTING.load(Ordering::SeqCst)
+}
 
 struct MapSetupGuard;
 impl Drop for MapSetupGuard {
-    fn drop(&mut self) { MAP_SETUP_TESTING.store(false, Ordering::SeqCst); }
+    fn drop(&mut self) {
+        MAP_SETUP_TESTING.store(false, Ordering::SeqCst);
+    }
 }
 
 fn map_setup_prompt(app: &AppHandle, state: &AppState, text: &str) {
-    let _ = app.emit(crate::events::CALLOUT,
+    let _ = app.emit(
+        crate::events::CALLOUT,
         serde_json::json!({
             "kind": "setup",
             "text": text,
@@ -254,8 +262,13 @@ pub fn point_macro(p: &MapPoints) -> Option<Vec<MacroStep>> {
 pub fn point_plot_macro(p: &MapPoints) -> Option<Vec<MacroStep>> {
     let plot = p.plot?;
     let mut steps = point_macro(p)?;
-    let click = steps.iter_mut().rfind(|s| matches!(s, MacroStep::Click { .. }))?;
-    *click = MacroStep::Click { x: plot.0, y: plot.1 };
+    let click = steps
+        .iter_mut()
+        .rfind(|s| matches!(s, MacroStep::Click { .. }))?;
+    *click = MacroStep::Click {
+        x: plot.0,
+        y: plot.1,
+    };
     Some(steps)
 }
 
@@ -670,29 +683,48 @@ pub fn on_target_beyond_range(
     replanned: &mut Option<i64>,
 ) {
     use tauri::Manager as _;
-    let Some(name) = v.get("Name").and_then(serde_json::Value::as_str) else { return };
+    let Some(name) = v.get("Name").and_then(serde_json::Value::as_str) else {
+        return;
+    };
     let address = v.get("SystemAddress").and_then(serde_json::Value::as_i64);
     if address.is_some() && *replanned == address {
         return;
     }
     let Some(ar) = load(conn) else { return };
-    let Some(next_hop) = ar.route.hops.get(ar.next) else { return };
+    let Some(next_hop) = ar.route.hops.get(ar.next) else {
+        return;
+    };
     if !next_hop.name.eq_ignore_ascii_case(name) {
         return;
     }
-    let Some((m, boost, _, _)) = crate::routing::ship_fuel(conn) else { return };
+    let Some((m, boost, _, _)) = crate::routing::ship_fuel(conn) else {
+        return;
+    };
     let state = app.state::<crate::state::AppState>();
-    let Some(g) = state.routing.galaxy(&state.data_dir) else { return };
-    let here = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
-    let (Some(here), Some(target)) = (here.and_then(|h| g.find(&h)), g.find(name)) else { return };
+    let Some(g) = state.routing.galaxy(&state.data_dir) else {
+        return;
+    };
+    let here = ed_store::query::location(conn)
+        .ok()
+        .flatten()
+        .and_then(|l| l.system_name);
+    let (Some(here), Some(target)) = (here.and_then(|h| g.find(&h)), g.find(name)) else {
+        return;
+    };
     let a = g.record(here).pos();
     let b = g.record(target).pos();
-    let d = f64::from(((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt());
-    let max_possible =
-        f64::from(m.range_at(m.capacity)) * f64::from(boost.neutron.max(boost.white_dwarf).max(1.0));
+    let d =
+        f64::from(((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt());
+    let max_possible = f64::from(m.range_at(m.capacity))
+        * f64::from(boost.neutron.max(boost.white_dwarf).max(1.0));
     if d > max_possible {
         *replanned = address;
-        tracing::info!(target = "redacted", needed = d, max_possible, "targeted hop beyond any possible jump; replanning");
+        tracing::info!(
+            target = "redacted",
+            needed = d,
+            max_possible,
+            "targeted hop beyond any possible jump; replanning"
+        );
         state.voice.say(format!(
             "That hop needs {d:.0} light years and this ship can't make it at this weight. Replotting."
         ));
@@ -1131,12 +1163,17 @@ pub fn burndown_reset() {
 pub fn burndown_tick(next: usize, check: &PlanCheck) -> Option<crate::callouts::Callout> {
     let mut g = BURNDOWN.lock().unwrap_or_else(|e| e.into_inner());
     match check {
-        PlanCheck::TooHeavy { hop, name, burn_t, .. } if *hop == next => {
+        PlanCheck::TooHeavy {
+            hop, name, burn_t, ..
+        } if *hop == next => {
             let announced = g.as_ref().is_some_and(|b| b.hop == next && b.announced);
             if announced {
                 return None;
             }
-            *g = Some(BurnDown { hop: next, announced: true });
+            *g = Some(BurnDown {
+                hop: next,
+                announced: true,
+            });
             Some(crate::callouts::Callout::new(
                 "burndown",
                 &chrono_now(),
@@ -1221,14 +1258,16 @@ pub fn filter_callouts(
         let check = check_plan(conn, &ar, ar.next.saturating_sub(1), f);
         let covered = matches!(check, PlanCheck::Fine | PlanCheck::TooHeavy { .. });
         let off_plan = matches!(check, PlanCheck::Broken { .. });
-        out.retain_mut(|(c, _)| match fuel_chatter(covered, off_plan, c.kind, &c.text) {
-            FuelChatter::Keep => true,
-            FuelChatter::Drop => false,
-            FuelChatter::Reword(t) => {
-                c.text = t;
-                true
-            }
-        });
+        out.retain_mut(
+            |(c, _)| match fuel_chatter(covered, off_plan, c.kind, &c.text) {
+                FuelChatter::Keep => true,
+                FuelChatter::Drop => false,
+                FuelChatter::Reword(t) => {
+                    c.text = t;
+                    true
+                }
+            },
+        );
     }
     let next_is_stop = ar
         .route
@@ -1340,13 +1379,11 @@ pub fn reconcile(conn: &Connection, events: &dyn crate::events::Emitter) {
 /// Takes an [`Emitter`](crate::events::Emitter) rather than an
 /// `AppHandle` for the same reason [`reconcile`] does: it makes the
 /// cursor rule testable without a running Tauri app.
-pub fn on_witchspace(
-    conn: &Connection,
-    events: &dyn crate::events::Emitter,
-    target: &str,
-) -> bool {
+pub fn on_witchspace(conn: &Connection, events: &dyn crate::events::Emitter, target: &str) -> bool {
     use crate::events::EmitExt as _;
-    let Some(mut ar) = load(conn) else { return false };
+    let Some(mut ar) = load(conn) else {
+        return false;
+    };
     let n = ar.route.hops.len();
     let Some(pos) = (0..n).find(|&i| ar.route.hops[i].name.eq_ignore_ascii_case(target)) else {
         // Off-route: the warning already fired at targeting, and the
@@ -1463,7 +1500,15 @@ pub fn on_jump(
                 // The arrival line just gave the burn advice: arm the
                 // coach as already-announced so the status ticks only
                 // watch for the stop cue.
-                let _ = burndown_tick(hop, &PlanCheck::TooHeavy { hop, name, over_by, burn_t });
+                let _ = burndown_tick(
+                    hop,
+                    &PlanCheck::TooHeavy {
+                        hop,
+                        name,
+                        over_by,
+                        burn_t,
+                    },
+                );
             }
             PlanCheck::TooHeavy { hop, name, .. } | PlanCheck::Broken { hop, name } => {
                 tracing::info!(hop, %name, fuel, "followed route no longer flies from the real tank; re-planning");
@@ -1542,7 +1587,9 @@ fn target_sender(app: &AppHandle) -> std::sync::mpsc::Sender<()> {
                 }
                 Err(e) => {
                     tracing::warn!(error = %e, "next-system press failed");
-                    state.voice.say(crate::commands::speakable(&format!("Couldn't target: {e}")));
+                    state
+                        .voice
+                        .say(crate::commands::speakable(&format!("Couldn't target: {e}")));
                 }
             }
         }
@@ -1845,8 +1892,12 @@ pub async fn route_activate(
                 Ok::<(), String>(())
             })?;
             use crate::events::EmitExt as _;
-            state.events.emit(crate::events::TRADE_FOLLOW, crate::trade_follow::view(None));
-            state.voice.say("Trade route stopped — following your new route instead.".to_string());
+            state
+                .events
+                .emit(crate::events::TRADE_FOLLOW, crate::trade_follow::view(None));
+            state
+                .voice
+                .say("Trade route stopped — following your new route instead.".to_string());
         }
     }
     state.with_store(|s| save(s.conn(), &ar))?;
@@ -1891,7 +1942,6 @@ pub async fn route_advance(
     Ok(v)
 }
 
-
 /// Item 41: close whichever map the game reports open using the map's
 /// OWN toggle key — never Escape. Esc is context-dependent (pause menu
 /// in the cockpit, deselect in panels): with a stale Status.json it
@@ -1900,13 +1950,21 @@ pub async fn route_advance(
 /// toggles its own screen; if it is unbound the macro aborts with a
 /// named error instead of pressing anything else.
 fn close_open_map_steps(focus: u8) -> Vec<MacroStep> {
-    let action = if focus == 7 { "SystemMapOpen" } else { "GalaxyMapOpen" };
+    let action = if focus == 7 {
+        "SystemMapOpen"
+    } else {
+        "GalaxyMapOpen"
+    };
     vec![
-        MacroStep::Bind { action: action.into() },
-        MacroStep::WaitGui { focus: 0, timeout_ms: 3000 },
+        MacroStep::Bind {
+            action: action.into(),
+        },
+        MacroStep::WaitGui {
+            focus: 0,
+            timeout_ms: 3000,
+        },
     ]
 }
-
 
 /// Item 41: the map-thrash guards. The flight fingerprint (62 map opens
 /// over 49 jumps, 7 in the final two minutes) was a pilot re-pressing
@@ -1949,7 +2007,10 @@ static MACRO_LOCK: Mutex<()> = Mutex::new(());
 static PENDING_GAME_PLOT: Mutex<Option<String>> = Mutex::new(None);
 
 fn in_game_plot_pending() -> bool {
-    PENDING_GAME_PLOT.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    PENDING_GAME_PLOT
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some()
 }
 
 /// Put the next system into the game's galaxy map (see module docs).
@@ -1964,9 +2025,18 @@ pub fn target_next(app: &AppHandle) -> Result<String, String> {
 
 /// Same, without an app handle (the ship computer's tool path).
 pub fn target_next_state(state: &AppState) -> Result<String, String> {
-    let pending_plot = PENDING_GAME_PLOT.lock().unwrap_or_else(|e| e.into_inner()).take();
+    let pending_plot = PENDING_GAME_PLOT
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take();
     if let Some(system) = pending_plot {
-        let steps = state.config.lock().unwrap_or_else(|e| e.into_inner()).map_points.as_ref().and_then(point_plot_macro)
+        let steps = state
+            .config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .map_points
+            .as_ref()
+            .and_then(point_plot_macro)
             .ok_or("teach all four Galaxy Map controls in Setup first")?;
         if let Err(e) = run_macro(state, &steps, &system, 100.0) {
             *PENDING_GAME_PLOT.lock().unwrap_or_else(|x| x.into_inner()) = Some(system);
@@ -2018,7 +2088,9 @@ pub fn target_next_state(state: &AppState) -> Result<String, String> {
         };
         match target_retry(same, since, runs) {
             TargetRetry::Cooldown => {
-                return Ok(format!("Still working on {name} — give it a few seconds before pressing again."));
+                return Ok(format!(
+                    "Still working on {name} — give it a few seconds before pressing again."
+                ));
             }
             TargetRetry::Fallback => {
                 set_clipboard(&name)?;
@@ -2033,12 +2105,7 @@ pub fn target_next_state(state: &AppState) -> Result<String, String> {
     // wait for the game to say so, or the macro would close what it means to open.
     if let Some(f @ (6 | 7)) = gui_focus(state) {
         if ed_input::send::game_is_focused() {
-            run_macro(
-                state,
-                &close_open_map_steps(f),
-            &name,
-            hop_ly,
-        )?;
+            run_macro(state, &close_open_map_steps(f), &name, hop_ly)?;
         }
     }
     run_macro(state, &steps, &name, hop_ly)?;
@@ -2064,12 +2131,7 @@ pub async fn target_macro_test(state: State<'_, AppState>) -> Result<String, Str
     let steps = configured_macro(&state.config.lock().unwrap_or_else(|e| e.into_inner()));
     if let Some(f @ (6 | 7)) = gui_focus(&state) {
         if ed_input::send::game_is_focused() {
-            run_macro(
-                &state,
-                &close_open_map_steps(f),
-            &name,
-            100.0,
-        )?;
+            run_macro(&state, &close_open_map_steps(f), &name, 100.0)?;
         }
     }
     run_macro(&state, &steps, &name, 100.0)?;
@@ -2115,7 +2177,10 @@ fn plot_test_outcome(confirmed: bool, system: &str) -> (bool, String) {
     if confirmed {
         (true, format!("Ran the Plot Route recipe for {system}: the game reported the route, and the test route was cleared."))
     } else {
-        (false, format!("Ran the Plot Route recipe for {system}. Is the route plotted in the game?"))
+        (
+            false,
+            format!("Ran the Plot Route recipe for {system}. Is the route plotted in the game?"),
+        )
     }
 }
 
@@ -2141,19 +2206,39 @@ pub async fn map_setup_test(app: AppHandle, state: State<'_, AppState>) -> Resul
     map_setup_prompt(&app, &state, "Great, Galaxy Map setup is complete. In three seconds, I will clear the route, close and open the Galaxy Map, and test targeting and routing.");
     std::thread::sleep(std::time::Duration::from_secs(3));
     map_setup_prompt(&app, &state, "I'm clearing the route.");
-    run_macro(&state, &[MacroStep::Click { x: plot.0, y: plot.1 }, MacroStep::Wait { ms: 900 }], &test_system, 100.0)?;
+    run_macro(
+        &state,
+        &[
+            MacroStep::Click {
+                x: plot.0,
+                y: plot.1,
+            },
+            MacroStep::Wait { ms: 900 },
+        ],
+        &test_system,
+        100.0,
+    )?;
     map_setup_prompt(&app, &state, "I'm closing the Galaxy Map.");
     run_macro(
         &state,
         &[
-            MacroStep::Bind { action: "GalaxyMapOpen".into() },
-            MacroStep::WaitGui { focus: 0, timeout_ms: 4000 },
+            MacroStep::Bind {
+                action: "GalaxyMapOpen".into(),
+            },
+            MacroStep::WaitGui {
+                focus: 0,
+                timeout_ms: 4000,
+            },
         ],
         &test_system,
         100.0,
     )?;
     let target_steps = point_macro(&points).ok_or("teach all four Galaxy Map controls first")?;
-    map_setup_prompt(&app, &state, "I'm opening the Galaxy Map and testing targeting.");
+    map_setup_prompt(
+        &app,
+        &state,
+        "I'm opening the Galaxy Map and testing targeting.",
+    );
     run_macro(&state, &target_steps, &test_system, 100.0)?;
     // Elite's Target button is a TOGGLE, and the teaching flow guarantees
     // the test system is already targeted (the commander clicked Target to
@@ -2162,7 +2247,11 @@ pub async fn map_setup_test(app: AppHandle, state: State<'_, AppState>) -> Resul
     // more pass toggles it back on and emits a fresh FSDTarget; only a
     // recipe that misses twice is actually broken.
     if wait_for_game_target(&state, &test_system).is_err() {
-        map_setup_prompt(&app, &state, "The Target button may have switched an existing target off. Testing once more.");
+        map_setup_prompt(
+            &app,
+            &state,
+            "The Target button may have switched an existing target off. Testing once more.",
+        );
         run_macro(&state, &target_steps, &test_system, 100.0)?;
         if let Err(error) = wait_for_game_target(&state, &test_system) {
             // Diagnose before giving up: a DIFFERENT system in the raw
@@ -2171,7 +2260,13 @@ pub async fn map_setup_test(app: AppHandle, state: State<'_, AppState>) -> Resul
             // stuck-target state, which a relog clears. Persona line is
             // the maintainer's, verbatim (2026-09-05).
             let observed = state
-                .with_read(|s| Ok::<_, String>(ed_store::query::latest_fsd_target_name(s.conn()).ok().flatten()))
+                .with_read(|s| {
+                    Ok::<_, String>(
+                        ed_store::query::latest_fsd_target_name(s.conn())
+                            .ok()
+                            .flatten(),
+                    )
+                })
                 .ok()
                 .flatten();
             let hint = match observed {
@@ -2187,7 +2282,11 @@ pub async fn map_setup_test(app: AppHandle, state: State<'_, AppState>) -> Resul
     map_setup_prompt(&app, &state, "Now I'm testing route plotting.");
     run_macro(&state, &plot_steps, &test_system, 100.0)?;
     wait_for_game_route(&state, Some(test_system.as_str()))?;
-    map_setup_prompt(&app, &state, "Targeting and route plotting passed. I'm clearing the test route.");
+    map_setup_prompt(
+        &app,
+        &state,
+        "Targeting and route plotting passed. I'm clearing the test route.",
+    );
     // Repeat the complete taught search-and-plot recipe. With the route to
     // this destination already active, the same button is Elite's Clear
     // Route control; reopening directly did not reliably retain the
@@ -2195,14 +2294,20 @@ pub async fn map_setup_test(app: AppHandle, state: State<'_, AppState>) -> Resul
     run_macro(&state, &plot_steps, &test_system, 100.0)?;
     wait_for_game_route(&state, None)?;
     map_setup_prompt(&app, &state, "Galaxy Map setup is complete.");
-    Ok(format!("Galaxy Map setup complete. Targeting and route plotting were tested with {test_system}."))
+    Ok(format!(
+        "Galaxy Map setup complete. Targeting and route plotting were tested with {test_system}."
+    ))
 }
 
 fn wait_for_game_target(state: &AppState, expected: &str) -> Result<(), String> {
     wait_for_game_target_within(state, expected, std::time::Duration::from_secs(12))
 }
 
-fn wait_for_game_target_within(state: &AppState, expected: &str, patience: std::time::Duration) -> Result<(), String> {
+fn wait_for_game_target_within(
+    state: &AppState,
+    expected: &str,
+    patience: std::time::Duration,
+) -> Result<(), String> {
     let started = std::time::Instant::now();
     while started.elapsed() < patience {
         // Two acceptable proofs (field case 2026-09-05): the HUD-grade
@@ -2229,16 +2334,20 @@ fn wait_for_game_target_within(state: &AppState, expected: &str, patience: std::
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
-    Err(format!("Elite did not report {expected} as the selected target; targeting test failed"))
+    Err(format!(
+        "Elite did not report {expected} as the selected target; targeting test failed"
+    ))
 }
 
 fn wait_for_game_route(state: &AppState, expected: Option<&str>) -> Result<(), String> {
     let started = std::time::Instant::now();
     while started.elapsed() < std::time::Duration::from_secs(12) {
         let destination = state.with_read(|s| {
-            Ok::<Option<String>, String>(ed_store::route::current(s.conn())
-                .map_err(|e| e.to_string())?
-                .and_then(|r| r.hops.last().map(|h| h.system.clone())))
+            Ok::<Option<String>, String>(
+                ed_store::route::current(s.conn())
+                    .map_err(|e| e.to_string())?
+                    .and_then(|r| r.hops.last().map(|h| h.system.clone())),
+            )
         })?;
         let matched = match (expected, destination.as_deref()) {
             (Some(want), Some(got)) => got.eq_ignore_ascii_case(want),
@@ -2251,13 +2360,18 @@ fn wait_for_game_route(state: &AppState, expected: Option<&str>) -> Result<(), S
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
     Err(match expected {
-        Some(system) => format!("Elite did not report a plotted route to {system}; route plotting test failed"),
+        Some(system) => {
+            format!("Elite did not report a plotted route to {system}; route plotting test failed")
+        }
         None => "Elite still reports a plotted route; test-route cleanup failed".into(),
     })
 }
 
 #[tauri::command]
-pub async fn route_plot_in_game(state: State<'_, AppState>, system: String) -> Result<String, String> {
+pub async fn route_plot_in_game(
+    state: State<'_, AppState>,
+    system: String,
+) -> Result<String, String> {
     plot_in_game(state.inner(), system)
 }
 
@@ -2265,12 +2379,21 @@ pub async fn route_plot_in_game(state: State<'_, AppState>, system: String) -> R
 /// Target Next press pastes and plots. Errors when the Galaxy Map
 /// controls are not taught, so callers can fall through to EDDA's planner.
 pub fn plot_in_game(state: &AppState, system: String) -> Result<String, String> {
-    if state.config.lock().unwrap_or_else(|e| e.into_inner()).map_points.as_ref().and_then(point_plot_macro).is_none() {
+    if state
+        .config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .map_points
+        .as_ref()
+        .and_then(point_plot_macro)
+        .is_none()
+    {
         return Err("teach all four Galaxy Map controls in Setup first".into());
     }
     set_clipboard(&system)?;
     *PENDING_GAME_PLOT.lock().unwrap_or_else(|e| e.into_inner()) = Some(system.clone());
-    let message = format!("{system} is ready. Press Target Next System in Route to ask Elite to plot it.");
+    let message =
+        format!("{system} is ready. Press Target Next System in Route to ask Elite to plot it.");
     // Spoken too (maintainer, 2026-09-05): the commander is in the cockpit
     // waiting on this cue, not reading the Route tab.
     state.voice.say(crate::commands::speakable(&message));
@@ -2353,8 +2476,14 @@ pub fn run_macro_with(
     // it back — captured before the first mouse-driving step, restored
     // after the run whether it succeeded or failed partway. Macros that
     // never touch the mouse never touch the cursor either.
-    let drives_mouse = steps.iter().any(|s| matches!(s, MacroStep::Mouse { .. } | MacroStep::Click { .. }));
-    let saved_cursor = if drives_mouse { sink.cursor_pos() } else { None };
+    let drives_mouse = steps
+        .iter()
+        .any(|s| matches!(s, MacroStep::Mouse { .. } | MacroStep::Click { .. }));
+    let saved_cursor = if drives_mouse {
+        sink.cursor_pos()
+    } else {
+        None
+    };
     let result = run_macro_steps(sink, host, steps, system, hop_ly);
     if let Some((x, y)) = saved_cursor {
         if !sink.restore_cursor(x, y) {
@@ -2420,7 +2549,9 @@ fn run_macro_steps(
                         // GUI focus" is nonsense to actual users).
                         tracing::warn!(
                             expected = focus,
-                            actual = now.map(|v| v.to_string()).unwrap_or_else(|| "unknown".into()),
+                            actual = now
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "unknown".into()),
                             timeout_ms,
                             "galaxy-map macro: the expected screen did not open in time"
                         );
@@ -2434,7 +2565,8 @@ fn run_macro_steps(
                 }
             }
             MacroStep::Bind { action } => {
-                let b = host.binds()
+                let b = host
+                    .binds()
                     .ok_or("no Custom.binds found; set the macro to plain keys in Settings")?;
                 let chord = b.chord(action).ok_or_else(|| {
                     format!("{action} has no keyboard binding in {}", b.path.display())
@@ -2453,7 +2585,8 @@ fn run_macro_steps(
                 press_chord(sink, &[], sc, t);
             }
             MacroStep::Hold { action, ms } => {
-                let b = host.binds()
+                let b = host
+                    .binds()
                     .ok_or("no Custom.binds found; set the macro to plain keys in Settings")?;
                 let chord = b.chord(action).ok_or_else(|| {
                     format!("{action} has no keyboard binding in {}", b.path.display())
@@ -2838,11 +2971,18 @@ pub async fn target_macro_enabled_get(state: State<'_, AppState>) -> Result<bool
 
 #[tauri::command]
 pub async fn game_route_max_get(state: State<'_, AppState>) -> Result<u32, String> {
-    Ok(state.config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly)
+    Ok(state
+        .config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .game_route_max_ly)
 }
 
 #[tauri::command]
-pub async fn game_route_max_set(state: State<'_, AppState>, lightyears: u32) -> Result<u32, String> {
+pub async fn game_route_max_set(
+    state: State<'_, AppState>,
+    lightyears: u32,
+) -> Result<u32, String> {
     let value = lightyears.min(20_000);
     let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
     cfg.game_route_max_ly = value;
@@ -2852,7 +2992,9 @@ pub async fn game_route_max_set(state: State<'_, AppState>, lightyears: u32) -> 
 
 #[tauri::command]
 pub async fn target_macro_get(state: State<'_, AppState>) -> Result<Vec<MacroStep>, String> {
-    Ok(configured_macro(&state.config.lock().unwrap_or_else(|e| e.into_inner())))
+    Ok(configured_macro(
+        &state.config.lock().unwrap_or_else(|e| e.into_inner()),
+    ))
 }
 
 #[tauri::command]
@@ -2883,12 +3025,7 @@ pub fn clear_in_game(state: &AppState) -> Result<String, String> {
     let steps = map_macro(7);
     if let Some(f @ (6 | 7)) = gui_focus(state) {
         if ed_input::send::game_is_focused() {
-            run_macro(
-                state,
-                &close_open_map_steps(f),
-            &dest,
-            0.0,
-        )?;
+            run_macro(state, &close_open_map_steps(f), &dest, 0.0)?;
         }
     }
     run_macro(state, &steps, &dest, 0.0)?;
@@ -2929,12 +3066,21 @@ mod macro_tests {
     }
 
     fn binds() -> ed_input::binds::Binds {
-        let mut xml = String::from(r#"<Root PresetName="Custom"><KeyboardLayout>en-US</KeyboardLayout>"#);
+        let mut xml =
+            String::from(r#"<Root PresetName="Custom"><KeyboardLayout>en-US</KeyboardLayout>"#);
         for (action, key) in [
-            ("GalaxyMapOpen", "Key_M"), ("CamZoomIn", "Key_Z"), ("UI_Up", "Key_W"), ("UI_Down", "Key_S"),
-            ("UI_Select", "Key_Space"), ("UI_Right", "Key_D"), ("CamTranslateLeft", "Key_A"), ("CamTranslateRight", "Key_D"),
+            ("GalaxyMapOpen", "Key_M"),
+            ("CamZoomIn", "Key_Z"),
+            ("UI_Up", "Key_W"),
+            ("UI_Down", "Key_S"),
+            ("UI_Select", "Key_Space"),
+            ("UI_Right", "Key_D"),
+            ("CamTranslateLeft", "Key_A"),
+            ("CamTranslateRight", "Key_D"),
         ] {
-            xml.push_str(&format!(r#"<{action}><Primary Device="Keyboard" Key="{key}" /></{action}>"#));
+            xml.push_str(&format!(
+                r#"<{action}><Primary Device="Keyboard" Key="{key}" /></{action}>"#
+            ));
         }
         xml.push_str("</Root>");
         ed_input::binds::Binds::parse(&xml).unwrap()
@@ -2942,35 +3088,55 @@ mod macro_tests {
 
     fn down(name: &str) -> String {
         let sc = scan_code(name).unwrap();
-        format!("down {:#04x}{}", sc.code, if sc.extended { "e" } else { "" })
+        format!(
+            "down {:#04x}{}",
+            sc.code,
+            if sc.extended { "e" } else { "" }
+        )
     }
 
     #[test]
     fn default_map_macro_presses_expected_keys() {
-        let mut host = FakeHost { binds: binds(), polls: 0, clipboard: None };
+        let mut host = FakeHost {
+            binds: binds(),
+            polls: 0,
+            clipboard: None,
+        };
         let mut rec = Recorder::default();
         run_macro_with(&mut rec, &mut host, &default_macro(), "Sol", 100.0).unwrap();
 
         assert_eq!(host.clipboard.as_deref(), Some("Sol"));
         assert_eq!(host.polls, 2, "one poll per WaitGui");
-        assert!(rec.events.contains(&"mouse 0.50,0.50".to_string()), "{:?}", rec.events);
+        assert!(
+            rec.events.contains(&"mouse 0.50,0.50".to_string()),
+            "{:?}",
+            rec.events
+        );
 
-        let downs: Vec<&String> = rec.events.iter().filter(|e| e.starts_with("down")).collect();
+        let downs: Vec<&String> = rec
+            .events
+            .iter()
+            .filter(|e| e.starts_with("down"))
+            .collect();
         let mut want = vec![
-            down("Key_M"),            // GalaxyMapOpen
-            down("Key_Z"),            // CamZoomIn held
-            down("Key_W"),            // UI_Up
-            down("Key_Space"),        // UI_Select: search box
-            down("Key_LeftShift"), down("Key_S"), down("Key_O"), down("Key_L"), // "Sol"
-            down("Key_DownArrow"),    // into the results
-            down("Key_Space"),        // UI_Select: target
-            down("Key_A"), down("Key_D"), // settle nudge
-            down("Key_Space"),        // UI_Select: info panel
-            down("Key_D"),            // UI_Right
+            down("Key_M"),     // GalaxyMapOpen
+            down("Key_Z"),     // CamZoomIn held
+            down("Key_W"),     // UI_Up
+            down("Key_Space"), // UI_Select: search box
+            down("Key_LeftShift"),
+            down("Key_S"),
+            down("Key_O"),
+            down("Key_L"),         // "Sol"
+            down("Key_DownArrow"), // into the results
+            down("Key_Space"),     // UI_Select: target
+            down("Key_A"),
+            down("Key_D"),     // settle nudge
+            down("Key_Space"), // UI_Select: info panel
+            down("Key_D"),     // UI_Right
         ];
         want.extend(std::iter::repeat_n(down("Key_S"), 8)); // 8 downs to the targeting control
         want.push(down("Key_Space"));
-        want.push(down("Key_M"));     // close the map
+        want.push(down("Key_M")); // close the map
         assert_eq!(downs, want.iter().collect::<Vec<_>>());
     }
 
@@ -2980,15 +3146,78 @@ mod macro_tests {
     #[test]
     fn fuel_chatter_is_quiet_within_bounds_and_loud_off_plan() {
         use super::{fuel_chatter, FuelChatter};
-        assert!(matches!(fuel_chatter(true, false, "fuel", "Fuel low."), FuelChatter::Drop));
-        assert!(matches!(fuel_chatter(true, false, "fuel", "Caution: Colonia is not scoopable and fuel is at 12 percent."), FuelChatter::Drop));
-        assert!(matches!(fuel_chatter(true, false, "fuel", "Warning: fuel trap ahead."), FuelChatter::Keep), "the trap guard always speaks");
-        assert!(matches!(fuel_chatter(true, false, "fuel", "Warning: N class star ahead, not scoopable. Fuel at 20 percent."), FuelChatter::Drop), "the maintainer's exact log line is covered chatter");
-        assert!(matches!(fuel_chatter(false, false, "fuel", "Warning: N class star ahead, not scoopable. Fuel at 20 percent."), FuelChatter::Keep), "uncovered, it stands");
-        assert!(matches!(fuel_chatter(true, false, "fuel", "Fuel tank full."), FuelChatter::Keep), "positives pass");
-        assert!(matches!(fuel_chatter(false, false, "fuel", "Fuel low."), FuelChatter::Keep), "not covered, not off plan: normal warning stands");
-        assert!(matches!(fuel_chatter(false, true, "fuel", "Fuel low."), FuelChatter::Reword(_)), "off plan speaks up");
-        assert!(matches!(fuel_chatter(true, false, "route", "Fuel low."), FuelChatter::Keep), "only fuel-kind is touched");
+        assert!(matches!(
+            fuel_chatter(true, false, "fuel", "Fuel low."),
+            FuelChatter::Drop
+        ));
+        assert!(matches!(
+            fuel_chatter(
+                true,
+                false,
+                "fuel",
+                "Caution: Colonia is not scoopable and fuel is at 12 percent."
+            ),
+            FuelChatter::Drop
+        ));
+        assert!(
+            matches!(
+                fuel_chatter(true, false, "fuel", "Warning: fuel trap ahead."),
+                FuelChatter::Keep
+            ),
+            "the trap guard always speaks"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(
+                    true,
+                    false,
+                    "fuel",
+                    "Warning: N class star ahead, not scoopable. Fuel at 20 percent."
+                ),
+                FuelChatter::Drop
+            ),
+            "the maintainer's exact log line is covered chatter"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(
+                    false,
+                    false,
+                    "fuel",
+                    "Warning: N class star ahead, not scoopable. Fuel at 20 percent."
+                ),
+                FuelChatter::Keep
+            ),
+            "uncovered, it stands"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(true, false, "fuel", "Fuel tank full."),
+                FuelChatter::Keep
+            ),
+            "positives pass"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(false, false, "fuel", "Fuel low."),
+                FuelChatter::Keep
+            ),
+            "not covered, not off plan: normal warning stands"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(false, true, "fuel", "Fuel low."),
+                FuelChatter::Reword(_)
+            ),
+            "off plan speaks up"
+        );
+        assert!(
+            matches!(
+                fuel_chatter(true, false, "route", "Fuel low."),
+                FuelChatter::Keep
+            ),
+            "only fuel-kind is touched"
+        );
     }
 
     /// Item 41: the press-to-target path stops map-thrash at three
@@ -2998,10 +3227,28 @@ mod macro_tests {
     #[test]
     fn the_target_retry_gates_stop_the_map_thrash_loop() {
         use std::time::Duration as D;
-        assert!(matches!(target_retry(false, D::from_secs(0), 5), TargetRetry::Fresh), "new hop always runs");
-        assert!(matches!(target_retry(true, D::from_secs(3), 1), TargetRetry::Cooldown), "re-press at 3 s is the burst");
-        assert!(matches!(target_retry(true, D::from_secs(30), 1), TargetRetry::Fresh), "a patient retry runs");
-        assert!(matches!(target_retry(true, D::from_secs(30), 2), TargetRetry::Fallback), "third run: clipboard, not the map");
+        assert!(
+            matches!(target_retry(false, D::from_secs(0), 5), TargetRetry::Fresh),
+            "new hop always runs"
+        );
+        assert!(
+            matches!(
+                target_retry(true, D::from_secs(3), 1),
+                TargetRetry::Cooldown
+            ),
+            "re-press at 3 s is the burst"
+        );
+        assert!(
+            matches!(target_retry(true, D::from_secs(30), 1), TargetRetry::Fresh),
+            "a patient retry runs"
+        );
+        assert!(
+            matches!(
+                target_retry(true, D::from_secs(30), 2),
+                TargetRetry::Fallback
+            ),
+            "third run: clipboard, not the map"
+        );
     }
 
     /// Item 35b: the app borrows the commander's cursor and always
@@ -3011,17 +3258,63 @@ mod macro_tests {
     /// touches it.
     #[test]
     fn a_mouse_driving_macro_restores_the_cursor_even_on_failure() {
-        let mut host = FakeHost { binds: binds(), polls: 0, clipboard: None };
-        let mut rec = Recorder { cursor: Some((123, 456)), ..Default::default() };
-        run_macro_with(&mut rec, &mut host, &[MacroStep::Mouse { x: 0.5, y: 0.5 }], "Sol", 0.0).unwrap();
-        assert_eq!(rec.events.last().unwrap(), "restore 123,456", "{:?}", rec.events);
-        let mut rec = Recorder { cursor: Some((9, 9)), ..Default::default() };
-        let steps = [MacroStep::Click { x: 0.1, y: 0.1 }, MacroStep::Key { key: "NoSuchKey".into() }];
+        let mut host = FakeHost {
+            binds: binds(),
+            polls: 0,
+            clipboard: None,
+        };
+        let mut rec = Recorder {
+            cursor: Some((123, 456)),
+            ..Default::default()
+        };
+        run_macro_with(
+            &mut rec,
+            &mut host,
+            &[MacroStep::Mouse { x: 0.5, y: 0.5 }],
+            "Sol",
+            0.0,
+        )
+        .unwrap();
+        assert_eq!(
+            rec.events.last().unwrap(),
+            "restore 123,456",
+            "{:?}",
+            rec.events
+        );
+        let mut rec = Recorder {
+            cursor: Some((9, 9)),
+            ..Default::default()
+        };
+        let steps = [
+            MacroStep::Click { x: 0.1, y: 0.1 },
+            MacroStep::Key {
+                key: "NoSuchKey".into(),
+            },
+        ];
         run_macro_with(&mut rec, &mut host, &steps, "Sol", 0.0).unwrap_err();
-        assert_eq!(rec.events.last().unwrap(), "restore 9,9", "failure still restores: {:?}", rec.events);
-        let mut rec = Recorder { cursor: Some((7, 7)), ..Default::default() };
-        run_macro_with(&mut rec, &mut host, &[MacroStep::Wait { ms: 0 }], "Sol", 0.0).unwrap();
-        assert!(rec.events.iter().all(|e| !e.starts_with("restore")), "no mouse, no touch: {:?}", rec.events);
+        assert_eq!(
+            rec.events.last().unwrap(),
+            "restore 9,9",
+            "failure still restores: {:?}",
+            rec.events
+        );
+        let mut rec = Recorder {
+            cursor: Some((7, 7)),
+            ..Default::default()
+        };
+        run_macro_with(
+            &mut rec,
+            &mut host,
+            &[MacroStep::Wait { ms: 0 }],
+            "Sol",
+            0.0,
+        )
+        .unwrap();
+        assert!(
+            rec.events.iter().all(|e| !e.starts_with("restore")),
+            "no mouse, no touch: {:?}",
+            rec.events
+        );
     }
 
     /// Item 35a: the onboarding plot test cleans up after itself — but
@@ -3034,7 +3327,10 @@ mod macro_tests {
         assert!(clear, "confirmed route gets cleared");
         assert!(msg.contains("cleared"), "{msg}");
         let (clear, msg) = plot_test_outcome(false, "Diso");
-        assert!(!clear, "unconfirmed route is left for the commander to judge");
+        assert!(
+            !clear,
+            "unconfirmed route is left for the commander to judge"
+        );
         assert!(msg.contains("Is the route plotted"), "{msg}");
     }
 
@@ -3042,15 +3338,33 @@ mod macro_tests {
     fn a_macro_stops_when_the_map_does_not_open() {
         struct NeverOpens;
         impl MacroHost for NeverOpens {
-            fn binds(&self) -> Option<&ed_input::binds::Binds> { None }
-            fn gui_focus(&mut self) -> Option<u8> { Some(0) }
-            fn set_clipboard(&mut self, _: &str) -> Result<(), String> { Ok(()) }
+            fn binds(&self) -> Option<&ed_input::binds::Binds> {
+                None
+            }
+            fn gui_focus(&mut self) -> Option<u8> {
+                Some(0)
+            }
+            fn set_clipboard(&mut self, _: &str) -> Result<(), String> {
+                Ok(())
+            }
         }
         let mut rec = Recorder::default();
-        let steps = [MacroStep::WaitGui { focus: GUI_GALAXY_MAP, timeout_ms: 1 }, MacroStep::Key { key: "Key_Enter".into() }];
+        let steps = [
+            MacroStep::WaitGui {
+                focus: GUI_GALAXY_MAP,
+                timeout_ms: 1,
+            },
+            MacroStep::Key {
+                key: "Key_Enter".into(),
+            },
+        ];
         let err = run_macro_with(&mut rec, &mut NeverOpens, &steps, "Sol", 0.0).unwrap_err();
         assert!(err.contains("galaxy map didn't open"), "{err}");
-        assert!(rec.events.is_empty(), "nothing typed after the guard fails: {:?}", rec.events);
+        assert!(
+            rec.events.is_empty(),
+            "nothing typed after the guard fails: {:?}",
+            rec.events
+        );
     }
 }
 
@@ -3083,25 +3397,49 @@ mod tests {
             "boosted_jumps": 0, "expansions": 0, "elapsed_ms": 0, "refuel_stops": 0,
         }))
         .unwrap();
-        super::save_pub(&conn, &super::ActiveRoute { route, next: 1, source: "plot".into() }).unwrap();
+        super::save_pub(
+            &conn,
+            &super::ActiveRoute {
+                route,
+                next: 1,
+                source: "plot".into(),
+            },
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO location (id, ts, system_name, docked) VALUES (1, '2026-09-06T14:00:00Z', 'Gamma', 0)",
             [],
         )
         .unwrap();
         super::reconcile(&conn, &Null);
-        assert_eq!(super::load(&conn).unwrap().next, 3, "cursor lands past Gamma, targeting Delta");
+        assert_eq!(
+            super::load(&conn).unwrap().next,
+            3,
+            "cursor lands past Gamma, targeting Delta"
+        );
         // Aligned already: a second pass changes nothing.
         super::reconcile(&conn, &Null);
         assert_eq!(super::load(&conn).unwrap().next, 3);
         // Off-route: cursor untouched, no replan launched from a boot.
-        conn.execute("UPDATE location SET system_name = 'Nowhere' WHERE id = 1", []).unwrap();
+        conn.execute(
+            "UPDATE location SET system_name = 'Nowhere' WHERE id = 1",
+            [],
+        )
+        .unwrap();
         super::reconcile(&conn, &Null);
-        assert_eq!(super::load(&conn).unwrap().next, 3, "off-route startup leaves the cursor alone");
+        assert_eq!(
+            super::load(&conn).unwrap().next,
+            3,
+            "off-route startup leaves the cursor alone"
+        );
         // At the final hop: the route completed while the app was away.
-        conn.execute("UPDATE location SET system_name = 'Delta' WHERE id = 1", []).unwrap();
+        conn.execute("UPDATE location SET system_name = 'Delta' WHERE id = 1", [])
+            .unwrap();
         super::reconcile(&conn, &Null);
-        assert!(super::load(&conn).is_none(), "completed while away means cleared");
+        assert!(
+            super::load(&conn).is_none(),
+            "completed while away means cleared"
+        );
     }
 
     /// Maintainer, 2026-09-06: "mark that leg as complete when they enter
@@ -3133,10 +3471,21 @@ mod tests {
             "boosted_jumps": 0, "expansions": 0, "elapsed_ms": 0, "refuel_stops": 0,
         }))
         .unwrap();
-        super::save_pub(&conn, &super::ActiveRoute { route, next: 1, source: "plot".into() }).unwrap();
+        super::save_pub(
+            &conn,
+            &super::ActiveRoute {
+                route,
+                next: 1,
+                source: "plot".into(),
+            },
+        )
+        .unwrap();
 
         // Entering witchspace bound for Beta: the leg is done now.
-        assert!(super::on_witchspace(&conn, &Null, "beta"), "case-insensitive");
+        assert!(
+            super::on_witchspace(&conn, &Null, "beta"),
+            "case-insensitive"
+        );
         assert_eq!(super::load(&conn).unwrap().next, 2, "cursor past Beta");
         // The same tunnel seen twice (a journal re-read) advances once.
         assert!(!super::on_witchspace(&conn, &Null, "Beta"));
@@ -3149,8 +3498,14 @@ mod tests {
         // in the tunnel -- the route survives for the arrival ceremony.
         assert!(super::on_witchspace(&conn, &Null, "Gamma"));
         assert_eq!(super::load(&conn).unwrap().next, 3);
-        assert!(!super::on_witchspace(&conn, &Null, "Delta"), "the destination completes at arrival");
-        assert!(super::load(&conn).is_some(), "route still live for the arrival line");
+        assert!(
+            !super::on_witchspace(&conn, &Null, "Delta"),
+            "the destination completes at arrival"
+        );
+        assert!(
+            super::load(&conn).is_some(),
+            "route still live for the arrival line"
+        );
         assert_eq!(super::load(&conn).unwrap().next, 3);
     }
 
@@ -3162,9 +3517,7 @@ mod tests {
     fn targeting_off_an_edda_route_warns_once_and_stays_quiet_on_game_routes() {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         ed_store::schema::migrate(&conn).unwrap();
-        let target = |name: &str, addr: i64| {
-            serde_json::json!({"event": "FSDTarget", "Name": name, "SystemAddress": addr})
-        };
+        let target = |name: &str, addr: i64| serde_json::json!({"event": "FSDTarget", "Name": name, "SystemAddress": addr});
         // No EDDA route: the GAME owns the plot, so we say nothing.
         let mut warned = None;
         assert!(
@@ -3186,12 +3539,26 @@ mod tests {
             "boosted_jumps": 0, "expansions": 0, "elapsed_ms": 0, "refuel_stops": 0,
         }))
         .unwrap();
-        super::save_pub(&conn, &super::ActiveRoute { route, next: 1, source: "plot".into() }).unwrap();
+        super::save_pub(
+            &conn,
+            &super::ActiveRoute {
+                route,
+                next: 1,
+                source: "plot".into(),
+            },
+        )
+        .unwrap();
 
         let text = super::on_target_off_route(&conn, &target("Nowhere", 99), &mut warned)
             .expect("off-plan target warns");
-        assert!(text.contains("Nowhere is not on the route to Gamma"), "{text}");
-        assert!(text.contains("re-plan"), "it promises the recalculation: {text}");
+        assert!(
+            text.contains("Nowhere is not on the route to Gamma"),
+            "{text}"
+        );
+        assert!(
+            text.contains("re-plan"),
+            "it promises the recalculation: {text}"
+        );
         // Same system re-targeted: one line, not one per event.
         assert!(super::on_target_off_route(&conn, &target("Nowhere", 99), &mut warned).is_none());
         // Any hop the plan names is on-route -- the next one, one
@@ -3225,18 +3592,39 @@ mod tests {
         let start = super::burndown_tick(5, &heavy).expect("start cue");
         assert_eq!(start.kind, "burndown");
         assert!(start.text.contains("7 tonnes"), "{}", start.text);
-        assert!(super::burndown_tick(5, &heavy).is_none(), "no repeat while armed");
+        assert!(
+            super::burndown_tick(5, &heavy).is_none(),
+            "no repeat while armed"
+        );
         // Burned enough: the plan reads Fine again -> the stop cue, once.
         let stop = super::burndown_tick(5, &super::PlanCheck::Fine).expect("stop cue");
         assert!(stop.text.contains("weight"), "{}", stop.text);
-        assert!(super::burndown_tick(5, &super::PlanCheck::Fine).is_none(), "disarmed after stop");
+        assert!(
+            super::burndown_tick(5, &super::PlanCheck::Fine).is_none(),
+            "disarmed after stop"
+        );
         // A TooHeavy for a hop that is NOT next never arms.
-        let far = super::PlanCheck::TooHeavy { hop: 9, name: "x".into(), over_by: 1.0, burn_t: 3.0 };
+        let far = super::PlanCheck::TooHeavy {
+            hop: 9,
+            name: "x".into(),
+            over_by: 1.0,
+            burn_t: 3.0,
+        };
         assert!(super::burndown_tick(5, &far).is_none());
         // Broken disarms silently: no stop cue afterwards.
         super::burndown_tick(5, &heavy).expect("re-armed");
-        assert!(super::burndown_tick(5, &super::PlanCheck::Broken { hop: 5, name: "x".into() }).is_none());
-        assert!(super::burndown_tick(5, &super::PlanCheck::Fine).is_none(), "broken cleared the arm");
+        assert!(super::burndown_tick(
+            5,
+            &super::PlanCheck::Broken {
+                hop: 5,
+                name: "x".into()
+            }
+        )
+        .is_none());
+        assert!(
+            super::burndown_tick(5, &super::PlanCheck::Fine).is_none(),
+            "broken cleared the arm"
+        );
         // A hop advance disarms too.
         super::burndown_tick(5, &heavy).expect("armed again");
         super::burndown_reset();
@@ -3245,12 +3633,23 @@ mod tests {
 
     #[test]
     fn a_route_with_scoop_stops_is_refused_without_a_scoop_only() {
-        assert!(scoop_refusal(0, Some(false)).is_none(), "no stops: nothing to scoop");
+        assert!(
+            scoop_refusal(0, Some(false)).is_none(),
+            "no stops: nothing to scoop"
+        );
         assert!(scoop_refusal(6, Some(true)).is_none());
-        assert!(scoop_refusal(6, None).is_none(), "no Loadout to judge by: do not refuse");
+        assert!(
+            scoop_refusal(6, None).is_none(),
+            "no Loadout to judge by: do not refuse"
+        );
         let why = scoop_refusal(6, Some(false)).unwrap();
-        assert!(why.starts_with("no fuel scoop fitted") && why.contains("6 scoop stops"), "{why}");
-        assert!(scoop_refusal(1, Some(false)).unwrap().contains("1 scoop stop."));
+        assert!(
+            why.starts_with("no fuel scoop fitted") && why.contains("6 scoop stops"),
+            "{why}"
+        );
+        assert!(scoop_refusal(1, Some(false))
+            .unwrap()
+            .contains("1 scoop stop."));
     }
 
     use super::*;
@@ -3278,12 +3677,12 @@ mod tests {
     #[test]
     fn advance_text_counts_down_and_flags_scoops() {
         let route = Route {
-        variants_run: 0,
-        variants_finished: 0,
-        ship_has_scoop: None,
-        fsd_integrity: None,
-        integrity_loss_per_boost: None,
-        ship_has_afmu: None,
+            variants_run: 0,
+            variants_finished: 0,
+            ship_has_scoop: None,
+            fsd_integrity: None,
+            integrity_loss_per_boost: None,
+            ship_has_afmu: None,
             range_ly: 50.0,
             hops: vec![
                 hop("A", ed_galaxy::StarClass::G, false, false),
@@ -3298,7 +3697,8 @@ mod tests {
             expansions: 0,
             elapsed_ms: 0,
             refuel_stops: 1,
-            injections: 0, secondary_boosts: 0,
+            injections: 0,
+            secondary_boosts: 0,
             ship_id: None,
             ship: None,
         };
@@ -3307,7 +3707,11 @@ mod tests {
             next: 1,
             source: "test".into(),
         };
-        assert_eq!(advance_text(&ar), "3 jumps left. Next: B, neutron star, supercharge there.", "item 40a: the negative fuel case is silent");
+        assert_eq!(
+            advance_text(&ar),
+            "3 jumps left. Next: B, neutron star, supercharge there.",
+            "item 40a: the negative fuel case is silent"
+        );
         let ar = ActiveRoute { next: 3, ..ar };
         assert_eq!(advance_text(&ar), "1 jump left. Next: D.");
         let ar = ActiveRoute { next: 4, ..ar };
@@ -3321,7 +3725,10 @@ mod tests {
     /// departure star's multiplier; passed hops are nobody's problem.
     #[test]
     fn a_route_that_no_longer_fits_the_ship_names_its_worst_hop() {
-        let boost = ed_galaxy::fuel::BoostProfile { neutron: 4.0, white_dwarf: 1.5 };
+        let boost = ed_galaxy::fuel::BoostProfile {
+            neutron: 4.0,
+            white_dwarf: 1.5,
+        };
         let mut hops = vec![
             hop("Start", ed_galaxy::StarClass::G, false, false),
             hop("Mid", ed_galaxy::StarClass::Neutron, false, false),
@@ -3332,13 +3739,31 @@ mod tests {
         hops[2].distance_ly = 90.0; // supercharged off the neutron: 4x allowance
         hops[3].distance_ly = 33.0;
         let route = Route {
-            variants_run: 0, variants_finished: 0, ship_has_scoop: None,
-            fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None,
-            range_ly: 37.6, hops, jumps: 3, total_ly: 0.0, straight_ly: 0.0,
-            boosted_jumps: 1, expansions: 0, elapsed_ms: 0, refuel_stops: 0,
-            injections: 0, secondary_boosts: 0, ship_id: None, ship: None,
+            variants_run: 0,
+            variants_finished: 0,
+            ship_has_scoop: None,
+            fsd_integrity: None,
+            integrity_loss_per_boost: None,
+            ship_has_afmu: None,
+            range_ly: 37.6,
+            hops,
+            jumps: 3,
+            total_ly: 0.0,
+            straight_ly: 0.0,
+            boosted_jumps: 1,
+            expansions: 0,
+            elapsed_ms: 0,
+            refuel_stops: 0,
+            injections: 0,
+            secondary_boosts: 0,
+            ship_id: None,
+            ship: None,
         };
-        let ar = ActiveRoute { route, next: 1, source: "plot".into() };
+        let ar = ActiveRoute {
+            route,
+            next: 1,
+            source: "plot".into(),
+        };
         // Empty hold: everything fits, boosted hop included (90 <= 37.6*4).
         assert!(infeasible_hop(&ar, 37.6, &boost).is_none());
         // Laden at 24.6: the 30 and 33 ly plain hops both fail; the worst
@@ -3347,7 +3772,10 @@ mod tests {
         assert_eq!((name.as_str(), d), ("Far", 33.0));
         // Truly overweight: even the boost allowance breaks.
         let (name, _) = infeasible_hop(&ar, 20.0, &boost).unwrap();
-        assert_eq!(name, "Boosted", "90 > 20*4: the supercharged hop is now the worst");
+        assert_eq!(
+            name, "Boosted",
+            "90 > 20*4: the supercharged hop is now the worst"
+        );
         // Hops already flown never flag.
         let ar = ActiveRoute { next: 4, ..ar };
         assert!(infeasible_hop(&ar, 1.0, &boost).is_none());
@@ -3373,12 +3801,12 @@ mod tests {
         )
         .unwrap();
         let route = Route {
-        variants_run: 0,
-        variants_finished: 0,
-        ship_has_scoop: None,
-        fsd_integrity: None,
-        integrity_loss_per_boost: None,
-        ship_has_afmu: None,
+            variants_run: 0,
+            variants_finished: 0,
+            ship_has_scoop: None,
+            fsd_integrity: None,
+            integrity_loss_per_boost: None,
+            ship_has_afmu: None,
             range_ly: 50.0,
             hops: vec![
                 hop("A", ed_galaxy::StarClass::G, false, false),
@@ -3391,7 +3819,8 @@ mod tests {
             expansions: 0,
             elapsed_ms: 0,
             refuel_stops: 0,
-            injections: 0, secondary_boosts: 0,
+            injections: 0,
+            secondary_boosts: 0,
             ship_id: None,
             ship: None,
         };

@@ -162,9 +162,14 @@ pub fn stops_from_legs(legs: &[LegInput]) -> Vec<TradeStop> {
         stops.len() - 1
     };
     for leg in legs {
-        let lines: Vec<(String, String, i64)> = std::iter::once((leg.symbol.clone(), leg.commodity.clone(), leg.tons))
-            .chain(leg.extra.iter().map(|x| (x.symbol.clone(), x.commodity.clone(), x.tons)))
-            .collect();
+        let lines: Vec<(String, String, i64)> =
+            std::iter::once((leg.symbol.clone(), leg.commodity.clone(), leg.tons))
+                .chain(
+                    leg.extra
+                        .iter()
+                        .map(|x| (x.symbol.clone(), x.commodity.clone(), x.tons)),
+                )
+                .collect();
         let from = stop_index(&mut stops, &leg.from);
         for (symbol, commodity, tons) in &lines {
             stops[from].buy.push(CargoItem {
@@ -188,7 +193,12 @@ pub fn stops_from_legs(legs: &[LegInput]) -> Vec<TradeStop> {
 }
 
 impl TradeRoute {
-    pub fn new(legs: &[LegInput], kind: &str, cargo_capacity: i64, started_ts: &str) -> Option<Self> {
+    pub fn new(
+        legs: &[LegInput],
+        kind: &str,
+        cargo_capacity: i64,
+        started_ts: &str,
+    ) -> Option<Self> {
         let stops = stops_from_legs(legs);
         if stops.is_empty() {
             return None;
@@ -212,10 +222,16 @@ impl TradeRoute {
     /// pure cycle rotation: if the commander's current pad IS one of
     /// the stops, rotate the cycle so it is stop zero — the ordinary
     /// arrival handler then does the briefing. One code path.
-    pub fn rotate_to_station(&mut self, market_id: Option<i64>, station: &str, system: &str) -> bool {
+    pub fn rotate_to_station(
+        &mut self,
+        market_id: Option<i64>,
+        station: &str,
+        system: &str,
+    ) -> bool {
         let here = self.stops.iter().position(|s| {
             market_id.is_some_and(|id| id == s.station_id)
-                || (s.station.eq_ignore_ascii_case(station) && s.system.eq_ignore_ascii_case(system))
+                || (s.station.eq_ignore_ascii_case(station)
+                    && s.system.eq_ignore_ascii_case(system))
         });
         match here {
             Some(i) => {
@@ -277,7 +293,12 @@ impl TradeRoute {
     /// Tons aboard when DEPARTING `stop`: its shopping list, capped at
     /// the hold — what the outbound leg should be planned to carry.
     pub fn departing_cargo_t(stop: &TradeStop, capacity: i64) -> i64 {
-        stop.buy.iter().map(|i| i.tons).sum::<i64>().min(capacity).max(0)
+        stop.buy
+            .iter()
+            .map(|i| i.tons)
+            .sum::<i64>()
+            .min(capacity)
+            .max(0)
     }
 
     pub fn next_stop(&self) -> &TradeStop {
@@ -304,14 +325,27 @@ fn goods_list(items: &[CargoItem], capacity: i64) -> String {
 pub fn start_line(route: &TradeRoute, capacity: i64) -> String {
     let first = route.current();
     let opening = if route.stops.len() > 2 {
-        format!("Trade route, Commander: {} stops per lap.", route.stops.len())
+        format!(
+            "Trade route, Commander: {} stops per lap.",
+            route.stops.len()
+        )
     } else {
         "Trade route, Commander.".to_string()
     };
     let action = if !first.buy.is_empty() {
-        format!(" First: {} in {} — buy {}.", first.station, first.system, goods_list(&first.buy, capacity))
+        format!(
+            " First: {} in {} — buy {}.",
+            first.station,
+            first.system,
+            goods_list(&first.buy, capacity)
+        )
     } else if !first.sell.is_empty() {
-        format!(" First: {} in {} — sell {}.", first.station, first.system, goods_list(&first.sell, capacity))
+        format!(
+            " First: {} in {} — sell {}.",
+            first.station,
+            first.system,
+            goods_list(&first.sell, capacity)
+        )
     } else {
         format!(" First: {} in {}.", first.station, first.system)
     };
@@ -329,11 +363,18 @@ pub fn arrival_line(route: &TradeRoute, capacity: i64) -> String {
     }
     if !stop.buy.is_empty() {
         // "Then" only makes sense after a sell instruction.
-        let verb = if stop.sell.is_empty() { "Buy" } else { "Then buy" };
+        let verb = if stop.sell.is_empty() {
+            "Buy"
+        } else {
+            "Then buy"
+        };
         parts.push(format!("{verb} {}.", goods_list(&stop.buy, capacity)));
     }
     if next.station_id != stop.station_id {
-        parts.push(format!("Next: {} in {} — targeting it now.", next.station, next.system));
+        parts.push(format!(
+            "Next: {} in {} — targeting it now.",
+            next.station, next.system
+        ));
     }
     parts.join(" ")
 }
@@ -342,7 +383,10 @@ pub fn arrival_line(route: &TradeRoute, capacity: i64) -> String {
 pub fn wrong_station_line(route: &TradeRoute, docked_at: &str) -> String {
     let stop = route.current();
     match stop.arrival_ls {
-        Some(ls) => format!("This is {docked_at}; the trade stop is {} — {:.0} light seconds.", stop.station, ls),
+        Some(ls) => format!(
+            "This is {docked_at}; the trade stop is {} — {:.0} light seconds.",
+            stop.station, ls
+        ),
         None => format!("This is {docked_at}; the trade stop is {}.", stop.station),
     }
 }
@@ -367,13 +411,14 @@ fn fmt_credits(cr: i64) -> String {
     }
 }
 
-
 // ── Persistence ─────────────────────────────────────────────────────
 
 pub fn load(conn: &rusqlite::Connection) -> Option<TradeRoute> {
-    conn.query_row("SELECT json FROM trade_route WHERE id = 1", [], |r| r.get::<_, String>(0))
-        .ok()
-        .and_then(|j| serde_json::from_str(&j).ok())
+    conn.query_row("SELECT json FROM trade_route WHERE id = 1", [], |r| {
+        r.get::<_, String>(0)
+    })
+    .ok()
+    .and_then(|j| serde_json::from_str(&j).ok())
 }
 
 pub fn save(conn: &rusqlite::Connection, route: &TradeRoute) -> Result<(), String> {
@@ -428,11 +473,13 @@ fn measured_lap_profit(conn: &rusqlite::Connection, since_ts: &str) -> Option<i6
 /// Live hold size; falls back to the plan's capacity when the loadout
 /// row is missing (a fresh database).
 fn live_capacity(conn: &rusqlite::Connection, fallback: i64) -> i64 {
-    conn.query_row("SELECT cargo_capacity FROM loadout WHERE id = 1", [], |r| r.get::<_, Option<i64>>(0))
-        .ok()
-        .flatten()
-        .filter(|c| *c > 0)
-        .unwrap_or(fallback)
+    conn.query_row("SELECT cargo_capacity FROM loadout WHERE id = 1", [], |r| {
+        r.get::<_, Option<i64>>(0)
+    })
+    .ok()
+    .flatten()
+    .filter(|c| *c > 0)
+    .unwrap_or(fallback)
 }
 
 /// Arrived in the current stop's SYSTEM (any router — this is the
@@ -450,7 +497,9 @@ pub fn arrival_guidance(conn: &rusqlite::Connection, system: &str) -> Option<Str
     tr.guided_at = Some(tr.at);
     let station = tr.current().station.clone();
     let _ = save(conn, &tr);
-    Some(format!("Target {station} via the System Map for terminal guidance."))
+    Some(format!(
+        "Target {station} via the System Map for terminal guidance."
+    ))
 }
 
 // ── The arrival handler (called from the watcher's Docked arm) ──────
@@ -467,9 +516,18 @@ pub fn on_docked(
 ) {
     use tauri::Manager as _;
     let Some(mut tr) = load(conn) else { return };
-    let ts = v.get("timestamp").and_then(serde_json::Value::as_str).unwrap_or("");
-    let station = v.get("StationName").and_then(serde_json::Value::as_str).unwrap_or("");
-    let system = v.get("StarSystem").and_then(serde_json::Value::as_str).unwrap_or("");
+    let ts = v
+        .get("timestamp")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let station = v
+        .get("StationName")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let system = v
+        .get("StarSystem")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     let market_id = v.get("MarketID").and_then(serde_json::Value::as_i64);
 
     if tr.matches_current(market_id, station, system) {
@@ -509,8 +567,13 @@ pub fn on_docked(
         );
         let _ = save(conn, &tr);
         use crate::events::EmitExt as _;
-        app.state::<crate::state::AppState>().events.emit(crate::events::TRADE_FOLLOW, view(Some(&tr)));
-        out.push((crate::callouts::Callout::new("trade", ts, 1, true, text), Some(v.clone())));
+        app.state::<crate::state::AppState>()
+            .events
+            .emit(crate::events::TRADE_FOLLOW, view(Some(&tr)));
+        out.push((
+            crate::callouts::Callout::new("trade", ts, 1, true, text),
+            Some(v.clone()),
+        ));
         if !next_system.eq_ignore_ascii_case(system) {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
@@ -522,7 +585,10 @@ pub fn on_docked(
         tr.noted_wrong_at = Some(tr.at);
         let text = wrong_station_line(&tr, station);
         let _ = save(conn, &tr);
-        out.push((crate::callouts::Callout::new("trade", ts, 1, true, text), Some(v.clone())));
+        out.push((
+            crate::callouts::Callout::new("trade", ts, 1, true, text),
+            Some(v.clone()),
+        ));
     }
 }
 
@@ -536,11 +602,18 @@ pub fn on_docked(
 async fn plot_next(app: tauri::AppHandle, system: String, cargo_t: Option<i64>) {
     use tauri::Manager as _;
     let state = app.state::<crate::state::AppState>();
-    let max = state.config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly;
+    let max = state
+        .config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .game_route_max_ly;
     if max > 0 {
         let distance = state.routing.galaxy(&state.data_dir).and_then(|g| {
             let here = state.with_read(|s| {
-                ed_store::query::location(s.conn()).ok().flatten().and_then(|l| l.system_name)
+                ed_store::query::location(s.conn())
+                    .ok()
+                    .flatten()
+                    .and_then(|l| l.system_name)
             })?;
             let a = g.record(g.find(&here)?).pos();
             let b = g.record(g.find(&system)?).pos();
@@ -551,7 +624,10 @@ async fn plot_next(app: tauri::AppHandle, system: String, cargo_t: Option<i64>) 
         });
         if distance.is_some_and(|d| d <= max as f64) {
             // Errors (recipe not taught) fall through to EDDA's planner.
-            if crate::follow::route_plot_in_game(app.state(), system.clone()).await.is_ok() {
+            if crate::follow::route_plot_in_game(app.state(), system.clone())
+                .await
+                .is_ok()
+            {
                 tracing::info!(%system, "trade_follow retarget via the game's plotter");
                 return;
             }
@@ -559,15 +635,24 @@ async fn plot_next(app: tauri::AppHandle, system: String, cargo_t: Option<i64>) 
     }
     match crate::routing::plot_for_trade(app.clone(), system.clone(), cargo_t).await {
         Ok(route) => {
-            let new = crate::follow::ActiveRoute { route, next: 1, source: "trade".into() };
-            if state.with_store(|s| crate::follow::save_pub(s.conn(), &new)).is_ok() {
+            let new = crate::follow::ActiveRoute {
+                route,
+                next: 1,
+                source: "trade".into(),
+            };
+            if state
+                .with_store(|s| crate::follow::save_pub(s.conn(), &new))
+                .is_ok()
+            {
                 use tauri::Emitter as _;
                 let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(&new)));
             }
         }
         Err(error) => {
             tracing::warn!(%error, "trade_follow: plot to next stop failed");
-            state.voice.say(format!("Couldn't plot to {system}: {error}"));
+            state
+                .voice
+                .say(format!("Couldn't plot to {system}: {error}"));
         }
     }
 }
@@ -593,8 +678,15 @@ pub fn on_undocked(app: &tauri::AppHandle, conn: &rusqlite::Connection) {
             if let Ok(route) = crate::routing::plot_for_trade(app.clone(), target, None).await {
                 use tauri::Manager as _;
                 let state = app.state::<crate::state::AppState>();
-                let new = crate::follow::ActiveRoute { route, next: 1, source: "trade".into() };
-                if state.with_store(|s| crate::follow::save_pub(s.conn(), &new)).is_ok() {
+                let new = crate::follow::ActiveRoute {
+                    route,
+                    next: 1,
+                    source: "trade".into(),
+                };
+                if state
+                    .with_store(|s| crate::follow::save_pub(s.conn(), &new))
+                    .is_ok()
+                {
                     use tauri::Emitter as _;
                     let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(&new)));
                 }
@@ -614,10 +706,14 @@ pub async fn trade_follow_start(
 ) -> Result<serde_json::Value, String> {
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let (capacity, location) = state.with_read(|s| {
-        (live_capacity(s.conn(), 0), ed_store::query::location(s.conn()).ok().flatten())
+        (
+            live_capacity(s.conn(), 0),
+            ed_store::query::location(s.conn()).ok().flatten(),
+        )
     });
     let capacity = if capacity > 0 { capacity } else { 1 };
-    let mut route = TradeRoute::new(&legs, &kind, capacity, &now).ok_or("no stops in the selection")?;
+    let mut route =
+        TradeRoute::new(&legs, &kind, capacity, &now).ok_or("no stops in the selection")?;
     tracing::info!(
         stops = route.stops.len(),
         kind = %route.kind,
@@ -641,10 +737,18 @@ pub async fn trade_follow_start(
         let departing_cargo = TradeRoute::departing_cargo_t(route.current(), capacity);
         let next_system = route.next_stop().system.clone();
         route.advance(&now);
-        let here_system = route.stops[if route.at == 0 { route.stops.len() - 1 } else { route.at - 1 }].system.clone();
+        let here_system = route.stops[if route.at == 0 {
+            route.stops.len() - 1
+        } else {
+            route.at - 1
+        }]
+        .system
+        .clone();
         if !next_system.eq_ignore_ascii_case(&here_system) {
             let app2 = app.clone();
-            tauri::async_runtime::spawn(async move { plot_next(app2, next_system, Some(departing_cargo)).await });
+            tauri::async_runtime::spawn(async move {
+                plot_next(app2, next_system, Some(departing_cargo)).await
+            });
         }
         text = text.replace("Docked at", "Trade route, Commander. You're docked at");
         text
@@ -663,10 +767,15 @@ pub async fn trade_follow_start(
         Ok::<(), String>(())
     })?;
     use crate::events::EmitExt as _;
-    state.events.emit(crate::events::TRADE_FOLLOW, view(Some(&route)));
+    state
+        .events
+        .emit(crate::events::TRADE_FOLLOW, view(Some(&route)));
     crate::watcher::deliver(
         &app,
-        vec![(crate::callouts::Callout::new("trade", "", 1, true, text), None)],
+        vec![(
+            crate::callouts::Callout::new("trade", "", 1, true, text),
+            None,
+        )],
     );
     Ok(view(Some(&route)))
 }
@@ -676,13 +785,14 @@ pub async fn trade_follow_stop(
     app: tauri::AppHandle,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> Result<serde_json::Value, String> {
-    let had_trade_route = state.with_read(|s| {
-        crate::follow::load(s.conn()).is_some_and(|ar| ar.source == "trade")
-    });
+    let had_trade_route =
+        state.with_read(|s| crate::follow::load(s.conn()).is_some_and(|ar| ar.source == "trade"));
     state.with_store(|s| {
         clear(s.conn());
         if had_trade_route {
-            let _ = s.conn().execute("DELETE FROM active_route WHERE id = 1", []);
+            let _ = s
+                .conn()
+                .execute("DELETE FROM active_route WHERE id = 1", []);
         }
         Ok::<(), String>(())
     })?;
@@ -746,7 +856,10 @@ mod tests {
         assert_eq!(stops[0].buy[0].commodity, "Palladium");
         assert!(stops[0].sell.is_empty());
         assert_eq!(stops[1].sell[0].commodity, "Palladium");
-        assert!(stops[1].buy.is_empty(), "the empty return hop is just the cycle wrapping");
+        assert!(
+            stops[1].buy.is_empty(),
+            "the empty return hop is just the cycle wrapping"
+        );
 
         // Round trip: the same two stops, goods both ways.
         let stops = stops_from_legs(&[
@@ -778,7 +891,10 @@ mod tests {
         let talaria = station(1, "Talaria Towers", "Scorpii Sector ZE-A d160", 270.0);
         let metz = station(2, "Metz Enterprise", "Ega", 5394.0);
         let mut route = TradeRoute::new(
-            &[leg(&talaria, &metz, "Palladium", 1008), leg(&metz, &talaria, "Gold", 900)],
+            &[
+                leg(&talaria, &metz, "Palladium", 1008),
+                leg(&metz, &talaria, "Gold", 900),
+            ],
             "round_trip",
             1008,
             "2026-09-05T15:00:00Z",
@@ -798,7 +914,10 @@ mod tests {
             TradeRoute::new(&[leg(&talaria, &metz, "Palladium", 1008)], "leg", 1008, "t").unwrap();
         assert!(route.matches_current(Some(1), "?", "?"));
         assert!(route.matches_current(None, "talaria towers", "scorpii sector ze-a d160"));
-        assert!(!route.matches_current(Some(2), "Metz Enterprise", "Ega"), "wrong stop is no match");
+        assert!(
+            !route.matches_current(Some(2), "Metz Enterprise", "Ega"),
+            "wrong stop is no match"
+        );
         assert_eq!(route.counters.matched_by_market_id, 1);
         assert_eq!(route.counters.matched_by_name, 1);
     }
@@ -810,13 +929,24 @@ mod tests {
     fn a_lap_completes_on_arrival_at_stop_zero() {
         let talaria = station(1, "Talaria Towers", "S", 270.0);
         let metz = station(2, "Metz Enterprise", "Ega", 5394.0);
-        let mut route =
-            TradeRoute::new(&[leg(&talaria, &metz, "Palladium", 1008)], "leg", 1008, "t0").unwrap();
+        let mut route = TradeRoute::new(
+            &[leg(&talaria, &metz, "Palladium", 1008)],
+            "leg",
+            1008,
+            "t0",
+        )
+        .unwrap();
         // Arrive at Talaria (stop 0, the very first arrival: no lap yet).
-        assert!(!route.arrival_completes_lap(), "the starting arrival is not a lap");
+        assert!(
+            !route.arrival_completes_lap(),
+            "the starting arrival is not a lap"
+        );
         route.counters.arrivals += 1;
         route.advance("t1");
-        assert_eq!(route.lap_started, "t1", "departing stop zero starts the lap clock");
+        assert_eq!(
+            route.lap_started, "t1",
+            "departing stop zero starts the lap clock"
+        );
         // Arrive at Metz (the far end): NOT a lap.
         assert!(!route.arrival_completes_lap(), "the far end is half a lap");
         route.counters.arrivals += 1;
@@ -833,7 +963,10 @@ mod tests {
         let talaria = station(1, "Talaria Towers", "Scorpii Sector ZE-A d160", 270.0);
         let metz = station(2, "Metz Enterprise", "Ega", 5394.0);
         let mut route = TradeRoute::new(
-            &[leg(&talaria, &metz, "Palladium", 1008), leg(&metz, &talaria, "Gold", 900)],
+            &[
+                leg(&talaria, &metz, "Palladium", 1008),
+                leg(&metz, &talaria, "Gold", 900),
+            ],
             "round_trip",
             1008,
             "t",
@@ -858,14 +991,22 @@ mod tests {
         let talaria = station(1, "Talaria Towers", "S", 270.0);
         let metz = station(2, "Metz Enterprise", "Ega", 5394.0);
         let mut l = leg(&talaria, &metz, "Palladium", 900);
-        l.extra.push(CargoLineInput { symbol: "gold".into(), commodity: "Gold".into(), tons: 300 });
+        l.extra.push(CargoLineInput {
+            symbol: "gold".into(),
+            commodity: "Gold".into(),
+            tons: 300,
+        });
         let route = TradeRoute::new(&[l], "leg", 1008, "t").unwrap();
         assert_eq!(
             TradeRoute::departing_cargo_t(route.current(), 1008),
             1008,
             "900 + 300 caps at the hold"
         );
-        assert_eq!(TradeRoute::departing_cargo_t(route.current(), 2000), 1200, "uncapped sum otherwise");
+        assert_eq!(
+            TradeRoute::departing_cargo_t(route.current(), 2000),
+            1200,
+            "uncapped sum otherwise"
+        );
         assert_eq!(
             TradeRoute::departing_cargo_t(route.next_stop(), 1008),
             0,
@@ -889,8 +1030,14 @@ mod tests {
             Some("Target Talaria Towers via the System Map for terminal guidance."),
             "case-insensitive, names the pad"
         );
-        assert!(arrival_guidance(&conn, "Scorpii Sector ZE-A d160").is_none(), "spoken once");
-        assert!(arrival_guidance(&conn, "Ega").is_none(), "not this stop's system");
+        assert!(
+            arrival_guidance(&conn, "Scorpii Sector ZE-A d160").is_none(),
+            "spoken once"
+        );
+        assert!(
+            arrival_guidance(&conn, "Ega").is_none(),
+            "not this stop's system"
+        );
         // Advance to Metz: its arrival guides afresh.
         let mut tr = load(&conn).unwrap();
         tr.advance("t1");
@@ -910,7 +1057,10 @@ mod tests {
         let route =
             TradeRoute::new(&[leg(&talaria, &metz, "Palladium", 1008)], "leg", 1008, "t").unwrap();
         assert!(start_line(&route, 512).contains("buy 512 tons of Palladium"));
-        assert_eq!(route.current().buy[0].tons, 1008, "the plan itself is untouched");
+        assert_eq!(
+            route.current().buy[0].tons,
+            1008,
+            "the plan itself is untouched"
+        );
     }
-
 }

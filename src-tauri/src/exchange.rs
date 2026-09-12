@@ -28,7 +28,11 @@ pub const DEV_LOCAL_API: &str = "http://127.0.0.1:8787";
 /// Precedence: EDDA_API_URL (a shell-level order beats a saved toggle) →
 /// the dev-build "use local API" switch → the commander's saved override
 /// (self-hosters) → the canonical server.
-pub(crate) fn pick_endpoint(env: Option<String>, dev_local: bool, saved: Option<String>) -> Option<String> {
+pub(crate) fn pick_endpoint(
+    env: Option<String>,
+    dev_local: bool,
+    saved: Option<String>,
+) -> Option<String> {
     env.or_else(|| dev_local.then(|| DEV_LOCAL_API.to_string()))
         .or(saved)
         .or_else(|| Some(DEFAULT_COMMUNITY_API.to_string()))
@@ -42,7 +46,9 @@ pub(crate) fn endpoint(state: &AppState) -> Option<String> {
     // with `api_down` (B.4: the unit suite has no local data to fall back
     // to either, and must not load prod to compensate).
     if cfg!(test) {
-        return std::env::var("EDDA_API_URL").ok().filter(|u| !u.trim().is_empty());
+        return std::env::var("EDDA_API_URL")
+            .ok()
+            .filter(|u| !u.trim().is_empty());
     }
     let (dev_local, saved) = {
         let config = state.config.lock().unwrap_or_else(|e| e.into_inner());
@@ -104,7 +110,6 @@ pub async fn dev_api_set(state: State<'_, AppState>, local: bool) -> Result<DevA
     Ok(dev_api_status(&state))
 }
 
-
 /// How long to wait before retrying a 429, honouring `Retry-After`
 /// (seconds) when the server sends one, else 3 s, then 6 s; `None` when
 /// the retries are spent. Capped at 10 s so a burst-limited commander
@@ -127,7 +132,9 @@ pub fn retry_delay(retry_after: Option<&str>, attempt: u32) -> Option<std::time:
 /// behind a shared NAT otherwise saw EDDA "randomly stop working"
 /// (the assistant session, 2026-09-09). Anything else returns as it came.
 pub trait SendApi {
-    fn send_api(self) -> impl std::future::Future<Output = reqwest::Result<reqwest::Response>> + Send;
+    fn send_api(
+        self,
+    ) -> impl std::future::Future<Output = reqwest::Result<reqwest::Response>> + Send;
 }
 
 impl SendApi for reqwest::RequestBuilder {
@@ -145,10 +152,15 @@ impl SendApi for reqwest::RequestBuilder {
                 .get(reqwest::header::RETRY_AFTER)
                 .and_then(|v| v.to_str().ok())
                 .map(str::to_owned);
-            let (Some(next), Some(delay)) = (again, retry_delay(retry_after.as_deref(), attempt)) else {
+            let (Some(next), Some(delay)) = (again, retry_delay(retry_after.as_deref(), attempt))
+            else {
                 return Ok(response);
             };
-            tracing::info!(attempt, wait_ms = delay.as_millis() as u64, "API asked us to slow down (429); retrying quietly");
+            tracing::info!(
+                attempt,
+                wait_ms = delay.as_millis() as u64,
+                "API asked us to slow down (429); retrying quietly"
+            );
             tokio::time::sleep(delay).await;
             builder = next;
             attempt += 1;
@@ -176,10 +188,15 @@ impl SendApiBlocking for reqwest::blocking::RequestBuilder {
                 .get(reqwest::header::RETRY_AFTER)
                 .and_then(|v| v.to_str().ok())
                 .map(str::to_owned);
-            let (Some(next), Some(delay)) = (again, retry_delay(retry_after.as_deref(), attempt)) else {
+            let (Some(next), Some(delay)) = (again, retry_delay(retry_after.as_deref(), attempt))
+            else {
                 return Ok(response);
             };
-            tracing::info!(attempt, wait_ms = delay.as_millis() as u64, "API asked us to slow down (429); retrying quietly");
+            tracing::info!(
+                attempt,
+                wait_ms = delay.as_millis() as u64,
+                "API asked us to slow down (429); retrying quietly"
+            );
             std::thread::sleep(delay);
             builder = next;
             attempt += 1;
@@ -193,12 +210,28 @@ mod send_api_tests {
 
     #[test]
     fn retry_delay_honours_retry_after_and_gives_up_after_two() {
-        assert_eq!(retry_delay(None, 0), Some(std::time::Duration::from_secs(3)));
-        assert_eq!(retry_delay(None, 1), Some(std::time::Duration::from_secs(6)));
+        assert_eq!(
+            retry_delay(None, 0),
+            Some(std::time::Duration::from_secs(3))
+        );
+        assert_eq!(
+            retry_delay(None, 1),
+            Some(std::time::Duration::from_secs(6))
+        );
         assert_eq!(retry_delay(None, 2), None);
-        assert_eq!(retry_delay(Some("2"), 0), Some(std::time::Duration::from_secs(2)));
-        assert_eq!(retry_delay(Some("120"), 0), Some(std::time::Duration::from_secs(10)), "capped");
-        assert_eq!(retry_delay(Some("garbage"), 0), Some(std::time::Duration::from_secs(3)));
+        assert_eq!(
+            retry_delay(Some("2"), 0),
+            Some(std::time::Duration::from_secs(2))
+        );
+        assert_eq!(
+            retry_delay(Some("120"), 0),
+            Some(std::time::Duration::from_secs(10)),
+            "capped"
+        );
+        assert_eq!(
+            retry_delay(Some("garbage"), 0),
+            Some(std::time::Duration::from_secs(3))
+        );
     }
 }
 
@@ -210,15 +243,34 @@ mod endpoint_tests {
     /// EDDA_API_URL wins over it; blank everywhere means not configured.
     #[test]
     fn endpoint_prefers_env_then_dev_toggle_then_override_then_canonical() {
-        assert_eq!(pick_endpoint(Some("http://dev:1/".into()), true, Some("http://mine:2".into())), Some("http://dev:1".into()), "a shell-level order beats the toggle");
-        assert_eq!(pick_endpoint(None, true, Some("http://mine:2".into())), Some(DEV_LOCAL_API.into()), "the dev toggle beats a saved override");
-        assert_eq!(pick_endpoint(None, false, Some("http://mine:2/".into())), Some("http://mine:2".into()));
+        assert_eq!(
+            pick_endpoint(
+                Some("http://dev:1/".into()),
+                true,
+                Some("http://mine:2".into())
+            ),
+            Some("http://dev:1".into()),
+            "a shell-level order beats the toggle"
+        );
+        assert_eq!(
+            pick_endpoint(None, true, Some("http://mine:2".into())),
+            Some(DEV_LOCAL_API.into()),
+            "the dev toggle beats a saved override"
+        );
+        assert_eq!(
+            pick_endpoint(None, false, Some("http://mine:2/".into())),
+            Some("http://mine:2".into())
+        );
         let canonical = pick_endpoint(None, false, None);
         if DEFAULT_COMMUNITY_API.is_empty() {
             assert_eq!(canonical, None, "no canonical server is live yet");
         } else {
             assert_eq!(canonical.as_deref(), Some(DEFAULT_COMMUNITY_API));
         }
-        assert_eq!(pick_endpoint(Some("  ".into()), false, None), None, "blank is not a server");
+        assert_eq!(
+            pick_endpoint(Some("  ".into()), false, None),
+            None,
+            "blank is not a server"
+        );
     }
 }

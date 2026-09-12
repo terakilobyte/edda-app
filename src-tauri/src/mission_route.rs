@@ -87,11 +87,19 @@ mod tests {
     fn two_opt_beats_pure_greedy() {
         let start = (0.0, 0.0, 0.0);
         // Greedy grabs (1,0), then pays a long zig-zag; optimal sweeps.
-        let stops = [(1.0, 0.0, 0.0), (10.0, 1.0, 0.0), (5.0, -0.2, 0.0), (10.0, -1.0, 0.0)];
+        let stops = [
+            (1.0, 0.0, 0.0),
+            (10.0, 1.0, 0.0),
+            (5.0, -0.2, 0.0),
+            (10.0, -1.0, 0.0),
+        ];
         let order = order_stops(start, &stops);
         let ordered = tour_ly(start, &stops, &order);
         let greedy_zigzag = tour_ly(start, &stops, &[0, 2, 1, 3]);
-        assert!(ordered <= greedy_zigzag + 1e-9, "{ordered} vs {greedy_zigzag}");
+        assert!(
+            ordered <= greedy_zigzag + 1e-9,
+            "{ordered} vs {greedy_zigzag}"
+        );
         // And the tour visits everything exactly once.
         let mut seen = order.clone();
         seen.sort();

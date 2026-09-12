@@ -52,7 +52,10 @@ pub struct ChunkManifest {
 
 impl ChunkManifest {
     pub fn validate(&self) -> Result<()> {
-        ensure!(!self.version.trim().is_empty(), "chunk manifest version is empty");
+        ensure!(
+            !self.version.trim().is_empty(),
+            "chunk manifest version is empty"
+        );
         ensure!(!self.files.is_empty(), "chunk manifest lists no files");
         for file in &self.files {
             file.validate()?;
@@ -63,17 +66,27 @@ impl ChunkManifest {
     /// Every chunk hash the manifest names — the set a client diffs its
     /// inventory against. `(file name, chunk)` pairs in file order.
     pub fn all_chunks(&self) -> impl Iterator<Item = (&str, &Chunk)> {
-        self.files
-            .iter()
-            .flat_map(|file| file.chunks.iter().map(move |chunk| (file.name.as_str(), chunk)))
+        self.files.iter().flat_map(|file| {
+            file.chunks
+                .iter()
+                .map(move |chunk| (file.name.as_str(), chunk))
+        })
     }
 }
 
 impl ChunkedFile {
     pub fn validate(&self) -> Result<()> {
         ensure!(!self.name.trim().is_empty(), "chunked file has no name");
-        ensure!(is_sha256_hex(&self.sha256), "chunked file {} has an invalid sha256", self.name);
-        ensure!(!self.chunks.is_empty() || self.bytes == 0, "chunked file {} has no chunks", self.name);
+        ensure!(
+            is_sha256_hex(&self.sha256),
+            "chunked file {} has an invalid sha256",
+            self.name
+        );
+        ensure!(
+            !self.chunks.is_empty() || self.bytes == 0,
+            "chunked file {} has no chunks",
+            self.name
+        );
         let mut at = 0u64;
         for chunk in &self.chunks {
             ensure!(
@@ -82,8 +95,16 @@ impl ChunkedFile {
                 self.name,
                 chunk.offset
             );
-            ensure!(chunk.len > 0, "chunked file {}: empty chunk at {at}", self.name);
-            ensure!(is_sha256_hex(&chunk.sha256), "chunked file {}: invalid chunk sha256 at {at}", self.name);
+            ensure!(
+                chunk.len > 0,
+                "chunked file {}: empty chunk at {at}",
+                self.name
+            );
+            ensure!(
+                is_sha256_hex(&chunk.sha256),
+                "chunked file {}: invalid chunk sha256 at {at}",
+                self.name
+            );
             at += u64::from(chunk.len);
         }
         ensure!(
@@ -101,7 +122,11 @@ mod tests {
     use super::*;
 
     fn chunk(offset: u64, len: u32) -> Chunk {
-        Chunk { offset, len, sha256: "0".repeat(64) }
+        Chunk {
+            offset,
+            len,
+            sha256: "0".repeat(64),
+        }
     }
 
     fn manifest() -> ChunkManifest {
@@ -142,6 +167,7 @@ mod tests {
         let mut zero = manifest();
         zero.files[0].bytes = 0;
         zero.files[0].chunks.clear();
-        zero.validate().expect("an empty file has no chunks and that is fine");
+        zero.validate()
+            .expect("an empty file has no chunks and that is fine");
     }
 }

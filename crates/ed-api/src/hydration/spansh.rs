@@ -20,7 +20,9 @@ use ed_store::{
         spansh::{self, Station, StationTimes, System},
         GalaxySink, ImportStats, SystemVisit,
     },
-    postgres::{apply_in_transaction, apply_source_system, ensure_station, SourceSystem, SystemWrite},
+    postgres::{
+        apply_in_transaction, apply_source_system, ensure_station, SourceSystem, SystemWrite,
+    },
 };
 use sqlx::PgPool;
 use tokio::sync::mpsc;
@@ -157,8 +159,19 @@ fn station_identity(
     market_id: i64,
 ) -> Option<StationIdentity> {
     let pads = station.landing_pads.as_ref();
-    let services: Vec<String> = station.services.iter().map(|s| ed_domain::station::journal_service_key(s)).collect();
-    if station.kind.is_none() && pads.is_none() && station.distance_to_arrival.is_none() && services.is_empty() {
+    let services: Vec<String> = station
+        .services
+        .iter()
+        .map(|s| ed_domain::station::journal_service_key(s))
+        .collect();
+    if station.kind.is_none()
+        && pads.is_none()
+        && station.distance_to_arrival.is_none()
+        && services.is_empty()
+        && station.primary_economy.is_none()
+        && station.government.is_none()
+        && station.controlling_faction.is_none()
+    {
         return None;
     }
     let epoch = times.station.unwrap_or(times.market);
@@ -173,6 +186,9 @@ fn station_identity(
         pad_small: pads.and_then(|p| p.small),
         pad_medium: pads.and_then(|p| p.medium),
         pad_large: pads.and_then(|p| p.large),
+        primary_economy: station.primary_economy.clone(),
+        government: station.government.clone(),
+        controlling_faction: station.controlling_faction.clone(),
         services,
     })
 }
@@ -359,7 +375,9 @@ async fn apply_batch(pool: &PgPool, batch: &Batch, written: &mut Written) -> Res
             .operations
             .iter()
             .filter(|operation| match operation {
-                Operation::Market(s) => s.market_id.is_none_or(|id| !unfiled_stations.contains(&id)),
+                Operation::Market(s) => {
+                    s.market_id.is_none_or(|id| !unfiled_stations.contains(&id))
+                }
                 Operation::Outfitting(s) | Operation::Shipyard(s) => {
                     s.market_id.is_none_or(|id| !unfiled_stations.contains(&id))
                 }
@@ -375,11 +393,13 @@ async fn apply_batch(pool: &PgPool, batch: &Batch, written: &mut Written) -> Res
     };
     // Identities and boards are counted apart: the report says how many
     // stations learned their pads, not how many "snapshots" landed.
-    let (identities, boards): (Vec<Operation>, Vec<Operation>) =
-        operations.into_iter().partition(|op| matches!(op, Operation::StationIdentity(_)));
+    let (identities, boards): (Vec<Operation>, Vec<Operation>) = operations
+        .into_iter()
+        .partition(|op| matches!(op, Operation::StationIdentity(_)));
     let identity_applied = apply_in_transaction(&mut transaction, &identities).await?;
     let applied = apply_in_transaction(&mut transaction, &boards).await?;
-    let bodies = ed_store::postgres::apply_bodies(&mut transaction, &batch.bodies, &written.unfiled).await?;
+    let bodies =
+        ed_store::postgres::apply_bodies(&mut transaction, &batch.bodies, &written.unfiled).await?;
     transaction.commit().await?;
     written.bodies += bodies.bodies;
     written.hotspots += bodies.hotspots;
@@ -501,13 +521,17 @@ pub async fn hydrate_spansh(pool: &PgPool, path: &Path) -> Result<HydrationResul
     })
 }
 
-
 #[cfg(test)]
 mod identity_tests {
     use super::*;
 
     fn times(station: Option<i64>, market: i64) -> StationTimes {
-        StationTimes { station, market, outfitting: None, shipyard: None }
+        StationTimes {
+            station,
+            market,
+            outfitting: None,
+            shipyard: None,
+        }
     }
 
     /// A dump station with pads, a type, an arrival distance and
@@ -520,16 +544,61 @@ mod identity_tests {
         let station = &system.stations[0];
         let ops = station_operations(&system, station, &times(Some(1_700_000_000), 1_700_000_100));
         assert_eq!(ops.len(), 2, "identity + market: {ops:?}");
-        let Operation::StationIdentity(id) = &ops[0] else { panic!("identity first: {:?}", ops[0]) };
+        let Operation::StationIdentity(id) = &ops[0] else {
+            panic!("identity first: {:?}", ops[0])
+        };
         assert_eq!(id.market_id, 100);
         assert_eq!(id.station_name, "Sys Port");
         assert_eq!(id.station_type.as_deref(), Some("Coriolis Starport"));
-        assert_eq!((id.pad_small, id.pad_medium, id.pad_large), (Some(9), Some(11), Some(8)));
+        assert_eq!(
+            (id.pad_small, id.pad_medium, id.pad_large),
+            (Some(9), Some(11), Some(8))
+        );
         assert_eq!(id.arrival_ls, Some(118.1));
-        assert_eq!(id.services, vec!["dock", "commodities", "materialtrader", "facilitator"]);
-        assert_eq!(id.observed_at.epoch_seconds, 1_700_000_000, "the station's own updateTime");
+        assert_eq!(
+            id.services,
+            vec!["dock", "commodities", "materialtrader", "facilitator"]
+        );
+        assert_eq!(
+            id.observed_at.epoch_seconds, 1_700_000_000,
+            "the station's own updateTime"
+        );
         assert!(!id.is_carrier());
         assert!(matches!(ops[1], Operation::Market(_)));
+    }
+
+    /// 2026-09-12: the dump carries primaryEconomy, government and
+    /// controllingFaction on every station, the shared parser already
+    /// deserializes all three, and this function dropped them — so
+    /// `/v1/stations` returned a hard-coded null for each and the
+    /// client's material-trader type filter discarded every row. The
+    /// dump is also what backfills them, so this is the path that
+    /// matters.
+    #[test]
+    fn a_dump_station_carries_its_economy_government_and_faction() {
+        let line = r#"{"id64":819519,"name":"Test Sys","stations":[{"id":100,"name":"Sys Port","type":"Coriolis Starport","primaryEconomy":"High Tech","government":"Corporate","controllingFaction":"The Dark Wheel","services":["Material Trader"]}]}"#;
+        let system: System = serde_json::from_str(line).unwrap();
+        let ops = station_operations(&system, &system.stations[0], &times(Some(1_700_000_000), 0));
+        let Operation::StationIdentity(id) = &ops[0] else {
+            panic!("identity: {ops:?}")
+        };
+        assert_eq!(id.primary_economy.as_deref(), Some("High Tech"));
+        assert_eq!(id.government.as_deref(), Some("Corporate"));
+        assert_eq!(id.controlling_faction.as_deref(), Some("The Dark Wheel"));
+    }
+
+    /// An economy alone is enough to teach: a station record that
+    /// carries nothing else still has something worth writing, and the
+    /// guard must not throw it away.
+    #[test]
+    fn an_economy_alone_still_yields_an_identity() {
+        let line = r#"{"id64":1,"name":"Sys","stations":[{"id":7,"name":"Nameplate","primaryEconomy":"Refinery"}]}"#;
+        let system: System = serde_json::from_str(line).unwrap();
+        let ops = station_operations(&system, &system.stations[0], &times(None, 0));
+        let Operation::StationIdentity(id) = &ops[0] else {
+            panic!("identity: {ops:?}")
+        };
+        assert_eq!(id.primary_economy.as_deref(), Some("Refinery"));
     }
 
     /// A carrier from the dump is a carrier to the sink even though the
@@ -539,9 +608,14 @@ mod identity_tests {
         let line = r#"{"id64":1,"name":"Sys","stations":[{"id":7,"name":"T2X-02X","type":"Drake-Class Carrier","landingPads":{"large":8,"medium":4,"small":4}}]}"#;
         let system: System = serde_json::from_str(line).unwrap();
         let ops = station_operations(&system, &system.stations[0], &times(None, 0));
-        let Operation::StationIdentity(id) = &ops[0] else { panic!() };
+        let Operation::StationIdentity(id) = &ops[0] else {
+            panic!()
+        };
         assert!(id.is_carrier());
-        assert_eq!(id.observed_at.epoch_seconds, 0, "no updateTime: epoch 0, outranked by any dated identity");
+        assert_eq!(
+            id.observed_at.epoch_seconds, 0,
+            "no updateTime: epoch 0, outranked by any dated identity"
+        );
     }
 
     /// A station record with nothing an identity could carry yields no

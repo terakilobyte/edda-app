@@ -36,10 +36,16 @@ fn main() -> anyhow::Result<()> {
     for (label, tweak) in [
         // The Trade page's exact defaults: radius 100, max age 48 h,
         // carriers and prohibited off (trade.svelte.js:15-18).
-        ("UI defaults (rings 5)", Box::new(|_: &mut Constraints| {}) as Box<dyn Fn(&mut Constraints)>),
+        (
+            "UI defaults (rings 5)",
+            Box::new(|_: &mut Constraints| {}) as Box<dyn Fn(&mut Constraints)>,
+        ),
         ("rings OFF", Box::new(|c: &mut Constraints| c.max_stops = 0)),
         ("rings 3", Box::new(|c: &mut Constraints| c.max_stops = 3)),
-        ("carriers ON", Box::new(|c: &mut Constraints| c.include_carriers = true)),
+        (
+            "carriers ON",
+            Box::new(|c: &mut Constraints| c.include_carriers = true),
+        ),
     ] {
         let req = ProfitRequest {
             system: Some(system.clone()),

@@ -465,8 +465,14 @@ mod tests {
         )
         .unwrap();
         let b = current(&conn).unwrap().expect("a plotted route");
-        assert!(!b.hops[1].scoopable, "AeBe is a protostar, not an A-class star");
-        assert!(!b.hops[2].scoopable, "MS is an S-type star, not an M-class star");
+        assert!(
+            !b.hops[1].scoopable,
+            "AeBe is a protostar, not an A-class star"
+        );
+        assert!(
+            !b.hops[2].scoopable,
+            "MS is an S-type star, not an M-class star"
+        );
         assert_eq!(b.first_unscoopable, Some(1));
         assert_eq!(b.longest_dry_run, 2);
     }
@@ -548,14 +554,26 @@ mod tests {
         let full = brief_text(&b, Narration::Full);
         let leg = brief_text(&b, Narration::Leg);
         assert!(full.contains("is not scoopable"), "{full}");
-        assert!(!leg.contains("is not scoopable"), "fuel belongs to the router: {leg}");
-        assert!(leg.starts_with("Route plotted: 3 jumps to LHS 3589,"), "the skeleton stays: {leg}");
-        assert!(leg.contains("hazardous arrivals"), "hazards are nobody else's job: {leg}");
+        assert!(
+            !leg.contains("is not scoopable"),
+            "fuel belongs to the router: {leg}"
+        );
+        assert!(
+            leg.starts_with("Route plotted: 3 jumps to LHS 3589,"),
+            "the skeleton stays: {leg}"
+        );
+        assert!(
+            leg.contains("hazardous arrivals"),
+            "hazards are nobody else's job: {leg}"
+        );
 
         let full = next_hop_text(&b, "LAWD 68", Narration::Full).unwrap();
         let leg = next_hop_text(&b, "LAWD 68", Narration::Leg).unwrap();
         assert!(full.contains("Docking at LHS 3589 Port"), "{full}");
-        assert!(!leg.contains("Docking at"), "the trade follower names the pad: {leg}");
+        assert!(
+            !leg.contains("Docking at"),
+            "the trade follower names the pad: {leg}"
+        );
         assert_eq!(
             leg,
             "Next: LHS 3589, class DA, not scoopable -- white dwarf, throttle down. Zemina Torval space, stronghold. 1 jump remaining."

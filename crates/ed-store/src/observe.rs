@@ -347,8 +347,9 @@ mod tests {
 /// which can name star systems, never leaves the process through this
 /// path. Distinct callsites cap at 128 per drain window; excess folds
 /// into "_overflow" (mirrors the server''s own guard).
-static EVENT_COUNTS: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<(String, &'static str), u32>>> =
-    std::sync::OnceLock::new();
+static EVENT_COUNTS: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<(String, &'static str), u32>>,
+> = std::sync::OnceLock::new();
 
 pub struct WarnErrorCounts;
 
@@ -405,13 +406,25 @@ mod count_tests {
         });
         let mut drained = super::drain_event_counts();
         drained.sort();
-        let ours: Vec<_> = drained.iter().filter(|(t, _, _)| t.starts_with("edda::test")).collect();
+        let ours: Vec<_> = drained
+            .iter()
+            .filter(|(t, _, _)| t.starts_with("edda::test"))
+            .collect();
         assert_eq!(ours.len(), 2);
-        assert!(ours.iter().any(|(t, l, c)| t == "edda::test_a" && *l == "warn" && *c == 2));
-        assert!(ours.iter().any(|(t, l, c)| t == "edda::test_b" && *l == "error" && *c == 1));
+        assert!(ours
+            .iter()
+            .any(|(t, l, c)| t == "edda::test_a" && *l == "warn" && *c == 2));
+        assert!(ours
+            .iter()
+            .any(|(t, l, c)| t == "edda::test_b" && *l == "error" && *c == 1));
         for (t, _, _) in &drained {
             assert!(!t.contains("SECRET"), "only targets travel, never messages");
         }
-        assert!(super::drain_event_counts().iter().all(|(t, _, _)| !t.starts_with("edda::test")), "drain clears");
+        assert!(
+            super::drain_event_counts()
+                .iter()
+                .all(|(t, _, _)| !t.starts_with("edda::test")),
+            "drain clears"
+        );
     }
 }

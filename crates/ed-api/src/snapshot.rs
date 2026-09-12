@@ -8,11 +8,10 @@ use ed_ebex::{
     build_string_table, encode_market_auxiliary, encode_station_snapshots, encode_symbol_catalog,
     string_id, AvailabilityRecord, CommodityCatalogRecord, MarketRecord, SnapshotHeader,
     SnapshotWriter, StationRecord, SystemRecord, ALL_V1_SECTIONS, AVAILABILITY_RECORD_BYTES,
-    COMMODITY_RECORD_BYTES, MARKET_RECORD_BYTES,
-    SECTION_COMMODITIES, SECTION_MARKETS, SECTION_MODULES, SECTION_OUTFITTING, SECTION_SHIPS,
-    SECTION_SHIPYARDS, SECTION_STATIONS, SECTION_SYSTEMS, PROHIBITED_RECORD_BYTES,
-    STATION_DETAILS_RECORD_BYTES, STATION_RECORD_BYTES, SYMBOL_CATALOG_RECORD_BYTES,
-    SYSTEM_RECORD_BYTES,
+    COMMODITY_RECORD_BYTES, MARKET_RECORD_BYTES, PROHIBITED_RECORD_BYTES, SECTION_COMMODITIES,
+    SECTION_MARKETS, SECTION_MODULES, SECTION_OUTFITTING, SECTION_SHIPS, SECTION_SHIPYARDS,
+    SECTION_STATIONS, SECTION_SYSTEMS, STATION_DETAILS_RECORD_BYTES, STATION_RECORD_BYTES,
+    SYMBOL_CATALOG_RECORD_BYTES, SYSTEM_RECORD_BYTES,
 };
 use ed_sync::{ArtifactFile, Manifest, Product, ProductKey};
 use serde::Serialize;
@@ -75,7 +74,11 @@ struct PhaseClock {
 
 impl PhaseClock {
     fn start() -> Self {
-        Self { cpu_at_start: process_cpu_seconds(), last: std::time::Instant::now(), phases: Vec::new() }
+        Self {
+            cpu_at_start: process_cpu_seconds(),
+            last: std::time::Instant::now(),
+            phases: Vec::new(),
+        }
     }
     fn mark(&mut self, name: &'static str) {
         let now = std::time::Instant::now();
@@ -87,7 +90,10 @@ impl PhaseClock {
             (Some(start), Some(end)) => Some(end - start),
             _ => None,
         };
-        BuildCost { cpu_seconds, phases: self.phases }
+        BuildCost {
+            cpu_seconds,
+            phases: self.phases,
+        }
     }
 }
 
@@ -131,7 +137,11 @@ async fn publish_snapshot(
     artifact_dir: &Path,
     window_cutoff: Option<i64>,
 ) -> Result<Publication> {
-    let product = if window_cutoff.is_some() { "market_daily" } else { "community" };
+    let product = if window_cutoff.is_some() {
+        "market_daily"
+    } else {
+        "community"
+    };
     let (sequence, created_at, generated_at): (i64, i64, String) = sqlx::query_as(
         "INSERT INTO artifact_publications (product, status) VALUES ($1, 'building') \
          RETURNING id, EXTRACT(EPOCH FROM created_at)::BIGINT, \
@@ -142,7 +152,15 @@ async fn publish_snapshot(
     .await
     .context("starting snapshot publication")?;
 
-    match build_market(pool, artifact_dir, sequence, created_at, &generated_at, window_cutoff).await
+    match build_market(
+        pool,
+        artifact_dir,
+        sequence,
+        created_at,
+        &generated_at,
+        window_cutoff,
+    )
+    .await
     {
         Ok((publication, cost)) => {
             sqlx::query(
@@ -404,13 +422,25 @@ async fn build_market(
     // the container's own order (byte order, hence COLLATE "C"), and the
     // validators read the file through a memory map.
     clock.mark("identity");
-    let token = if window_cutoff.is_some() { "market-daily" } else { "community" };
+    let token = if window_cutoff.is_some() {
+        "market-daily"
+    } else {
+        "community"
+    };
     let version = crate::version::short_version(
-        if window_cutoff.is_some() { "market_daily" } else { "community" },
+        if window_cutoff.is_some() {
+            "market_daily"
+        } else {
+            "community"
+        },
         sequence,
         generated_at,
     );
-    let dir_name = if window_cutoff.is_some() { "market_daily" } else { "community" };
+    let dir_name = if window_cutoff.is_some() {
+        "market_daily"
+    } else {
+        "community"
+    };
     let filename = format!("{token}-{version}.ebex.zst");
     let relative = PathBuf::from(dir_name).join(&version).join(&filename);
     let staging = artifact_dir.join(format!(".staging-{token}-{version}"));
@@ -427,7 +457,12 @@ async fn build_market(
         },
         &plan,
     )?;
-    let write_whole = |writer: &mut SnapshotWriter, id: u16, size: u32, records: &[u8], auxiliary: &[u8]| -> Result<()> {
+    let write_whole = |writer: &mut SnapshotWriter,
+                       id: u16,
+                       size: u32,
+                       records: &[u8],
+                       auxiliary: &[u8]|
+     -> Result<()> {
         writer.begin_section(id)?;
         for record in records.chunks(size as usize) {
             writer.write_record(record)?;
@@ -435,9 +470,27 @@ async fn build_market(
         writer.write_auxiliary(auxiliary)?;
         writer.end_section()
     };
-    write_whole(&mut writer, SECTION_SYSTEMS, SYSTEM_RECORD_BYTES, &system_records, &system_strings)?;
-    write_whole(&mut writer, SECTION_STATIONS, STATION_RECORD_BYTES, &station_records, &station_strings)?;
-    write_whole(&mut writer, SECTION_COMMODITIES, COMMODITY_RECORD_BYTES, &commodity_records, &commodity_strings)?;
+    write_whole(
+        &mut writer,
+        SECTION_SYSTEMS,
+        SYSTEM_RECORD_BYTES,
+        &system_records,
+        &system_strings,
+    )?;
+    write_whole(
+        &mut writer,
+        SECTION_STATIONS,
+        STATION_RECORD_BYTES,
+        &station_records,
+        &station_strings,
+    )?;
+    write_whole(
+        &mut writer,
+        SECTION_COMMODITIES,
+        COMMODITY_RECORD_BYTES,
+        &commodity_records,
+        &commodity_strings,
+    )?;
 
     // Markets: one cursor, one record at a time, in (station, dictionary
     // id) order -- the dictionary is the byte-sorted symbol list, so
@@ -455,7 +508,9 @@ async fn build_market(
         )
         .bind(cutoff)
         .fetch(&mut *transaction);
-        while let Some((station_id, symbol, buy_price, sell_price, demand, supply, observed_at)) = stream.try_next().await? {
+        while let Some((station_id, symbol, buy_price, sell_price, demand, supply, observed_at)) =
+            stream.try_next().await?
+        {
             buffer.clear();
             MarketRecord {
                 station_id: checked_u64(station_id, "station id")?,
@@ -476,7 +531,13 @@ async fn build_market(
     writer.write_auxiliary(&auxiliary)?;
     writer.end_section()?;
 
-    write_whole(&mut writer, SECTION_MODULES, SYMBOL_CATALOG_RECORD_BYTES, &modules_encoded.records, &modules_encoded.strings)?;
+    write_whole(
+        &mut writer,
+        SECTION_MODULES,
+        SYMBOL_CATALOG_RECORD_BYTES,
+        &modules_encoded.records,
+        &modules_encoded.strings,
+    )?;
     let outfitting_rows = stream_availability(
         &mut writer,
         &mut transaction,
@@ -497,7 +558,13 @@ async fn build_market(
         &outfitting_auxiliary,
     )
     .await?;
-    write_whole(&mut writer, SECTION_SHIPS, SYMBOL_CATALOG_RECORD_BYTES, &ships_encoded.records, &ships_encoded.strings)?;
+    write_whole(
+        &mut writer,
+        SECTION_SHIPS,
+        SYMBOL_CATALOG_RECORD_BYTES,
+        &ships_encoded.records,
+        &ships_encoded.strings,
+    )?;
     let shipyard_rows = stream_availability(
         &mut writer,
         &mut transaction,
@@ -528,9 +595,8 @@ async fn build_market(
         )
         .fetch_all(&mut *transaction)
         .await?;
-    let (type_string_ids, type_strings) = build_string_table(
-        details.iter().filter_map(|row| row.6.as_deref()),
-    )?;
+    let (type_string_ids, type_strings) =
+        build_string_table(details.iter().filter_map(|row| row.6.as_deref()))?;
     let mut details_records =
         Vec::with_capacity(details.len() * STATION_DETAILS_RECORD_BYTES as usize);
     for (id, is_carrier, pad_small, pad_medium, pad_large, arrival, station_type, black_market) in
@@ -549,9 +615,8 @@ async fn build_market(
         if arrival.is_some() {
             flags |= ed_ebex::StationDetailsRecord::HAS_ARRIVAL;
         }
-        let pad = |value: &Option<i32>| {
-            u16::try_from(value.unwrap_or(0).max(0)).unwrap_or(u16::MAX)
-        };
+        let pad =
+            |value: &Option<i32>| u16::try_from(value.unwrap_or(0).max(0)).unwrap_or(u16::MAX);
         ed_ebex::StationDetailsRecord {
             station_id: checked_u64(*id, "station id")?,
             flags,
@@ -590,19 +655,27 @@ async fn build_market(
     let mut unmapped = 0usize;
     for (station_id, value) in &confiscations {
         match catalog_lookup.get(&value.to_lowercase()) {
-            Some(commodity_id) => pairs.push((checked_u64(*station_id, "station id")?, *commodity_id)),
+            Some(commodity_id) => {
+                pairs.push((checked_u64(*station_id, "station id")?, *commodity_id))
+            }
             None => unmapped += 1,
         }
     }
     pairs.sort_unstable();
     pairs.dedup();
     if unmapped > 0 {
-        tracing::info!(unmapped, "prohibited entries without a catalog match were dropped");
+        tracing::info!(
+            unmapped,
+            "prohibited entries without a catalog match were dropped"
+        );
     }
     let mut prohibited_bytes = Vec::with_capacity(pairs.len() * PROHIBITED_RECORD_BYTES as usize);
     for (station_id, commodity_id) in &pairs {
-        ed_ebex::ProhibitedRecord { station_id: *station_id, commodity_id: *commodity_id }
-            .encode_into(&mut prohibited_bytes);
+        ed_ebex::ProhibitedRecord {
+            station_id: *station_id,
+            commodity_id: *commodity_id,
+        }
+        .encode_into(&mut prohibited_bytes);
     }
     // An empty string table keeps the auxiliary region well-formed.
     write_whole(
@@ -700,9 +773,19 @@ async fn build_market(
         .context("atomically publishing EBEX manifest")?;
     // Snapshot dirs are ~500 MB (full) — prune to current + grace, same
     // policy as routing versions.
-    let pruned = crate::routing::prune_version_dirs(artifact_dir, dir_name, &version, grace.as_deref(), &[])?;
+    let pruned = crate::routing::prune_version_dirs(
+        artifact_dir,
+        dir_name,
+        &version,
+        grace.as_deref(),
+        &[],
+    )?;
     if !pruned.is_empty() {
-        tracing::info!(?pruned, product = dir_name, "pruned retired snapshot versions");
+        tracing::info!(
+            ?pruned,
+            product = dir_name,
+            "pruned retired snapshot versions"
+        );
     }
 
     clock.mark("publish");
@@ -754,7 +837,7 @@ pub fn community_manifest_over(
             minimum_client: None,
             files: vec![artifact],
             overlays: Vec::new(),
-        covers_from: None,
+            covers_from: None,
         },
     )
 }
@@ -813,7 +896,11 @@ async fn stream_availability(
         let query = sqlx::query_as::<_, (i64, String)>(sql);
         // The windowed variant carries $1; the full variant has no
         // parameters and an extra bind would be rejected.
-        let query = if cutoff != 0 { query.bind(cutoff) } else { query };
+        let query = if cutoff != 0 {
+            query.bind(cutoff)
+        } else {
+            query
+        };
         let mut stream = query.fetch(&mut **transaction);
         while let Some((station_id, symbol)) = stream.try_next().await? {
             buffer.clear();
@@ -1160,7 +1247,10 @@ mod tests {
         clock.mark("stream");
         let cost = clock.finish();
         assert_eq!(
-            cost.phases.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            cost.phases
+                .iter()
+                .map(|(name, _)| *name)
+                .collect::<Vec<_>>(),
             vec!["identity", "stream"]
         );
         assert!(cost.phases.iter().all(|(_, seconds)| *seconds >= 0.0));
@@ -1272,8 +1362,14 @@ mod tests {
                 record_count: 2,
                 record_size: MARKET_RECORD_BYTES,
                 records,
-                auxiliary: encode_market_auxiliary(&[("gold".into(), "".into(), "".into()), ("silver".into(), "".into(), "".into())], &[(7, 3)])
-                    .unwrap(),
+                auxiliary: encode_market_auxiliary(
+                    &[
+                        ("gold".into(), "".into(), "".into()),
+                        ("silver".into(), "".into(), "".into()),
+                    ],
+                    &[(7, 3)],
+                )
+                .unwrap(),
             }],
         )
         .unwrap();

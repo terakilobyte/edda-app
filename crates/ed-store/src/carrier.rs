@@ -86,7 +86,9 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
         "SELECT ts, event, raw FROM events WHERE event IN ({placeholders}) ORDER BY file, offset"
     ))?;
     let rows: Vec<(String, String, String)> = stmt
-        .query_map(rusqlite::params_from_iter(EVENTS.iter()), |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .query_map(rusqlite::params_from_iter(EVENTS.iter()), |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     let mut carriers: HashMap<i64, Row> = HashMap::new();
@@ -94,12 +96,23 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
     let mut hold: HashMap<(i64, String), (i64, String)> = HashMap::new();
 
     for (ts, event, raw) in rows {
-        let Ok(v) = serde_json::from_str::<Value>(&raw) else { continue };
+        let Ok(v) = serde_json::from_str::<Value>(&raw) else {
+            continue;
+        };
         if event == "CargoTransfer" {
             // No carrier id on the event: the single owned carrier, or nothing.
-            let owned: Vec<i64> = carriers.iter().filter(|(_, r)| r.owned && !r.decommissioned).map(|(id, _)| *id).collect();
+            let owned: Vec<i64> = carriers
+                .iter()
+                .filter(|(_, r)| r.owned && !r.decommissioned)
+                .map(|(id, _)| *id)
+                .collect();
             let [carrier_id] = owned[..] else { continue };
-            for t in v.get("Transfers").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
+            for t in v
+                .get("Transfers")
+                .and_then(Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+            {
                 let Some(kind) = s(t, "Type") else { continue };
                 let count = i(t, "Count").unwrap_or(0);
                 let delta = match s(t, "Direction").as_deref() {
@@ -107,7 +120,9 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                     Some("toship") | Some("tosrv") => -count,
                     _ => continue,
                 };
-                let entry = hold.entry((carrier_id, kind.to_lowercase())).or_insert((0, ts.clone()));
+                let entry = hold
+                    .entry((carrier_id, kind.to_lowercase()))
+                    .or_insert((0, ts.clone()));
                 entry.0 = (entry.0 + delta).max(0);
                 entry.1 = ts.clone();
             }
@@ -120,7 +135,11 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
         // carrier whose pending jump this completes, else to the one owned
         // fleet carrier.
         let id = i(&v, "CarrierID")
-            .or_else(|| (event == "CarrierJump").then(|| i(&v, "MarketID")).flatten())
+            .or_else(|| {
+                (event == "CarrierJump")
+                    .then(|| i(&v, "MarketID"))
+                    .flatten()
+            })
             .or_else(|| {
                 if event != "CarrierJump" {
                     return None;
@@ -128,10 +147,18 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                 let star = s(&v, "StarSystem")?;
                 let by_pending = carriers
                     .iter()
-                    .find(|(_, r)| r.pending_jump_system.as_deref().is_some_and(|p| p.eq_ignore_ascii_case(&star)))
+                    .find(|(_, r)| {
+                        r.pending_jump_system
+                            .as_deref()
+                            .is_some_and(|p| p.eq_ignore_ascii_case(&star))
+                    })
                     .map(|(id, _)| *id);
                 by_pending.or_else(|| {
-                    let owned: Vec<i64> = carriers.iter().filter(|(_, r)| r.owned).map(|(id, _)| *id).collect();
+                    let owned: Vec<i64> = carriers
+                        .iter()
+                        .filter(|(_, r)| r.owned)
+                        .map(|(id, _)| *id)
+                        .collect();
                     (owned.len() == 1).then(|| owned[0])
                 })
             });
@@ -211,8 +238,15 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                 // destination after its departure time - the CarrierJump
                 // event is not written when the commander is elsewhere.
                 let arrived_by_heartbeat = event == "CarrierLocation"
-                    && row.pending_jump_system.as_deref().zip(row.system_name.as_deref()).is_some_and(|(p, here)| p.eq_ignore_ascii_case(here))
-                    && row.pending_departure.as_deref().is_none_or(|d| ts.as_str() >= d);
+                    && row
+                        .pending_jump_system
+                        .as_deref()
+                        .zip(row.system_name.as_deref())
+                        .is_some_and(|(p, here)| p.eq_ignore_ascii_case(here))
+                    && row
+                        .pending_departure
+                        .as_deref()
+                        .is_none_or(|d| ts.as_str() >= d);
                 if event == "CarrierJump" || arrived_by_heartbeat {
                     row.pending_jump_system = None;
                     row.pending_jump_body = None;
@@ -222,7 +256,11 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
             }
             "CarrierDepositFuel" => {
                 if let Some(total) = i(&v, "Total") {
-                    if row.fuel_ts.as_deref().is_none_or(|prev| ts.as_str() >= prev) {
+                    if row
+                        .fuel_ts
+                        .as_deref()
+                        .is_none_or(|prev| ts.as_str() >= prev)
+                    {
                         row.fuel_t = Some(total);
                         row.fuel_ts = Some(ts.clone());
                     }
@@ -287,7 +325,9 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
             r.pending_jump_ts,
         ])?;
     }
-    let mut ins_hold = conn.prepare("INSERT INTO carrier_hold (carrier_id, commodity, count, ts) VALUES (?1,?2,?3,?4)")?;
+    let mut ins_hold = conn.prepare(
+        "INSERT INTO carrier_hold (carrier_id, commodity, count, ts) VALUES (?1,?2,?3,?4)",
+    )?;
     for ((carrier_id, commodity), (count, ts)) in &hold {
         if *count > 0 {
             ins_hold.execute(params![carrier_id, commodity, count, ts])?;
@@ -343,7 +383,10 @@ pub struct CarrierStatus {
 }
 
 fn age_hours(now: &str, then: &str) -> f64 {
-    match (ed_domain::freshness::parse_timestamp(now), ed_domain::freshness::parse_timestamp(then)) {
+    match (
+        ed_domain::freshness::parse_timestamp(now),
+        ed_domain::freshness::parse_timestamp(then),
+    ) {
         (Some(a), Some(b)) => ((a - b) as f64 / 3600.0).max(0.0),
         _ => 0.0,
     }
@@ -352,7 +395,11 @@ fn age_hours(now: &str, then: &str) -> f64 {
 fn aged<T: Serialize>(now: &str, value: Option<T>, ts: Option<String>) -> Option<Aged<T>> {
     let (value, ts) = (value?, ts?);
     let age = age_hours(now, &ts);
-    Some(Aged { value, as_of: ts, age_hours: (age * 10.0).round() / 10.0 })
+    Some(Aged {
+        value,
+        as_of: ts,
+        age_hours: (age * 10.0).round() / 10.0,
+    })
 }
 
 /// Every carrier the journal knows, owned first, with ages from `now`
@@ -394,8 +441,32 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
         ))
     })?;
     for row in rows {
-        let (id, carrier_type, callsign, name, owned, decommissioned, system, body, location_ts, fuel, fuel_ts, cap_total, cap_used, free, stats_ts, jump_range, docking, balance, services, pj_system, pj_body, pj_departure) = row?;
-        let capacity = cap_total.map(|t| serde_json::json!({ "total_t": t, "used_t": cap_used, "free_t": free }));
+        let (
+            id,
+            carrier_type,
+            callsign,
+            name,
+            owned,
+            decommissioned,
+            system,
+            body,
+            location_ts,
+            fuel,
+            fuel_ts,
+            cap_total,
+            cap_used,
+            free,
+            stats_ts,
+            jump_range,
+            docking,
+            balance,
+            services,
+            pj_system,
+            pj_body,
+            pj_departure,
+        ) = row?;
+        let capacity = cap_total
+            .map(|t| serde_json::json!({ "total_t": t, "used_t": cap_used, "free_t": free }));
         let minutes_to_departure = pj_departure.as_deref().and_then(|d| {
             let dep = ed_domain::freshness::parse_timestamp(d)?;
             let now = ed_domain::freshness::parse_timestamp(now)?;
@@ -409,10 +480,21 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
         });
         let mut hold_stmt = conn.prepare("SELECT commodity, count, ts FROM carrier_hold WHERE carrier_id = ?1 ORDER BY count DESC")?;
         let hold_moved = hold_stmt
-            .query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, String>(2)?)))?
+            .query_map([id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })?
             .collect::<rusqlite::Result<Vec<_>>>()?
             .into_iter()
-            .map(|(commodity, tons, ts)| HoldLine { age_hours: (age_hours(now, &ts) * 10.0).round() / 10.0, commodity, tons, as_of: ts })
+            .map(|(commodity, tons, ts)| HoldLine {
+                age_hours: (age_hours(now, &ts) * 10.0).round() / 10.0,
+                commodity,
+                tons,
+                as_of: ts,
+            })
             .collect();
         out.push(CarrierStatus {
             carrier_id: id,
@@ -428,7 +510,9 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
             jump_range_ly: jump_range,
             docking_access: docking,
             balance_cr: balance,
-            services: services.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
+            services: services
+                .and_then(|j| serde_json::from_str(&j).ok())
+                .unwrap_or_default(),
             pending_jump,
             hold_moved,
         });
@@ -468,7 +552,11 @@ mod tests {
 
     fn one(conn: &Connection) -> CarrierStatus {
         rebuild(conn).unwrap();
-        status(conn, "2026-01-16T02:00:00Z").unwrap().into_iter().find(|c| c.carrier_id == 3700000001).unwrap()
+        status(conn, "2026-01-16T02:00:00Z")
+            .unwrap()
+            .into_iter()
+            .find(|c| c.carrier_id == 3700000001)
+            .unwrap()
     }
 
     #[test]
@@ -479,13 +567,27 @@ mod tests {
         ev(&conn, 3, RENAME);
         let c = one(&conn);
         assert!(c.owned);
-        assert_eq!(c.carrier_type.as_deref(), Some("FleetCarrier"), "type never read from the rename");
-        assert_eq!((c.callsign.as_deref(), c.name.as_deref()), (Some("K3X-9ZQ"), Some("Endeavour")));
+        assert_eq!(
+            c.carrier_type.as_deref(),
+            Some("FleetCarrier"),
+            "type never read from the rename"
+        );
+        assert_eq!(
+            (c.callsign.as_deref(), c.name.as_deref()),
+            (Some("K3X-9ZQ"), Some("Endeavour"))
+        );
         let tank = c.tank_tritium_t.unwrap();
-        assert_eq!((tank.value, tank.as_of.as_str()), (500, "2026-01-15T22:22:00Z"));
+        assert_eq!(
+            (tank.value, tank.as_of.as_str()),
+            (500, "2026-01-15T22:22:00Z")
+        );
         assert!((tank.age_hours - 3.6).abs() < 0.11, "{}", tank.age_hours);
         assert_eq!(c.capacity.unwrap().value["used_t"], 6270);
-        assert_eq!(c.services, vec!["Captain", "Commodities", "CarrierFuel"], "unactivated crew is not a service");
+        assert_eq!(
+            c.services,
+            vec!["Captain", "Commodities", "CarrierFuel"],
+            "unactivated crew is not a service"
+        );
         assert_eq!(c.balance_cr, Some(100000000));
     }
 
@@ -515,7 +617,10 @@ mod tests {
         let c = one(&conn);
         assert!(c.pending_jump.is_none());
         let loc = c.location.unwrap();
-        assert_eq!((loc.value.as_str(), loc.as_of.as_str()), ("Beta", "2026-01-15T22:58:00Z"));
+        assert_eq!(
+            (loc.value.as_str(), loc.as_of.as_str()),
+            ("Beta", "2026-01-15T22:58:00Z")
+        );
         assert_eq!(c.body.as_deref(), Some("Beta 1"));
     }
 
@@ -527,7 +632,11 @@ mod tests {
         let conn = db();
         ev(&conn, 1, BUY);
         ev(&conn, 2, REQUEST);
-        ev(&conn, 3, r#"{"timestamp":"2026-01-15T22:58:00Z","event":"CarrierJump","Docked":false,"StarSystem":"Beta","SystemAddress":22,"Body":"Beta 1","BodyID":1}"#);
+        ev(
+            &conn,
+            3,
+            r#"{"timestamp":"2026-01-15T22:58:00Z","event":"CarrierJump","Docked":false,"StarSystem":"Beta","SystemAddress":22,"Body":"Beta 1","BodyID":1}"#,
+        );
         let c = one(&conn);
         assert!(c.pending_jump.is_none(), "{:?}", c.pending_jump);
         assert_eq!(c.location.unwrap().value, "Beta");
@@ -541,9 +650,20 @@ mod tests {
         let conn = db();
         ev(&conn, 1, BUY);
         ev(&conn, 2, REQUEST);
-        ev(&conn, 3, r#"{"timestamp":"2026-01-15T22:40:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Alpha","SystemAddress":11,"BodyID":0}"#);
-        assert!(one(&conn).pending_jump.is_some(), "still scheduled while it sits at the origin");
-        ev(&conn, 4, r#"{"timestamp":"2026-01-16T01:00:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Beta","SystemAddress":22,"BodyID":0}"#);
+        ev(
+            &conn,
+            3,
+            r#"{"timestamp":"2026-01-15T22:40:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Alpha","SystemAddress":11,"BodyID":0}"#,
+        );
+        assert!(
+            one(&conn).pending_jump.is_some(),
+            "still scheduled while it sits at the origin"
+        );
+        ev(
+            &conn,
+            4,
+            r#"{"timestamp":"2026-01-16T01:00:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Beta","SystemAddress":22,"BodyID":0}"#,
+        );
         let c = one(&conn);
         assert!(c.pending_jump.is_none());
         assert_eq!(c.location.unwrap().value, "Beta");
@@ -568,7 +688,11 @@ mod tests {
         ev(&conn, 3, LOCATION);
         let c = one(&conn);
         assert_eq!(c.location.unwrap().value, "Gamma");
-        assert_eq!(c.tank_tritium_t.unwrap().value, 500, "the heartbeat moves the carrier and nothing else");
+        assert_eq!(
+            c.tank_tritium_t.unwrap().value,
+            500,
+            "the heartbeat moves the carrier and nothing else"
+        );
     }
 
     #[test]
@@ -576,12 +700,25 @@ mod tests {
         let conn = db();
         ev(&conn, 1, BUY);
         ev(&conn, 2, STATS);
-        ev(&conn, 3, r#"{"timestamp":"2026-01-15T23:06:00Z","event":"CarrierDepositFuel","CarrierType":"FleetCarrier","CarrierID":3700000001,"Amount":0,"Total":484}"#);
+        ev(
+            &conn,
+            3,
+            r#"{"timestamp":"2026-01-15T23:06:00Z","event":"CarrierDepositFuel","CarrierType":"FleetCarrier","CarrierID":3700000001,"Amount":0,"Total":484}"#,
+        );
         let c = one(&conn);
         let tank = c.tank_tritium_t.unwrap();
-        assert_eq!((tank.value, tank.as_of.as_str()), (484, "2026-01-15T23:06:00Z"));
+        assert_eq!(
+            (tank.value, tank.as_of.as_str()),
+            (484, "2026-01-15T23:06:00Z")
+        );
         // A stats row from before the deposit, replayed later in file order, must not win.
-        ev(&conn, 4, &STATS.replace("22:22:00Z", "22:00:00Z").replace("\"FuelLevel\":500", "\"FuelLevel\":999"));
+        ev(
+            &conn,
+            4,
+            &STATS
+                .replace("22:22:00Z", "22:00:00Z")
+                .replace("\"FuelLevel\":500", "\"FuelLevel\":999"),
+        );
         let c = one(&conn);
         assert_eq!(c.tank_tritium_t.unwrap().value, 999, "CarrierStats is authoritative when it lands (it is the newest observation in journal order)");
     }
@@ -590,18 +727,38 @@ mod tests {
     fn cargo_transfer_sums_per_commodity_and_floors_at_zero() {
         let conn = db();
         ev(&conn, 1, BUY);
-        ev(&conn, 2, r#"{"timestamp":"2026-01-15T23:10:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Type_Localised":"Tritium","Count":10,"Direction":"tocarrier"},{"Type":"palladium","Count":1008,"Direction":"tocarrier"}]}"#);
-        ev(&conn, 3, r#"{"timestamp":"2026-01-15T23:20:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Count":3,"Direction":"toship"},{"Type":"gold","Count":100,"Direction":"toship"}]}"#);
+        ev(
+            &conn,
+            2,
+            r#"{"timestamp":"2026-01-15T23:10:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Type_Localised":"Tritium","Count":10,"Direction":"tocarrier"},{"Type":"palladium","Count":1008,"Direction":"tocarrier"}]}"#,
+        );
+        ev(
+            &conn,
+            3,
+            r#"{"timestamp":"2026-01-15T23:20:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Count":3,"Direction":"toship"},{"Type":"gold","Count":100,"Direction":"toship"}]}"#,
+        );
         let c = one(&conn);
-        let lines: Vec<(&str, i64)> = c.hold_moved.iter().map(|h| (h.commodity.as_str(), h.tons)).collect();
-        assert_eq!(lines, vec![("palladium", 1008), ("tritium", 7)], "gold floored at zero and dropped");
+        let lines: Vec<(&str, i64)> = c
+            .hold_moved
+            .iter()
+            .map(|h| (h.commodity.as_str(), h.tons))
+            .collect();
+        assert_eq!(
+            lines,
+            vec![("palladium", 1008), ("tritium", 7)],
+            "gold floored at zero and dropped"
+        );
     }
 
     #[test]
     fn cargo_transfer_is_skipped_without_exactly_one_owned_carrier() {
         let conn = db();
         ev(&conn, 1, SQUADRON);
-        ev(&conn, 2, r#"{"timestamp":"2026-01-15T23:10:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Count":10,"Direction":"tocarrier"}]}"#);
+        ev(
+            &conn,
+            2,
+            r#"{"timestamp":"2026-01-15T23:10:00Z","event":"CargoTransfer","Transfers":[{"Type":"tritium","Count":10,"Direction":"tocarrier"}]}"#,
+        );
         rebuild(&conn).unwrap();
         let all = status(&conn, "2026-01-16T02:00:00Z").unwrap();
         assert!(all[0].hold_moved.is_empty());
@@ -613,7 +770,11 @@ mod tests {
         ev(&conn, 1, SQUADRON);
         ev(&conn, 2, BUY);
         ev(&conn, 3, STATS);
-        ev(&conn, 4, r#"{"timestamp":"2026-01-15T22:25:00Z","event":"CarrierCrewServices","CarrierType":"FleetCarrier","CarrierID":3700000001,"CrewRole":"Refuel","Operation":"Activate","CrewName":"D"}"#);
+        ev(
+            &conn,
+            4,
+            r#"{"timestamp":"2026-01-15T22:25:00Z","event":"CarrierCrewServices","CarrierType":"FleetCarrier","CarrierID":3700000001,"CrewRole":"Refuel","Operation":"Activate","CrewName":"D"}"#,
+        );
         rebuild(&conn).unwrap();
         let all = status(&conn, "2026-01-16T02:00:00Z").unwrap();
         assert_eq!(all.len(), 2);
@@ -625,7 +786,11 @@ mod tests {
     fn rebuild_is_idempotent_and_decommission_marks() {
         let conn = db();
         ev(&conn, 1, BUY);
-        ev(&conn, 2, r#"{"timestamp":"2026-01-17T00:00:00Z","event":"CarrierDecommission","CarrierType":"FleetCarrier","CarrierID":3700000001,"ScrapRefund":1,"ScrapTime":1,"ScrapDateTime":"2026-01-24T00:00:00Z"}"#);
+        ev(
+            &conn,
+            2,
+            r#"{"timestamp":"2026-01-17T00:00:00Z","event":"CarrierDecommission","CarrierType":"FleetCarrier","CarrierID":3700000001,"ScrapRefund":1,"ScrapTime":1,"ScrapDateTime":"2026-01-24T00:00:00Z"}"#,
+        );
         rebuild(&conn).unwrap();
         rebuild(&conn).unwrap();
         let all = status(&conn, "2026-01-18T00:00:00Z").unwrap();

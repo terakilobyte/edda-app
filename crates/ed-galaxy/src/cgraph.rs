@@ -122,7 +122,11 @@ impl CellGraph {
         let centre = |i: usize| -> [f32; 3] {
             let (cx, cy, cz) = morton_cell_of(sub.cell_entry(i).0);
             let cell_ly = sub.cell_ly;
-            [(cx as f32 + 0.5) * cell_ly, (cy as f32 + 0.5) * cell_ly, (cz as f32 + 0.5) * cell_ly]
+            [
+                (cx as f32 + 0.5) * cell_ly,
+                (cy as f32 + 0.5) * cell_ly,
+                (cz as f32 + 0.5) * cell_ly,
+            ]
         };
         let goal_centre = centre(to);
         let h = |i: usize| dist(centre(i), goal_centre) / REF_BOOSTED_REACH_LY;
@@ -173,7 +177,8 @@ impl CellGraph {
             out.extend_from_slice(&j.to_le_bytes());
             out.extend_from_slice(&cost.to_le_bytes());
         }
-        let mut file = std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
+        let mut file =
+            std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
         file.write_all(&out)?;
         Ok(())
     }
@@ -187,7 +192,12 @@ impl CellGraph {
         let cells = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
         let edge_count = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
         let need = 16 + (cells + 1) * 4 + edge_count * 6;
-        ensure!(bytes.len() == need, "{} is {} bytes, expected {need}", path.display(), bytes.len());
+        ensure!(
+            bytes.len() == need,
+            "{} is {} bytes, expected {need}",
+            path.display(),
+            bytes.len()
+        );
         let mut at = 16;
         let mut offsets = Vec::with_capacity(cells + 1);
         for _ in 0..=cells {
@@ -201,7 +211,11 @@ impl CellGraph {
             edges.push((j, cost));
             at += 6;
         }
-        ensure!(offsets.last().copied() == Some(edge_count as u32), "{} offsets do not close the edge list", path.display());
+        ensure!(
+            offsets.last().copied() == Some(edge_count as u32),
+            "{} offsets do not close the edge list",
+            path.display()
+        );
         Ok(CellGraph { offsets, edges })
     }
 }
@@ -226,7 +240,13 @@ impl GoalField {
     pub fn as_jumps(&self) -> Vec<f32> {
         self.jumps
             .iter()
-            .map(|&d| if d == UNREACHABLE { f32::INFINITY } else { d as f32 * JUMP_UNIT })
+            .map(|&d| {
+                if d == UNREACHABLE {
+                    f32::INFINITY
+                } else {
+                    d as f32 * JUMP_UNIT
+                }
+            })
             .collect()
     }
 }
@@ -256,9 +276,15 @@ pub fn nearest_cell(sub: &Galaxy, pos: [f32; 3], max_ly: f32) -> Option<usize> {
                     if dx.abs().max(dy.abs()).max(dz.abs()) != ring {
                         continue;
                     }
-                    let Some(i) = sub.cell_index(cx + dx, cy + dy, cz + dz) else { continue };
+                    let Some(i) = sub.cell_index(cx + dx, cy + dy, cz + dz) else {
+                        continue;
+                    };
                     let (mx, my, mz) = morton_cell_of(sub.cell_entry(i).0);
-                    let centre = [(mx as f32 + 0.5) * cell_ly, (my as f32 + 0.5) * cell_ly, (mz as f32 + 0.5) * cell_ly];
+                    let centre = [
+                        (mx as f32 + 0.5) * cell_ly,
+                        (my as f32 + 0.5) * cell_ly,
+                        (mz as f32 + 0.5) * cell_ly,
+                    ];
                     let d = dist(pos, centre);
                     if best.is_none_or(|(bd, _)| d < bd) {
                         best = Some((d, i));
@@ -275,14 +301,21 @@ pub fn nearest_cell(sub: &Galaxy, pos: [f32; 3], max_ly: f32) -> Option<usize> {
 
 /// One pass over a morton-ordered (v3) sub-index.
 pub fn build(sub: &Galaxy) -> Result<CellGraph> {
-    ensure!(sub.morton_cells(), "the cell graph needs a v3 (morton-ordered) index");
+    ensure!(
+        sub.morton_cells(),
+        "the cell graph needs a v3 (morton-ordered) index"
+    );
     let cells = sub.cell_count();
     ensure!(cells > 0, "an empty sub-index has no graph");
     let cell_ly = sub.cell_ly;
     let centres: Vec<[f32; 3]> = (0..cells)
         .map(|i| {
             let (cx, cy, cz) = morton_cell_of(sub.cell_entry(i).0);
-            [(cx as f32 + 0.5) * cell_ly, (cy as f32 + 0.5) * cell_ly, (cz as f32 + 0.5) * cell_ly]
+            [
+                (cx as f32 + 0.5) * cell_ly,
+                (cy as f32 + 0.5) * cell_ly,
+                (cz as f32 + 0.5) * cell_ly,
+            ]
         })
         .collect();
     let reach = (R_REF / cell_ly).ceil() as i32;
@@ -328,14 +361,17 @@ pub fn build(sub: &Galaxy) -> Result<CellGraph> {
                     if (dx, dy, dz) == (0, 0, 0) {
                         continue;
                     }
-                    let Some(j) = sub.cell_index(cx + dx, cy + dy, cz + dz) else { continue };
+                    let Some(j) = sub.cell_index(cx + dx, cy + dy, cz + dz) else {
+                        continue;
+                    };
                     let d = dist(centres[i], centres[j]);
                     if d <= R_REF {
                         let pair = min_pair(i, j);
                         let jumps = if pair <= REF_BOOSTED_REACH_LY {
                             d / REF_BOOSTED_REACH_LY
                         } else {
-                            (d / REF_BOOSTED_REACH_LY).max(1.0 + (pair - REF_BOOSTED_REACH_LY) / REF_PLAIN_REACH_LY)
+                            (d / REF_BOOSTED_REACH_LY)
+                                .max(1.0 + (pair - REF_BOOSTED_REACH_LY) / REF_PLAIN_REACH_LY)
                         };
                         highway_edges[i].push((j as u32, quantise(jumps)));
                     }
@@ -395,7 +431,9 @@ pub fn build(sub: &Galaxy) -> Result<CellGraph> {
                         if dx.abs().max(dy.abs()).max(dz.abs()) != ring {
                             continue;
                         }
-                        let Some(j) = sub.cell_index(cx + dx, cy + dy, cz + dz) else { continue };
+                        let Some(j) = sub.cell_index(cx + dx, cy + dy, cz + dz) else {
+                            continue;
+                        };
                         let d = dist(centres[i], centres[j]);
                         if d <= R_REF {
                             continue; // a highway edge covers it
@@ -443,7 +481,10 @@ pub fn build(sub: &Galaxy) -> Result<CellGraph> {
         flat.extend_from_slice(list);
         offsets.push(flat.len() as u32);
     }
-    Ok(CellGraph { offsets, edges: flat })
+    Ok(CellGraph {
+        offsets,
+        edges: flat,
+    })
 }
 
 #[cfg(test)]
@@ -465,7 +506,12 @@ mod tests {
             ));
         }
         source.push(']');
-        import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let ndir = dir.path().join("boost250");
         import::subset_cells(&g, &ndir, crate::long_range::NEUTRON_CELL_LY, |r| {
@@ -481,7 +527,8 @@ mod tests {
     /// straight-line heuristic can never know.
     #[test]
     fn gap_edges_bridge_a_void_and_the_field_prices_the_crossing() {
-        let mut stars: Vec<(f32, f32, f32)> = (0..8).map(|i| (i as f32 * 300.0, 0.0, 0.0)).collect();
+        let mut stars: Vec<(f32, f32, f32)> =
+            (0..8).map(|i| (i as f32 * 300.0, 0.0, 0.0)).collect();
         stars.extend((0..8).map(|i| (5_100.0 + i as f32 * 300.0, 0.0, 0.0)));
         let (_dir, sub) = sub_index(&stars);
         let graph = build(&sub).unwrap();
@@ -489,7 +536,10 @@ mod tests {
         let west_end = sub.cell_index_of_pos([2_100.0, 0.0, 0.0]).unwrap();
         let east_start = sub.cell_index_of_pos([5_100.0, 0.0, 0.0]).unwrap();
         assert!(
-            graph.neighbours(west_end).iter().any(|&(j, _)| j as usize == east_start),
+            graph
+                .neighbours(west_end)
+                .iter()
+                .any(|&(j, _)| j as usize == east_start),
             "the void's western shore must hold a gap edge east"
         );
         let goal = sub.cell_index_of_pos([7_200.0, 0.0, 0.0]).unwrap();
@@ -499,8 +549,13 @@ mod tests {
         // arm. The crossing must dominate, and the bound must stay under
         // the true cost for ANY ship (reference = fastest).
         let west = sub.cell_index_of_pos([0.0, 0.0, 0.0]).unwrap();
-        let bound = field.jumps_to_goal(west).expect("west arm reaches the goal through the gap");
-        assert!(bound > 30.0, "the plain crossing must dominate the price: {bound:.1} jumps");
+        let bound = field
+            .jumps_to_goal(west)
+            .expect("west arm reaches the goal through the gap");
+        assert!(
+            bound > 30.0,
+            "the plain crossing must dominate the price: {bound:.1} jumps"
+        );
         assert!(bound < 60.0, "and stay a lower bound: {bound:.1} jumps");
         // Inside the goal arm the price is a handful of boosted hops.
         let near = sub.cell_index_of_pos([6_600.0, 0.0, 0.0]).unwrap();
@@ -513,13 +568,17 @@ mod tests {
     /// endpoint snap finds the nearest occupied cell from off-highway.
     #[test]
     fn the_cell_path_crosses_the_void_end_to_end() {
-        let mut stars: Vec<(f32, f32, f32)> = (0..8).map(|i| (i as f32 * 300.0, 0.0, 0.0)).collect();
+        let mut stars: Vec<(f32, f32, f32)> =
+            (0..8).map(|i| (i as f32 * 300.0, 0.0, 0.0)).collect();
         stars.extend((0..8).map(|i| (5_100.0 + i as f32 * 300.0, 0.0, 0.0)));
         let (_dir, sub) = sub_index(&stars);
         let graph = build(&sub).unwrap();
-        let from = nearest_cell(&sub, [-40.0, 60.0, 0.0], 2_000.0).expect("snaps near the west end");
+        let from =
+            nearest_cell(&sub, [-40.0, 60.0, 0.0], 2_000.0).expect("snaps near the west end");
         let to = nearest_cell(&sub, [7_300.0, 0.0, 0.0], 2_000.0).expect("snaps near the east end");
-        let path = graph.shortest_cell_path(&sub, from, to).expect("the gap edges make it reachable");
+        let path = graph
+            .shortest_cell_path(&sub, from, to)
+            .expect("the gap edges make it reachable");
         assert_eq!(path.first(), Some(&(from as u32)));
         assert_eq!(path.last(), Some(&(to as u32)));
         // Monotonic eastward along the line: the path never doubles back.
@@ -531,7 +590,10 @@ mod tests {
             })
             .collect();
         assert!(xs.windows(2).all(|w| w[1] > w[0]), "path wanders: {xs:?}");
-        assert!(nearest_cell(&sub, [50_000.0, 0.0, 0.0], 1_000.0).is_none(), "far off everything snaps to nothing");
+        assert!(
+            nearest_cell(&sub, [50_000.0, 0.0, 0.0], 1_000.0).is_none(),
+            "far off everything snaps to nothing"
+        );
     }
 
     /// A highway edge's price must reflect the hop a ship can actually
@@ -555,8 +617,14 @@ mod tests {
         // 740 ly with no reachable star pair: one boosted hop (470 ly)
         // plus ~270 ly of plain bridging (~3.5 jumps at 78 ly) -- not
         // the ~1.06 the center distance alone would suggest.
-        assert!(cost >= 4.0, "the edge must price its real crossing: {cost:.2} jumps");
-        assert!(cost <= 6.0, "and stay a lower bound for any ship: {cost:.2} jumps");
+        assert!(
+            cost >= 4.0,
+            "the edge must price its real crossing: {cost:.2} jumps"
+        );
+        assert!(
+            cost <= 6.0,
+            "and stay a lower bound for any ship: {cost:.2} jumps"
+        );
     }
 
     /// Highway edges price at boosted reach, and the file round-trips.
@@ -567,9 +635,16 @@ mod tests {
         let graph = build(&sub).unwrap();
         let a = sub.cell_index_of_pos([0.0, 0.0, 0.0]).unwrap();
         let b = sub.cell_index_of_pos([300.0, 0.0, 0.0]).unwrap();
-        let (_, cost) = *graph.neighbours(a).iter().find(|&&(j, _)| j as usize == b).unwrap();
+        let (_, cost) = *graph
+            .neighbours(a)
+            .iter()
+            .find(|&&(j, _)| j as usize == b)
+            .unwrap();
         let expected = (250.0f32 / REF_BOOSTED_REACH_LY / JUMP_UNIT).ceil() as u16;
-        assert_eq!(cost, expected, "a 250 ly highway hop prices as boosted reach");
+        assert_eq!(
+            cost, expected,
+            "a 250 ly highway hop prices as boosted reach"
+        );
         let path = dir.path().join("boost250").join(GRAPH_FILE);
         graph.write(&path).unwrap();
         let reopened = CellGraph::open(&path).unwrap();
@@ -577,6 +652,9 @@ mod tests {
         assert_eq!(reopened.edge_count(), graph.edge_count());
         assert_eq!(reopened.neighbours(a), graph.neighbours(a));
         let fresh = Galaxy::open(&dir.path().join("boost250")).unwrap();
-        assert_eq!(fresh.cell_graph().map(|g| g.leaf_count()), Some(fresh.cell_count()));
+        assert_eq!(
+            fresh.cell_graph().map(|g| g.leaf_count()),
+            Some(fresh.cell_count())
+        );
     }
 }

@@ -19,11 +19,16 @@ fn main() -> Result<()> {
     }
     let g = Galaxy::open(Path::new(&args[0]))?;
     let file = std::fs::File::open(&args[1])?;
-    let reader: Box<dyn std::io::Read> = if args[1].ends_with(".gz") { Box::new(flate2::read::GzDecoder::new(file)) } else { Box::new(file) };
+    let reader: Box<dyn std::io::Read> = if args[1].ends_with(".gz") {
+        Box::new(flate2::read::GzDecoder::new(file))
+    } else {
+        Box::new(file)
+    };
     let reader = BufReader::with_capacity(1 << 20, reader);
 
     let (mut bodies, mut stars, mut main_stars, mut parse_errors) = (0u64, 0u64, 0u64, 0u64);
-    let (mut not_in_index, mut learnable, mut agree, mut differ, mut edsm_unknown) = (0u64, 0u64, 0u64, 0u64, 0u64);
+    let (mut not_in_index, mut learnable, mut agree, mut differ, mut edsm_unknown) =
+        (0u64, 0u64, 0u64, 0u64, 0u64);
     let mut learnable_by_class: BTreeMap<&'static str, u64> = BTreeMap::new();
     let mut differ_pairs: BTreeMap<(&'static str, &'static str), u64> = BTreeMap::new();
     let mut updates: BTreeMap<String, u64> = BTreeMap::new();
@@ -54,8 +59,14 @@ fn main() -> Result<()> {
         if let Some(d) = v.get("updateTime").and_then(|s| s.as_str()) {
             *updates.entry(d[..10.min(d.len())].to_string()).or_default() += 1;
         }
-        let Some(name) = v.get("systemName").and_then(|s| s.as_str()) else { continue };
-        let class = v.get("subType").and_then(|s| s.as_str()).map(StarClass::from_subtype).unwrap_or(StarClass::Unknown);
+        let Some(name) = v.get("systemName").and_then(|s| s.as_str()) else {
+            continue;
+        };
+        let class = v
+            .get("subType")
+            .and_then(|s| s.as_str())
+            .map(StarClass::from_subtype)
+            .unwrap_or(StarClass::Unknown);
         if class == StarClass::Unknown {
             edsm_unknown += 1;
             continue;
@@ -75,7 +86,10 @@ fn main() -> Result<()> {
             *differ_pairs.entry((have.name(), class.name())).or_default() += 1;
         }
         if main_stars % 100_000 == 0 {
-            eprintln!("  {main_stars} main stars in {} s", started.elapsed().as_secs());
+            eprintln!(
+                "  {main_stars} main stars in {} s",
+                started.elapsed().as_secs()
+            );
         }
     }
 

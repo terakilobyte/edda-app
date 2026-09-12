@@ -78,7 +78,11 @@ pub fn rate(from: &MaterialMeta, to: &MaterialMeta) -> Option<(i64, i64)> {
 }
 
 fn gcd(a: i64, b: i64) -> i64 {
-    if b == 0 { a } else { gcd(b, a % b) }
+    if b == 0 {
+        a
+    } else {
+        gcd(b, a % b)
+    }
 }
 
 /// Cover `short` (material -> units missing) from `surplus` (material ->
@@ -92,8 +96,11 @@ pub fn shopping_list(
 ) -> ShoppingList {
     let by_name: HashMap<String, &MaterialMeta> =
         meta.iter().map(|m| (m.name.to_lowercase(), m)).collect();
-    let mut spare: HashMap<String, i64> =
-        surplus.iter().filter(|(_, v)| **v > 0).map(|(k, v)| (k.to_lowercase(), *v)).collect();
+    let mut spare: HashMap<String, i64> = surplus
+        .iter()
+        .filter(|(_, v)| **v > 0)
+        .map(|(k, v)| (k.to_lowercase(), *v))
+        .collect();
     let mut trades = Vec::new();
     let mut still_short = Vec::new();
     let mut traders_needed = Vec::new();
@@ -108,8 +115,12 @@ pub fn shopping_list(
         while remaining > 0 {
             let mut best: Option<(i64, i64, i64, &MaterialMeta, (i64, i64))> = None; // (get, give, spare_left, from, rate)
             for (key, have) in &spare {
-                let Some(from) = by_name.get(key) else { continue };
-                let Some((give_per, get_per)) = rate(from, target) else { continue };
+                let Some(from) = by_name.get(key) else {
+                    continue;
+                };
+                let Some((give_per, get_per)) = rate(from, target) else {
+                    continue;
+                };
                 let batches_wanted = (remaining + get_per - 1) / get_per;
                 let batches = batches_wanted.min(have / give_per);
                 if batches == 0 {
@@ -128,7 +139,9 @@ pub fn shopping_list(
                     }
                 };
             }
-            let Some((get, give, _, from, (gp, gq))) = best else { break };
+            let Some((get, give, _, from, (gp, gq))) = best else {
+                break;
+            };
             *spare.get_mut(&from.name.to_lowercase()).unwrap() -= give;
             trades.push(Trade {
                 kind: target.kind,
@@ -148,7 +161,11 @@ pub fn shopping_list(
             still_short.push((name.clone(), remaining));
         }
     }
-    ShoppingList { trades, still_short, traders_needed }
+    ShoppingList {
+        trades,
+        still_short,
+        traders_needed,
+    }
 }
 
 /// Collect something farmable, then trade it into what you need. `give`
@@ -175,23 +192,39 @@ pub fn farm_options(
     farmable: &[(String, String, Option<String>, Option<String>)],
     meta: &[MaterialMeta],
 ) -> Vec<FarmOption> {
-    let by_name: HashMap<String, &MaterialMeta> = meta.iter().map(|m| (m.name.to_lowercase(), m)).collect();
+    let by_name: HashMap<String, &MaterialMeta> =
+        meta.iter().map(|m| (m.name.to_lowercase(), m)).collect();
     let mut out = Vec::new();
     for (material, site, system, body) in farmable {
         if material.eq_ignore_ascii_case(&target.name) {
             out.push(FarmOption {
-                farm_material: material.clone(), site: site.clone(), system: system.clone(), body: body.clone(),
-                collect: needed, get: needed, rate: None, kind: target.kind,
+                farm_material: material.clone(),
+                site: site.clone(),
+                system: system.clone(),
+                body: body.clone(),
+                collect: needed,
+                get: needed,
+                rate: None,
+                kind: target.kind,
             });
             continue;
         }
-        let Some(from) = by_name.get(&material.to_lowercase()) else { continue };
-        let Some((give_per, get_per)) = rate(from, target) else { continue };
+        let Some(from) = by_name.get(&material.to_lowercase()) else {
+            continue;
+        };
+        let Some((give_per, get_per)) = rate(from, target) else {
+            continue;
+        };
         let batches = (needed + get_per - 1) / get_per;
         out.push(FarmOption {
-            farm_material: material.clone(), site: site.clone(), system: system.clone(), body: body.clone(),
-            collect: batches * give_per, get: batches * get_per,
-            rate: Some(format!("{give_per}:{get_per}")), kind: target.kind,
+            farm_material: material.clone(),
+            site: site.clone(),
+            system: system.clone(),
+            body: body.clone(),
+            collect: batches * give_per,
+            get: batches * get_per,
+            rate: Some(format!("{give_per}:{get_per}")),
+            kind: target.kind,
         });
     }
     out.sort_by_key(|o| o.collect);
@@ -205,21 +238,53 @@ mod tests {
     #[test]
     fn farming_a_high_grade_and_trading_down_beats_a_cross_group_climb() {
         let meta = vec![
-            MaterialMeta { name: "Adaptive Encryptors Capture".into(), kind: TraderKind::Encoded, group: "Encryption Files".into(), grade: 5 },
-            MaterialMeta { name: "Open Symmetric Keys".into(), kind: TraderKind::Encoded, group: "Encryption Files".into(), grade: 3 },
-            MaterialMeta { name: "Unexpected Emission Data".into(), kind: TraderKind::Encoded, group: "Emission Data".into(), grade: 3 },
+            MaterialMeta {
+                name: "Adaptive Encryptors Capture".into(),
+                kind: TraderKind::Encoded,
+                group: "Encryption Files".into(),
+                grade: 5,
+            },
+            MaterialMeta {
+                name: "Open Symmetric Keys".into(),
+                kind: TraderKind::Encoded,
+                group: "Encryption Files".into(),
+                grade: 3,
+            },
+            MaterialMeta {
+                name: "Unexpected Emission Data".into(),
+                kind: TraderKind::Encoded,
+                group: "Emission Data".into(),
+                grade: 3,
+            },
         ];
-        let farmable = vec![("Adaptive Encryptors Capture".to_string(), "Jameson".to_string(), Some("HIP 12099".to_string()), None)];
+        let farmable = vec![(
+            "Adaptive Encryptors Capture".to_string(),
+            "Jameson".to_string(),
+            Some("HIP 12099".to_string()),
+            None,
+        )];
         let opts = farm_options(&meta[1], 5, &farmable, &meta);
-        assert_eq!(opts[0].collect, 1, "one G5 trades down to 9 G3 in the same group");
+        assert_eq!(
+            opts[0].collect, 1,
+            "one G5 trades down to 9 G3 in the same group"
+        );
         assert_eq!(opts[0].get, 9);
         let opts = farm_options(&meta[2], 5, &farmable, &meta);
-        assert_eq!(opts[0].rate.as_deref(), Some("2:3"), "cross group two down: 6:9");
+        assert_eq!(
+            opts[0].rate.as_deref(),
+            Some("2:3"),
+            "cross group two down: 6:9"
+        );
         assert_eq!(opts[0].collect, 4);
     }
 
     fn m(name: &str, group: &str, grade: u8) -> MaterialMeta {
-        MaterialMeta { name: name.into(), kind: TraderKind::Manufactured, group: group.into(), grade }
+        MaterialMeta {
+            name: name.into(),
+            kind: TraderKind::Manufactured,
+            group: group.into(),
+            grade,
+        }
     }
 
     #[test]

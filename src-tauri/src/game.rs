@@ -38,7 +38,9 @@ fn game_process_present(sys: &mut System) -> bool {
 pub fn observe(now: bool, first: bool, running: &AtomicBool, announcer: &Announcer) {
     let was = running.swap(now, Ordering::SeqCst);
     if first || now != was {
-        announcer.events.emit(GAME_STATE, serde_json::json!({ "running": now }));
+        announcer
+            .events
+            .emit(GAME_STATE, serde_json::json!({ "running": now }));
         if !first {
             let ts = chrono::Utc::now().to_rfc3339();
             let text = if now {
@@ -46,13 +48,27 @@ pub fn observe(now: bool, first: bool, running: &AtomicBool, announcer: &Announc
             } else {
                 "Game closed. Ship computer standing by.".to_string()
             };
-            announcer.deliver(vec![(Callout { kind: "game", text, priority: 3, speak: true, ts }, None)]);
+            announcer.deliver(vec![(
+                Callout {
+                    kind: "game",
+                    text,
+                    priority: 3,
+                    speak: true,
+                    ts,
+                },
+                None,
+            )]);
         }
     }
 }
 
 /// The game-poll job.
-pub async fn run(token: CancellationToken, running: Arc<AtomicBool>, announcer: Announcer, every: Duration) {
+pub async fn run(
+    token: CancellationToken,
+    running: Arc<AtomicBool>,
+    announcer: Announcer,
+    every: Duration,
+) {
     let mut sys = System::new_with_specifics(RefreshKind::nothing());
     let mut first = true;
     loop {
@@ -85,15 +101,25 @@ mod tests {
         let running = AtomicBool::new(false);
 
         observe(false, true, &running, &announcer);
-        assert_eq!(rec.names(), vec![GAME_STATE], "first poll reports the state, silently");
+        assert_eq!(
+            rec.names(),
+            vec![GAME_STATE],
+            "first poll reports the state, silently"
+        );
         observe(false, false, &running, &announcer);
         assert_eq!(rec.names().len(), 1, "no change, no event");
         observe(true, false, &running, &announcer);
         assert!(running.load(Ordering::SeqCst));
         let names = rec.names();
         assert_eq!(names, vec![GAME_STATE, GAME_STATE, crate::events::CALLOUT]);
-        assert_eq!(rec.last(GAME_STATE), Some(serde_json::json!({ "running": true })));
+        assert_eq!(
+            rec.last(GAME_STATE),
+            Some(serde_json::json!({ "running": true }))
+        );
         let said = rec.last(crate::events::CALLOUT).unwrap();
-        assert!(said["text"].as_str().unwrap().contains("Game detected"), "{said}");
+        assert!(
+            said["text"].as_str().unwrap().contains("Game detected"),
+            "{said}"
+        );
     }
 }

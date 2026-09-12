@@ -102,7 +102,9 @@ pub struct AppConfig {
     pub send_telemetry: Option<bool>,
 }
 
-fn default_game_route_ly() -> u32 { 1_000 }
+fn default_game_route_ly() -> u32 {
+    1_000
+}
 
 impl AppConfig {
     pub fn research_enabled(&self) -> bool {
@@ -118,7 +120,9 @@ impl AppConfig {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        if cfg.game_route_max_ly == 0 { cfg.game_route_max_ly = default_game_route_ly(); }
+        if cfg.game_route_max_ly == 0 {
+            cfg.game_route_max_ly = default_game_route_ly();
+        }
         if !cfg.install_id.as_deref().is_some_and(is_install_id) {
             cfg.install_id = Some(mint_install_id());
             if let Err(error) = cfg.save(data_dir) {
@@ -199,7 +203,11 @@ pub struct AppState {
 }
 
 /// How the app introduces itself to every HTTP service.
-pub const USER_AGENT: &str = concat!("EDDA/", env!("CARGO_PKG_VERSION"), " (Elite Dangerous Desktop Aid)");
+pub const USER_AGENT: &str = concat!(
+    "EDDA/",
+    env!("CARGO_PKG_VERSION"),
+    " (Elite Dangerous Desktop Aid)"
+);
 
 /// Idle private read connections kept for reuse.
 pub const READ_POOL: usize = 8;
@@ -209,7 +217,12 @@ impl AppState {
         let voice = Arc::new(VoiceHandle::spawn(&data_dir, USER_AGENT));
         let config = Arc::new(Mutex::new(AppConfig::load(&data_dir)));
         let install_header = {
-            let id = config.lock().unwrap_or_else(|e| e.into_inner()).install_id.clone().unwrap_or_default();
+            let id = config
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .install_id
+                .clone()
+                .unwrap_or_default();
             let mut headers = reqwest::header::HeaderMap::new();
             if let Ok(value) = reqwest::header::HeaderValue::from_str(&id) {
                 headers.insert("x-edda-install", value);
@@ -221,7 +234,11 @@ impl AppState {
         AppState {
             config,
             db_path,
-            routing: { let r = Arc::new(crate::routing::RoutingState::new()); r.attach_jobs(jobs.clone()); r },
+            routing: {
+                let r = Arc::new(crate::routing::RoutingState::new());
+                r.attach_jobs(jobs.clone());
+                r
+            },
             events: Arc::new(crate::events::EventBus::default()),
             jobs: jobs.clone(),
             game_running: Arc::new(AtomicBool::new(false)),
@@ -299,7 +316,10 @@ impl AppState {
             Err(e) => {
                 // Loud: every read now queues behind the writer, which is
                 // the exact regression the pool exists to prevent.
-                let n = self.read_fallbacks.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                let n = self
+                    .read_fallbacks
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                    + 1;
                 tracing::error!(error = %e, fallbacks = n, "read connection failed; using the shared writer");
                 let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
                 f(&Reader { conn: guard.conn() })
@@ -309,7 +329,8 @@ impl AppState {
 
     /// How often `with_read` had to fall back to the shared writer.
     pub fn read_fallbacks(&self) -> u64 {
-        self.read_fallbacks.load(std::sync::atomic::Ordering::Relaxed)
+        self.read_fallbacks
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Run `f` against the store.
@@ -400,7 +421,10 @@ pub mod secrets {
             // in-memory mock, which forgets every API key at exit.
             use keyring::credential::CredentialPersistence;
             let p = keyring::default::default_credential_builder().persistence();
-            assert!(!matches!(p, CredentialPersistence::EntryOnly), "keyring is using its mock store");
+            assert!(
+                !matches!(p, CredentialPersistence::EntryOnly),
+                "keyring is using its mock store"
+            );
         }
     }
 }
@@ -453,7 +477,10 @@ mod read_pool_tests {
 
     fn attached(conn: &rusqlite::Connection) -> Vec<String> {
         let mut st = conn.prepare("PRAGMA database_list").unwrap();
-        st.query_map([], |r| r.get::<_, String>(1)).unwrap().flatten().collect()
+        st.query_map([], |r| r.get::<_, String>(1))
+            .unwrap()
+            .flatten()
+            .collect()
     }
 
     #[test]
@@ -461,8 +488,12 @@ mod read_pool_tests {
         let dir = tempfile::tempdir().unwrap();
         let state = test_state(dir.path());
         let writer = state.with_store(|s| s.conn() as *const rusqlite::Connection);
-        let (dbs, reader) = state.with_read(|r| (attached(r.conn()), r.conn() as *const rusqlite::Connection));
-        assert!(dbs.iter().any(|d| d == "galaxy"), "galaxy not attached: {dbs:?}");
+        let (dbs, reader) =
+            state.with_read(|r| (attached(r.conn()), r.conn() as *const rusqlite::Connection));
+        assert!(
+            dbs.iter().any(|d| d == "galaxy"),
+            "galaxy not attached: {dbs:?}"
+        );
         assert_ne!(reader, writer, "a read must not run on the shared writer");
         assert_eq!(state.read_fallbacks(), 0);
     }

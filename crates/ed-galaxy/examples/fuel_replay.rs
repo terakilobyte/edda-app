@@ -24,15 +24,17 @@ use ed_galaxy::fuel::{BoostProfile, FuelModel};
 #[derive(Debug)]
 struct Hop {
     name: String,
-    dist: f32,       // ly, jump INTO this row (0 for the source row)
-    fuel_used: f32,  // source ledger's burn for that jump
-    fuel_at: f32,    // source ledger's tank on arrival
+    dist: f32,      // ly, jump INTO this row (0 for the source row)
+    fuel_used: f32, // source ledger's burn for that jump
+    fuel_at: f32,   // source ledger's tank on arrival
     departs_boosted: bool,
     refuel: bool,
 }
 
 fn main() -> anyhow::Result<()> {
-    let path = std::env::args().nth(1).expect("usage: fuel_replay <route.json>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: fuel_replay <route.json>");
     let raw: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
     let rows = raw
         .get("result")
@@ -42,22 +44,41 @@ fn main() -> anyhow::Result<()> {
         .and_then(|j| j.as_array())
         .expect("no jumps/hops array")
         .clone();
-    let f32of = |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let f32of =
+        |v: &serde_json::Value, k: &str| v.get(k).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
     let hops: Vec<Hop> = rows
         .iter()
         .map(|r| Hop {
-            name: r.get("name").and_then(|n| n.as_str()).unwrap_or("?").to_string(),
+            name: r
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("?")
+                .to_string(),
             dist: {
                 let d = f32of(r, "distance");
-                if d > 0.0 { d } else { f32of(r, "distance_ly") }
+                if d > 0.0 {
+                    d
+                } else {
+                    f32of(r, "distance_ly")
+                }
             },
             fuel_used: f32of(r, "fuel_used"),
             fuel_at: {
                 let t = f32of(r, "fuel_in_tank");
-                if t > 0.0 { t } else { f32of(r, "fuel_after") }
+                if t > 0.0 {
+                    t
+                } else {
+                    f32of(r, "fuel_after")
+                }
             },
-            departs_boosted: r.get("has_neutron").and_then(|b| b.as_bool()).unwrap_or(false),
-            refuel: r.get("must_refuel").and_then(|b| b.as_bool()).unwrap_or(false),
+            departs_boosted: r
+                .get("has_neutron")
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false),
+            refuel: r
+                .get("must_refuel")
+                .and_then(|b| b.as_bool())
+                .unwrap_or(false),
         })
         .collect();
 
@@ -66,12 +87,21 @@ fn main() -> anyhow::Result<()> {
     let boost = BoostProfile::MK2_SCO;
 
     // Pass 1: hop legality from the ledger's own departure states.
-    let (mut illegal, mut max_drift, mut our_burn_total, mut their_burn_total) = (0usize, 0.0f32, 0.0f32, 0.0f32);
+    let (mut illegal, mut max_drift, mut our_burn_total, mut their_burn_total) =
+        (0usize, 0.0f32, 0.0f32, 0.0f32);
     for i in 1..hops.len() {
         let dep = &hops[i - 1];
         let arr = &hops[i];
-        let b = if dep.departs_boosted { boost.neutron } else { 1.0 };
-        let fuel = if dep.fuel_at > 0.0 { dep.fuel_at } else { m.capacity };
+        let b = if dep.departs_boosted {
+            boost.neutron
+        } else {
+            1.0
+        };
+        let fuel = if dep.fuel_at > 0.0 {
+            dep.fuel_at
+        } else {
+            m.capacity
+        };
         let ours = m.fuel_for(arr.dist, fuel, b);
         let drift = (ours - arr.fuel_used).abs();
         max_drift = max_drift.max(drift);
@@ -100,7 +130,11 @@ fn main() -> anyhow::Result<()> {
     for i in 1..hops.len() {
         let dep = &hops[i - 1];
         let arr = &hops[i];
-        let b = if dep.departs_boosted { boost.neutron } else { 1.0 };
+        let b = if dep.departs_boosted {
+            boost.neutron
+        } else {
+            1.0
+        };
         match m.jump(arr.dist, fuel, b) {
             Some(left) => fuel = left,
             None => {

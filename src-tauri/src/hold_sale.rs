@@ -33,7 +33,9 @@ pub async fn sell_hold_search(
     max_age_hours: Option<f64>,
 ) -> Result<serde_json::Value, CapError> {
     let hold = {
-        let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
+        let conn = state
+            .read_conn()
+            .map_err(|e| CapError::unavailable(e, true))?;
         let catalog = ed_journal::Catalog::load();
         let mut stmt = conn
             .prepare("SELECT symbol, count FROM cargo WHERE count > 0 ORDER BY count DESC")

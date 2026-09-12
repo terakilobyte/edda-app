@@ -11,14 +11,24 @@ pub fn engineers(state: &AppState) -> CapResult<Vec<query::Engineer>> {
 }
 
 pub fn module_types(state: &AppState) -> Vec<String> {
-    state.engineering.module_types().iter().map(|s| s.to_string()).collect()
+    state
+        .engineering
+        .module_types()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 /// How far apart a sale and its merit event may be and still be paired.
 pub const MERIT_MODEL_WINDOW_SECS: i64 = 5;
 
 pub fn merit_model(state: &AppState) -> CapResult<ed_store::merits::MeritModel> {
-    state.with_read(|s| Ok(ed_store::merits::calibrate(s.conn(), MERIT_MODEL_WINDOW_SECS)?))
+    state.with_read(|s| {
+        Ok(ed_store::merits::calibrate(
+            s.conn(),
+            MERIT_MODEL_WINDOW_SECS,
+        )?)
+    })
 }
 
 pub fn powerplay_seen(state: &AppState) -> CapResult<Vec<query::PowerplayState>> {
@@ -36,7 +46,10 @@ pub struct CombatRequest {
 
 impl Default for CombatRequest {
     fn default() -> Self {
-        CombatRequest { since: None, bucket: "day".into() }
+        CombatRequest {
+            since: None,
+            bucket: "day".into(),
+        }
     }
 }
 
@@ -44,12 +57,30 @@ pub fn combat_summary(state: &AppState, req: &CombatRequest) -> CapResult<query:
     state.with_read(|s| Ok(query::combat_summary(s.conn(), req.since.as_deref())?))
 }
 
-pub fn combat_timeline(state: &AppState, req: &CombatRequest) -> CapResult<Vec<ed_store::session::CombatBucket>> {
-    state.with_read(|s| Ok(ed_store::session::combat_timeline(s.conn(), req.since.as_deref(), &req.bucket)?))
+pub fn combat_timeline(
+    state: &AppState,
+    req: &CombatRequest,
+) -> CapResult<Vec<ed_store::session::CombatBucket>> {
+    state.with_read(|s| {
+        Ok(ed_store::session::combat_timeline(
+            s.conn(),
+            req.since.as_deref(),
+            &req.bucket,
+        )?)
+    })
 }
 
-pub fn merit_timeline(state: &AppState, req: &CombatRequest) -> CapResult<Vec<ed_store::session::MeritBucket>> {
-    state.with_read(|s| Ok(ed_store::session::merit_timeline(s.conn(), req.since.as_deref(), &req.bucket)?))
+pub fn merit_timeline(
+    state: &AppState,
+    req: &CombatRequest,
+) -> CapResult<Vec<ed_store::session::MeritBucket>> {
+    state.with_read(|s| {
+        Ok(ed_store::session::merit_timeline(
+            s.conn(),
+            req.since.as_deref(),
+            &req.bucket,
+        )?)
+    })
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -64,7 +95,10 @@ impl Default for RecentKillsRequest {
     }
 }
 
-pub fn recent_kills(state: &AppState, req: &RecentKillsRequest) -> CapResult<Vec<ed_store::session::KillRow>> {
+pub fn recent_kills(
+    state: &AppState,
+    req: &RecentKillsRequest,
+) -> CapResult<Vec<ed_store::session::KillRow>> {
     state.with_read(|s| Ok(ed_store::session::recent_kills(s.conn(), req.limit)?))
 }
 
@@ -81,7 +115,10 @@ impl Default for MissionsRequest {
 }
 
 /// Missions and the `now` they were judged against.
-pub fn missions(state: &AppState, req: &MissionsRequest) -> CapResult<(Vec<ed_store::missions::Mission>, String)> {
+pub fn missions(
+    state: &AppState,
+    req: &MissionsRequest,
+) -> CapResult<(Vec<ed_store::missions::Mission>, String)> {
     let now = crate::commands::now_iso();
     state.with_read(|s| {
         let list = if req.active_only {
@@ -106,13 +143,20 @@ pub fn status(state: &AppState) -> CapResult<Value> {
         let nav = query::nav_target(conn)?;
         // The single current-ship source (swap-fed loadout row), shared
         // with the greeting and everything else.
-        let current = ed_store::session::current_ship(conn).ok().flatten().unwrap_or_default();
+        let current = ed_store::session::current_ship(conn)
+            .ok()
+            .flatten()
+            .unwrap_or_default();
         let ship = current.symbol.clone();
         let ship_name = current.name.clone();
         let cargo_capacity: Option<i64> = conn
-            .query_row("SELECT cargo_capacity FROM loadout WHERE id = 1", [], |r| r.get(0))
+            .query_row("SELECT cargo_capacity FROM loadout WHERE id = 1", [], |r| {
+                r.get(0)
+            })
             .unwrap_or(None);
-        let cargo_count: i64 = conn.query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| r.get(0)).unwrap_or(0);
+        let cargo_count: i64 = conn
+            .query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| r.get(0))
+            .unwrap_or(0);
         let power = location
             .as_ref()
             .and_then(|l| l.system_name.as_deref())
@@ -197,7 +241,11 @@ pub struct ShipsListRequest {
 pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<ShipSummary>> {
     let owned = owned_ship_ids(state)?;
     let current: Option<i64> = state
-        .with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout").ok().flatten())
+        .with_read(|s| {
+            ed_store::session::latest_event_raw(s.conn(), "Loadout")
+                .ok()
+                .flatten()
+        })
         .and_then(|r| serde_json::from_str::<Value>(&r).ok())
         .and_then(|v| v.get("ShipID").and_then(Value::as_i64));
     let rows: Vec<String> = state.with_read(|s| -> CapResult<Vec<String>> {
@@ -209,16 +257,23 @@ pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<Shi
     })?;
     // Item 53: every stored ship's whereabouts, keyed by ShipID.
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let mut locations: std::collections::HashMap<i64, ed_store::ship_locations::ShipLocation> = state
-        .with_read(|s| Ok::<_, super::CapError>(ed_store::ship_locations::locations(s.conn(), &now)?))?
-        .into_iter()
-        .map(|l| (l.ship_id, l))
-        .collect();
+    let mut locations: std::collections::HashMap<i64, ed_store::ship_locations::ShipLocation> =
+        state
+            .with_read(|s| {
+                Ok::<_, super::CapError>(ed_store::ship_locations::locations(s.conn(), &now)?)
+            })?
+            .into_iter()
+            .map(|l| (l.ship_id, l))
+            .collect();
     let mut out = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();
     for raw in rows {
-        let Ok(v) = serde_json::from_str::<Value>(&raw) else { continue };
-        let Some(id) = v.get("ShipID").and_then(Value::as_i64) else { continue };
+        let Ok(v) = serde_json::from_str::<Value>(&raw) else {
+            continue;
+        };
+        let Some(id) = v.get("ShipID").and_then(Value::as_i64) else {
+            continue;
+        };
         if !seen_ids.insert(id) {
             continue;
         }
@@ -231,14 +286,23 @@ pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<Shi
         }
         out.push(ShipSummary {
             ship_id: id,
-            ship: s("Ship").map(|t| ed_journal::ships::display_name_or(&t, s("Ship_Localised").as_deref())).unwrap_or_default(),
-            ship_name: s("ShipName").map(|n| n.trim().to_string()).filter(|n| !n.is_empty()),
-            ident: s("ShipIdent").map(|n| n.trim().to_string()).filter(|n| !n.is_empty()),
+            ship: s("Ship")
+                .map(|t| ed_journal::ships::display_name_or(&t, s("Ship_Localised").as_deref()))
+                .unwrap_or_default(),
+            ship_name: s("ShipName")
+                .map(|n| n.trim().to_string())
+                .filter(|n| !n.is_empty()),
+            ident: s("ShipIdent")
+                .map(|n| n.trim().to_string())
+                .filter(|n| !n.is_empty()),
             seen: s("timestamp").unwrap_or_default(),
             unladen_mass: f("UnladenMass"),
             max_jump_range: f("MaxJumpRange"),
             cargo_capacity: i("CargoCapacity"),
-            fuel_main: v.pointer("/FuelCapacity/Main").and_then(Value::as_f64).unwrap_or(0.0),
+            fuel_main: v
+                .pointer("/FuelCapacity/Main")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
             hull_value: i("HullValue"),
             modules_value: i("ModulesValue"),
             rebuy: i("Rebuy"),

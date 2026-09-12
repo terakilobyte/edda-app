@@ -62,8 +62,17 @@ pub fn blueprint_for_symbol(symbol: &str, module_type: &str) -> Option<&'static 
     let m = module_type;
     let weaponish = matches!(
         m,
-        "Pulse Laser" | "Burst Laser" | "Beam Laser" | "Multi-cannon" | "Cannon" | "Fragment Cannon"
-            | "Rail Gun" | "Plasma Accelerator" | "Missile Rack" | "Mine Launcher" | "Torpedo Pylon"
+        "Pulse Laser"
+            | "Burst Laser"
+            | "Beam Laser"
+            | "Multi-cannon"
+            | "Cannon"
+            | "Fragment Cannon"
+            | "Rail Gun"
+            | "Plasma Accelerator"
+            | "Missile Rack"
+            | "Mine Launcher"
+            | "Torpedo Pylon"
     );
     Some(match s.as_str() {
         "fsd_longrange" => "Increased FSD Range",
@@ -121,10 +130,19 @@ pub fn blueprint_for_symbol(symbol: &str, module_type: &str) -> Option<&'static 
         "misc_lightweight" if !weaponish => "Lightweight",
         "misc_reinforced" if !weaponish => "Reinforced",
         "misc_shielded" if !weaponish => "Shielded",
-        "misc_chaffcapacity" | "misc_heatsinkcapacity" | "misc_pointdefensecapacity" => "Ammo Capacity",
-        "kill_warrant_scanner_longrange" | "cargoscanner_longrange" | "wakescanner_longrange" | "sensor_kill_warrant_longrange" => "Long Range Scanner",
-        "kill_warrant_scanner_wideangle" | "cargoscanner_wideangle" | "wakescanner_wideangle" => "Wide Angle Scanner",
-        "kill_warrant_scanner_fastscan" | "cargoscanner_fastscan" | "wakescanner_fastscan" => "Fast Scanner",
+        "misc_chaffcapacity" | "misc_heatsinkcapacity" | "misc_pointdefensecapacity" => {
+            "Ammo Capacity"
+        }
+        "kill_warrant_scanner_longrange"
+        | "cargoscanner_longrange"
+        | "wakescanner_longrange"
+        | "sensor_kill_warrant_longrange" => "Long Range Scanner",
+        "kill_warrant_scanner_wideangle" | "cargoscanner_wideangle" | "wakescanner_wideangle" => {
+            "Wide Angle Scanner"
+        }
+        "kill_warrant_scanner_fastscan" | "cargoscanner_fastscan" | "wakescanner_fastscan" => {
+            "Fast Scanner"
+        }
         _ => return None,
     })
 }
@@ -134,18 +152,35 @@ pub fn blueprint_for_symbol(symbol: &str, module_type: &str) -> Option<&'static 
 /// export refuses them. Whole module types first, then recipe names that
 /// share a type with real blueprints (launcher and life-support refills).
 pub const SYNTHESIS_TYPES: &[&str] = &[
-    "AFM Refill", "AX Explosive Munitions", "AX Remote Flak Munitions",
-    "AX Small Calibre Munitions", "Enzyme Missile Launcher Munitions",
-    "Explosive Munitions", "FSD Injection", "Flechette Launcher Munitions",
-    "Guardian Gauss Cannon Munitions", "Guardian Plasma Charger Munitions",
-    "Guardian Shard Cannon Munitions", "High Velocity Munitions",
-    "Large Calibre Munitions", "Limpets", "Plasma Munitions",
-    "SRV Ammo Restock", "SRV Refuel", "SRV Repair",
-    "Shock Cannon Munitions", "Small Calibre Munitions", "Suit", "Weapon",
+    "AFM Refill",
+    "AX Explosive Munitions",
+    "AX Remote Flak Munitions",
+    "AX Small Calibre Munitions",
+    "Enzyme Missile Launcher Munitions",
+    "Explosive Munitions",
+    "FSD Injection",
+    "Flechette Launcher Munitions",
+    "Guardian Gauss Cannon Munitions",
+    "Guardian Plasma Charger Munitions",
+    "Guardian Shard Cannon Munitions",
+    "High Velocity Munitions",
+    "Large Calibre Munitions",
+    "Limpets",
+    "Plasma Munitions",
+    "SRV Ammo Restock",
+    "SRV Refuel",
+    "SRV Repair",
+    "Shock Cannon Munitions",
+    "Small Calibre Munitions",
+    "Suit",
+    "Weapon",
 ];
 pub const SYNTHESIS_NAMES: &[&str] = &[
-    "100% Refill", "50% Refill", "100% Refill, +2 Seconds Duration",
-    "100% Refill, +15% Heat Dissipation", "100% Refill, +30% Heat Dissipation",
+    "100% Refill",
+    "50% Refill",
+    "100% Refill, +2 Seconds Duration",
+    "100% Refill, +15% Heat Dissipation",
+    "100% Refill, +30% Heat Dissipation",
 ];
 
 /// Journal blueprint symbol for a blueprint-data name, given the module
@@ -157,8 +192,17 @@ pub fn symbol_for_blueprint(name: &str, module_type: &str) -> Option<&'static st
     let m = module_type;
     let weaponish = matches!(
         m,
-        "Pulse Laser" | "Burst Laser" | "Beam Laser" | "Multi-cannon" | "Cannon" | "Fragment Cannon"
-            | "Rail Gun" | "Plasma Accelerator" | "Missile Rack" | "Mine Launcher" | "Torpedo Pylon"
+        "Pulse Laser"
+            | "Burst Laser"
+            | "Beam Laser"
+            | "Multi-cannon"
+            | "Cannon"
+            | "Fragment Cannon"
+            | "Rail Gun"
+            | "Plasma Accelerator"
+            | "Missile Rack"
+            | "Mine Launcher"
+            | "Torpedo Pylon"
     );
     Some(match name {
         "Increased FSD Range" => "FSD_LongRange",
@@ -245,18 +289,44 @@ mod tests {
 
     #[test]
     fn the_commanders_fsd_resolves() {
-        assert_eq!(module_type_for_item("int_hyperdrive_overcharge_size7_class5"), Some("Frame Shift Drive"));
-        assert_eq!(blueprint_for_symbol("FSD_LongRange", "Frame Shift Drive"), Some("Increased FSD Range"));
+        assert_eq!(
+            module_type_for_item("int_hyperdrive_overcharge_size7_class5"),
+            Some("Frame Shift Drive")
+        );
+        assert_eq!(
+            blueprint_for_symbol("FSD_LongRange", "Frame Shift Drive"),
+            Some("Increased FSD Range")
+        );
     }
 
     #[test]
     fn weapons_and_utilities_resolve_by_item_prefix() {
-        assert_eq!(module_type_for_item("Hpt_PulseLaserBurst_Gimbal_Medium"), Some("Burst Laser"));
-        assert_eq!(module_type_for_item("int_mkiiagileboost_engine_size5_class5"), Some("Thrusters"), "Kestrel Mk II thrusters");
-        assert_eq!(module_type_for_item("hpt_pulselaser_fixed_small"), Some("Pulse Laser"));
-        assert_eq!(blueprint_for_symbol("Weapon_Efficient", "Beam Laser"), Some("Efficient Weapon"));
-        assert_eq!(blueprint_for_symbol("Misc_Shielded", "Fuel Scoop"), Some("Shielded"));
-        assert_eq!(blueprint_for_symbol("Misc_Shielded", "Beam Laser"), None, "weapons have no Misc_Shielded");
+        assert_eq!(
+            module_type_for_item("Hpt_PulseLaserBurst_Gimbal_Medium"),
+            Some("Burst Laser")
+        );
+        assert_eq!(
+            module_type_for_item("int_mkiiagileboost_engine_size5_class5"),
+            Some("Thrusters"),
+            "Kestrel Mk II thrusters"
+        );
+        assert_eq!(
+            module_type_for_item("hpt_pulselaser_fixed_small"),
+            Some("Pulse Laser")
+        );
+        assert_eq!(
+            blueprint_for_symbol("Weapon_Efficient", "Beam Laser"),
+            Some("Efficient Weapon")
+        );
+        assert_eq!(
+            blueprint_for_symbol("Misc_Shielded", "Fuel Scoop"),
+            Some("Shielded")
+        );
+        assert_eq!(
+            blueprint_for_symbol("Misc_Shielded", "Beam Laser"),
+            None,
+            "weapons have no Misc_Shielded"
+        );
     }
 
     #[test]
@@ -266,15 +336,24 @@ mod tests {
             ("int_hyperdrive_size5_class5", "FSD_LongRange"),
             ("int_engine_size5_class5", "Engine_Dirty"),
             ("int_powerplant_size5_class5", "PowerPlant_Boosted"),
-            ("int_powerdistributor_size5_class5", "PowerDistributor_HighFrequency"),
+            (
+                "int_powerdistributor_size5_class5",
+                "PowerDistributor_HighFrequency",
+            ),
             ("int_sensors_size2_class5", "Sensor_LightWeight"),
-            ("int_shieldgenerator_size5_class5", "ShieldGenerator_Reinforced"),
+            (
+                "int_shieldgenerator_size5_class5",
+                "ShieldGenerator_Reinforced",
+            ),
             ("hpt_shieldbooster_size0_class5", "ShieldBooster_HeavyDuty"),
             ("hpt_multicannon_gimbal_medium", "Weapon_Overcharged"),
         ] {
             let mt = module_type_for_item(item).unwrap();
             let bp = blueprint_for_symbol(symbol, mt).unwrap();
-            assert!(!cat.grades_for(mt, bp).is_empty(), "{mt} / {bp} missing from data");
+            assert!(
+                !cat.grades_for(mt, bp).is_empty(),
+                "{mt} / {bp} missing from data"
+            );
         }
     }
 
@@ -304,7 +383,8 @@ mod tests {
         // table yet): additions here should shrink, never grow.
         for (module_type, name) in &unmapped {
             assert!(
-                SYNTHESIS_TYPES.contains(&module_type.as_str()) || SYNTHESIS_NAMES.contains(&name.as_str()),
+                SYNTHESIS_TYPES.contains(&module_type.as_str())
+                    || SYNTHESIS_NAMES.contains(&name.as_str()),
                 "{module_type} / {name}: no symbol and not a known synthesis recipe; map it"
             );
         }

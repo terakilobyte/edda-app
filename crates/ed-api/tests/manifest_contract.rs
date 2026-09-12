@@ -35,10 +35,14 @@ async fn served_manifest_is_selected_by_a_market_only_client() {
     let pool = PgPoolOptions::new()
         .connect_lazy("postgres://unused@127.0.0.1:1/unused")
         .unwrap();
-    let response = http::router(AppState::new(pool, artifacts.path().to_owned(), test_metrics()))
-        .oneshot(Request::get(MANIFEST_ROUTE).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = http::router(AppState::new(
+        pool,
+        artifacts.path().to_owned(),
+        test_metrics(),
+    ))
+    .oneshot(Request::get(MANIFEST_ROUTE).body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     assert_eq!(response.status(), 200);
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
 
@@ -59,5 +63,7 @@ async fn served_manifest_is_selected_by_a_market_only_client() {
 /// A detached recorder per call: tests must not fight over the one
 /// global recorder slot.
 fn test_metrics() -> metrics_exporter_prometheus::PrometheusHandle {
-    metrics_exporter_prometheus::PrometheusBuilder::new().build_recorder().handle()
+    metrics_exporter_prometheus::PrometheusBuilder::new()
+        .build_recorder()
+        .handle()
 }

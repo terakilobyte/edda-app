@@ -96,8 +96,16 @@ mod tests {
     fn hulls_the_journal_can_name_have_a_pad_size() {
         // ed_journal::ships knows these two; the pad table must too, or the
         // profit finder refuses to search for a ship it can greet by name.
-        assert_eq!(pad_for_ship("SmallCombat01_NX"), Some(PadSize::Small), "Kestrel Mk II");
-        assert_eq!(pad_for_ship("lakonminer"), Some(PadSize::Large), "Type-11 Prospector");
+        assert_eq!(
+            pad_for_ship("SmallCombat01_NX"),
+            Some(PadSize::Small),
+            "Kestrel Mk II"
+        );
+        assert_eq!(
+            pad_for_ship("lakonminer"),
+            Some(PadSize::Large),
+            "Type-11 Prospector"
+        );
     }
 
     #[test]

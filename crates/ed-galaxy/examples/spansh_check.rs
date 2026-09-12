@@ -13,7 +13,10 @@ use std::path::Path;
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let dir = Path::new(args.first().map(String::as_str).unwrap_or(".data/galaxy"));
-    let csv = args.get(1).map(String::as_str).unwrap_or("spansh-waypoints.csv");
+    let csv = args
+        .get(1)
+        .map(String::as_str)
+        .unwrap_or("spansh-waypoints.csv");
     let sub = Galaxy::open(&ed_galaxy::long_range::neutron_dir(dir))?;
     let cell = sub.cell_ly;
     eprintln!("{} stars, {} ly cells", sub.count, cell);
@@ -78,7 +81,11 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        let nearest = if nearest == f32::MAX { -1.0 } else { nearest.sqrt() };
+        let nearest = if nearest == f32::MAX {
+            -1.0
+        } else {
+            nearest.sqrt()
+        };
         checked += 1;
         let verdict = if (0.0..0.5).contains(&nearest) {
             in_index += 1;
@@ -87,8 +94,8 @@ fn main() -> anyhow::Result<()> {
             missing += 1;
             "MISSING"
         };
-        let scoop = nearest_idx
-            .is_some_and(|i| sub.flags(i) & ed_galaxy::format::FLAG_SCOOP_NEARBY != 0);
+        let scoop =
+            nearest_idx.is_some_and(|i| sub.flags(i) & ed_galaxy::format::FLAG_SCOOP_NEARBY != 0);
         near_scoop += u32::from(scoop);
         println!(
             "{:<34} {:>9} {:>7} {:>9.1} {:>10} {}",

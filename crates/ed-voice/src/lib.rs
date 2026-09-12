@@ -19,8 +19,8 @@ use anyhow::{bail, Context, Result};
 use serde::Serialize;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 
 /// Which engine will actually produce audio.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -88,7 +88,10 @@ impl Audio {
     }
 
     pub fn server_config(&self) -> Option<ServerConfig> {
-        self.server.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.server
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Chosen output device name (None = system default). Set from Settings.
@@ -98,13 +101,18 @@ impl Audio {
     }
 
     pub fn output_device(&self) -> Option<String> {
-        self.output_device.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.output_device
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Stop whatever is being said right now, and retire every line queued
     /// under the previous generation. Returns the new generation.
     pub fn interrupt(&self) -> u64 {
-        self.interrupt.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
+        self.interrupt
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1
     }
 
     /// The current interrupt generation; a line reads it when queued or
@@ -184,7 +192,11 @@ impl Voice {
     /// Explicitly use the zero-download Windows voice even when Piper models
     /// are installed. The sentinel is remembered across launches.
     pub fn use_windows_voice(&mut self) {
-        let voices = self.out_dir.parent().map(Path::to_path_buf).unwrap_or_default();
+        let voices = self
+            .out_dir
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
         self.model = None;
         let _ = std::fs::write(voices.join(SELECTED_FILE), "windows");
         let _ = std::fs::remove_dir_all(&self.out_dir);
@@ -408,7 +420,11 @@ fn server_speech_budget(text: &str) -> std::time::Duration {
     std::time::Duration::from_secs(120 + text.len() as u64 / 2)
 }
 
-fn server_speech(client: &reqwest::blocking::Client, cfg: &ServerConfig, text: &str) -> Result<Vec<u8>> {
+fn server_speech(
+    client: &reqwest::blocking::Client,
+    cfg: &ServerConfig,
+    text: &str,
+) -> Result<Vec<u8>> {
     let url = format!("{}/v1/audio/speech", cfg.url.trim_end_matches('/'));
     let body = serde_json::json!({
         "model": if cfg.model.trim().is_empty() { "kokoro" } else { cfg.model.trim() },
@@ -486,7 +502,10 @@ pub fn list_outputs() -> Vec<String> {
     use rodio::cpal::traits::{DeviceTrait, HostTrait};
     rodio::cpal::default_host()
         .output_devices()
-        .map(|d| d.filter_map(|d| d.description().ok().map(|d| d.name().to_owned())).collect())
+        .map(|d| {
+            d.filter_map(|d| d.description().ok().map(|d| d.name().to_owned()))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -638,9 +657,16 @@ mod tests {
         let dir = Path::new("/definitely/not/here");
         let with_server = Voice::discover(dir);
         let without = Voice::discover(dir);
-        with_server.audio().set_server(Some(ServerConfig { url: "http://127.0.0.1:1".into(), ..Default::default() }));
+        with_server.audio().set_server(Some(ServerConfig {
+            url: "http://127.0.0.1:1".into(),
+            ..Default::default()
+        }));
         assert_eq!(with_server.backend(), Backend::Server);
-        assert_ne!(without.backend(), Backend::Server, "the other voice must not see it");
+        assert_ne!(
+            without.backend(),
+            Backend::Server,
+            "the other voice must not see it"
+        );
         with_server.audio().set_server(None);
         assert_ne!(with_server.backend(), Backend::Server);
     }
@@ -654,8 +680,15 @@ mod tests {
         assert_eq!(a.audio().generation(), b.audio().generation());
         let bumped = audio.interrupt();
         assert_eq!(bumped, queued_at + 1);
-        assert_eq!(a.audio().generation(), bumped, "every holder sees the same generation");
-        assert!(queued_at < b.audio().generation(), "a line queued before the interrupt is stale");
+        assert_eq!(
+            a.audio().generation(),
+            bumped,
+            "every holder sees the same generation"
+        );
+        assert!(
+            queued_at < b.audio().generation(),
+            "a line queued before the interrupt is stale"
+        );
     }
 
     #[test]

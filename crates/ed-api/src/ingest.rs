@@ -59,7 +59,10 @@ async fn healthz() -> impl IntoResponse {
 }
 
 async fn readyz(State(state): State<IngestState>) -> impl IntoResponse {
-    let database = sqlx::query_scalar::<_, i32>("SELECT 1").fetch_one(&state.pool).await.is_ok();
+    let database = sqlx::query_scalar::<_, i32>("SELECT 1")
+        .fetch_one(&state.pool)
+        .await
+        .is_ok();
     let receiving = database && eddn_receiving(&state.pool).await;
     let body = IngestReadiness {
         status: if receiving { "ready" } else { "not_ready" },

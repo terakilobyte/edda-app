@@ -454,8 +454,8 @@ pub fn market_stations_within(
         // Flag OR callsign: the flag lies on fresh installs (no identity
         // yet) and on 63 measured misflagged carriers — carrier policy
         // (opt-in, envelope) must hold either way.
-        let is_carrier = r.get::<_, i64>(9)? != 0
-            || ed_domain::station::is_carrier_callsign(&station);
+        let is_carrier =
+            r.get::<_, i64>(9)? != 0 || ed_domain::station::is_carrier_callsign(&station);
         Ok(MarketStation {
             station_id: r.get(0)?,
             station,
@@ -580,7 +580,8 @@ pub fn newest_station_update(conn: &Connection) -> Result<Option<String>> {
 /// station identity yet, and misflagged carriers hide in bootstrapped
 /// data (63 measured) — while zero real stations match the pattern.
 /// Rust-side callers use `ed_domain::station::is_carrier_callsign`.
-pub(crate) const SQL_ST_NON_CARRIER: &str = "(st.is_carrier = 0 AND st.name NOT GLOB '[A-Z0-9][A-Z0-9][A-Z0-9]-[A-Z0-9][A-Z0-9][A-Z0-9]')";
+pub(crate) const SQL_ST_NON_CARRIER: &str =
+    "(st.is_carrier = 0 AND st.name NOT GLOB '[A-Z0-9][A-Z0-9][A-Z0-9]-[A-Z0-9][A-Z0-9][A-Z0-9]')";
 
 /// The exact service string the ingest records for a black-market
 /// contact (measured against the bootstrapped services table).
@@ -1199,7 +1200,10 @@ mod tests {
         assert_eq!(found[1].max_pad, Some(PadSize::Medium));
         assert_eq!(found[2].max_pad, None);
         assert!(found[4].is_carrier);
-        assert_eq!(found[0].controlling_power.as_deref(), Some("A. Lavigny-Duval"));
+        assert_eq!(
+            found[0].controlling_power.as_deref(),
+            Some("A. Lavigny-Duval")
+        );
     }
 
     #[test]
@@ -1371,7 +1375,11 @@ mod tests {
             10,
         )
         .unwrap();
-        assert_eq!(buyers.len(), 3, "buying is legal everywhere; supply data is untouched");
+        assert_eq!(
+            buyers.len(),
+            3,
+            "buying is legal everywhere; supply data is untouched"
+        );
 
         // Carrier envelope (maintainer rule): a carrier selling outside one
         // std dev of the extreme station prices vanishes; back inside,
@@ -1384,18 +1392,35 @@ mod tests {
         )
         .unwrap();
         let sellers = |conn: &Connection, prohibited_in: bool| {
-            search_commodity(conn, (0.0, 0.0, 0.0), "gold", "sell", 20.0, None, true, prohibited_in, 72.0, 0, CommoditySort::Price, 10)
-                .unwrap()
-                .iter()
-                .map(|h| h.station.clone())
-                .collect::<Vec<_>>()
+            search_commodity(
+                conn,
+                (0.0, 0.0, 0.0),
+                "gold",
+                "sell",
+                20.0,
+                None,
+                true,
+                prohibited_in,
+                72.0,
+                0,
+                CommoditySort::Price,
+                10,
+            )
+            .unwrap()
+            .iter()
+            .map(|h| h.station.clone())
+            .collect::<Vec<_>>()
         };
         assert_eq!(
             sellers(&conn, false),
             vec!["Abraham Lincoln", "X9Z-99X", "Garay Terminal"],
             "15000 is past 9500 + 1x200 for a CARRIER; the station spike is untouched"
         );
-        conn.execute("UPDATE sys_market SET sell_price = 9600 WHERE station_id = 14", []).unwrap();
+        conn.execute(
+            "UPDATE sys_market SET sell_price = 9600 WHERE station_id = 14",
+            [],
+        )
+        .unwrap();
         assert_eq!(
             sellers(&conn, false),
             vec!["Abraham Lincoln", "W1V-8BQ", "X9Z-99X", "Garay Terminal"],
@@ -1481,7 +1506,11 @@ mod tests {
             1,
         )
         .unwrap();
-        assert_eq!(nearest.len(), 1, "distance order fills from the nearest match");
+        assert_eq!(
+            nearest.len(),
+            1,
+            "distance order fills from the nearest match"
+        );
         let deep = search_commodity(
             &conn,
             (0.0, 0.0, 0.0),

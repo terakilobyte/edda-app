@@ -68,12 +68,18 @@ fn slot() -> &'static Mutex<Option<Recording>> {
 
 /// Copy of the events captured so far (recording continues).
 pub fn peek() -> Vec<KeyEvent> {
-    slot().lock().map(|r| r.as_ref().map(|x| x.events.clone()).unwrap_or_default()).unwrap_or_default()
+    slot()
+        .lock()
+        .map(|r| r.as_ref().map(|x| x.events.clone()).unwrap_or_default())
+        .unwrap_or_default()
 }
 
 /// Copy of the clicks captured so far (recording continues).
 pub fn peek_clicks() -> Vec<Click> {
-    slot().lock().map(|r| r.as_ref().map(|x| x.clicks.clone()).unwrap_or_default()).unwrap_or_default()
+    slot()
+        .lock()
+        .map(|r| r.as_ref().map(|x| x.clicks.clone()).unwrap_or_default())
+        .unwrap_or_default()
 }
 
 pub fn is_recording() -> bool {
@@ -85,8 +91,9 @@ mod imp {
     use super::*;
     use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, KBDLLHOOKSTRUCT,
-        LLKHF_EXTENDED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+        CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
+        TranslateMessage, UnhookWindowsHookEx, KBDLLHOOKSTRUCT, LLKHF_EXTENDED, MSG,
+        WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
     };
 
     unsafe extern "system" fn hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -95,11 +102,19 @@ mod imp {
             let down = matches!(wparam as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
             let up = matches!(wparam as u32, WM_KEYUP | WM_SYSKEYUP);
             if down || up {
-                let sc = ScanCode { code: k.scanCode as u16, extended: k.flags & LLKHF_EXTENDED != 0 };
+                let sc = ScanCode {
+                    code: k.scanCode as u16,
+                    extended: k.flags & LLKHF_EXTENDED != 0,
+                };
                 if let Ok(mut r) = slot().lock() {
                     if let Some(rec) = r.as_mut() {
                         let at_ms = rec.started.elapsed().as_millis() as u64;
-                        rec.events.push(KeyEvent { sc, down, at_ms, game: foreground_is_game() });
+                        rec.events.push(KeyEvent {
+                            sc,
+                            down,
+                            at_ms,
+                            game: foreground_is_game(),
+                        });
                     }
                 }
                 // Watched keys: fire on the press only (auto-repeat sends more downs).
@@ -121,7 +136,10 @@ mod imp {
     /// Observe a key without consuming it; `f` runs on the hook thread, so
     /// it must only hand off (send on a channel, spawn a thread).
     pub fn watch(sc: ScanCode, f: Box<dyn Fn() + Send>) -> Result<(), String> {
-        watchers().lock().map_err(|e| e.to_string())?.push(Watcher { sc, f, held: false });
+        watchers()
+            .lock()
+            .map_err(|e| e.to_string())?
+            .push(Watcher { sc, f, held: false });
         ensure_hook_thread()
     }
 
@@ -145,7 +163,12 @@ mod imp {
                     let _ = tx.send(Err("could not install the keyboard hook".into()));
                     return;
                 }
-                let hm = SetWindowsHookExW(windows_sys::Win32::UI::WindowsAndMessaging::WH_MOUSE_LL, Some(mouse_hook), std::ptr::null_mut(), 0);
+                let hm = SetWindowsHookExW(
+                    windows_sys::Win32::UI::WindowsAndMessaging::WH_MOUSE_LL,
+                    Some(mouse_hook),
+                    std::ptr::null_mut(),
+                    0,
+                );
                 let tid = windows_sys::Win32::System::Threading::GetCurrentThreadId();
                 *hook_thread().lock().unwrap_or_else(|e| e.into_inner()) = Some(tid);
                 let _ = tx.send(Ok(tid));
@@ -171,24 +194,41 @@ mod imp {
         if is_recording() {
             return Err("already recording".into());
         }
-        *slot().lock().unwrap_or_else(|e| e.into_inner()) = Some(Recording { started: Instant::now(), events: Vec::new(), clicks: Vec::new() });
+        *slot().lock().unwrap_or_else(|e| e.into_inner()) = Some(Recording {
+            started: Instant::now(),
+            events: Vec::new(),
+            clicks: Vec::new(),
+        });
         ensure_hook_thread()
     }
 
     unsafe extern "system" fn mouse_hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         use windows_sys::Win32::Foundation::RECT;
-        use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect, MSLLHOOKSTRUCT, WM_LBUTTONDOWN};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetForegroundWindow, GetWindowRect, MSLLHOOKSTRUCT, WM_LBUTTONDOWN,
+        };
         if code >= 0 && wparam as u32 == WM_LBUTTONDOWN {
             let m = &*(lparam as *const MSLLHOOKSTRUCT);
             let h = GetForegroundWindow();
-            let mut r = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-            if !h.is_null() && GetWindowRect(h, &mut r) != 0 && r.right > r.left && r.bottom > r.top {
+            let mut r = RECT {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            if !h.is_null() && GetWindowRect(h, &mut r) != 0 && r.right > r.left && r.bottom > r.top
+            {
                 let xf = (m.pt.x - r.left) as f32 / (r.right - r.left) as f32;
                 let yf = (m.pt.y - r.top) as f32 / (r.bottom - r.top) as f32;
                 if let Ok(mut s) = slot().lock() {
                     if let Some(rec) = s.as_mut() {
                         let at_ms = rec.started.elapsed().as_millis() as u64;
-                        rec.clicks.push(Click { xf, yf, at_ms, game: foreground_is_game() });
+                        rec.clicks.push(Click {
+                            xf,
+                            yf,
+                            at_ms,
+                            game: foreground_is_game(),
+                        });
                     }
                 }
             }
@@ -201,7 +241,11 @@ mod imp {
         let rec = slot().lock().unwrap_or_else(|e| e.into_inner()).take();
         let watching = watchers().lock().map(|w| !w.is_empty()).unwrap_or(false);
         if !watching {
-            if let Some(tid) = hook_thread().lock().unwrap_or_else(|e| e.into_inner()).take() {
+            if let Some(tid) = hook_thread()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .take()
+            {
                 // SAFETY: posting WM_QUIT to the hook thread ends its loop.
                 unsafe {
                     PostThreadMessageW(tid, WM_QUIT, 0, 0);
@@ -224,7 +268,11 @@ mod imp {
                     return;
                 }
                 let tid = windows_sys::Win32::System::Threading::GetCurrentThreadId();
-                *slot().lock().unwrap_or_else(|e| e.into_inner()) = Some(Recording { started: Instant::now(), events: Vec::new(), clicks: Vec::new() });
+                *slot().lock().unwrap_or_else(|e| e.into_inner()) = Some(Recording {
+                    started: Instant::now(),
+                    events: Vec::new(),
+                    clicks: Vec::new(),
+                });
                 let _ = tx.send(Ok(tid));
                 let mut msg: MSG = std::mem::zeroed();
                 while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
@@ -284,13 +332,109 @@ pub use imp::{start, stop, stop_with_clicks, unwatch_all, watch};
 /// Binds-style key name for a scan code, if we know it.
 pub fn key_name(sc: ScanCode) -> Option<&'static str> {
     const NAMES: &[&str] = &[
-        "Escape", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Minus", "Equals", "Backspace", "Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P",
-        "LeftBracket", "RightBracket", "Enter", "LeftControl", "A", "S", "D", "F", "G", "H", "J", "K", "L", "SemiColon", "Apostrophe", "Grave", "LeftShift",
-        "Backslash", "Z", "X", "C", "V", "B", "N", "M", "Comma", "Period", "Slash", "RightShift", "Numpad_Multiply", "LeftAlt", "Space", "CapsLock",
-        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "NumLock", "ScrollLock", "Numpad_7", "Numpad_8", "Numpad_9",
-        "Numpad_Subtract", "Numpad_4", "Numpad_5", "Numpad_6", "Numpad_Add", "Numpad_1", "Numpad_2", "Numpad_3", "Numpad_0", "Numpad_Decimal",
-        "Numpad_Enter", "RightControl", "Numpad_Divide", "RightAlt", "Home", "UpArrow", "PageUp", "LeftArrow", "RightArrow", "End", "DownArrow",
-        "PageDown", "Insert", "Delete", "Pause",
+        "Escape",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "0",
+        "Minus",
+        "Equals",
+        "Backspace",
+        "Tab",
+        "Q",
+        "W",
+        "E",
+        "R",
+        "T",
+        "Y",
+        "U",
+        "I",
+        "O",
+        "P",
+        "LeftBracket",
+        "RightBracket",
+        "Enter",
+        "LeftControl",
+        "A",
+        "S",
+        "D",
+        "F",
+        "G",
+        "H",
+        "J",
+        "K",
+        "L",
+        "SemiColon",
+        "Apostrophe",
+        "Grave",
+        "LeftShift",
+        "Backslash",
+        "Z",
+        "X",
+        "C",
+        "V",
+        "B",
+        "N",
+        "M",
+        "Comma",
+        "Period",
+        "Slash",
+        "RightShift",
+        "Numpad_Multiply",
+        "LeftAlt",
+        "Space",
+        "CapsLock",
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6",
+        "F7",
+        "F8",
+        "F9",
+        "F10",
+        "F11",
+        "F12",
+        "NumLock",
+        "ScrollLock",
+        "Numpad_7",
+        "Numpad_8",
+        "Numpad_9",
+        "Numpad_Subtract",
+        "Numpad_4",
+        "Numpad_5",
+        "Numpad_6",
+        "Numpad_Add",
+        "Numpad_1",
+        "Numpad_2",
+        "Numpad_3",
+        "Numpad_0",
+        "Numpad_Decimal",
+        "Numpad_Enter",
+        "RightControl",
+        "Numpad_Divide",
+        "RightAlt",
+        "Home",
+        "UpArrow",
+        "PageUp",
+        "LeftArrow",
+        "RightArrow",
+        "End",
+        "DownArrow",
+        "PageDown",
+        "Insert",
+        "Delete",
+        "Pause",
     ];
-    NAMES.iter().copied().find(|n| crate::keys::scan_code(n) == Some(sc))
+    NAMES
+        .iter()
+        .copied()
+        .find(|n| crate::keys::scan_code(n) == Some(sc))
 }

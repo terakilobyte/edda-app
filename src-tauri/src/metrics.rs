@@ -24,7 +24,8 @@ const SECONDS_BUCKETS: &[f64] = &[
 /// call (dev-server reloads) leaves the first recorder standing and
 /// logs instead of panicking.
 pub fn install() {
-    let recorder = PrometheusBuilder::new().set_buckets_for_metric(Matcher::Suffix("_seconds".into()), SECONDS_BUCKETS);
+    let recorder = PrometheusBuilder::new()
+        .set_buckets_for_metric(Matcher::Suffix("_seconds".into()), SECONDS_BUCKETS);
     match recorder.and_then(|b| b.install_recorder()) {
         Ok(handle) => {
             // Stale histogram samples age out even if nobody ever opens
@@ -45,7 +46,10 @@ pub fn install() {
 /// only — this string is rendered for the user, never transmitted.
 #[tauri::command]
 pub fn metrics_snapshot() -> Result<String, String> {
-    HANDLE.get().map(|h| h.render()).ok_or_else(|| "metrics not initialized".into())
+    HANDLE
+        .get()
+        .map(|h| h.render())
+        .ok_or_else(|| "metrics not initialized".into())
 }
 
 #[cfg(test)]
@@ -58,10 +62,18 @@ mod tests {
         metrics::counter!("edda_route_requests_total", "outcome" => "ok").increment(1);
         metrics::histogram!("edda_route_wall_seconds").record(0.5);
         let text = metrics_snapshot().expect("installed");
-        assert!(text.contains(r#"edda_route_requests_total{outcome="ok"} 1"#), "{text}");
-        assert!(text.contains(r#"edda_route_wall_seconds_bucket{le="1"} 1"#), "{text}");
+        assert!(
+            text.contains(r#"edda_route_requests_total{outcome="ok"} 1"#),
+            "{text}"
+        );
+        assert!(
+            text.contains(r#"edda_route_wall_seconds_bucket{le="1"} 1"#),
+            "{text}"
+        );
         // A second install must not panic or wipe what's collected.
         install();
-        assert!(metrics_snapshot().expect("still installed").contains("edda_route_requests_total"));
+        assert!(metrics_snapshot()
+            .expect("still installed")
+            .contains("edda_route_requests_total"));
     }
 }

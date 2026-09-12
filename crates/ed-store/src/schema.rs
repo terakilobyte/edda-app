@@ -840,15 +840,27 @@ fn migrate_galaxy(conn: &Connection) -> Result<()> {
              WHERE security LIKE '$%'",
             [],
         )?;
-        tracing::info!(changed, "galaxy: security symbols rewritten as display names");
+        tracing::info!(
+            changed,
+            "galaxy: security symbols rewritten as display names"
+        );
     }
     if version < 5 {
         let (merged, deleted, kept) = fold_commodity_variants(&tx)?;
-        tracing::info!(merged, deleted, kept, "galaxy: commodity catalog folded to canonical symbols");
+        tracing::info!(
+            merged,
+            deleted,
+            kept,
+            "galaxy: commodity catalog folded to canonical symbols"
+        );
     }
     if version < 6 {
         let (healed, orphans) = merge_provisional_systems(&tx)?;
-        tracing::info!(healed, orphans, "galaxy: provisional system ghosts merged into their real rows");
+        tracing::info!(
+            healed,
+            orphans,
+            "galaxy: provisional system ghosts merged into their real rows"
+        );
     }
     tx.pragma_update(Some("galaxy"), "user_version", GALAXY_VERSION)?;
     tx.commit()?;
@@ -901,7 +913,12 @@ fn fold_commodity_variants(conn: &Connection) -> Result<(u64, u64, u64)> {
             .optional()?;
         match winner {
             Some(winner) => {
-                crate::market::intern_commodity(conn, &stripped, name.as_deref(), category.as_deref())?;
+                crate::market::intern_commodity(
+                    conn,
+                    &stripped,
+                    name.as_deref(),
+                    category.as_deref(),
+                )?;
                 merge_market_rows(conn, *loser, winner)?;
                 merged += 1;
             }
@@ -912,7 +929,10 @@ fn fold_commodity_variants(conn: &Connection) -> Result<(u64, u64, u64)> {
                 if referenced {
                     kept += 1;
                 } else {
-                    conn.execute("DELETE FROM galaxy.sys_commodity_stats WHERE commodity_id = ?1", [loser])?;
+                    conn.execute(
+                        "DELETE FROM galaxy.sys_commodity_stats WHERE commodity_id = ?1",
+                        [loser],
+                    )?;
                     conn.execute("DELETE FROM galaxy.sys_commodities WHERE id = ?1", [loser])?;
                     deleted += 1;
                 }
@@ -978,8 +998,14 @@ fn merge_market_rows(conn: &Connection, loser: i64, winner: i64) -> Result<()> {
          WHERE COALESCE(excluded.updated, 0) > COALESCE(sys_market.updated, 0)",
         params![loser, winner],
     )?;
-    conn.execute("DELETE FROM galaxy.sys_market WHERE commodity_id = ?1", [loser])?;
-    conn.execute("DELETE FROM galaxy.sys_commodity_stats WHERE commodity_id = ?1", [loser])?;
+    conn.execute(
+        "DELETE FROM galaxy.sys_market WHERE commodity_id = ?1",
+        [loser],
+    )?;
+    conn.execute(
+        "DELETE FROM galaxy.sys_commodity_stats WHERE commodity_id = ?1",
+        [loser],
+    )?;
     conn.execute("DELETE FROM galaxy.sys_commodities WHERE id = ?1", [loser])?;
     Ok(())
 }
@@ -1067,7 +1093,10 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             ))?
             .exists([])?;
         if !has_col {
-            conn.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"), [])?;
+            conn.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN {column} {decl}"),
+                [],
+            )?;
         }
     }
 
@@ -1206,8 +1235,11 @@ mod tests {
             .replace("    updated    TEXT,\n", "    updated    INTEGER,\n");
         {
             let conn = Connection::open_in_memory().unwrap();
-            conn.execute("ATTACH DATABASE ?1 AS galaxy", [path.to_string_lossy().as_ref()])
-                .unwrap();
+            conn.execute(
+                "ATTACH DATABASE ?1 AS galaxy",
+                [path.to_string_lossy().as_ref()],
+            )
+            .unwrap();
             conn.execute_batch(&legacy_ddl).unwrap();
             let declared: String = conn
                 .query_row(
@@ -1333,8 +1365,11 @@ mod tests {
         let path = dir.path().join("galaxy.sqlite3");
         {
             let conn = Connection::open_in_memory().unwrap();
-            conn.execute("ATTACH DATABASE ?1 AS galaxy", [path.to_string_lossy().as_ref()])
-                .unwrap();
+            conn.execute(
+                "ATTACH DATABASE ?1 AS galaxy",
+                [path.to_string_lossy().as_ref()],
+            )
+            .unwrap();
             conn.execute_batch(GALAXY_DDL).unwrap();
             conn.execute_batch(
                 "INSERT INTO galaxy.sys_commodities (id, symbol) VALUES (1, 'gold');
@@ -1377,8 +1412,11 @@ mod tests {
         let path = dir.path().join("galaxy.sqlite3");
         {
             let conn = Connection::open_in_memory().unwrap();
-            conn.execute("ATTACH DATABASE ?1 AS galaxy", [path.to_string_lossy().as_ref()])
-                .unwrap();
+            conn.execute(
+                "ATTACH DATABASE ?1 AS galaxy",
+                [path.to_string_lossy().as_ref()],
+            )
+            .unwrap();
             conn.execute_batch(GALAXY_DDL).unwrap();
             conn.execute_batch(
                 "INSERT INTO galaxy.sys_commodities (id, symbol, name, category) VALUES
@@ -1415,7 +1453,10 @@ mod tests {
         assert_eq!(
             goods,
             vec![
-                ("advancedcatalysers".into(), Some("Advanced Catalysers".into())),
+                (
+                    "advancedcatalysers".into(),
+                    Some("Advanced Catalysers".into())
+                ),
                 ("azure milk".into(), None), // referenced: kept, not folded blind
                 ("gold".into(), Some("Gold".into())),
                 ("silver".into(), Some("Silver".into())),
@@ -1467,8 +1508,11 @@ mod tests {
         let path = dir.path().join("galaxy.sqlite3");
         {
             let conn = Connection::open_in_memory().unwrap();
-            conn.execute("ATTACH DATABASE ?1 AS galaxy", [path.to_string_lossy().as_ref()])
-                .unwrap();
+            conn.execute(
+                "ATTACH DATABASE ?1 AS galaxy",
+                [path.to_string_lossy().as_ref()],
+            )
+            .unwrap();
             conn.execute_batch(GALAXY_DDL).unwrap();
             conn.execute_batch(
                 "INSERT INTO galaxy.sys_systems (id64, name, x, y, z) VALUES (4923936737651, 'Ega', 7.0, 8.0, 9.0);
@@ -1491,7 +1535,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .unwrap();
-        assert_eq!(parent, 4923936737651, "station repointed to the real system");
+        assert_eq!(
+            parent, 4923936737651,
+            "station repointed to the real system"
+        );
         assert_eq!(x, Some(7.0), "and radius queries can see it again");
         let ghosts: Vec<i64> = conn
             .prepare("SELECT id64 FROM galaxy.sys_systems WHERE id64 < 0 ORDER BY id64")
@@ -1500,9 +1547,17 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(ghosts, vec![-8], "twinless ghost survives; merged ghost is gone");
+        assert_eq!(
+            ghosts,
+            vec![-8],
+            "twinless ghost survives; merged ghost is gone"
+        );
         let orphan_parent: i64 = conn
-            .query_row("SELECT system_id64 FROM galaxy.sys_stations WHERE id = 901", [], |r| r.get(0))
+            .query_row(
+                "SELECT system_id64 FROM galaxy.sys_stations WHERE id = 901",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(orphan_parent, -8, "the genuine unknown keeps its station");
     }

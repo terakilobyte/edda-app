@@ -83,7 +83,12 @@ impl Recording {
     }
 
     pub fn names(&self) -> Vec<&'static str> {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).iter().map(|(n, _)| *n).collect()
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|(n, _)| *n)
+            .collect()
     }
 
     pub fn last(&self, event: &str) -> Option<Value> {
@@ -95,12 +100,14 @@ impl Recording {
             .find(|(n, _)| *n == event)
             .map(|(_, v)| v.clone())
     }
-
 }
 
 impl Emitter for Recording {
     fn emit_value(&self, event: &'static str, payload: Value) {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).push((event, payload));
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push((event, payload));
     }
 }
 
@@ -154,6 +161,9 @@ mod tests {
         bus.install(rec.clone());
         bus.emit(GAME_STATE, serde_json::json!({ "running": true }));
         assert_eq!(rec.names(), vec![GAME_STATE]);
-        assert_eq!(rec.last(GAME_STATE), Some(serde_json::json!({ "running": true })));
+        assert_eq!(
+            rec.last(GAME_STATE),
+            Some(serde_json::json!({ "running": true }))
+        );
     }
 }

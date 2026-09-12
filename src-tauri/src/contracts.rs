@@ -48,7 +48,11 @@ fn event_names_are_declared_only_in_events_rs() {
         })
         .map(|(name, _)| name)
         .collect();
-    assert_eq!(offenders, Vec::<String>::new(), "literal event names outside events.rs");
+    assert_eq!(
+        offenders,
+        Vec::<String>::new(),
+        "literal event names outside events.rs"
+    );
     let events = std::fs::read_to_string(src_dir().join("events.rs")).unwrap();
     let declared = events
         .lines()
@@ -57,7 +61,10 @@ fn event_names_are_declared_only_in_events_rs() {
     // 21 since B.4 (community-sync, maintenance and search-progress went
     // with the local data); the bound catches a table that lost a row by
     // accident, not one trimmed on purpose.
-    assert!(declared >= 21, "events.rs declares {declared} events; expected the whole table");
+    assert!(
+        declared >= 21,
+        "events.rs declares {declared} events; expected the whole table"
+    );
 }
 
 /// Background work runs on the one runtime under the supervisor: no job
@@ -65,17 +72,35 @@ fn event_names_are_declared_only_in_events_rs() {
 /// and app exit shuts the supervisor down.
 #[test]
 fn background_tasks_run_on_the_supervised_runtime() {
-    assert_eq!(files_containing("tokio::runtime::Builder", &[]), Vec::<String>::new());
-    let job_modules = ["lib.rs", "feed.rs", "game.rs", "watcher.rs", "eval.rs", "spansh.rs", "exchange.rs"];
+    assert_eq!(
+        files_containing("tokio::runtime::Builder", &[]),
+        Vec::<String>::new()
+    );
+    let job_modules = [
+        "lib.rs",
+        "feed.rs",
+        "game.rs",
+        "watcher.rs",
+        "eval.rs",
+        "spansh.rs",
+        "exchange.rs",
+    ];
     for needle in ["std::thread::spawn", "std::thread::Builder"] {
         let offenders: Vec<String> = files_containing(needle, &[])
             .into_iter()
             .filter(|name| job_modules.contains(&name.as_str()))
             .collect();
-        assert_eq!(offenders, Vec::<String>::new(), "job modules that still own a thread ({needle})");
+        assert_eq!(
+            offenders,
+            Vec::<String>::new(),
+            "job modules that still own a thread ({needle})"
+        );
     }
     let lib = std::fs::read_to_string(src_dir().join("lib.rs")).unwrap();
-    assert!(lib.contains("RunEvent::Exit"), "app exit must shut the supervisor down");
+    assert!(
+        lib.contains("RunEvent::Exit"),
+        "app exit must shut the supervisor down"
+    );
 }
 
 /// One HTTP client per flavour, built once with the app's user agent.
@@ -87,9 +112,17 @@ fn http_clients_are_built_once_on_app_state() {
         "reqwest::blocking::Client::builder()",
         "reqwest::blocking::Client::new()",
     ] {
-        assert_eq!(files_containing(needle, &["state.rs"]), Vec::<String>::new(), "{needle} outside state.rs");
+        assert_eq!(
+            files_containing(needle, &["state.rs"]),
+            Vec::<String>::new(),
+            "{needle} outside state.rs"
+        );
     }
-    assert_eq!(files_containing("\"EDDA/0.1", &[]), Vec::<String>::new(), "hardcoded version in a user agent");
+    assert_eq!(
+        files_containing("\"EDDA/0.1", &[]),
+        Vec::<String>::new(),
+        "hardcoded version in a user agent"
+    );
 }
 
 /// Writer ownership, cancellation, voice generation and listener state are
@@ -102,12 +135,27 @@ fn coordination_state_is_owned_not_global() {
             .lines()
             .filter(|l| l.trim_start().starts_with("static "))
             .collect();
-        assert_eq!(statics, Vec::<&str>::new(), "{file} still has process-global state");
+        assert_eq!(
+            statics,
+            Vec::<&str>::new(),
+            "{file} still has process-global state"
+        );
     }
     // The old flag fields (`x.search_cancel`, `import_cancel: Arc<AtomicBool>`),
     // not the `*_cancel` commands that now cancel a supervised job.
-    for needle in [".search_cancel", "search_cancel:", ".import_cancel", "import_cancel:", "::CANCEL", "CANCEL.store"] {
-        assert_eq!(files_containing(needle, &[]), Vec::<String>::new(), "{needle}");
+    for needle in [
+        ".search_cancel",
+        "search_cancel:",
+        ".import_cancel",
+        "import_cancel:",
+        "::CANCEL",
+        "CANCEL.store",
+    ] {
+        assert_eq!(
+            files_containing(needle, &[]),
+            Vec::<String>::new(),
+            "{needle}"
+        );
     }
     assert_eq!(
         files_containing("Mutex<Option<tauri::AppHandle>>", &[]),

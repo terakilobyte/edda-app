@@ -29,8 +29,8 @@ pub mod maintenance;
 pub mod market;
 pub mod materials;
 pub mod merit_capture;
-pub mod mining;
 pub mod merits;
+pub mod mining;
 pub mod missions;
 pub mod observe;
 #[cfg(feature = "postgres")]

@@ -11,8 +11,8 @@
 //! requirement is resolved locally and sent as an explicit size.
 
 use crate::capabilities::galaxy::{market_search_context, MarketSearchRequest};
-use crate::exchange::SendApi;
 use crate::capabilities::CapError;
+use crate::exchange::SendApi;
 use crate::state::AppState;
 
 /// A healthy-but-busy server gets room to answer (bench P95 is ~0.6 s
@@ -56,7 +56,11 @@ fn enrich_names(kind: &str, value: &mut serde_json::Value) {
         return;
     };
     for row in results {
-        let Some(symbol) = row.get("symbol").and_then(|s| s.as_str()).map(str::to_owned) else {
+        let Some(symbol) = row
+            .get("symbol")
+            .and_then(|s| s.as_str())
+            .map(str::to_owned)
+        else {
             continue;
         };
         let name = match kind {
@@ -70,15 +74,21 @@ fn enrich_names(kind: &str, value: &mut serde_json::Value) {
 
 /// One market search on the API. Errors: the local context (no current
 /// system, unknown hull) as the typed capability error, or `api_down`.
-pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<serde_json::Value, CapError> {
-    let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
+pub async fn search(
+    state: &AppState,
+    query: &MarketSearchRequest,
+) -> Result<serde_json::Value, CapError> {
+    let conn = state
+        .read_conn()
+        .map_err(|e| CapError::unavailable(e, true))?;
     let (system, min_pad) = {
         let query = query.clone();
         tauri::async_runtime::spawn_blocking(move || market_search_context(&conn, &query))
             .await
             .map_err(|e| CapError::internal(e.to_string()))??
     };
-    let api = crate::exchange::endpoint(state).ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
+    let api = crate::exchange::endpoint(state)
+        .ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
     let body = wire_body(query, &system, min_pad);
     let started = std::time::Instant::now();
     let response = state
@@ -99,7 +109,10 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
     let status = response.status();
     if !status.is_success() {
         tracing::info!(%status, ms, "market search: server declined");
-        return Err(crate::remote_lookup::api_down(&format!("market search, HTTP {}", status.as_u16())));
+        return Err(crate::remote_lookup::api_down(&format!(
+            "market search, HTTP {}",
+            status.as_u16()
+        )));
     }
     match response.json::<serde_json::Value>().await {
         Ok(mut value) if value.get("results").is_some() => {
@@ -148,7 +161,10 @@ mod tests {
         assert_eq!(body["min_quantity"], 500);
         assert_eq!(body["max_age_hours"], 2.0);
         assert_eq!(body["include_prohibited"], true);
-        assert!(body.get("hull").is_none() && body.to_string().to_lowercase().contains("panther") == false);
+        assert!(
+            body.get("hull").is_none()
+                && body.to_string().to_lowercase().contains("panther") == false
+        );
         let unpadded = wire_body(&query(), "Ega", None);
         assert_eq!(unpadded["min_pad"], "any");
     }
@@ -165,6 +181,9 @@ mod tests {
         assert!(value["results"][0]["class"].is_null());
         let mut commodity = serde_json::json!({"results": [{"station": "X", "price": 1}]});
         enrich_names("commodity", &mut commodity);
-        assert_eq!(commodity["results"][0]["price"], 1, "commodity rows pass through untouched");
+        assert_eq!(
+            commodity["results"][0]["price"], 1,
+            "commodity rows pass through untouched"
+        );
     }
 }

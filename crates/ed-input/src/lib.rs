@@ -17,9 +17,9 @@
 //! That policy lives in the app, next to the journal state that informs it.
 
 pub mod binds;
+pub mod joy;
 pub mod keymap;
 pub mod keys;
-pub mod joy;
 #[cfg(target_os = "linux")]
 pub mod linux;
 #[cfg(target_os = "macos")]
@@ -33,7 +33,9 @@ pub use binds::{Binds, Chord};
 /// that should never make the UI wait.
 #[cfg(windows)]
 pub fn lower_thread_priority() {
-    use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL};
+    use windows_sys::Win32::System::Threading::{
+        GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL,
+    };
     // SAFETY: plain Win32 call on the calling thread's pseudo-handle.
     unsafe {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);

@@ -110,7 +110,10 @@ impl AppState {
 /// route limiter after three requests). Production leaves the variables
 /// unset and gets the default; a systemd drop-in sets them for a run.
 fn env_rate(var: &str, default: u32) -> u32 {
-    std::env::var(var).ok().and_then(|value| value.parse().ok()).unwrap_or(default)
+    std::env::var(var)
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(default)
 }
 
 /// The rate-limit key: first X-Forwarded-For hop (Caddy sets it), used
@@ -153,7 +156,11 @@ async fn stations(
         Err(message) => {
             metrics::counter!("edda_stations_requests_total", "mode" => "invalid", "outcome" => "invalid")
                 .increment(1);
-            return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": message}))).into_response();
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": message})),
+            )
+                .into_response();
         }
     };
     let mode_label: &'static str = match mode {
@@ -165,16 +172,27 @@ async fn stations(
     let counter = |outcome: &'static str| {
         metrics::counter!("edda_stations_requests_total", "mode" => mode_label, "outcome" => outcome).increment(1)
     };
-    if state.knowledge_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .knowledge_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let started = std::time::Instant::now();
     let result = match mode {
         Mode::InSystem(system) => crate::stations::in_system(&state.pool, &system, &query).await,
-        Mode::InSystems(systems) => crate::stations::in_systems(&state.pool, &systems, &query).await,
+        Mode::InSystems(systems) => {
+            crate::stations::in_systems(&state.pool, &systems, &query).await
+        }
         Mode::Name(prefix) => crate::stations::by_name(&state.pool, &prefix, &query).await,
-        Mode::Near { system, service, radius_ly, min_pad } => {
+        Mode::Near {
+            system,
+            service,
+            radius_ly,
+            min_pad,
+        } => {
             let indexed = match state.galaxy.current().await {
                 Ok(Some(handle)) => handle.galaxy.find(&system).map(|idx| {
                     let p = handle.galaxy.pos_of(idx);
@@ -184,26 +202,34 @@ async fn stations(
             };
             let origin = match indexed {
                 Some(origin) => origin,
-                None => match crate::market_search::origin_coords(&state.pool, &system).await {
-                    Ok(origin) => origin,
-                    Err(_) => {
-                        counter("unknown_system");
-                        return (
+                None => {
+                    match crate::market_search::origin_coords(&state.pool, &system).await {
+                        Ok(origin) => origin,
+                        Err(_) => {
+                            counter("unknown_system");
+                            return (
                             StatusCode::UNPROCESSABLE_ENTITY,
                             axum::Json(serde_json::json!({ "error": "unknown_system", "system": system })),
                         )
                             .into_response();
+                        }
                     }
-                },
+                }
             };
             crate::stations::near(&state.pool, origin, service, radius_ly, min_pad, &query).await
         }
     };
     match result {
         Ok(list) => {
-            metrics::histogram!("edda_stations_seconds", "mode" => mode_label).record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_stations_seconds", "mode" => mode_label)
+                .record(started.elapsed().as_secs_f64());
             counter("ok");
-            tracing::info!(mode = mode_label, hits = list.len(), ms = started.elapsed().as_millis() as u64, "stations served");
+            tracing::info!(
+                mode = mode_label,
+                hits = list.len(),
+                ms = started.elapsed().as_millis() as u64,
+                "stations served"
+            );
             axum::Json(list).into_response()
         }
         Err(error) => {
@@ -244,7 +270,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/telemetry", axum::routing::post(telemetry))
         .route("/v1/stars", get(stars))
         .route("/v1/route", axum::routing::post(plot_route))
-        .route("/v1/loadout/physics", axum::routing::post(crate::loadout::handler))
+        .route(
+            "/v1/loadout/physics",
+            axum::routing::post(crate::loadout::handler),
+        )
         .route("/v1/market/search", axum::routing::post(market_search))
         .route("/v1/market/station/{id}", get(station_board))
         .route("/v1/mining/search", axum::routing::post(mining_search))
@@ -276,7 +305,11 @@ async fn trade_search(
     let outcome_counter = |outcome: &'static str| {
         metrics::counter!("edda_trade_search_requests_total", "outcome" => outcome).increment(1)
     };
-    if state.market_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .market_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -290,18 +323,25 @@ async fn trade_search(
             Ok(request) => request,
             Err(error) => {
                 outcome_counter("invalid");
-                return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": error.to_string()})))
+                return (
+                    StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({"error": error.to_string()})),
+                )
                     .into_response();
             }
         };
         outcome_counter("report");
         state.trade_service.report(&state.pool, &report).await
     } else {
-        let legacy: crate::trade_search::TradeSearchApiRequest = match serde_json::from_value(body) {
+        let legacy: crate::trade_search::TradeSearchApiRequest = match serde_json::from_value(body)
+        {
             Ok(request) => request,
             Err(error) => {
                 outcome_counter("invalid");
-                return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": error.to_string()})))
+                return (
+                    StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({"error": error.to_string()})),
+                )
                     .into_response();
             }
         };
@@ -309,18 +349,28 @@ async fn trade_search(
     };
     match outcome {
         Ok(TradeOutcome::Legs(value, cache_verdict)) => {
-            metrics::histogram!("edda_trade_search_seconds").record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_trade_search_seconds")
+                .record(started.elapsed().as_secs_f64());
             // "filter_miss" = an entry with the same sphere+window sat
             // in cache under different post-filterable knobs — the
             // field count that rules the superset-then-filter design.
-            metrics::counter!("edda_trade_search_cache_total", "result" => cache_verdict).increment(1);
+            metrics::counter!("edda_trade_search_cache_total", "result" => cache_verdict)
+                .increment(1);
             outcome_counter("ok");
-            tracing::info!(cache = cache_verdict, ms = started.elapsed().as_millis() as u64, "trade search served");
+            tracing::info!(
+                cache = cache_verdict,
+                ms = started.elapsed().as_millis() as u64,
+                "trade search served"
+            );
             axum::Json(value).into_response()
         }
         Ok(TradeOutcome::Saturated) => {
             outcome_counter("saturated");
-            (StatusCode::TOO_MANY_REQUESTS, "the trade search queue is full — try again shortly").into_response()
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                "the trade search queue is full — try again shortly",
+            )
+                .into_response()
         }
         Err(Refusal::UnknownSystem(name)) => {
             outcome_counter("unknown_system");
@@ -351,14 +401,19 @@ async fn station_board(
     let outcome_counter = |outcome: &'static str| {
         metrics::counter!("edda_station_board_requests_total", "outcome" => outcome).increment(1)
     };
-    if state.market_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .market_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let started = std::time::Instant::now();
     match crate::market_search::station_board(&state.pool, station_id).await {
         Ok(value) => {
-            metrics::histogram!("edda_station_board_seconds").record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_station_board_seconds")
+                .record(started.elapsed().as_secs_f64());
             outcome_counter("ok");
             axum::Json(value).into_response()
         }
@@ -370,7 +425,8 @@ async fn station_board(
             )
                 .into_response()
         }
-        Err(crate::market_search::Refusal::Invalid(message)) | Err(crate::market_search::Refusal::UnknownCommodity { text: message, .. }) => {
+        Err(crate::market_search::Refusal::Invalid(message))
+        | Err(crate::market_search::Refusal::UnknownCommodity { text: message, .. }) => {
             outcome_counter("error");
             tracing::warn!(%message, "station board refused");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -391,14 +447,19 @@ async fn market_search(
     let outcome_counter = |outcome: &'static str| {
         metrics::counter!("edda_market_search_requests_total", "outcome" => outcome).increment(1)
     };
-    if state.market_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .market_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let started = std::time::Instant::now();
     match crate::market_search::search(&state.pool, &body).await {
         Ok(value) => {
-            metrics::histogram!("edda_market_search_seconds").record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_market_search_seconds")
+                .record(started.elapsed().as_secs_f64());
             outcome_counter("ok");
             axum::Json(value).into_response()
         }
@@ -446,14 +507,19 @@ async fn mining_search(
     let outcome_counter = |outcome: &'static str| {
         metrics::counter!("edda_mining_search_requests_total", "outcome" => outcome).increment(1)
     };
-    if state.market_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .market_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let started = std::time::Instant::now();
     match crate::mining::search(&state.pool, &body).await {
         Ok(value) => {
-            metrics::histogram!("edda_mining_search_seconds").record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_mining_search_seconds")
+                .record(started.elapsed().as_secs_f64());
             outcome_counter("ok");
             axum::Json(value).into_response()
         }
@@ -467,13 +533,20 @@ async fn mining_search(
         }
         Err(Refusal::UnknownCommodity { text, .. }) => {
             outcome_counter("invalid");
-            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": format!("unknown material {text:?}")})))
+            (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": format!("unknown material {text:?}")})),
+            )
                 .into_response()
         }
         Err(Refusal::Invalid(message)) => {
             outcome_counter("invalid");
             tracing::warn!(%message, "mining search refused");
-            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": message}))).into_response()
+            (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": message})),
+            )
+                .into_response()
         }
     }
 }
@@ -520,7 +593,10 @@ async fn resolve_endpoint(
     let from_client = || {
         client_coords.map(|pos| {
             counter("client_coords");
-            crate::plot::Endpoint::Position { name: name.to_owned(), pos }
+            crate::plot::Endpoint::Position {
+                name: name.to_owned(),
+                pos,
+            }
         })
     };
     use crate::knowledge::SystemOutcome;
@@ -551,11 +627,18 @@ async fn resolve_endpoint(
             });
         }
     };
-    let Some(coords) = answer.coords.as_ref() else { return from_client() };
+    let Some(coords) = answer.coords.as_ref() else {
+        return from_client();
+    };
     let axis = |k: &str| coords.get(k).and_then(|v| v.as_f64()).map(|v| v as f32);
-    let (Some(x), Some(y), Some(z)) = (axis("x"), axis("y"), axis("z")) else { return from_client() };
+    let (Some(x), Some(y), Some(z)) = (axis("x"), axis("y"), axis("z")) else {
+        return from_client();
+    };
     counter(source);
-    Some(crate::plot::Endpoint::Position { name: answer.name, pos: [x, y, z] })
+    Some(crate::plot::Endpoint::Position {
+        name: answer.name,
+        pos: [x, y, z],
+    })
 }
 
 async fn plot_route(
@@ -564,9 +647,14 @@ async fn plot_route(
     axum::Json(body): axum::Json<crate::plot::RouteApiRequest>,
 ) -> impl IntoResponse {
     use crate::plot::{PlotOutcome, PlotRefusal};
-    let outcome_counter =
-        |outcome: &'static str| metrics::counter!("edda_route_requests_total", "outcome" => outcome).increment(1);
-    if state.route_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    let outcome_counter = |outcome: &'static str| {
+        metrics::counter!("edda_route_requests_total", "outcome" => outcome).increment(1)
+    };
+    if state
+        .route_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -574,7 +662,11 @@ async fn plot_route(
         Ok(Some(handle)) => handle,
         Ok(None) => {
             outcome_counter("no_index");
-            return (StatusCode::SERVICE_UNAVAILABLE, "no routing index published yet").into_response();
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "no routing index published yet",
+            )
+                .into_response();
         }
         Err(error) => {
             tracing::warn!(%error, "route: index unavailable");
@@ -606,7 +698,11 @@ async fn plot_route(
                 .into_response();
         }
     };
-    let (lane, outcome, bridges) = match state.route_service.plot_endpoints(&handle, &body, from, to).await {
+    let (lane, outcome, bridges) = match state
+        .route_service
+        .plot_endpoints(&handle, &body, from, to)
+        .await
+    {
         Ok(triple) => triple,
         Err(error) => {
             tracing::warn!(%error, "route plot failed");
@@ -616,11 +712,13 @@ async fn plot_route(
     };
     let lane_name = lane.as_str();
     let lane_counter = |outcome: &'static str| {
-        metrics::counter!("edda_route_requests_total", "outcome" => outcome, "lane" => lane_name).increment(1)
+        metrics::counter!("edda_route_requests_total", "outcome" => outcome, "lane" => lane_name)
+            .increment(1)
     };
     match outcome {
         PlotOutcome::Route(route, cached) => {
-            metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name)
+                .record(started.elapsed().as_secs_f64());
             metrics::counter!("edda_route_cache_total", "result" => if cached { "hit" } else { "miss" })
                 .increment(1);
             lane_counter("ok");
@@ -628,7 +726,13 @@ async fn plot_route(
             if bridged {
                 metrics::counter!("edda_route_bridged_total").increment(1);
             }
-            tracing::info!(cached, lane = lane_name, bridged, ms = started.elapsed().as_millis() as u64, "route served");
+            tracing::info!(
+                cached,
+                lane = lane_name,
+                bridged,
+                ms = started.elapsed().as_millis() as u64,
+                "route served"
+            );
             axum::Json(crate::plot::augment(&route, &bridges)).into_response()
         }
         PlotOutcome::Refused(PlotRefusal::UnknownSystem(name)) => {
@@ -672,7 +776,8 @@ async fn plot_route(
                 .into_response()
         }
         PlotOutcome::Refused(PlotRefusal::Budget) => {
-            metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
+            metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name)
+                .record(started.elapsed().as_secs_f64());
             lane_counter("budget");
             (
                 StatusCode::GATEWAY_TIMEOUT,
@@ -716,11 +821,18 @@ async fn knowledge_sphere(
         metrics::counter!("edda_knowledge_requests_total", "endpoint" => "sphere", "outcome" => outcome)
             .increment(1)
     };
-    if ![query.x, query.y, query.z, query.radius].iter().all(|v| v.is_finite()) {
+    if ![query.x, query.y, query.z, query.radius]
+        .iter()
+        .all(|v| v.is_finite())
+    {
         return (StatusCode::BAD_REQUEST, "coordinates must be finite").into_response();
     }
     let radius = query.radius.clamp(1.0, crate::knowledge::CELL_LY);
-    if state.knowledge_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .knowledge_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -777,7 +889,10 @@ async fn knowledge_sphere(
     match crate::knowledge::answer_sphere(&state.pool, &handle.galaxy, pos, radius).await {
         Ok((answer, truncated)) => {
             if truncated {
-                tracing::info!(cap = crate::knowledge::MAX_SPHERE_SYSTEMS, "knowledge: sphere answer truncated");
+                tracing::info!(
+                    cap = crate::knowledge::MAX_SPHERE_SYSTEMS,
+                    "knowledge: sphere answer truncated"
+                );
             }
             axum::Json(answer).into_response()
         }
@@ -812,7 +927,11 @@ async fn knowledge_system(
         counter("invalid");
         return (StatusCode::BAD_REQUEST, "name required").into_response();
     }
-    if state.knowledge_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .knowledge_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -899,7 +1018,11 @@ async fn names_complete(
         counter("short");
         return axum::Json(Vec::<names::NameHit>::new()).into_response();
     };
-    if state.names_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .names_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -910,13 +1033,15 @@ async fn names_complete(
             Ok(Some(handle)) => Ok(names::complete_systems(&handle.galaxy, prefix, limit)),
             Ok(None) => {
                 counter("no_galaxy");
-                return (StatusCode::SERVICE_UNAVAILABLE, "no galaxy published yet").into_response();
+                return (StatusCode::SERVICE_UNAVAILABLE, "no galaxy published yet")
+                    .into_response();
             }
             Err(error) => Err(error),
         },
         _ => names::complete_stations(&state.pool, prefix, limit).await,
     };
-    metrics::histogram!("edda_names_complete_seconds", "kind" => kind).record(started.elapsed().as_secs_f64());
+    metrics::histogram!("edda_names_complete_seconds", "kind" => kind)
+        .record(started.elapsed().as_secs_f64());
     match result {
         Ok(hits) => {
             counter(if hits.is_empty() { "empty" } else { "hits" });
@@ -945,7 +1070,11 @@ async fn knowledge_bodies(
     if query.system_name.trim().is_empty() || query.system_name.len() > 128 {
         return (StatusCode::BAD_REQUEST, "systemName required").into_response();
     }
-    if state.knowledge_limiter.allow(&source_of(&headers), std::time::Instant::now()).is_err() {
+    if state
+        .knowledge_limiter
+        .allow(&source_of(&headers), std::time::Instant::now())
+        .is_err()
+    {
         metrics::counter!("edda_knowledge_requests_total", "endpoint" => "bodies", "outcome" => "rate_limited")
             .increment(1);
         return StatusCode::TOO_MANY_REQUESTS.into_response();
@@ -959,11 +1088,7 @@ async fn knowledge_bodies(
     )
     .await
     {
-        Ok(Some(body)) => (
-            [(header::CONTENT_TYPE, "application/json")],
-            body,
-        )
-            .into_response(),
+        Ok(Some(body)) => ([(header::CONTENT_TYPE, "application/json")], body).into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(error) => {
             metrics::counter!("edda_knowledge_requests_total", "endpoint" => "bodies", "outcome" => "edsm_error")
@@ -979,7 +1104,10 @@ async fn knowledge_bodies(
 /// VictoriaMetrics/vmagent, and Grafana Alloy all ingest it as-is.
 async fn scrape(State(state): State<AppState>) -> impl IntoResponse {
     (
-        [(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+        [(
+            header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
         state.metrics.render(),
     )
 }
@@ -990,7 +1118,11 @@ async fn stars(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<crate::stars::StarsQuery>,
 ) -> impl IntoResponse {
-    let ids: Vec<i64> = query.ids.split(',').filter_map(|s| s.trim().parse::<i64>().ok()).collect();
+    let ids: Vec<i64> = query
+        .ids
+        .split(',')
+        .filter_map(|s| s.trim().parse::<i64>().ok())
+        .collect();
     if ids.len() > crate::stars::MAX_LOOKUP_IDS {
         return (StatusCode::BAD_REQUEST, "too many ids").into_response();
     }
@@ -1110,7 +1242,10 @@ async fn artifact(
 /// stored per-request — the maintainer's "can we track downloads?" answered
 /// inside the surveillance law.
 fn download_via(headers: &HeaderMap) -> &'static str {
-    let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let ua = headers
+        .get(header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
     if ua.contains("Mozilla/") {
         "browser"
     } else if ua.contains("tauri") || ua.contains("EDDA") {
@@ -1153,13 +1288,21 @@ async fn app_release(
     let json = path.ends_with(".json");
     headers.insert(
         header::CONTENT_TYPE,
-        HeaderValue::from_static(if json { "application/json" } else { "application/octet-stream" }),
+        HeaderValue::from_static(if json {
+            "application/json"
+        } else {
+            "application/octet-stream"
+        }),
     );
     // latest.json must always be revalidated; the packages are immutable
     // (their names carry the version).
     headers.insert(
         header::CACHE_CONTROL,
-        HeaderValue::from_static(if json { "no-cache" } else { "public, max-age=31536000, immutable" }),
+        HeaderValue::from_static(if json {
+            "no-cache"
+        } else {
+            "public, max-age=31536000, immutable"
+        }),
     );
     response.into_response()
 }
@@ -1196,7 +1339,10 @@ async fn feedback(
         .filter(|v| !v.is_empty())
         .unwrap_or("unknown")
         .to_owned();
-    if !state.feedback_limiter.allow(&source, std::time::Instant::now()) {
+    if !state
+        .feedback_limiter
+        .allow(&source, std::time::Instant::now())
+    {
         metrics::counter!("edda_feedback_total", "outcome" => "rate_limited").increment(1);
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
@@ -1218,7 +1364,11 @@ async fn feedback(
         Ok(id) => {
             metrics::counter!("edda_feedback_total", "outcome" => "accepted").increment(1);
             tracing::info!(id, "feedback received");
-            (StatusCode::ACCEPTED, axum::Json(serde_json::json!({ "id": id }))).into_response()
+            (
+                StatusCode::ACCEPTED,
+                axum::Json(serde_json::json!({ "id": id })),
+            )
+                .into_response()
         }
         Err(error) => {
             tracing::warn!(%error, "feedback insert failed");
@@ -1234,7 +1384,9 @@ async fn telemetry(
     headers: HeaderMap,
     axum::Json(batch): axum::Json<crate::telemetry::Batch>,
 ) -> impl IntoResponse {
-    use crate::telemetry::{validate, MAX_COUNT, MAX_EVENTS, MAX_FEATURES, MAX_TIMINGS, MAX_TIMING_MS};
+    use crate::telemetry::{
+        validate, MAX_COUNT, MAX_EVENTS, MAX_FEATURES, MAX_TIMINGS, MAX_TIMING_MS,
+    };
     let source = headers
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
@@ -1243,7 +1395,10 @@ async fn telemetry(
         .filter(|v| !v.is_empty())
         .unwrap_or("unknown")
         .to_owned();
-    if !state.telemetry_limiter.allow(&source, std::time::Instant::now()) {
+    if !state
+        .telemetry_limiter
+        .allow(&source, std::time::Instant::now())
+    {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     if let Err(reason) = validate(&batch) {
@@ -1282,7 +1437,8 @@ async fn telemetry(
         // Validated above: the kind maps to its own histogram (hours
         // and light-years carry different bucket scales).
         if let Some(metric) = crate::telemetry::search_metric(&search.kind) {
-            metrics::histogram!(metric, "version" => version.clone()).record(f64::from(search.value));
+            metrics::histogram!(metric, "version" => version.clone())
+                .record(f64::from(search.value));
         }
     }
     metrics::counter!("edda_telemetry_batches_total", "outcome" => "accepted").increment(1);
@@ -1401,7 +1557,10 @@ mod tests {
         let mut h = HeaderMap::new();
         h.insert("x-forwarded-for", "203.0.113.9, 10.0.0.1".parse().unwrap());
         assert_eq!(source_of(&h), "203.0.113.9");
-        h.insert("x-edda-install", "0123456789abcdef0123456789abcdef".parse().unwrap());
+        h.insert(
+            "x-edda-install",
+            "0123456789abcdef0123456789abcdef".parse().unwrap(),
+        );
         assert_eq!(source_of(&h), "install:0123456789abcdef0123456789abcdef");
         h.insert("x-edda-install", "not-hex".parse().unwrap());
         assert_eq!(source_of(&h), "203.0.113.9");
@@ -1441,7 +1600,10 @@ mod tests {
             .await
             .unwrap();
         let status = response.status();
-        (status, response.into_body().collect().await.unwrap().to_bytes())
+        (
+            status,
+            response.into_body().collect().await.unwrap().to_bytes(),
+        )
     }
 
     /// The completion endpoint's contract that needs no data: a bad kind
@@ -1482,14 +1644,23 @@ mod tests {
             (status, String::from_utf8_lossy(&bytes).into_owned())
         }
         let ship = serde_json::json!({"cargo_capacity": 720, "jump_range_ly": 30.5, "laden_range_ly": 22.1});
-        let (status, body) = post(serde_json::json!({"system": "Sol", "ship": ship, "constraints": {"min_pad": "xl"}})).await;
+        let (status, body) = post(
+            serde_json::json!({"system": "Sol", "ship": ship, "constraints": {"min_pad": "xl"}}),
+        )
+        .await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
         assert!(body.contains("pad size"), "{body}");
-        let (status, body) = post(serde_json::json!({"system": "Sol", "ship": ship, "constraints": {"min_pad": "l"}})).await;
+        let (status, body) = post(
+            serde_json::json!({"system": "Sol", "ship": ship, "constraints": {"min_pad": "l"}}),
+        )
+        .await;
         // Parsed, so it reached the trade gate; without a database that is
         // a pool error - what matters is that it is neither the pad-size
         // complaint nor the legacy `legs` shape.
-        assert!(!body.contains("pad size") && !body.contains("\"legs\""), "the short spelling parses and stays v2: {status} {body}");
+        assert!(
+            !body.contains("pad size") && !body.contains("\"legs\""),
+            "the short spelling parses and stays v2: {status} {body}"
+        );
     }
 
     #[test]

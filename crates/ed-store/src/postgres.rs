@@ -94,12 +94,13 @@ pub async fn apply_source_system(
     .bind(&system.name)
     .execute(&mut **transaction)
     .await?;
-    let name_taken: Option<i64> =
-        sqlx::query_scalar("SELECT address FROM systems WHERE lower(name) = lower($1) AND address <> $2")
-            .bind(&system.name)
-            .bind(system.address)
-            .fetch_optional(&mut **transaction)
-            .await?;
+    let name_taken: Option<i64> = sqlx::query_scalar(
+        "SELECT address FROM systems WHERE lower(name) = lower($1) AND address <> $2",
+    )
+    .bind(&system.name)
+    .bind(system.address)
+    .fetch_optional(&mut **transaction)
+    .await?;
     if let Some(other) = name_taken {
         // An expected EDDN/journal data condition (Elite carries duplicate
         // and renamed system names across different addresses): we skip the
@@ -166,9 +167,11 @@ pub async fn ensure_station(
     system_address: i64,
     name: Option<&str>,
 ) -> Result<bool> {
-    Ok(station_id_for(transaction, system_address, Some(station_id), name)
-        .await?
-        .is_some_and(|(_, inserted)| inserted))
+    Ok(
+        station_id_for(transaction, system_address, Some(station_id), name)
+            .await?
+            .is_some_and(|(_, inserted)| inserted),
+    )
 }
 
 pub async fn run_writer(pool: PgPool, mut receiver: mpsc::Receiver<Operation>) {
@@ -190,12 +193,17 @@ pub async fn run_writer(pool: PgPool, mut receiver: mpsc::Receiver<Operation>) {
             match apply_operations(&pool, &batch).await {
                 Ok(stats) => {
                     tracing::debug!(?stats, batch = batch.len(), "applied EDDN batch");
-                    metrics::histogram!("edda_eddn_batch_apply_seconds").record(started.elapsed().as_secs_f64());
-                    metrics::counter!("edda_eddn_batches_total", "outcome" => "applied").increment(1);
-                    metrics::counter!("edda_eddn_operations_total", "outcome" => "applied").increment(batch.len() as u64);
+                    metrics::histogram!("edda_eddn_batch_apply_seconds")
+                        .record(started.elapsed().as_secs_f64());
+                    metrics::counter!("edda_eddn_batches_total", "outcome" => "applied")
+                        .increment(1);
+                    metrics::counter!("edda_eddn_operations_total", "outcome" => "applied")
+                        .increment(batch.len() as u64);
                     // Freshness signal: a Grafana alert on this going
                     // stale is the 23-silent-hours guard.
-                    if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                    if let Ok(now) =
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                    {
                         metrics::gauge!("edda_eddn_last_apply_unix_seconds").set(now.as_secs_f64());
                     }
                     record_apply_stats(&stats);
@@ -213,8 +221,10 @@ pub async fn run_writer(pool: PgPool, mut receiver: mpsc::Receiver<Operation>) {
                     // and the next observation heals the loss.
                     if attempts >= 5 {
                         tracing::error!(%error, batch = batch.len(), "EDDN batch dropped after {attempts} failed attempts");
-                        metrics::counter!("edda_eddn_batches_total", "outcome" => "dropped").increment(1);
-                        metrics::counter!("edda_eddn_operations_total", "outcome" => "dropped").increment(batch.len() as u64);
+                        metrics::counter!("edda_eddn_batches_total", "outcome" => "dropped")
+                            .increment(1);
+                        metrics::counter!("edda_eddn_operations_total", "outcome" => "dropped")
+                            .increment(batch.len() as u64);
                         let _ = sqlx::query(
                             "UPDATE eddn_ingestion SET errors = errors + $1, updated_at = now() WHERE singleton",
                         )
@@ -228,7 +238,8 @@ pub async fn run_writer(pool: PgPool, mut receiver: mpsc::Receiver<Operation>) {
                     // after five attempts. Levelling them the same made a
                     // recovered blip look like a real failure in telemetry.
                     tracing::warn!(%error, batch = batch.len(), ?backoff, "EDDN batch failed; retrying");
-                    metrics::counter!("edda_eddn_batches_total", "outcome" => "retried").increment(1);
+                    metrics::counter!("edda_eddn_batches_total", "outcome" => "retried")
+                        .increment(1);
                     tokio::time::sleep(backoff).await;
                     backoff = (backoff * 2).min(Duration::from_secs(30));
                 }
@@ -247,13 +258,16 @@ fn record_apply_stats(stats: &ApplyStats) {
     metrics::counter!("edda_eddn_rows_total", "kind" => "system").increment(stats.systems);
     metrics::counter!("edda_eddn_rows_total", "kind" => "station").increment(stats.stations);
     metrics::counter!("edda_eddn_rows_total", "kind" => "market").increment(stats.market_rows);
-    metrics::counter!("edda_eddn_rows_total", "kind" => "market_removed").increment(stats.market_rows_removed);
-    metrics::counter!("edda_eddn_rows_total", "kind" => "outfitting").increment(stats.outfitting_rows);
+    metrics::counter!("edda_eddn_rows_total", "kind" => "market_removed")
+        .increment(stats.market_rows_removed);
+    metrics::counter!("edda_eddn_rows_total", "kind" => "outfitting")
+        .increment(stats.outfitting_rows);
     metrics::counter!("edda_eddn_rows_total", "kind" => "shipyard").increment(stats.shipyard_rows);
     metrics::counter!("edda_eddn_rows_total", "kind" => "star").increment(stats.stars);
     metrics::counter!("edda_eddn_rows_total", "kind" => "body").increment(stats.bodies);
     metrics::counter!("edda_eddn_rows_total", "kind" => "hotspot").increment(stats.hotspots);
-    metrics::counter!("edda_eddn_rows_total", "kind" => "body_signals").increment(stats.body_signals);
+    metrics::counter!("edda_eddn_rows_total", "kind" => "body_signals")
+        .increment(stats.body_signals);
 }
 
 async fn apply_one(
@@ -268,11 +282,21 @@ async fn apply_one(
         Operation::StationIdentity(identity) => apply_station_identity(transaction, identity).await,
         Operation::Star(star) => apply_star(transaction, star).await,
         Operation::Body(body) => {
-            let written = apply_bodies(transaction, std::slice::from_ref(body), &std::collections::HashSet::new()).await?;
+            let written = apply_bodies(
+                transaction,
+                std::slice::from_ref(body),
+                &std::collections::HashSet::new(),
+            )
+            .await?;
             Ok(if written.bodies == 0 {
                 skipped()
             } else {
-                Applied { messages: 1, bodies: written.bodies, hotspots: written.hotspots, ..Applied::default() }
+                Applied {
+                    messages: 1,
+                    bodies: written.bodies,
+                    hotspots: written.hotspots,
+                    ..Applied::default()
+                }
             })
         }
         Operation::RingHotspots(hotspots) => apply_ring_hotspots(transaction, hotspots).await,
@@ -298,12 +322,23 @@ async fn apply_station_identity(
     else {
         return Ok(skipped());
     };
+    // Newer than what the row holds, OR the row never learned a column
+    // this write can fill. Without the second clause a column added
+    // later stays null forever on every station whose identity is
+    // already current: the freshness guard would skip the very write
+    // that would fill it (2026-09-12, the economy columns).
     let fresh = sqlx::query_scalar::<_, bool>(
         "SELECT identity_observed_at IS NULL OR identity_observed_at < to_timestamp($2) \
+                OR ($3 AND primary_economy IS NULL) \
+                OR ($4 AND government IS NULL) \
+                OR ($5 AND controlling_faction IS NULL) \
          FROM stations WHERE id = $1",
     )
     .bind(station_id)
     .bind(identity.observed_at.epoch_seconds)
+    .bind(identity.primary_economy.is_some())
+    .bind(identity.government.is_some())
+    .bind(identity.controlling_faction.is_some())
     .fetch_one(&mut **transaction)
     .await?;
     if !fresh {
@@ -317,7 +352,10 @@ async fn apply_station_identity(
              is_carrier = $5, \
              arrival_ls = COALESCE($6, arrival_ls), \
              station_type = COALESCE($7, station_type), \
-             identity_observed_at = to_timestamp($8) \
+             primary_economy = COALESCE($9, primary_economy), \
+             government = COALESCE($10, government), \
+             controlling_faction = COALESCE($11, controlling_faction), \
+             identity_observed_at = GREATEST(identity_observed_at, to_timestamp($8)) \
          WHERE id = $1",
     )
     .bind(station_id)
@@ -328,6 +366,9 @@ async fn apply_station_identity(
     .bind(identity.arrival_ls)
     .bind(identity.station_type.as_deref())
     .bind(identity.observed_at.epoch_seconds)
+    .bind(identity.primary_economy.as_deref())
+    .bind(identity.government.as_deref())
+    .bind(identity.controlling_faction.as_deref())
     .execute(&mut **transaction)
     .await?;
     if !identity.services.is_empty() {
@@ -335,8 +376,11 @@ async fn apply_station_identity(
             .bind(station_id)
             .execute(&mut **transaction)
             .await?;
-        let services: Vec<String> =
-            identity.services.iter().map(|s| s.trim().to_lowercase()).collect();
+        let services: Vec<String> = identity
+            .services
+            .iter()
+            .map(|s| s.trim().to_lowercase())
+            .collect();
         sqlx::query(
             "INSERT INTO station_services (station_id, service) \
              SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING",
@@ -537,7 +581,15 @@ async fn apply_outfitting(
         .bind(station_id)
         .execute(&mut **transaction)
         .await?;
-    replace_availability(transaction, "modules", "outfitting", "module_symbol", station_id, &message.values).await?;
+    replace_availability(
+        transaction,
+        "modules",
+        "outfitting",
+        "module_symbol",
+        station_id,
+        &message.values,
+    )
+    .await?;
     update_station_snapshot(
         transaction,
         station_id,
@@ -582,7 +634,15 @@ async fn apply_shipyard(
         .bind(station_id)
         .execute(&mut **transaction)
         .await?;
-    replace_availability(transaction, "ships", "shipyard", "ship_symbol", station_id, &message.values).await?;
+    replace_availability(
+        transaction,
+        "ships",
+        "shipyard",
+        "ship_symbol",
+        station_id,
+        &message.values,
+    )
+    .await?;
     update_station_snapshot(
         transaction,
         station_id,
@@ -705,12 +765,13 @@ async fn apply_journal(
             // a reconcile job migrate the address (stations reference
             // it, and the FK does not cascade). A POSITIVE holder is a
             // genuine name conflict: skip the write, keep the batch.
-            let held: Option<i64> =
-                sqlx::query_scalar("SELECT address FROM systems WHERE lower(name) = lower($1) AND address <> $2")
-                    .bind(name)
-                    .bind(address)
-                    .fetch_optional(&mut **transaction)
-                    .await?;
+            let held: Option<i64> = sqlx::query_scalar(
+                "SELECT address FROM systems WHERE lower(name) = lower($1) AND address <> $2",
+            )
+            .bind(name)
+            .bind(address)
+            .fetch_optional(&mut **transaction)
+            .await?;
             match held {
                 Some(provisional) if provisional < 0 => provisional,
                 Some(other) => {
@@ -794,7 +855,10 @@ pub struct BodiesWritten {
 
 /// The arrival star's class into `stars`, newer-wins. An unknown class
 /// spelling teaches nothing (the index has no code for it).
-async fn apply_star(transaction: &mut Transaction<'_, Postgres>, star: &ed_domain::StarTeaching) -> Result<Applied> {
+async fn apply_star(
+    transaction: &mut Transaction<'_, Postgres>,
+    star: &ed_domain::StarTeaching,
+) -> Result<Applied> {
     use ed_domain::star::{StarClass, StarClassCode as _};
     if star.system_address <= 0 {
         return Ok(skipped());
@@ -820,7 +884,15 @@ async fn apply_star(transaction: &mut Transaction<'_, Postgres>, star: &ed_domai
     .execute(&mut **transaction)
     .await?
     .rows_affected();
-    Ok(if changed == 0 { skipped() } else { Applied { messages: 1, stars: 1, ..Applied::default() } })
+    Ok(if changed == 0 {
+        skipped()
+    } else {
+        Applied {
+            messages: 1,
+            stars: 1,
+            ..Applied::default()
+        }
+    })
 }
 
 /// Newer-wins per body; the children of every body that was written are
@@ -834,7 +906,10 @@ pub async fn apply_bodies(
     rows: &[ed_domain::BodyTeaching],
     unfiled: &std::collections::HashSet<i64>,
 ) -> Result<BodiesWritten> {
-    let rows: Vec<&ed_domain::BodyTeaching> = rows.iter().filter(|r| !unfiled.contains(&r.system_address)).collect();
+    let rows: Vec<&ed_domain::BodyTeaching> = rows
+        .iter()
+        .filter(|r| !unfiled.contains(&r.system_address))
+        .collect();
     if rows.is_empty() {
         return Ok(BodiesWritten::default());
     }
@@ -893,8 +968,13 @@ pub async fn apply_bodies(
             .execute(&mut **transaction)
             .await?;
     }
-    let fresh: Vec<&&ed_domain::BodyTeaching> = rows.iter().filter(|r| written.contains(&r.id64)).collect();
-    let with_hotspots: Vec<i64> = fresh.iter().filter(|r| !r.hotspots.is_empty()).map(|r| r.id64).collect();
+    let fresh: Vec<&&ed_domain::BodyTeaching> =
+        rows.iter().filter(|r| written.contains(&r.id64)).collect();
+    let with_hotspots: Vec<i64> = fresh
+        .iter()
+        .filter(|r| !r.hotspots.is_empty())
+        .map(|r| r.id64)
+        .collect();
     if !with_hotspots.is_empty() {
         sqlx::query("DELETE FROM ring_hotspots WHERE body_id64 = ANY($1)")
             .bind(&with_hotspots)
@@ -902,9 +982,16 @@ pub async fn apply_bodies(
             .await?;
     }
     let (mut m_id, mut m_mat, mut m_pct) = (Vec::new(), Vec::new(), Vec::new());
-    let (mut r_id, mut r_name, mut r_kind, mut r_mass, mut r_in, mut r_out) =
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    let (mut h_id, mut h_ring, mut h_mat, mut h_count) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut r_id, mut r_name, mut r_kind, mut r_mass, mut r_in, mut r_out) = (
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    let (mut h_id, mut h_ring, mut h_mat, mut h_count) =
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for r in &fresh {
         for (material, percent) in &r.materials {
             m_id.push(r.id64);
@@ -967,22 +1054,29 @@ pub async fn apply_bodies(
         .execute(&mut **transaction)
         .await?;
     }
-    Ok(BodiesWritten { bodies: written.len() as u64, hotspots: h_id.len() as u64 })
+    Ok(BodiesWritten {
+        bodies: written.len() as u64,
+        hotspots: h_id.len() as u64,
+    })
 }
 
 /// `SAASignalsFound` on a ring: the parent body is found by name in the
 /// system; its hotspots for that ring are replaced. No parent row yet
 /// (the Scan has not arrived, or the system is unfiled) is a skip — the
 /// dump or the next scan brings it.
-async fn apply_ring_hotspots(transaction: &mut Transaction<'_, Postgres>, h: &ed_domain::RingHotspots) -> Result<Applied> {
+async fn apply_ring_hotspots(
+    transaction: &mut Transaction<'_, Postgres>,
+    h: &ed_domain::RingHotspots,
+) -> Result<Applied> {
     let Some(parent) = ed_eddn::ring_parent_name(&h.ring_name) else {
         return Ok(skipped());
     };
-    let body: Option<(i64,)> = sqlx::query_as("SELECT id64 FROM bodies WHERE system_address = $1 AND name = $2 LIMIT 1")
-        .bind(h.system_address)
-        .bind(parent)
-        .fetch_optional(&mut **transaction)
-        .await?;
+    let body: Option<(i64,)> =
+        sqlx::query_as("SELECT id64 FROM bodies WHERE system_address = $1 AND name = $2 LIMIT 1")
+            .bind(h.system_address)
+            .bind(parent)
+            .fetch_optional(&mut **transaction)
+            .await?;
     let Some((id64,)) = body else {
         return Ok(skipped());
     };
@@ -1010,12 +1104,19 @@ async fn apply_ring_hotspots(transaction: &mut Transaction<'_, Postgres>, h: &ed
     .execute(&mut **transaction)
     .await?
     .rows_affected();
-    Ok(Applied { messages: 1, hotspots: written, ..Applied::default() })
+    Ok(Applied {
+        messages: 1,
+        hotspots: written,
+        ..Applied::default()
+    })
 }
 
 /// Bio/geo counts onto the body; a body the store has not seen gets a
 /// stub row (name, ids, signals) the Scan fills in later.
-async fn apply_body_signals(transaction: &mut Transaction<'_, Postgres>, s: &ed_domain::BodySignals) -> Result<Applied> {
+async fn apply_body_signals(
+    transaction: &mut Transaction<'_, Postgres>,
+    s: &ed_domain::BodySignals,
+) -> Result<Applied> {
     let updated = sqlx::query(
         "UPDATE bodies SET bio_signals = COALESCE($2, bio_signals), geo_signals = COALESCE($3, geo_signals) WHERE id64 = $1",
     )
@@ -1041,5 +1142,9 @@ async fn apply_body_signals(transaction: &mut Transaction<'_, Postgres>, s: &ed_
         .execute(&mut **transaction)
         .await?;
     }
-    Ok(Applied { messages: 1, body_signals: 1, ..Applied::default() })
+    Ok(Applied {
+        messages: 1,
+        body_signals: 1,
+        ..Applied::default()
+    })
 }

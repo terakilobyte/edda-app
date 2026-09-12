@@ -44,7 +44,10 @@ pub fn find(name: &str) -> Option<EngineerUnlock> {
         let have = e.name.to_lowercase();
         have == want
             || squash(&have).contains(&squash(&want))
-            || want.split_whitespace().last().is_some_and(|last| have.ends_with(last))
+            || want
+                .split_whitespace()
+                .last()
+                .is_some_and(|last| have.ends_with(last))
     })
 }
 
@@ -63,7 +66,10 @@ mod tests {
     #[test]
     fn journal_spellings_resolve() {
         assert_eq!(find("Tod McQuinn").unwrap().system, "Wolf 397");
-        assert_eq!(find("felicity farseer").unwrap().unlock, "Donate 1 Meta Alloy");
+        assert_eq!(
+            find("felicity farseer").unwrap().unlock,
+            "Donate 1 Meta Alloy"
+        );
         assert!(find("Nobody").is_none());
     }
 }

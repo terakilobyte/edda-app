@@ -18,8 +18,16 @@ pub const ACTIONS: &[(&str, &str, &str)] = &[
     ("cargo_scoop", "ToggleCargoScoop", "toggle cargo scoop"),
     ("lights", "ShipSpotLightToggle", "toggle ship lights"),
     ("night_vision", "NightVisionToggle", "toggle night vision"),
-    ("hardpoints", "DeployHardpointToggle", "deploy/retract hardpoints"),
-    ("flight_assist", "ToggleFlightAssist", "toggle flight assist"),
+    (
+        "hardpoints",
+        "DeployHardpointToggle",
+        "deploy/retract hardpoints",
+    ),
+    (
+        "flight_assist",
+        "ToggleFlightAssist",
+        "toggle flight assist",
+    ),
     ("heat_sink", "DeployHeatSink", "fire a heat sink"),
     ("chaff", "FireChaffLauncher", "fire chaff"),
     ("shield_cell", "UseShieldCell", "use a shield cell"),
@@ -27,24 +35,64 @@ pub const ACTIONS: &[(&str, &str, &str)] = &[
     ("boost", "UseBoostJuice", "engine boost"),
     ("supercruise", "Supercruise", "engage supercruise"),
     ("hyperspace", "Hyperspace", "engage the hyperspace jump"),
-    ("jump_or_supercruise", "HyperSuperCombination", "frame shift drive (jump if targeted, else supercruise)"),
-    ("target_next_route", "TargetNextRouteSystem", "target the next system on the game's plotted route"),
+    (
+        "jump_or_supercruise",
+        "HyperSuperCombination",
+        "frame shift drive (jump if targeted, else supercruise)",
+    ),
+    (
+        "target_next_route",
+        "TargetNextRouteSystem",
+        "target the next system on the game's plotted route",
+    ),
     ("target_ahead", "SelectTarget", "target the ship ahead"),
     ("next_target", "CycleNextTarget", "cycle to the next target"),
-    ("previous_target", "CyclePreviousTarget", "cycle to the previous target"),
-    ("next_hostile", "CycleNextHostileTarget", "next hostile target"),
-    ("highest_threat", "SelectHighestThreat", "target the highest threat"),
-    ("next_subsystem", "CycleNextSubsystem", "next subsystem on the target"),
+    (
+        "previous_target",
+        "CyclePreviousTarget",
+        "cycle to the previous target",
+    ),
+    (
+        "next_hostile",
+        "CycleNextHostileTarget",
+        "next hostile target",
+    ),
+    (
+        "highest_threat",
+        "SelectHighestThreat",
+        "target the highest threat",
+    ),
+    (
+        "next_subsystem",
+        "CycleNextSubsystem",
+        "next subsystem on the target",
+    ),
     ("galaxy_map", "GalaxyMapOpen", "open/close the galaxy map"),
     ("system_map", "SystemMapOpen", "open/close the system map"),
     ("fss", "ExplorationFSSEnter", "enter the FSS scanner"),
-    ("discovery_scan", "ExplorationFSSDiscoveryScan", "honk the discovery scanner"),
-    ("hud_mode", "PlayerHUDModeToggle", "switch analysis/combat HUD mode"),
-    ("silent_running", "ToggleButtonUpInput", "toggle silent running"),
+    (
+        "discovery_scan",
+        "ExplorationFSSDiscoveryScan",
+        "honk the discovery scanner",
+    ),
+    (
+        "hud_mode",
+        "PlayerHUDModeToggle",
+        "switch analysis/combat HUD mode",
+    ),
+    (
+        "silent_running",
+        "ToggleButtonUpInput",
+        "toggle silent running",
+    ),
     ("cargo_eject_all", "EjectAllCargo", "eject all cargo"),
     ("orbit_lines", "OrbitLinesToggle", "toggle orbit lines"),
     ("headlook_reset", "HeadLookReset", "reset headlook"),
-    ("fighter_recall", "RecallDismissShip", "recall/dismiss the ship (SRV)"),
+    (
+        "fighter_recall",
+        "RecallDismissShip",
+        "recall/dismiss the ship (SRV)",
+    ),
     ("throttle_zero", "SetSpeedZero", "throttle to zero"),
     ("throttle_50", "SetSpeed50", "throttle to 50%"),
     ("throttle_75", "SetSpeed75", "throttle to 75%"),
@@ -85,10 +133,12 @@ pub fn inventory() -> Vec<ControlInfo> {
 /// The whitelist entry for a friendly control name (spaces/dashes tolerated).
 pub fn lookup(name: &str) -> Result<&'static (&'static str, &'static str, &'static str), String> {
     let key = name.trim().to_lowercase().replace([' ', '-'], "_");
-    ACTIONS
-        .iter()
-        .find(|(n, _, _)| *n == key)
-        .ok_or_else(|| format!("unknown control {name:?}; known: {}", ACTIONS.iter().map(|a| a.0).collect::<Vec<_>>().join(", ")))
+    ACTIONS.iter().find(|(n, _, _)| *n == key).ok_or_else(|| {
+        format!(
+            "unknown control {name:?}; known: {}",
+            ACTIONS.iter().map(|a| a.0).collect::<Vec<_>>().join(", ")
+        )
+    })
 }
 
 /// The command boundary: refuses an unfocused game, loads the commander's
@@ -96,7 +146,10 @@ pub fn lookup(name: &str) -> Result<&'static (&'static str, &'static str, &'stat
 pub fn press(name: &str, times: u32) -> Result<String, String> {
     lookup(name)?;
     if !ed_input::send::game_is_focused() {
-        return Err(format!("the game window is not focused (foreground: {:?})", ed_input::send::foreground_title()));
+        return Err(format!(
+            "the game window is not focused (foreground: {:?})",
+            ed_input::send::foreground_title()
+        ));
     }
     let binds = ed_input::binds::Binds::default_dir()
         .and_then(|d| ed_input::binds::Binds::find_latest(&d))
@@ -108,11 +161,21 @@ pub fn press(name: &str, times: u32) -> Result<String, String> {
 
 /// Press a named control `times` times through `sink`. Policy-free apart
 /// from the whitelist: focus and binds discovery are the caller's.
-pub fn press_with(sink: &mut dyn ed_input::send::KeySink, binds: &ed_input::binds::Binds, name: &str, times: u32) -> Result<String, String> {
+pub fn press_with(
+    sink: &mut dyn ed_input::send::KeySink,
+    binds: &ed_input::binds::Binds,
+    name: &str,
+    times: u32,
+) -> Result<String, String> {
     use ed_input::send::{press_chord, Timing};
     let (_, action, what) = lookup(name)?;
     let chord = binds.chord(action).ok_or_else(|| format!("{action} ({what}) has no keyboard binding in your Custom.binds -- bind one in the game's Controls"))?;
-    let (mods, sc) = chord.scan_codes().ok_or_else(|| format!("{action} is bound to keys this app cannot press ({})", chord.human()))?;
+    let (mods, sc) = chord.scan_codes().ok_or_else(|| {
+        format!(
+            "{action} is bound to keys this app cannot press ({})",
+            chord.human()
+        )
+    })?;
     let t = Timing::default();
     let n = times.clamp(1, 8);
     for _ in 0..n {
@@ -157,7 +220,13 @@ fn pip_step(s: [u8; 3], i: usize) -> [u8; 3] {
 pub fn pip_presses(target: [f32; 3]) -> Result<(Vec<(&'static str, u32)>, [f32; 3]), String> {
     let want: [u8; 3] = [0, 1, 2].map(|i| (target[i].clamp(0.0, 4.0) * 2.0).round() as u8);
     if want.iter().map(|&h| h as u32).sum::<u32>() != 12 {
-        return Err(format!("pips must add up to 6 (got {}/{}/{} = {})", target[0], target[1], target[2], target.iter().sum::<f32>()));
+        return Err(format!(
+            "pips must add up to 6 (got {}/{}/{} = {})",
+            target[0],
+            target[1],
+            target[2],
+            target.iter().sum::<f32>()
+        ));
     }
     let names = ["pips_systems", "pips_engines", "pips_weapons"];
     let start = [4u8, 4, 4];
@@ -167,7 +236,11 @@ pub fn pip_presses(target: [f32; 3]) -> Result<(Vec<(&'static str, u32)>, [f32; 
     seen.insert(start, Vec::new());
     queue.push_back(start);
     let mut best: ([u8; 3], Vec<usize>) = (start, Vec::new());
-    let dist = |s: [u8; 3]| -> u32 { (0..3).map(|i| (s[i] as i32 - want[i] as i32).unsigned_abs()).sum() };
+    let dist = |s: [u8; 3]| -> u32 {
+        (0..3)
+            .map(|i| (s[i] as i32 - want[i] as i32).unsigned_abs())
+            .sum()
+    };
     while let Some(s) = queue.pop_front() {
         let path = seen[&s].clone();
         if dist(s) < dist(best.0) || (dist(s) == dist(best.0) && path.len() < best.1.len()) {
@@ -198,7 +271,14 @@ pub fn pip_presses(target: [f32; 3]) -> Result<(Vec<(&'static str, u32)>, [f32; 
             _ => presses.push((names[i], 1)),
         }
     }
-    Ok((presses, [reached[0] as f32 / 2.0, reached[1] as f32 / 2.0, reached[2] as f32 / 2.0]))
+    Ok((
+        presses,
+        [
+            reached[0] as f32 / 2.0,
+            reached[1] as f32 / 2.0,
+            reached[2] as f32 / 2.0,
+        ],
+    ))
 }
 
 #[cfg(test)]
@@ -231,9 +311,25 @@ mod pip_tests {
         let mut rec = ed_input::send::Recorder::default();
         let msg = press_with(&mut rec, &binds, "pips systems", 2).unwrap();
         assert_eq!(msg, "one pip to SYS x2 (LControl+5)");
-        assert_eq!(rec.events, ["down 0x1d", "down 0x06", "up 0x06", "up 0x1d", "down 0x1d", "down 0x06", "up 0x06", "up 0x1d"]);
-        assert!(press_with(&mut rec, &binds, "landing_gear", 1).unwrap_err().contains("no keyboard binding"));
-        assert!(press_with(&mut rec, &binds, "warp drive", 1).unwrap_err().starts_with("unknown control"));
+        assert_eq!(
+            rec.events,
+            [
+                "down 0x1d",
+                "down 0x06",
+                "up 0x06",
+                "up 0x1d",
+                "down 0x1d",
+                "down 0x06",
+                "up 0x06",
+                "up 0x1d"
+            ]
+        );
+        assert!(press_with(&mut rec, &binds, "landing_gear", 1)
+            .unwrap_err()
+            .contains("no keyboard binding"));
+        assert!(press_with(&mut rec, &binds, "warp drive", 1)
+            .unwrap_err()
+            .starts_with("unknown control"));
     }
 }
 

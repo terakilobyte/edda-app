@@ -34,7 +34,11 @@ pub struct Presence {
 impl Presence {
     /// A fresh sparse install: every cell absent.
     pub fn new_absent(cells: usize) -> Presence {
-        Presence { bits: vec![0; cells.div_ceil(8)], cells, present: 0 }
+        Presence {
+            bits: vec![0; cells.div_ceil(8)],
+            cells,
+            present: 0,
+        }
     }
 
     pub fn cells(&self) -> usize {
@@ -69,7 +73,8 @@ impl Presence {
         out.extend_from_slice(&1u32.to_le_bytes());
         out.extend_from_slice(&(self.cells as u64).to_le_bytes());
         out.extend_from_slice(&self.bits);
-        let mut file = std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
+        let mut file =
+            std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
         file.write_all(&out)?;
         Ok(())
     }
@@ -83,10 +88,23 @@ impl Presence {
         ensure!(version == 1, "unknown presence version {version}");
         let cells = u64::from_le_bytes(bytes[8..16].try_into().unwrap()) as usize;
         let bits = bytes[16..].to_vec();
-        ensure!(bits.len() == cells.div_ceil(8), "{} holds {} bitmap bytes for {cells} cells", path.display(), bits.len());
+        ensure!(
+            bits.len() == cells.div_ceil(8),
+            "{} holds {} bitmap bytes for {cells} cells",
+            path.display(),
+            bits.len()
+        );
         let present = bits.iter().map(|b| b.count_ones() as usize).sum();
-        ensure!(present <= cells, "{} marks more cells present than exist", path.display());
-        Ok(Presence { bits, cells, present })
+        ensure!(
+            present <= cells,
+            "{} marks more cells present than exist",
+            path.display()
+        );
+        Ok(Presence {
+            bits,
+            cells,
+            present,
+        })
     }
 }
 

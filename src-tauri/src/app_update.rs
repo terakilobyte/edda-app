@@ -81,7 +81,9 @@ async fn check_inner(app: &AppHandle) -> Result<UpdateCheck, String> {
     tracing::debug!(%url, %current, "app update check: starting");
     let updater = app
         .updater_builder()
-        .endpoints(vec![url.parse().map_err(|e| format!("bad update endpoint {url}: {e}"))?])
+        .endpoints(vec![url
+            .parse()
+            .map_err(|e| format!("bad update endpoint {url}: {e}"))?])
         .map_err(|e| e.to_string())?
         .timeout(CHECK_TIMEOUT)
         .build()
@@ -108,7 +110,10 @@ async fn check_inner(app: &AppHandle) -> Result<UpdateCheck, String> {
         available: found.as_ref().map(|u| u.version.clone()),
         notes: found.as_ref().and_then(|u| u.body.clone()),
     };
-    *app.state::<PendingUpdate>().0.lock().unwrap_or_else(|e| e.into_inner()) = found;
+    *app.state::<PendingUpdate>()
+        .0
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = found;
     Ok(result)
 }
 
@@ -116,7 +121,10 @@ async fn check_inner(app: &AppHandle) -> Result<UpdateCheck, String> {
 pub async fn app_update_check(app: AppHandle) -> Result<UpdateCheck, String> {
     let check = check_inner(&app).await?;
     if check.available.is_some() {
-        let _ = app.emit(APP_UPDATE_EVENT, serde_json::json!({"phase": "available", "version": check.available}));
+        let _ = app.emit(
+            APP_UPDATE_EVENT,
+            serde_json::json!({"phase": "available", "version": check.available}),
+        );
     }
     Ok(check)
 }
@@ -205,7 +213,10 @@ pub async fn app_update_install(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     // Reached on Linux only; see the note above.
     tracing::info!(%version, "app update installed; restart applies it");
-    let _ = app.emit(APP_UPDATE_EVENT, serde_json::json!({"phase": "ready", "version": version}));
+    let _ = app.emit(
+        APP_UPDATE_EVENT,
+        serde_json::json!({"phase": "ready", "version": version}),
+    );
     Ok(())
 }
 
@@ -270,7 +281,9 @@ pub fn spawn_update_watch(app: AppHandle) {
                     // so a check that failed every time looked exactly
                     // like a check that found nothing (field case
                     // 2026-09-06, 0.2.7 not offered to a 0.2.6 install).
-                    Err(error) => tracing::warn!(error, "app update check failed; next beat retries"),
+                    Err(error) => {
+                        tracing::warn!(error, "app update check failed; next beat retries")
+                    }
                 }
             }
             // Five minutes, not six hours: a fix that ships at 02:00
@@ -307,7 +320,10 @@ pub fn section_for(version: &str) -> Option<&'static str> {
     let header = format!("## {version}");
     let start = RELEASE_NOTES.find(&header)?;
     let body = &RELEASE_NOTES[start..];
-    let end = body[header.len()..].find("\n## ").map(|i| i + header.len()).unwrap_or(body.len());
+    let end = body[header.len()..]
+        .find("\n## ")
+        .map(|i| i + header.len())
+        .unwrap_or(body.len());
     Some(body[..end].trim())
 }
 
@@ -351,7 +367,10 @@ mod notes_tests {
             .unwrap_or_else(|| panic!("RELEASE-NOTES.md has no '## {version}' section"));
         // Non-empty is the rule; a fix-only release may be one honest line
         // (0.2.7: "Fixing our own mistake." — the maintainer's exact words).
-        assert!(section.lines().skip(1).any(|l| !l.trim().is_empty()), "a release says something");
+        assert!(
+            section.lines().skip(1).any(|l| !l.trim().is_empty()),
+            "a release says something"
+        );
         let first_header = super::RELEASE_NOTES
             .lines()
             .find(|l| l.starts_with("## "))

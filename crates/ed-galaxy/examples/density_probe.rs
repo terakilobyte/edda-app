@@ -50,16 +50,31 @@ fn main() -> anyhow::Result<()> {
             cells.push((cp, n));
         }
     }
-    eprintln!("{} stars in {} occupied {} ly cells", sub.count, cells.len(), cell);
+    eprintln!(
+        "{} stars in {} occupied {} ly cells",
+        sub.count,
+        cells.len(),
+        cell
+    );
 
     if let Some(i) = args.iter().position(|a| a == "--line") {
-        let from = g.find(&args[i + 1]).ok_or_else(|| anyhow::anyhow!("unknown from"))?;
-        let to = g.find(&args[i + 2]).ok_or_else(|| anyhow::anyhow!("unknown to"))?;
+        let from = g
+            .find(&args[i + 1])
+            .ok_or_else(|| anyhow::anyhow!("unknown from"))?;
+        let to = g
+            .find(&args[i + 2])
+            .ok_or_else(|| anyhow::anyhow!("unknown to"))?;
         let (a, b) = (g.record(from).pos(), g.record(to).pos());
         let ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
         let len2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
         let len = len2.sqrt();
-        println!("# line {} -> {}: {:.0} ly; bands of 5% with cells within {} ly of the line", args[i + 1], args[i + 2], len, cell * 1.5);
+        println!(
+            "# line {} -> {}: {:.0} ly; bands of 5% with cells within {} ly of the line",
+            args[i + 1],
+            args[i + 2],
+            len,
+            cell * 1.5
+        );
         let mut bands = [(0u32, 0u32); 20]; // (cells, stars)
         for &(p, n) in &cells {
             let ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
@@ -75,9 +90,18 @@ fn main() -> anyhow::Result<()> {
                 bands[band].1 += n;
             }
         }
-        println!("{:>5} {:>8} {:>8} {:>10}", "band", "cells", "stars", "stars/cell");
+        println!(
+            "{:>5} {:>8} {:>8} {:>10}",
+            "band", "cells", "stars", "stars/cell"
+        );
         for (i, (c, n)) in bands.iter().enumerate() {
-            println!("{:>4}% {:>8} {:>8} {:>10.1}", i * 5, c, n, if *c > 0 { *n as f32 / *c as f32 } else { 0.0 });
+            println!(
+                "{:>4}% {:>8} {:>8} {:>10.1}",
+                i * 5,
+                c,
+                n,
+                if *c > 0 { *n as f32 / *c as f32 } else { 0.0 }
+            );
         }
         return Ok(());
     }
@@ -94,15 +118,28 @@ fn main() -> anyhow::Result<()> {
     println!("# radial density from center {:?}, 1000 ly bands", center);
     let mut bands: std::collections::BTreeMap<u32, Vec<u32>> = Default::default();
     for &(p, n) in &cells {
-        let r = ((p[0] - center[0]).powi(2) + (p[1] - center[1]).powi(2) + (p[2] - center[2]).powi(2)).sqrt();
+        let r =
+            ((p[0] - center[0]).powi(2) + (p[1] - center[1]).powi(2) + (p[2] - center[2]).powi(2))
+                .sqrt();
         bands.entry((r / 1000.0) as u32).or_default().push(n);
     }
-    println!("{:>7} {:>8} {:>9} {:>6} {:>6} {:>6}", "r (kly)", "cells", "stars", "p10", "p50", "p90");
+    println!(
+        "{:>7} {:>8} {:>9} {:>6} {:>6} {:>6}",
+        "r (kly)", "cells", "stars", "p10", "p50", "p90"
+    );
     for (band, mut counts) in bands {
         counts.sort_unstable();
         let q = |f: f32| counts[((counts.len() - 1) as f32 * f) as usize];
         let total: u64 = counts.iter().map(|&c| c as u64).sum();
-        println!("{:>7} {:>8} {:>9} {:>6} {:>6} {:>6}", band, counts.len(), total, q(0.1), q(0.5), q(0.9));
+        println!(
+            "{:>7} {:>8} {:>9} {:>6} {:>6} {:>6}",
+            band,
+            counts.len(),
+            total,
+            q(0.1),
+            q(0.5),
+            q(0.9)
+        );
     }
     Ok(())
 }

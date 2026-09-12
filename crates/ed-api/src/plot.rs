@@ -145,7 +145,10 @@ pub enum PlotRefusal {
     UnknownSystem(String),
     /// Known only by position (Postgres / EDSM, not yet in the routing
     /// index) and nothing indexed within the ship's range of it.
-    Unindexed { name: String, radius_ly: f32 },
+    Unindexed {
+        name: String,
+        radius_ly: f32,
+    },
     NoRange,
     NoRoute,
     Budget,
@@ -202,8 +205,20 @@ fn anchor(
                 .into_iter()
                 .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             match nearest {
-                Some((via, distance_ly)) => Ok((via, Some(Bridge { name, pos, via, distance_ly }), pos)),
-                None => Err(PlotRefusal::Unindexed { name, radius_ly: range_ly }),
+                Some((via, distance_ly)) => Ok((
+                    via,
+                    Some(Bridge {
+                        name,
+                        pos,
+                        via,
+                        distance_ly,
+                    }),
+                    pos,
+                )),
+                None => Err(PlotRefusal::Unindexed {
+                    name,
+                    radius_ly: range_ly,
+                }),
             }
         }
     }
@@ -215,8 +230,12 @@ pub fn resolve(
     galaxy: &ed_galaxy::Galaxy,
     api: &RouteApiRequest,
 ) -> Result<RouteRequest, PlotRefusal> {
-    let from = galaxy.find(&api.from).ok_or_else(|| PlotRefusal::UnknownSystem(api.from.clone()))?;
-    let to = galaxy.find(&api.to).ok_or_else(|| PlotRefusal::UnknownSystem(api.to.clone()))?;
+    let from = galaxy
+        .find(&api.from)
+        .ok_or_else(|| PlotRefusal::UnknownSystem(api.from.clone()))?;
+    let to = galaxy
+        .find(&api.to)
+        .ok_or_else(|| PlotRefusal::UnknownSystem(api.to.clone()))?;
     resolve_endpoints(galaxy, api, Endpoint::Indexed(from), Endpoint::Indexed(to)).map(|r| r.req)
 }
 
@@ -272,7 +291,15 @@ pub fn resolve_endpoints(
         // Product: secondaries are an experiment (ed-galaxy boost_side); off here.
         secondary_boost_ls: 0.0,
     };
-    Ok(Resolved { req, bridges: Bridges { from: from_bridge, to: to_bridge }, from_pos, to_pos })
+    Ok(Resolved {
+        req,
+        bridges: Bridges {
+            from: from_bridge,
+            to: to_bridge,
+        },
+        from_pos,
+        to_pos,
+    })
 }
 
 /// The cache key: the resolved request quantized so float noise from
@@ -360,13 +387,24 @@ impl Default for RouteService {
         // production leaves them unset. (EDDA_API_PLOT_CONCURRENCY /
         // _QUEUE from the step-2 sweep still size the interactive lane.)
         let env = |var: &str, default: usize| {
-            std::env::var(var).ok().and_then(|v| v.parse().ok()).filter(|&n: &usize| n >= 1).unwrap_or(default)
+            std::env::var(var)
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .filter(|&n: &usize| n >= 1)
+                .unwrap_or(default)
         };
         let interactive = env("EDDA_API_PLOT_CONCURRENCY", INTERACTIVE_CONCURRENCY);
         let interactive_queue = env("EDDA_API_PLOT_QUEUE", INTERACTIVE_QUEUE);
         let long = env("EDDA_API_PLOT_LONG_CONCURRENCY", LONG_CONCURRENCY);
         let long_queue = env("EDDA_API_PLOT_LONG_QUEUE", LONG_QUEUE);
-        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, "plot gates sized");
+        tracing::info!(
+            interactive,
+            interactive_queue,
+            long,
+            long_queue,
+            long_ly = LONG_LY,
+            "plot gates sized"
+        );
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
@@ -403,12 +441,21 @@ impl RouteService {
         api: &RouteApiRequest,
     ) -> anyhow::Result<(Lane, PlotOutcome, Bridges)> {
         let Some(from) = handle.galaxy.find(&api.from) else {
-            return Ok((Lane::Interactive, PlotOutcome::Refused(PlotRefusal::UnknownSystem(api.from.clone())), Bridges::default()));
+            return Ok((
+                Lane::Interactive,
+                PlotOutcome::Refused(PlotRefusal::UnknownSystem(api.from.clone())),
+                Bridges::default(),
+            ));
         };
         let Some(to) = handle.galaxy.find(&api.to) else {
-            return Ok((Lane::Interactive, PlotOutcome::Refused(PlotRefusal::UnknownSystem(api.to.clone())), Bridges::default()));
+            return Ok((
+                Lane::Interactive,
+                PlotOutcome::Refused(PlotRefusal::UnknownSystem(api.to.clone())),
+                Bridges::default(),
+            ));
         };
-        self.plot_endpoints(handle, api, Endpoint::Indexed(from), Endpoint::Indexed(to)).await
+        self.plot_endpoints(handle, api, Endpoint::Indexed(from), Endpoint::Indexed(to))
+            .await
     }
 
     /// Plot between resolved endpoints, or say why not. The lane and
@@ -423,9 +470,20 @@ impl RouteService {
         from: Endpoint,
         to: Endpoint,
     ) -> anyhow::Result<(Lane, PlotOutcome, Bridges)> {
-        let Resolved { mut req, bridges, from_pos, to_pos } = match resolve_endpoints(&handle.galaxy, api, from, to) {
+        let Resolved {
+            mut req,
+            bridges,
+            from_pos,
+            to_pos,
+        } = match resolve_endpoints(&handle.galaxy, api, from, to) {
             Ok(resolved) => resolved,
-            Err(refusal) => return Ok((Lane::Interactive, PlotOutcome::Refused(refusal), Bridges::default())),
+            Err(refusal) => {
+                return Ok((
+                    Lane::Interactive,
+                    PlotOutcome::Refused(refusal),
+                    Bridges::default(),
+                ))
+            }
         };
         let lane = lane_of_pos(from_pos, to_pos);
         req.time_budget_ms = lane.budget_ms();
@@ -476,7 +534,9 @@ impl RouteService {
     fn cached(&self, key: u64) -> Option<std::sync::Arc<Route>> {
         let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         cache.retain(|_, (at, _)| at.elapsed() < CACHE_TTL);
-        cache.get(&key).map(|(_, route)| std::sync::Arc::clone(route))
+        cache
+            .get(&key)
+            .map(|(_, route)| std::sync::Arc::clone(route))
     }
 
     fn store(&self, key: u64, route: std::sync::Arc<Route>) {
@@ -524,15 +584,28 @@ mod tests {
         // resolve() needs a galaxy only to look up names; refusal for
         // range is tested through the pure parts here.
         let api = request(None);
-        assert!(api.range_ly.or_else(|| api.fuel_model.map(|m| m.range_at(m.capacity))).is_none());
+        assert!(api
+            .range_ly
+            .or_else(|| api.fuel_model.map(|m| m.range_at(m.capacity)))
+            .is_none());
     }
 
     /// Same physics, float jitter: one cache entry. Different corridor:
     /// different entry. Different index version: different entry.
     #[test]
     fn cache_key_quantizes_and_versions() {
-        let mut a = RouteRequest { from: 1, to: 2, range_ly: 62.04, ..Default::default() };
-        let b = RouteRequest { from: 1, to: 2, range_ly: 62.0401, ..Default::default() };
+        let mut a = RouteRequest {
+            from: 1,
+            to: 2,
+            range_ly: 62.04,
+            ..Default::default()
+        };
+        let b = RouteRequest {
+            from: 1,
+            to: 2,
+            range_ly: 62.0401,
+            ..Default::default()
+        };
         assert_eq!(cache_key("v1", &a), cache_key("v1", &b));
         assert_ne!(cache_key("v1", &a), cache_key("v2", &a));
         a.to = 3;
@@ -576,7 +649,11 @@ mod lane_tests {
         let colonia = g.find("Colonia").unwrap();
         assert_eq!(lane_of(&g, sol, near), Lane::Interactive);
         assert_eq!(lane_of(&g, sol, colonia), Lane::Long);
-        assert_eq!(lane_of(&g, colonia, sol), Lane::Long, "direction does not matter");
+        assert_eq!(
+            lane_of(&g, colonia, sol),
+            Lane::Long,
+            "direction does not matter"
+        );
     }
 
     #[test]
@@ -620,8 +697,13 @@ mod lane_tests {
         };
         for _ in 0..2 {
             let (_, outcome, _) = svc.plot(&pending, &api).await.unwrap();
-            let PlotOutcome::Route(_, cached) = outcome else { panic!("a route") };
-            assert!(!cached, "no highway yet: every plot is live, none is stored");
+            let PlotOutcome::Route(_, cached) = outcome else {
+                panic!("a route")
+            };
+            assert!(
+                !cached,
+                "no highway yet: every plot is live, none is stored"
+            );
         }
 
         let ready = crate::galaxy_service::GalaxyHandle {
@@ -631,8 +713,14 @@ mod lane_tests {
         };
         let (_, first, _) = svc.plot(&ready, &api).await.unwrap();
         let (_, second, _) = svc.plot(&ready, &api).await.unwrap();
-        assert!(matches!(first, PlotOutcome::Route(_, false)), "the first plot with the highway is live");
-        assert!(matches!(second, PlotOutcome::Route(_, true)), "and the second is served from the cache");
+        assert!(
+            matches!(first, PlotOutcome::Route(_, false)),
+            "the first plot with the highway is live"
+        );
+        assert!(
+            matches!(second, PlotOutcome::Route(_, true)),
+            "and the second is served from the cache"
+        );
     }
 
     #[tokio::test]
@@ -646,7 +734,11 @@ mod lane_tests {
         }
         assert_eq!(held.len(), long_room, "the long lane is full");
         assert_eq!(svc.room(Lane::Long), 0);
-        assert_eq!(svc.room(Lane::Interactive), interactive_room, "interactive room untouched");
+        assert_eq!(
+            svc.room(Lane::Interactive),
+            interactive_room,
+            "interactive room untouched"
+        );
         assert!(svc.gate(Lane::Interactive).enter().is_some());
         drop(held);
         assert_eq!(svc.room(Lane::Long), long_room, "permits return on drop");
@@ -655,7 +747,12 @@ mod lane_tests {
 
 /// The cache key for a resolved plot: the request tuple plus the true
 /// endpoint positions, quantized to 0.1 ly.
-pub fn cache_key_positions(version: &str, req: &RouteRequest, from_pos: [f32; 3], to_pos: [f32; 3]) -> u64 {
+pub fn cache_key_positions(
+    version: &str,
+    req: &RouteRequest,
+    from_pos: [f32; 3],
+    to_pos: [f32; 3],
+) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     cache_key(version, req).hash(&mut h);
@@ -678,7 +775,8 @@ pub fn augment(route: &Route, bridges: &Bridges) -> serde_json::Value {
     if bridges.from.is_none() && bridges.to.is_none() {
         return value;
     }
-    let unknown_class = serde_json::to_value(ed_galaxy::StarClass::Unknown).unwrap_or(serde_json::Value::Null);
+    let unknown_class =
+        serde_json::to_value(ed_galaxy::StarClass::Unknown).unwrap_or(serde_json::Value::Null);
     let hop_json = |b: &Bridge, distance_ly: f32, total_ly: f32| {
         serde_json::json!({
             "idx": u32::MAX, "id64": 0, "name": b.name, "pos": b.pos, "class": unknown_class,
@@ -687,8 +785,14 @@ pub fn augment(route: &Route, bridges: &Bridges) -> serde_json::Value {
             "synthesized": true,
         })
     };
-    let Some(obj) = value.as_object_mut() else { return value };
-    let mut hops: Vec<serde_json::Value> = obj.get("hops").and_then(|h| h.as_array()).cloned().unwrap_or_default();
+    let Some(obj) = value.as_object_mut() else {
+        return value;
+    };
+    let mut hops: Vec<serde_json::Value> = obj
+        .get("hops")
+        .and_then(|h| h.as_array())
+        .cloned()
+        .unwrap_or_default();
     let mut jumps = obj.get("jumps").and_then(|j| j.as_u64()).unwrap_or(0);
     let mut total = obj.get("total_ly").and_then(|t| t.as_f64()).unwrap_or(0.0) as f32;
     if let Some(b) = &bridges.from {
@@ -712,11 +816,20 @@ pub fn augment(route: &Route, bridges: &Bridges) -> serde_json::Value {
         jumps += 1;
     }
     let (a, z) = (
-        bridges.from.as_ref().map(|b| b.pos).or_else(|| hops.first().and_then(pos_of_json)),
-        bridges.to.as_ref().map(|b| b.pos).or_else(|| hops.last().and_then(pos_of_json)),
+        bridges
+            .from
+            .as_ref()
+            .map(|b| b.pos)
+            .or_else(|| hops.first().and_then(pos_of_json)),
+        bridges
+            .to
+            .as_ref()
+            .map(|b| b.pos)
+            .or_else(|| hops.last().and_then(pos_of_json)),
     );
     if let (Some(a), Some(z)) = (a, z) {
-        let straight = ((a[0] - z[0]).powi(2) + (a[1] - z[1]).powi(2) + (a[2] - z[2]).powi(2)).sqrt();
+        let straight =
+            ((a[0] - z[0]).powi(2) + (a[1] - z[1]).powi(2) + (a[2] - z[2]).powi(2)).sqrt();
         obj.insert("straight_ly".into(), serde_json::json!(straight));
     }
     obj.insert("hops".into(), serde_json::Value::Array(hops));
@@ -734,7 +847,11 @@ pub fn augment(route: &Route, bridges: &Bridges) -> serde_json::Value {
 
 fn pos_of_json(hop: &serde_json::Value) -> Option<[f32; 3]> {
     let p = hop.get("pos")?.as_array()?;
-    Some([p.first()?.as_f64()? as f32, p.get(1)?.as_f64()? as f32, p.get(2)?.as_f64()? as f32])
+    Some([
+        p.first()?.as_f64()? as f32,
+        p.get(1)?.as_f64()? as f32,
+        p.get(2)?.as_f64()? as f32,
+    ])
 }
 
 #[cfg(test)]
@@ -755,10 +872,21 @@ mod endpoint_tests {
 
     fn api(from: &str, to: &str, range: f32) -> RouteApiRequest {
         RouteApiRequest {
-            from: from.into(), to: to.into(), range_ly: Some(range), fuel_model: None, boost: None,
-            start_fuel: None, supercharge: None, white_dwarfs: None, min_fuel: None,
-            max_dry_jumps: None, weight: None, stop_weight: None, thorough: None,
-            from_coords: None, to_coords: None,
+            from: from.into(),
+            to: to.into(),
+            range_ly: Some(range),
+            fuel_model: None,
+            boost: None,
+            start_fuel: None,
+            supercharge: None,
+            white_dwarfs: None,
+            min_fuel: None,
+            max_dry_jumps: None,
+            weight: None,
+            stop_weight: None,
+            thorough: None,
+            from_coords: None,
+            to_coords: None,
         }
     }
 
@@ -769,31 +897,72 @@ mod endpoint_tests {
         let (_d, g) = tiny_galaxy();
         let sol = g.find("Sol").unwrap();
         let nearby = g.find("Nearby").unwrap();
-        let newfound = Endpoint::Position { name: "Newfound".into(), pos: [36.0, 0.0, 0.0] };
-        let r = resolve_endpoints(&g, &api("Sol", "Newfound", 40.0), Endpoint::Indexed(sol), newfound).unwrap();
+        let newfound = Endpoint::Position {
+            name: "Newfound".into(),
+            pos: [36.0, 0.0, 0.0],
+        };
+        let r = resolve_endpoints(
+            &g,
+            &api("Sol", "Newfound", 40.0),
+            Endpoint::Indexed(sol),
+            newfound,
+        )
+        .unwrap();
         assert_eq!(r.req.to, nearby, "Nearby at 6 ly beats Farther at 24 ly");
         let b = r.bridges.to.as_ref().expect("bridged");
         assert_eq!(b.name, "Newfound");
-        assert!((b.distance_ly - 6.0).abs() < 0.01, "straight-line jump {}", b.distance_ly);
+        assert!(
+            (b.distance_ly - 6.0).abs() < 0.01,
+            "straight-line jump {}",
+            b.distance_ly
+        );
         assert!(r.bridges.from.is_none());
-        assert_eq!(r.to_pos, [36.0, 0.0, 0.0], "the lane and the cache key see the true position");
+        assert_eq!(
+            r.to_pos,
+            [36.0, 0.0, 0.0],
+            "the lane and the cache key see the true position"
+        );
     }
 
     #[test]
     fn nothing_indexed_within_range_is_an_honest_refusal() {
         let (_d, g) = tiny_galaxy();
         let sol = g.find("Sol").unwrap();
-        let lonely = Endpoint::Position { name: "Lonely".into(), pos: [500.0, 0.0, 0.0] };
-        let err = resolve_endpoints(&g, &api("Sol", "Lonely", 40.0), Endpoint::Indexed(sol), lonely).unwrap_err();
-        assert_eq!(err, PlotRefusal::Unindexed { name: "Lonely".into(), radius_ly: 40.0 });
+        let lonely = Endpoint::Position {
+            name: "Lonely".into(),
+            pos: [500.0, 0.0, 0.0],
+        };
+        let err = resolve_endpoints(
+            &g,
+            &api("Sol", "Lonely", 40.0),
+            Endpoint::Indexed(sol),
+            lonely,
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            PlotRefusal::Unindexed {
+                name: "Lonely".into(),
+                radius_ly: 40.0
+            }
+        );
     }
 
     #[test]
     fn the_from_side_bridges_too() {
         let (_d, g) = tiny_galaxy();
         let sol = g.find("Sol").unwrap();
-        let here = Endpoint::Position { name: "JustJumpedHere".into(), pos: [-5.0, 0.0, 0.0] };
-        let r = resolve_endpoints(&g, &api("JustJumpedHere", "Sol", 40.0), here, Endpoint::Indexed(sol)).unwrap();
+        let here = Endpoint::Position {
+            name: "JustJumpedHere".into(),
+            pos: [-5.0, 0.0, 0.0],
+        };
+        let r = resolve_endpoints(
+            &g,
+            &api("JustJumpedHere", "Sol", 40.0),
+            here,
+            Endpoint::Indexed(sol),
+        )
+        .unwrap();
         assert_eq!(r.req.from, sol);
         assert!((r.bridges.from.as_ref().unwrap().distance_ly - 5.0).abs() < 0.01);
     }
@@ -802,8 +971,26 @@ mod endpoint_tests {
     fn two_positions_through_the_same_bridge_key_differently() {
         let (_d, g) = tiny_galaxy();
         let sol = g.find("Sol").unwrap();
-        let a = resolve_endpoints(&g, &api("Sol", "A", 40.0), Endpoint::Indexed(sol), Endpoint::Position { name: "A".into(), pos: [34.0, 0.0, 0.0] }).unwrap();
-        let b = resolve_endpoints(&g, &api("Sol", "B", 40.0), Endpoint::Indexed(sol), Endpoint::Position { name: "B".into(), pos: [36.0, 0.0, 0.0] }).unwrap();
+        let a = resolve_endpoints(
+            &g,
+            &api("Sol", "A", 40.0),
+            Endpoint::Indexed(sol),
+            Endpoint::Position {
+                name: "A".into(),
+                pos: [34.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
+        let b = resolve_endpoints(
+            &g,
+            &api("Sol", "B", 40.0),
+            Endpoint::Indexed(sol),
+            Endpoint::Position {
+                name: "B".into(),
+                pos: [36.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
         assert_eq!(a.req.to, b.req.to, "same bridge");
         assert_ne!(
             cache_key_positions("v", &a.req, a.from_pos, a.to_pos),
@@ -823,8 +1010,18 @@ mod endpoint_tests {
             ]
         })).unwrap();
         let bridges = Bridges {
-            from: Some(Bridge { name: "Origin".into(), pos: [-5.0, 0.0, 0.0], via: 0, distance_ly: 5.0 }),
-            to: Some(Bridge { name: "Newfound".into(), pos: [36.0, 0.0, 0.0], via: 1, distance_ly: 6.0 }),
+            from: Some(Bridge {
+                name: "Origin".into(),
+                pos: [-5.0, 0.0, 0.0],
+                via: 0,
+                distance_ly: 5.0,
+            }),
+            to: Some(Bridge {
+                name: "Newfound".into(),
+                pos: [36.0, 0.0, 0.0],
+                via: 1,
+                distance_ly: 6.0,
+            }),
         };
         let v = augment(&route, &bridges);
         let hops = v["hops"].as_array().unwrap();
@@ -833,8 +1030,14 @@ mod endpoint_tests {
         assert_eq!(hops[0]["synthesized"], true);
         assert_eq!(hops[0]["scoopable"], false);
         assert_eq!(hops[1]["name"], "Sol");
-        assert!((hops[1]["distance_ly"].as_f64().unwrap() - 5.0).abs() < 1e-3, "the first indexed hop is now a jump");
-        assert!((hops[2]["total_ly"].as_f64().unwrap() - 35.0).abs() < 1e-3, "running totals shift by the from bridge");
+        assert!(
+            (hops[1]["distance_ly"].as_f64().unwrap() - 5.0).abs() < 1e-3,
+            "the first indexed hop is now a jump"
+        );
+        assert!(
+            (hops[2]["total_ly"].as_f64().unwrap() - 35.0).abs() < 1e-3,
+            "running totals shift by the from bridge"
+        );
         assert_eq!(hops[3]["name"], "Newfound");
         assert_eq!(hops[3]["synthesized"], true);
         // Hop carries `synthesized` natively since the client learned to read
@@ -851,7 +1054,11 @@ mod endpoint_tests {
         let route: Route = serde_json::from_value(serde_json::json!({
             "range_ly": 40.0, "jumps": 0, "total_ly": 0.0, "straight_ly": 0.0, "boosted_jumps": 0,
             "expansions": 1, "elapsed_ms": 1, "refuel_stops": 0, "hops": []
-        })).unwrap();
-        assert_eq!(augment(&route, &Bridges::default()), serde_json::to_value(&route).unwrap());
+        }))
+        .unwrap();
+        assert_eq!(
+            augment(&route, &Bridges::default()),
+            serde_json::to_value(&route).unwrap()
+        );
     }
 }

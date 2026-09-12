@@ -58,21 +58,38 @@ impl Engine {
     /// `lib_dir` holds `libvosk.dll` (and its runtime DLLs); `model_dir` is
     /// the unpacked model folder.
     pub fn load(lib_dir: &Path, model_dir: &Path) -> Result<Engine> {
-        let dll = lib_dir.join(if cfg!(windows) { "libvosk.dll" } else { "libvosk.so" });
+        let dll = lib_dir.join(if cfg!(windows) {
+            "libvosk.dll"
+        } else {
+            "libvosk.so"
+        });
         if !dll.is_file() {
             return Err(anyhow!("{} not found", dll.display()));
         }
         if !model_dir.join("conf").is_dir() && !model_dir.join("am").is_dir() {
-            return Err(anyhow!("{} does not look like a Vosk model", model_dir.display()));
+            return Err(anyhow!(
+                "{} does not look like a Vosk model",
+                model_dir.display()
+            ));
         }
         // Sibling DLLs (libstdc++, winpthread) resolve from the DLL's own dir.
         #[cfg(windows)]
         let lib = unsafe {
-            use libloading::os::windows::{Library as WinLib, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR};
-            Library::from(WinLib::load_with_flags(&dll, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS).with_context(|| format!("loading {}", dll.display()))?)
+            use libloading::os::windows::{
+                Library as WinLib, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+                LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+            };
+            Library::from(
+                WinLib::load_with_flags(
+                    &dll,
+                    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+                )
+                .with_context(|| format!("loading {}", dll.display()))?,
+            )
         };
         #[cfg(not(windows))]
-        let lib = unsafe { Library::new(&dll).with_context(|| format!("loading {}", dll.display()))? };
+        let lib =
+            unsafe { Library::new(&dll).with_context(|| format!("loading {}", dll.display()))? };
 
         // SAFETY: symbol names and signatures follow vosk_api.h for 0.3.x.
         unsafe {
@@ -88,14 +105,51 @@ impl Engine {
             let rec_partial: Symbol<RecStr> = lib.get(b"vosk_recognizer_partial_result\0")?;
             let rec_final: Symbol<RecStr> = lib.get(b"vosk_recognizer_final_result\0")?;
             let rec_reset: Symbol<RecReset> = lib.get(b"vosk_recognizer_reset\0")?;
-            let (model_new, model_free, rec_new, rec_new_grm, rec_free, rec_accept, rec_result, rec_partial, rec_final, rec_reset) =
-                (*model_new, *model_free, *rec_new, *rec_new_grm, *rec_free, *rec_accept, *rec_result, *rec_partial, *rec_final, *rec_reset);
+            let (
+                model_new,
+                model_free,
+                rec_new,
+                rec_new_grm,
+                rec_free,
+                rec_accept,
+                rec_result,
+                rec_partial,
+                rec_final,
+                rec_reset,
+            ) = (
+                *model_new,
+                *model_free,
+                *rec_new,
+                *rec_new_grm,
+                *rec_free,
+                *rec_accept,
+                *rec_result,
+                *rec_partial,
+                *rec_final,
+                *rec_reset,
+            );
             let path = CString::new(model_dir.to_string_lossy().as_bytes())?;
             let model = model_new(path.as_ptr());
             if model.is_null() {
-                return Err(anyhow!("Vosk could not load the model at {}", model_dir.display()));
+                return Err(anyhow!(
+                    "Vosk could not load the model at {}",
+                    model_dir.display()
+                ));
             }
-            Ok(Engine { _lib: lib, model, model_new, model_free, rec_new, rec_new_grm, rec_free, rec_accept, rec_result, rec_partial, rec_final, rec_reset })
+            Ok(Engine {
+                _lib: lib,
+                model,
+                model_new,
+                model_free,
+                rec_new,
+                rec_new_grm,
+                rec_free,
+                rec_accept,
+                rec_result,
+                rec_partial,
+                rec_final,
+                rec_reset,
+            })
         }
     }
 
@@ -152,10 +206,17 @@ impl Recognizer<'_> {
     fn text_of(&self, f: RecStr) -> String {
         // SAFETY: Vosk returns a NUL-terminated string owned by the recognizer,
         // valid until the next call; we copy it immediately.
-        let s = unsafe { CStr::from_ptr(f(self.rec)) }.to_string_lossy().into_owned();
+        let s = unsafe { CStr::from_ptr(f(self.rec)) }
+            .to_string_lossy()
+            .into_owned();
         serde_json::from_str::<serde_json::Value>(&s)
             .ok()
-            .and_then(|v| v.get("text").or_else(|| v.get("partial")).and_then(|t| t.as_str()).map(str::to_string))
+            .and_then(|v| {
+                v.get("text")
+                    .or_else(|| v.get("partial"))
+                    .and_then(|t| t.as_str())
+                    .map(str::to_string)
+            })
             .unwrap_or_default()
     }
     pub fn result(&mut self) -> String {
@@ -189,7 +250,10 @@ pub struct Mic {
 
 /// Names of the input devices cpal can see.
 pub fn list_inputs() -> Vec<String> {
-    cpal::default_host().input_devices().map(|d| d.filter_map(|d| d.name().ok()).collect()).unwrap_or_default()
+    cpal::default_host()
+        .input_devices()
+        .map(|d| d.filter_map(|d| d.name().ok()).collect())
+        .unwrap_or_default()
 }
 
 pub fn open_mic() -> Result<Mic> {
@@ -205,7 +269,9 @@ pub fn open_mic_named(name: Option<&str>) -> Result<Mic> {
             .ok()
             .and_then(|mut d| d.find(|d| d.name().ok().as_deref() == Some(n)))
             .ok_or_else(|| anyhow!("microphone {n:?} not found"))?,
-        None => host.default_input_device().ok_or_else(|| anyhow!("no default microphone"))?,
+        None => host
+            .default_input_device()
+            .ok_or_else(|| anyhow!("no default microphone"))?,
     };
     let name = device.name().unwrap_or_else(|_| "microphone".into());
     let cfg = device.default_input_config().context("microphone config")?;
@@ -242,7 +308,11 @@ pub fn open_mic_named(name: Option<&str>) -> Result<Mic> {
     };
     stream.play().context("starting microphone")?;
     tracing::info!(device = %name, in_rate, channels, "microphone open");
-    Ok(Mic { _stream: stream, rx, device: name })
+    Ok(Mic {
+        _stream: stream,
+        rx,
+        device: name,
+    })
 }
 
 /// Channel-average + linear resample to 16 kHz, streaming.
@@ -255,11 +325,23 @@ struct Resampler {
 
 impl Resampler {
     fn new(in_rate: u32, channels: usize) -> Self {
-        Resampler { in_rate, channels: channels.max(1), pos: 0.0, last: 0.0 }
+        Resampler {
+            in_rate,
+            channels: channels.max(1),
+            pos: 0.0,
+            last: 0.0,
+        }
     }
     fn push_f32(&mut self, data: &[f32]) -> Vec<i16> {
         let frames = data.len() / self.channels;
-        let mono: Vec<f32> = (0..frames).map(|i| data[i * self.channels..(i + 1) * self.channels].iter().sum::<f32>() / self.channels as f32).collect();
+        let mono: Vec<f32> = (0..frames)
+            .map(|i| {
+                data[i * self.channels..(i + 1) * self.channels]
+                    .iter()
+                    .sum::<f32>()
+                    / self.channels as f32
+            })
+            .collect();
         let step = self.in_rate as f64 / SAMPLE_RATE as f64;
         let mut out = Vec::with_capacity((frames as f64 / step) as usize + 1);
         // `pos` is the fractional read position into [last, mono...].
@@ -267,8 +349,16 @@ impl Resampler {
             let i = self.pos.floor();
             let frac = (self.pos - i) as f32;
             let idx = i as isize;
-            let a = if idx < 0 { self.last } else { mono[idx as usize] };
-            let b = if (idx + 1) < frames as isize { mono[(idx + 1) as usize] } else { a };
+            let a = if idx < 0 {
+                self.last
+            } else {
+                mono[idx as usize]
+            };
+            let b = if (idx + 1) < frames as isize {
+                mono[(idx + 1) as usize]
+            } else {
+                a
+            };
             let s = a + (b - a) * frac;
             out.push((s.clamp(-1.0, 1.0) * 32767.0) as i16);
             self.pos += step;
@@ -286,7 +376,9 @@ mod tests {
     #[test]
     fn resampler_halves_48k_stereo_to_16k_mono() {
         let mut r = Resampler::new(48_000, 2);
-        let data: Vec<f32> = (0..4800).map(|i| if i % 2 == 0 { 0.5 } else { 0.5 }).collect();
+        let data: Vec<f32> = (0..4800)
+            .map(|i| if i % 2 == 0 { 0.5 } else { 0.5 })
+            .collect();
         let out = r.push_f32(&data);
         assert!((out.len() as i64 - 800).abs() <= 1, "{} samples", out.len());
         assert!(out.iter().all(|&s| (s - 16383).abs() < 3));

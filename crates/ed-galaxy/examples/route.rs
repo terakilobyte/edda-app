@@ -9,13 +9,24 @@ use std::path::Path;
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() < 4 {
-        eprintln!("usage: route <index_dir> <from> <to> <range_ly> [--no-boost] [--dry N] [--weight W]");
+        eprintln!(
+            "usage: route <index_dir> <from> <to> <range_ly> [--no-boost] [--dry N] [--weight W]"
+        );
         std::process::exit(2);
     }
     let g = Galaxy::open(Path::new(&args[0]))?;
-    let from = g.find(&args[1]).ok_or_else(|| anyhow::anyhow!("unknown system {}", args[1]))?;
-    let to = g.find(&args[2]).ok_or_else(|| anyhow::anyhow!("unknown system {}", args[2]))?;
-    let mut req = RouteRequest { from, to, range_ly: args[3].parse()?, ..Default::default() };
+    let from = g
+        .find(&args[1])
+        .ok_or_else(|| anyhow::anyhow!("unknown system {}", args[1]))?;
+    let to = g
+        .find(&args[2])
+        .ok_or_else(|| anyhow::anyhow!("unknown system {}", args[2]))?;
+    let mut req = RouteRequest {
+        from,
+        to,
+        range_ly: args[3].parse()?,
+        ..Default::default()
+    };
     let mut i = 4;
     while i < args.len() {
         match args[i].as_str() {
@@ -32,9 +43,18 @@ fn main() -> anyhow::Result<()> {
         }
         i += 1;
     }
-    eprintln!("{} systems in index; planning {} -> {} at {} ly", g.count, args[1], args[2], req.range_ly);
+    eprintln!(
+        "{} systems in index; planning {} -> {} at {} ly",
+        g.count, args[1], args[2], req.range_ly
+    );
     let progress = |n: u64, rem: f32| eprintln!("  {n} expansions, best remaining {rem:.0} ly");
-    let ctl = Control { cancelled: &|| false, progress: &progress, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control {
+        cancelled: &|| false,
+        progress: &progress,
+        stage: &|_, _, _| {},
+        found: &|_| {},
+        trace: &|_, _, _| {},
+    };
     let r = plan(&g, &req, &ctl)?;
     println!(
         "{} jumps, {:.1} ly flown ({:.1} ly straight), {} boosted, {} expansions, {} ms",

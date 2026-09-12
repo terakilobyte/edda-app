@@ -1,9 +1,9 @@
-pub mod modules;
 pub mod cargo;
 pub mod catalog;
-pub mod ships;
 pub mod inventory;
 pub mod journal;
+pub mod modules;
+pub mod ships;
 pub mod status;
 
 pub use catalog::{Catalog, Item, Kind};
@@ -28,7 +28,10 @@ pub struct ResolvedItem {
 /// `Materials` snapshot is included) each time it's called -- cheap enough
 /// to just re-run on every journal-changed file event rather than trying
 /// to keep incremental state across calls.
-pub fn read_all(journal_dir: &Path, files_to_scan: usize) -> anyhow::Result<(Vec<ResolvedItem>, ShipStatus)> {
+pub fn read_all(
+    journal_dir: &Path,
+    files_to_scan: usize,
+) -> anyhow::Result<(Vec<ResolvedItem>, ShipStatus)> {
     let catalog = Catalog::load();
     let files = journal::recent_journal_files(journal_dir, files_to_scan)?;
 
@@ -62,7 +65,9 @@ pub fn read_all(journal_dir: &Path, files_to_scan: usize) -> anyhow::Result<(Vec
         let item = catalog.by_symbol(&symbol);
         resolved.push(ResolvedItem {
             symbol: symbol.clone(),
-            name: item.map(|i| i.name.clone()).unwrap_or_else(|| format!("(unknown: {symbol})")),
+            name: item
+                .map(|i| i.name.clone())
+                .unwrap_or_else(|| format!("(unknown: {symbol})")),
             category: item.map(|i| i.category.clone()).unwrap_or_default(),
             count,
         });

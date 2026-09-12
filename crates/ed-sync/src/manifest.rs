@@ -600,13 +600,18 @@ mod tests {
         product.validate().unwrap();
         let json = serde_json::to_string(&product).unwrap();
         assert!(json.contains("\"from\":\"45\""), "{json}");
-        assert!(json.contains("\"path\":\"routing/overlays/46.edgo\""), "{json}");
+        assert!(
+            json.contains("\"path\":\"routing/overlays/46.edgo\""),
+            "{json}"
+        );
         assert_eq!(serde_json::from_str::<Product>(&json).unwrap(), product);
 
         let old = r#"{"version":"45","schema":3,"files":[{"path":"routing/45/stars.bin","bytes":1,"sha256":"0000000000000000000000000000000000000000000000000000000000000000"}]}"#;
         let product: Product = serde_json::from_str(old).unwrap();
         assert!(product.overlays.is_empty());
-        assert!(!serde_json::to_string(&product).unwrap().contains("overlays"));
+        assert!(!serde_json::to_string(&product)
+            .unwrap()
+            .contains("overlays"));
     }
 
     #[test]
@@ -614,13 +619,26 @@ mod tests {
         let product = routing_with_overlays();
         let chain = product.overlay_chain("45").unwrap();
         assert_eq!(
-            chain.iter().map(|l| (l.from.as_str(), l.to.as_str())).collect::<Vec<_>>(),
+            chain
+                .iter()
+                .map(|l| (l.from.as_str(), l.to.as_str()))
+                .collect::<Vec<_>>(),
             [("45", "46"), ("46", "47")]
         );
         assert_eq!(product.overlay_chain("46").unwrap().len(), 1);
-        assert_eq!(product.overlay_chain("47").unwrap().len(), 0, "already current");
-        assert!(product.overlay_chain("8").is_none(), "no path: full download");
-        assert!(product.overlay_chain("44").is_none(), "pruned base: full download");
+        assert_eq!(
+            product.overlay_chain("47").unwrap().len(),
+            0,
+            "already current"
+        );
+        assert!(
+            product.overlay_chain("8").is_none(),
+            "no path: full download"
+        );
+        assert!(
+            product.overlay_chain("44").is_none(),
+            "pruned base: full download"
+        );
     }
 
     #[test]

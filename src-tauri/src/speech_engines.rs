@@ -72,15 +72,30 @@ fn engine_root(data_dir: &Path, engine: &str) -> PathBuf {
 
 fn kokoro_status(state: &AppState) -> SpeechEngineStatus {
     let root = engine_root(&state.data_dir, "kokoro");
-    let configured = state.config.lock().unwrap_or_else(|e| e.into_inner()).voice_server.clone();
+    let configured = state
+        .config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .voice_server
+        .clone();
     let running = state.helpers.running("speech:kokoro");
     // Item 37: the reported URL is LIVE state — a configured-but-dead
     // engine advertises nothing, so no panel can claim it is active.
-    let url = if running { configured.filter(|c| c.model == "kokoro").map(|c| c.url) } else { None };
+    let url = if running {
+        configured.filter(|c| c.model == "kokoro").map(|c| c.url)
+    } else {
+        None
+    };
     let ready = url.as_deref().is_some_and(|u| {
         u.strip_prefix("http://")
-            .and_then(|hp| hp.trim_end_matches('/').parse::<std::net::SocketAddr>().ok())
-            .is_some_and(|addr| std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(150)).is_ok())
+            .and_then(|hp| {
+                hp.trim_end_matches('/')
+                    .parse::<std::net::SocketAddr>()
+                    .ok()
+            })
+            .is_some_and(|addr| {
+                std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(150)).is_ok()
+            })
     });
     SpeechEngineStatus {
         engine: "kokoro".into(),
@@ -106,7 +121,10 @@ fn startup_failure_note(died_early: bool, waited_ms: u64, log_bytes: u64) -> Str
         };
         format!("Kokoro exited during startup after ~{waited_ms} ms; {log_note}. Retry with ED_KOKORO_CONSOLE=1 to watch it launch.")
     } else {
-        format!("Kokoro did not answer on its port within {} s; see logs/kokoro.log", waited_ms / 1000)
+        format!(
+            "Kokoro did not answer on its port within {} s; see logs/kokoro.log",
+            waited_ms / 1000
+        )
     }
 }
 
@@ -116,22 +134,38 @@ pub fn managed_kokoro_selected(state: &AppState) -> bool {
     // Windows voice"): honoring only the config's presence made that
     // choice silently revert on every launch (field case 2026-09-05 —
     // start_configured re-enabled the server the user had turned off).
-    engine_root(&state.data_dir, "kokoro").join("installed.ok").is_file()
+    engine_root(&state.data_dir, "kokoro")
+        .join("installed.ok")
+        .is_file()
         && cfg.voice_server_enabled
-        && cfg.voice_server.as_ref().is_some_and(|c| c.model == "kokoro")
+        && cfg
+            .voice_server
+            .as_ref()
+            .is_some_and(|c| c.model == "kokoro")
 }
 
 #[tauri::command]
-pub async fn speech_engine_status(state: State<'_, AppState>) -> Result<Vec<SpeechEngineStatus>, String> {
+pub async fn speech_engine_status(
+    state: State<'_, AppState>,
+) -> Result<Vec<SpeechEngineStatus>, String> {
     Ok(vec![kokoro_status(&state)])
 }
 
 fn emit(app: &AppHandle, engine: &str, phase: &str, detail: &str, fraction: f32) {
-    let _ = app.emit(crate::events::SPEECH_ENGINE_PROGRESS, serde_json::json!({"engine":engine,"phase":phase,"detail":detail,"fraction":fraction}));
+    let _ = app.emit(
+        crate::events::SPEECH_ENGINE_PROGRESS,
+        serde_json::json!({"engine":engine,"phase":phase,"detail":detail,"fraction":fraction}),
+    );
 }
 
 fn download(client: &reqwest::blocking::Client, url: &str, out: &Path) -> anyhow::Result<()> {
-    let partial = out.with_extension(format!("{}partial", out.extension().and_then(|x| x.to_str()).map(|x| format!("{x}.")).unwrap_or_default()));
+    let partial = out.with_extension(format!(
+        "{}partial",
+        out.extension()
+            .and_then(|x| x.to_str())
+            .map(|x| format!("{x}."))
+            .unwrap_or_default()
+    ));
     let mut response = client.get(url).send()?.error_for_status()?;
     let mut file = std::fs::File::create(&partial)?;
     std::io::copy(&mut response, &mut file)?;
@@ -145,12 +179,25 @@ fn unzip_flat(zip_path: &Path, out: &Path, strip_first: bool) -> anyhow::Result<
     let mut zip = zip::ZipArchive::new(file)?;
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i)?;
-        let Some(enclosed) = entry.enclosed_name() else { continue };
-        let relative = if strip_first { enclosed.components().skip(1).collect::<PathBuf>() } else { enclosed.to_path_buf() };
-        if relative.as_os_str().is_empty() { continue }
+        let Some(enclosed) = entry.enclosed_name() else {
+            continue;
+        };
+        let relative = if strip_first {
+            enclosed.components().skip(1).collect::<PathBuf>()
+        } else {
+            enclosed.to_path_buf()
+        };
+        if relative.as_os_str().is_empty() {
+            continue;
+        }
         let target = out.join(relative);
-        if entry.is_dir() { std::fs::create_dir_all(&target)?; continue }
-        if let Some(parent) = target.parent() { std::fs::create_dir_all(parent)?; }
+        if entry.is_dir() {
+            std::fs::create_dir_all(&target)?;
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let mut file = std::fs::File::create(target)?;
         std::io::copy(&mut entry, &mut file)?;
     }
@@ -168,8 +215,13 @@ fn install_kokoro(app: &AppHandle, data_dir: &Path) -> anyhow::Result<()> {
     emit(app, "kokoro", "runtime", "Downloading runtime…", 0.05);
     let uv = runtime.join(crate::platform::exe("uv"));
     if !uv.is_file() {
-        let url = crate::platform::uv_download_url(UV_VERSION)
-            .ok_or_else(|| anyhow::anyhow!("no uv build is published for {}/{}", std::env::consts::OS, std::env::consts::ARCH))?;
+        let url = crate::platform::uv_download_url(UV_VERSION).ok_or_else(|| {
+            anyhow::anyhow!(
+                "no uv build is published for {}/{}",
+                std::env::consts::OS,
+                std::env::consts::ARCH
+            )
+        })?;
         std::fs::create_dir_all(&runtime)?;
         if url.ends_with(".zip") {
             let uv_zip = downloads.join("uv.zip");
@@ -183,7 +235,9 @@ fn install_kokoro(app: &AppHandle, data_dir: &Path) -> anyhow::Result<()> {
             for entry in tar::Archive::new(gz).entries()? {
                 let mut entry = entry?;
                 let rel: PathBuf = entry.path()?.components().skip(1).collect();
-                if rel.as_os_str().is_empty() { continue }
+                if rel.as_os_str().is_empty() {
+                    continue;
+                }
                 entry.unpack(runtime.join(rel))?;
             }
         }
@@ -192,46 +246,85 @@ fn install_kokoro(app: &AppHandle, data_dir: &Path) -> anyhow::Result<()> {
     emit(app, "kokoro", "application", "Downloading engine…", 0.15);
     let app_zip = downloads.join("kokoro.zip");
     if !source.join("pyproject.toml").is_file() {
-        download(&client, &format!("https://github.com/remsky/Kokoro-FastAPI/archive/{KOKORO_COMMIT}.zip"), &app_zip)?;
+        download(
+            &client,
+            &format!("https://github.com/remsky/Kokoro-FastAPI/archive/{KOKORO_COMMIT}.zip"),
+            &app_zip,
+        )?;
         std::fs::create_dir_all(&source)?;
         unzip_flat(&app_zip, &source, true)?;
     }
 
-    emit(app, "kokoro", "dependencies", "Installing speech dependencies…", 0.30);
+    emit(
+        app,
+        "kokoro",
+        "dependencies",
+        "Installing speech dependencies…",
+        0.30,
+    );
     let mut command = Command::new(&uv);
-    command.args(["sync", "--extra", "cpu", "--frozen"])
+    command
+        .args(["sync", "--extra", "cpu", "--frozen"])
         .current_dir(&source)
         .env("UV_PYTHON_INSTALL_DIR", root.join("python"))
         .env("UV_CACHE_DIR", root.join("cache"));
     hide_console(&mut command);
     let status = command.status()?;
-    anyhow::ensure!(status.success(), "Kokoro dependency installation failed ({status})");
+    anyhow::ensure!(
+        status.success(),
+        "Kokoro dependency installation failed ({status})"
+    );
 
     emit(app, "kokoro", "model", "Downloading voice model…", 0.75);
     let mut command = Command::new(&uv);
-    command.args(["run", "--no-sync", "python", "docker/scripts/download_model.py", "--output", "api/src/models/v1_0"])
+    command
+        .args([
+            "run",
+            "--no-sync",
+            "python",
+            "docker/scripts/download_model.py",
+            "--output",
+            "api/src/models/v1_0",
+        ])
         .current_dir(&source)
         .env("UV_PYTHON_INSTALL_DIR", root.join("python"))
         .env("UV_CACHE_DIR", root.join("cache"));
     hide_console(&mut command);
     let status = command.status()?;
     anyhow::ensure!(status.success(), "Kokoro model download failed ({status})");
-    std::fs::write(root.join("installed.ok"), format!("kokoro={KOKORO_COMMIT}\nuv={UV_VERSION}\n"))?;
+    std::fs::write(
+        root.join("installed.ok"),
+        format!("kokoro={KOKORO_COMMIT}\nuv={UV_VERSION}\n"),
+    )?;
     emit(app, "kokoro", "installed", "Kokoro files installed.", 0.90);
     Ok(())
 }
 
 #[tauri::command]
-pub async fn speech_engine_install(app: AppHandle, state: State<'_, AppState>, engine: String) -> Result<SpeechEngineStatus, String> {
-    if engine != "kokoro" { return Err(format!("Unknown managed speech engine: {engine}")) }
+pub async fn speech_engine_install(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    engine: String,
+) -> Result<SpeechEngineStatus, String> {
+    if engine != "kokoro" {
+        return Err(format!("Unknown managed speech engine: {engine}"));
+    }
     // Held through install AND first start: the sync yields until the
     // engine is actually answering, not merely unpacked.
     let _priority = VoiceInstallGuard::begin();
     let data_dir = state.data_dir.clone();
     let app2 = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || install_kokoro(&app2, &data_dir)).await.map_err(|e| e.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || install_kokoro(&app2, &data_dir))
+        .await
+        .map_err(|e| e.to_string())?;
     if let Err(e) = result {
-        emit(&app, "kokoro", "error", &format!("Kokoro installation failed: {e}"), 0.0);
+        emit(
+            &app,
+            "kokoro",
+            "error",
+            &format!("Kokoro installation failed: {e}"),
+            0.0,
+        );
         return Err(e.to_string());
     }
     emit(&app, "kokoro", "starting", "Starting Kokoro…", 0.95);
@@ -241,36 +334,70 @@ pub async fn speech_engine_install(app: AppHandle, state: State<'_, AppState>, e
 }
 
 #[tauri::command]
-pub async fn speech_engine_start(state: State<'_, AppState>, engine: String) -> Result<SpeechEngineStatus, String> {
-    if engine != "kokoro" { return Err(format!("Unknown managed speech engine: {engine}")) }
+pub async fn speech_engine_start(
+    state: State<'_, AppState>,
+    engine: String,
+) -> Result<SpeechEngineStatus, String> {
+    if engine != "kokoro" {
+        return Err(format!("Unknown managed speech engine: {engine}"));
+    }
     start_kokoro(&state)?;
     Ok(kokoro_status(&state))
 }
 
 fn start_kokoro(state: &AppState) -> Result<(), String> {
     let root = engine_root(&state.data_dir, "kokoro");
-    if !root.join("installed.ok").is_file() { return Err("Kokoro is not installed".into()) }
+    if !root.join("installed.ok").is_file() {
+        return Err("Kokoro is not installed".into());
+    }
     let port = crate::helpers::HelperManager::free_loopback_port().map_err(|e| e.to_string())?;
     let source = root.join("app");
     let log_dir = state.data_dir.join("logs");
     std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
     let log = std::fs::File::create(log_dir.join("kokoro.log")).map_err(|e| e.to_string())?;
     let mut command = Command::new(root.join("runtime").join(crate::platform::exe("uv")));
-    command.args(["run", "--no-sync", "uvicorn", "api.src.main:app", "--host", "127.0.0.1", "--port", &port.to_string()])
+    command
+        .args([
+            "run",
+            "--no-sync",
+            "uvicorn",
+            "api.src.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+        ])
         .current_dir(&source)
         .env("UV_PYTHON_INSTALL_DIR", root.join("python"))
         .env("UV_CACHE_DIR", root.join("cache"))
-        .env("PYTHONUTF8", "1").env("PROJECT_ROOT", &source).env("USE_GPU", "false")
-        .env("PYTHONPATH", format!("{}{}{}", source.display(), if cfg!(windows) { ";" } else { ":" }, source.join("api").display()))
-        .env("MODEL_DIR", "src/models").env("VOICES_DIR", "src/voices/v1_0").env("WEB_PLAYER_PATH", source.join("web"))
-        .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone().map_err(|e| e.to_string())?)).stderr(Stdio::from(log));
+        .env("PYTHONUTF8", "1")
+        .env("PROJECT_ROOT", &source)
+        .env("USE_GPU", "false")
+        .env(
+            "PYTHONPATH",
+            format!(
+                "{}{}{}",
+                source.display(),
+                if cfg!(windows) { ";" } else { ":" },
+                source.join("api").display()
+            ),
+        )
+        .env("MODEL_DIR", "src/models")
+        .env("VOICES_DIR", "src/voices/v1_0")
+        .env("WEB_PLAYER_PATH", source.join("web"))
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log.try_clone().map_err(|e| e.to_string())?))
+        .stderr(Stdio::from(log));
     // Item 36 escape hatch: ED_KOKORO_CONSOLE=1 leaves the child's
     // console visible — the A/B for the hide_console+redirect suspect
     // in the evaporating-spawn report. Default hidden, as shipped.
     if std::env::var_os("ED_KOKORO_CONSOLE").is_none() {
         hide_console(&mut command);
     }
-    state.helpers.spawn("speech:kokoro", &mut command).map_err(|e| e.to_string())?;
+    state
+        .helpers
+        .spawn("speech:kokoro", &mut command)
+        .map_err(|e| e.to_string())?;
     let url = format!("http://127.0.0.1:{port}");
     // Publish the port NOW, not once the engine answers: while Kokoro
     // warms up, every status read and probe must name this launch's
@@ -295,7 +422,12 @@ fn start_kokoro(state: &AppState) -> Result<(), String> {
             died = true;
             break;
         }
-        if std::net::TcpStream::connect_timeout(&format!("127.0.0.1:{port}").parse().unwrap(), Duration::from_millis(100)).is_ok() {
+        if std::net::TcpStream::connect_timeout(
+            &format!("127.0.0.1:{port}").parse().unwrap(),
+            Duration::from_millis(100),
+        )
+        .is_ok()
+        {
             ready = true;
             break;
         }
@@ -304,7 +436,9 @@ fn start_kokoro(state: &AppState) -> Result<(), String> {
     }
     if !ready {
         state.helpers.stop("speech:kokoro");
-        let log_bytes = std::fs::metadata(log_dir.join("kokoro.log")).map(|m| m.len()).unwrap_or(0);
+        let log_bytes = std::fs::metadata(log_dir.join("kokoro.log"))
+            .map(|m| m.len())
+            .unwrap_or(0);
         return Err(startup_failure_note(died, waited_ms, log_bytes));
     }
     // Only the URL is ours to rewrite (fresh port every launch); the
@@ -318,7 +452,12 @@ fn start_kokoro(state: &AppState) -> Result<(), String> {
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "af_heart".into())
     };
-    let config = ed_voice::ServerConfig { url: url.clone(), model: "kokoro".into(), voice, api_key: None };
+    let config = ed_voice::ServerConfig {
+        url: url.clone(),
+        model: "kokoro".into(),
+        voice,
+        api_key: None,
+    };
     {
         let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.voice_server = Some(config.clone());
@@ -343,21 +482,41 @@ pub fn start_configured(state: &AppState) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn speech_engine_stop(state: State<'_, AppState>, engine: String) -> Result<SpeechEngineStatus, String> {
-    if engine != "kokoro" { return Err(format!("Unknown managed speech engine: {engine}")) }
+pub async fn speech_engine_stop(
+    state: State<'_, AppState>,
+    engine: String,
+) -> Result<SpeechEngineStatus, String> {
+    if engine != "kokoro" {
+        return Err(format!("Unknown managed speech engine: {engine}"));
+    }
     state.helpers.stop(&format!("speech:{engine}"));
     Ok(kokoro_status(&state))
 }
 
 #[tauri::command]
-pub async fn speech_engine_remove(state: State<'_, AppState>, engine: String) -> Result<SpeechEngineStatus, String> {
-    if engine != "kokoro" { return Err(format!("Unknown managed speech engine: {engine}")) }
+pub async fn speech_engine_remove(
+    state: State<'_, AppState>,
+    engine: String,
+) -> Result<SpeechEngineStatus, String> {
+    if engine != "kokoro" {
+        return Err(format!("Unknown managed speech engine: {engine}"));
+    }
     state.helpers.stop("speech:kokoro");
     let root = engine_root(&state.data_dir, "kokoro");
-    if root.is_dir() { std::fs::remove_dir_all(&root).map_err(|e| e.to_string())?; }
+    if root.is_dir() {
+        std::fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
+    }
     {
         let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
-        if cfg.voice_server.as_ref().is_some_and(|c| c.model == "kokoro") { cfg.voice_server = None; cfg.voice_server_enabled = false; cfg.save(&state.data_dir).map_err(|e| e.to_string())?; }
+        if cfg
+            .voice_server
+            .as_ref()
+            .is_some_and(|c| c.model == "kokoro")
+        {
+            cfg.voice_server = None;
+            cfg.voice_server_enabled = false;
+            cfg.save(&state.data_dir).map_err(|e| e.to_string())?;
+        }
     }
     state.voice.audio().set_server(None);
     Ok(kokoro_status(&state))
@@ -372,9 +531,17 @@ mod tests {
     #[test]
     fn the_startup_diagnosis_separates_death_from_timeout() {
         let empty = super::startup_failure_note(true, 0, 0);
-        assert!(empty.contains("EMPTY") && empty.contains("spawn path") && empty.contains("ED_KOKORO_CONSOLE"), "{empty}");
+        assert!(
+            empty.contains("EMPTY")
+                && empty.contains("spawn path")
+                && empty.contains("ED_KOKORO_CONSOLE"),
+            "{empty}"
+        );
         let last_words = super::startup_failure_note(true, 250, 4096);
-        assert!(last_words.contains("last words") && !last_words.contains("EMPTY"), "{last_words}");
+        assert!(
+            last_words.contains("last words") && !last_words.contains("EMPTY"),
+            "{last_words}"
+        );
         let slow = super::startup_failure_note(false, 60_000, 9999);
         assert!(slow.contains("60 s") && !slow.contains("exited"), "{slow}");
     }

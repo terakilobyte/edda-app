@@ -51,9 +51,19 @@ fn spansh_records_become_domain_operations_with_epoch_timestamps() {
     assert_eq!(identity.station_name, "Port A");
     assert_eq!(identity.market_id, 10);
     assert_eq!(identity.station_type.as_deref(), Some("Outpost"));
-    assert_eq!(identity.services, vec!["dock", "commodities", "outfitting", "shipyard"]);
-    assert_eq!((identity.pad_small, identity.pad_medium, identity.pad_large), (None, None, None), "no landingPads in the record");
-    assert_eq!(identity.observed_at.epoch_seconds, epoch, "the station's own updateTime");
+    assert_eq!(
+        identity.services,
+        vec!["dock", "commodities", "outfitting", "shipyard"]
+    );
+    assert_eq!(
+        (identity.pad_small, identity.pad_medium, identity.pad_large),
+        (None, None, None),
+        "no landingPads in the record"
+    );
+    assert_eq!(
+        identity.observed_at.epoch_seconds, epoch,
+        "the station's own updateTime"
+    );
     assert!(!identity.is_carrier());
     let Operation::Market(market) = &operations[1] else {
         panic!("second operation must be the market board");
@@ -89,7 +99,10 @@ fn spansh_records_become_domain_operations_with_epoch_timestamps() {
     };
     assert_eq!(identity.station_name, "Bare Outpost");
     assert_eq!(identity.services, vec!["dock"]);
-    assert_eq!(identity.observed_at.epoch_seconds, 0, "no updateTime: epoch 0, outranked by any dated identity");
+    assert_eq!(
+        identity.observed_at.epoch_seconds, 0,
+        "no updateTime: epoch 0, outranked by any dated identity"
+    );
 }
 
 /// Finding: `community_manifest` built a manifest containing only the
@@ -174,7 +187,10 @@ fn routing_publication_is_atomic_and_verifiable() {
     // The four index files plus the chunk manifest (wire unification).
     assert_eq!(publication.files.len(), ROUTING_FILES.len() + 1);
     assert!(
-        publication.files.iter().any(|f| f.path.ends_with("/chunks.json")),
+        publication
+            .files
+            .iter()
+            .any(|f| f.path.ends_with("/chunks.json")),
         "the chunk manifest rides with the files"
     );
 

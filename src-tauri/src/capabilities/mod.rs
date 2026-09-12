@@ -62,16 +62,31 @@ pub type CapResult<T> = Result<T, CapError>;
 
 impl CapError {
     pub fn not_found(message: impl Into<String>) -> Self {
-        CapError::NotFound(Detail { message: message.into(), ..Default::default() })
+        CapError::NotFound(Detail {
+            message: message.into(),
+            ..Default::default()
+        })
     }
     pub fn invalid(message: impl Into<String>) -> Self {
-        CapError::InvalidInput(Detail { message: message.into(), ..Default::default() })
+        CapError::InvalidInput(Detail {
+            message: message.into(),
+            ..Default::default()
+        })
     }
     pub fn unavailable(message: impl Into<String>, retryable: bool) -> Self {
-        CapError::Unavailable { detail: Detail { message: message.into(), ..Default::default() }, retryable }
+        CapError::Unavailable {
+            detail: Detail {
+                message: message.into(),
+                ..Default::default()
+            },
+            retryable,
+        }
     }
     pub fn internal(message: impl Into<String>) -> Self {
-        CapError::Internal(Detail { message: message.into(), ..Default::default() })
+        CapError::Internal(Detail {
+            message: message.into(),
+            ..Default::default()
+        })
     }
     /// Attach guidance for the retry.
     pub fn hint(mut self, hint: impl Into<String>) -> Self {
@@ -92,7 +107,13 @@ impl CapError {
         }
     }
     pub fn retryable(&self) -> bool {
-        matches!(self, CapError::Unavailable { retryable: true, .. })
+        matches!(
+            self,
+            CapError::Unavailable {
+                retryable: true,
+                ..
+            }
+        )
     }
     pub fn message(&self) -> &str {
         &self.detail().message
@@ -130,8 +151,14 @@ struct Wire<'a> {
 
 impl Serialize for CapError {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        Wire { kind: self.kind(), message: self.message(), retryable: self.retryable(), hint: self.hint_text(), data: self.detail().data.as_ref() }
-            .serialize(s)
+        Wire {
+            kind: self.kind(),
+            message: self.message(),
+            retryable: self.retryable(),
+            hint: self.hint_text(),
+            data: self.detail().data.as_ref(),
+        }
+        .serialize(s)
     }
 }
 
@@ -152,7 +179,8 @@ impl From<anyhow::Error> for CapError {
 
 impl From<serde_json::Error> for CapError {
     fn from(e: serde_json::Error) -> Self {
-        CapError::invalid(format!("malformed input: {e}")).hint("check the argument names and types against the tool schema")
+        CapError::invalid(format!("malformed input: {e}"))
+            .hint("check the argument names and types against the tool schema")
     }
 }
 
@@ -281,16 +309,32 @@ mod tests {
     #[test]
     fn every_definition_has_a_runner_and_vice_versa() {
         let defs = tool_definitions();
-        let defined: Vec<&str> = defs.as_array().unwrap().iter().map(|d| d["name"].as_str().unwrap()).collect();
+        let defined: Vec<&str> = defs
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["name"].as_str().unwrap())
+            .collect();
         let registered: Vec<&str> = registry().iter().map(|t| t.name).collect();
-        assert_eq!(defined, registered, "definitions are derived from the registry");
+        assert_eq!(
+            defined, registered,
+            "definitions are derived from the registry"
+        );
         let mut names = registered.clone();
         names.sort();
         names.dedup();
         assert_eq!(names.len(), registered.len(), "duplicate tool names");
         for d in defs.as_array().unwrap() {
-            assert!(d["input_schema"]["type"] == "object", "{} schema", d["name"]);
-            assert!(!d["description"].as_str().unwrap().is_empty(), "{} description", d["name"]);
+            assert!(
+                d["input_schema"]["type"] == "object",
+                "{} schema",
+                d["name"]
+            );
+            assert!(
+                !d["description"].as_str().unwrap().is_empty(),
+                "{} description",
+                d["name"]
+            );
             assert!(find(d["name"].as_str().unwrap()).is_some());
         }
     }
@@ -303,19 +347,34 @@ mod tests {
         assert_eq!(out["error"]["kind"], "not_found");
         assert_eq!(out["error"]["retryable"], false);
         assert!(out["error"]["hint"].is_string());
-        assert!(out["error"]["data"].as_array().unwrap().iter().any(|n| n == "find_system"));
+        assert!(out["error"]["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n == "find_system"));
     }
 
     #[test]
     fn errors_serialise_as_kind_message_retryable_hint() {
-        let e = CapError::unavailable("galaxy index not built yet", true).hint("build it under Settings");
+        let e = CapError::unavailable("galaxy index not built yet", true)
+            .hint("build it under Settings");
         let v = serde_json::to_value(&e).unwrap();
-        assert_eq!(v, json!({ "kind": "unavailable", "message": "galaxy index not built yet", "retryable": true, "hint": "build it under Settings" }));
+        assert_eq!(
+            v,
+            json!({ "kind": "unavailable", "message": "galaxy index not built yet", "retryable": true, "hint": "build it under Settings" })
+        );
         let e = CapError::not_found("no such system");
-        assert_eq!(serde_json::to_value(&e).unwrap(), json!({ "kind": "not_found", "message": "no such system", "retryable": false }));
+        assert_eq!(
+            serde_json::to_value(&e).unwrap(),
+            json!({ "kind": "not_found", "message": "no such system", "retryable": false })
+        );
         // The message never carries the guidance.
         let e: CapError = ed_route::request::ProfitRequestError::NoCargoRacks.into();
-        assert!(!e.message().contains("pass cargo_capacity"), "{}", e.message());
+        assert!(
+            !e.message().contains("pass cargo_capacity"),
+            "{}",
+            e.message()
+        );
         assert!(e.hint_text().unwrap().contains("cargo_capacity"));
     }
 
@@ -323,7 +382,12 @@ mod tests {
     fn malformed_tool_input_is_invalid_input_with_a_hint() {
         let fx = Recording::default();
         let f = testing::fixture("cutter");
-        let out = execute(&f.state, &fx, "systems_near", &json!({ "system": "Origin", "radius_ly": "twenty" }));
+        let out = execute(
+            &f.state,
+            &fx,
+            "systems_near",
+            &json!({ "system": "Origin", "radius_ly": "twenty" }),
+        );
         assert_eq!(out["error"]["kind"], "invalid_input", "{out}");
         assert!(out["error"]["hint"].is_string());
     }
@@ -337,14 +401,28 @@ mod tests {
         let conn = f.state.read_conn().unwrap();
         let live = trade::live_ship(&conn);
         let raw: String = conn
-            .query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY ts DESC LIMIT 1", [], |r| r.get(0))
+            .query_row(
+                "SELECT raw FROM events WHERE event = 'Loadout' ORDER BY ts DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
-        let id = serde_json::from_str::<Value>(&raw).unwrap()["ShipID"].as_i64().unwrap();
+        let id = serde_json::from_str::<Value>(&raw).unwrap()["ShipID"]
+            .as_i64()
+            .unwrap();
         let mut req = ed_route::request::ProfitRequest::default();
         req.ship_id = Some(id);
-        assert_eq!(trade::ship_for(&conn, &req), live, "the flown ship's own id is the live ship");
+        assert_eq!(
+            trade::ship_for(&conn, &req),
+            live,
+            "the flown ship's own id is the live ship"
+        );
         req.ship_id = Some(999_999_999);
-        assert_eq!(trade::ship_for(&conn, &req), live, "an unknown id falls back to the live ship");
+        assert_eq!(
+            trade::ship_for(&conn, &req),
+            live,
+            "an unknown id falls back to the live ship"
+        );
         req.ship_id = None;
         assert_eq!(trade::ship_for(&conn, &req), live);
     }
@@ -357,9 +435,17 @@ mod tests {
         let catalog = ed_engineering::Catalog::load();
         let fsd = catalog.find_synthesis("FSD Injection").unwrap();
         for (_, grade, mats) in ed_galaxy::router::INJECTION_RECIPES {
-            let lib = fsd.grades.iter().find(|g| g.grade.eq_ignore_ascii_case(grade)).unwrap_or_else(|| panic!("{grade}"));
+            let lib = fsd
+                .grades
+                .iter()
+                .find(|g| g.grade.eq_ignore_ascii_case(grade))
+                .unwrap_or_else(|| panic!("{grade}"));
             let mut a: Vec<String> = mats.iter().map(|m| m.to_ascii_lowercase()).collect();
-            let mut b: Vec<String> = lib.ingredients.iter().map(|i| i.name.to_ascii_lowercase()).collect();
+            let mut b: Vec<String> = lib
+                .ingredients
+                .iter()
+                .map(|i| i.name.to_ascii_lowercase())
+                .collect();
             a.sort();
             b.sort();
             assert_eq!(a, b, "{grade}");
@@ -374,15 +460,33 @@ mod tests {
         let fx = Recording::default();
         let out = execute(&f.state, &fx, "synthesis_recipes", &json!({}));
         assert!(out["recipes"].as_array().unwrap().len() >= 25, "{out}");
-        let out = execute(&f.state, &fx, "synthesis_recipes", &json!({ "name": "heat sink" }));
+        let out = execute(
+            &f.state,
+            &fx,
+            "synthesis_recipes",
+            &json!({ "name": "heat sink" }),
+        );
         assert_eq!(out["recipe"]["name"], "Heat Sink", "{out}");
         assert_eq!(out["recipe"]["grades"].as_array().unwrap().len(), 3);
-        assert!(out["recipe"]["grades"][0]["ingredients"][0]["need"].as_i64().unwrap() > 0);
+        assert!(
+            out["recipe"]["grades"][0]["ingredients"][0]["need"]
+                .as_i64()
+                .unwrap()
+                > 0
+        );
         assert!(out["recipe"]["grades"][0]["can_make_now"].is_number());
         assert_eq!(out["provenance"], "vendored");
-        let out = execute(&f.state, &fx, "synthesis_recipes", &json!({ "name": "teleporter" }));
+        let out = execute(
+            &f.state,
+            &fx,
+            "synthesis_recipes",
+            &json!({ "name": "teleporter" }),
+        );
         assert_eq!(out["error"]["kind"], "invalid_input", "{out}");
-        assert!(out["error"]["hint"].as_str().unwrap().contains("FSD Injection"));
+        assert!(out["error"]["hint"]
+            .as_str()
+            .unwrap()
+            .contains("FSD Injection"));
     }
 
     /// The no-EDMC route path: a jump's StarPos becomes the planner's
@@ -391,8 +495,14 @@ mod tests {
     #[test]
     fn the_journal_knows_where_a_visited_system_is() {
         let jump = json!({ "event": "FSDJump", "StarSystem": "Shui Wei Sector DG-O b6-0", "StarPos": [119.09375, -135.0, 82.03125] });
-        assert_eq!(crate::routing::star_pos(&jump), Some([119.09375, -135.0, 82.03125]));
-        assert_eq!(crate::routing::star_pos(&json!({ "event": "Docked" })), None);
+        assert_eq!(
+            crate::routing::star_pos(&jump),
+            Some([119.09375, -135.0, 82.03125])
+        );
+        assert_eq!(
+            crate::routing::star_pos(&json!({ "event": "Docked" })),
+            None
+        );
         let f = testing::fixture("cutter");
         let conn = f.state.read_conn().unwrap();
         assert!(crate::routing::journal_coords(&conn, "Nowhere Sector ZZ-Z z0-0").is_none());
@@ -412,11 +522,15 @@ mod tests {
         let out = execute(&odd.state, &fx, "find_profit", &json!({}));
         assert!(out.get("legs").is_none(), "{out}");
         assert_eq!(out["error"]["kind"], "invalid_input");
-        assert!(out["error"]["message"].as_str().unwrap().contains("fdev_next_hull"));
+        assert!(out["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("fdev_next_hull"));
         assert!(out["error"]["hint"].as_str().unwrap().contains("min_pad"));
         // The panel's command goes through the same capability.
         let req = ed_route::request::ProfitRequest::default();
-        let err = tauri::async_runtime::block_on(crate::remote_trade::report(&odd.state, &req)).unwrap_err();
+        let err = tauri::async_runtime::block_on(crate::remote_trade::report(&odd.state, &req))
+            .unwrap_err();
         assert!(matches!(err, CapError::InvalidInput(_)), "{err:?}");
     }
 
@@ -424,11 +538,21 @@ mod tests {
     fn market_search_with_an_unknown_hull_fails_closed_too() {
         let fx = Recording::default();
         let odd = testing::fixture("fdev_next_hull");
-        let out = execute(&odd.state, &fx, "market_search", &json!({ "kind": "commodity", "text": "Gold" }));
+        let out = execute(
+            &odd.state,
+            &fx,
+            "market_search",
+            &json!({ "kind": "commodity", "text": "Gold" }),
+        );
         assert_eq!(out["error"]["kind"], "invalid_input", "{out}");
         // ...and an explicit pad is honoured: the search reaches the API
         // stage (no endpoint under test, so `unavailable`).
-        let out = execute(&odd.state, &fx, "market_search", &json!({ "kind": "commodity", "text": "Gold", "min_pad": "large" }));
+        let out = execute(
+            &odd.state,
+            &fx,
+            "market_search",
+            &json!({ "kind": "commodity", "text": "Gold", "min_pad": "large" }),
+        );
         assert_eq!(out["error"]["kind"], "unavailable", "{out}");
     }
 
@@ -436,7 +560,10 @@ mod tests {
     fn command_and_tool_share_one_default_radius() {
         // The literal used to live in both commands.rs and ai.rs.
         let req: galaxy::NearestServiceRequest = parse(&json!({ "service": "shipyard" })).unwrap();
-        assert_eq!(req.radius_ly, galaxy::NearestServiceRequest::default().radius_ly);
+        assert_eq!(
+            req.radius_ly,
+            galaxy::NearestServiceRequest::default().radius_ly
+        );
         assert_eq!(galaxy::NearestServiceRequest::default().radius_ly, 50.0);
         assert_eq!(galaxy::SystemsNearRequest::default().radius_ly, 20.0);
     }

@@ -31,7 +31,11 @@ fn source() -> Option<CGEventSource> {
 
 fn send(sc: ScanCode, down: bool) {
     let Some(code) = mac_keycode(sc) else {
-        tracing::warn!(code = sc.code, extended = sc.extended, "no macOS keycode for scan code");
+        tracing::warn!(
+            code = sc.code,
+            extended = sc.extended,
+            "no macOS keycode for scan code"
+        );
         return;
     };
     let Some(src) = source() else {
@@ -64,10 +68,14 @@ impl KeySink for MacSink {
 
 /// The frontmost normal window: (owner application, title, bounds).
 fn front_window() -> Option<(String, String, CGRect)> {
-    let list = CGDisplay::window_list_info(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, None)?;
+    let list = CGDisplay::window_list_info(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+        None,
+    )?;
     for item in list.iter() {
         // SAFETY: CGWindowListCopyWindowInfo returns an array of CFDictionary.
-        let dict: CFDictionary<CFString, CFType> = unsafe { CFDictionary::wrap_under_get_rule(*item as *const _) };
+        let dict: CFDictionary<CFString, CFType> =
+            unsafe { CFDictionary::wrap_under_get_rule(*item as *const _) };
         let layer = dict
             .find(CFString::from_static_string("kCGWindowLayer"))
             .and_then(|v| v.downcast::<CFNumber>())
@@ -125,7 +133,9 @@ pub fn move_mouse_in_foreground(xf: f32, yf: f32) -> bool {
 }
 
 pub fn click_in_foreground(xf: f32, yf: f32) -> bool {
-    let Some(p) = point_in_front(xf, yf) else { return false };
+    let Some(p) = point_in_front(xf, yf) else {
+        return false;
+    };
     if !mouse(CGEventType::MouseMoved, p) {
         return false;
     }

@@ -23,13 +23,19 @@ use ed_galaxy::format::Galaxy;
 use ed_galaxy::StarClassCode as _;
 
 fn parse3(s: &str) -> [f32; 3] {
-    let v: Vec<f32> = s.split(',').map(|p| p.trim().parse().expect("x,y,z")).collect();
+    let v: Vec<f32> = s
+        .split(',')
+        .map(|p| p.trim().parse().expect("x,y,z"))
+        .collect();
     [v[0], v[1], v[2]]
 }
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let dir = std::path::PathBuf::from(args.first().expect("usage: field_density_probe <main_index_dir> ..."));
+    let dir = std::path::PathBuf::from(
+        args.first()
+            .expect("usage: field_density_probe <main_index_dir> ..."),
+    );
     let mut voxel_ly = 250.0f32;
     let mut save: Option<std::path::PathBuf> = None;
     let mut scoopable_only = false;
@@ -100,9 +106,7 @@ fn main() -> anyhow::Result<()> {
                         ed_galaxy::StarClass::from_code(code)
                     }
                 };
-                if class.scoopable()
-                    || g.flags(r) & ed_galaxy::format::FLAG_SCOOP_NEARBY != 0
-                {
+                if class.scoopable() || g.flags(r) & ed_galaxy::format::FLAG_SCOOP_NEARBY != 0 {
                     n += 1;
                 }
             }
@@ -157,7 +161,10 @@ fn main() -> anyhow::Result<()> {
         let d = ed_galaxy::format::dist(*a, *b);
         let steps = (d / (voxel_ly * 0.5)).ceil() as usize;
         println!("\n== {label}: {:.0} ly ==", d);
-        println!("{:>10} {:>12} {:>12} {:>16}", "at_ly", "mean/voxel", "min/voxel", "stars_per_78ly");
+        println!(
+            "{:>10} {:>12} {:>12} {:>16}",
+            "at_ly", "mean/voxel", "min/voxel", "stars_per_78ly"
+        );
         let bucket_ly = 1_000.0f32;
         let mut bucket: Vec<f32> = Vec::new();
         let mut bucket_lo = 0.0f32;
@@ -192,7 +199,12 @@ fn main() -> anyhow::Result<()> {
             for dx in -1..=1 {
                 for dy in -1..=1 {
                     for dz in -1..=1 {
-                        sum += u64::from(voxels.get(&(k.0 + dx, k.1 + dy, k.2 + dz)).copied().unwrap_or(0));
+                        sum += u64::from(
+                            voxels
+                                .get(&(k.0 + dx, k.1 + dy, k.2 + dz))
+                                .copied()
+                                .unwrap_or(0),
+                        );
                     }
                 }
             }

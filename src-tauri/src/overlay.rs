@@ -14,8 +14,12 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 pub fn setup(app: &AppHandle) -> Result<()> {
     if let Some(w) = app.get_webview_window("overlay") {
-        w.set_ignore_cursor_events(true).context("overlay click-through")?;
-        if w.outer_position().ok().is_some_and(|p| p.x == 24 && p.y == 24) {
+        w.set_ignore_cursor_events(true)
+            .context("overlay click-through")?;
+        if w.outer_position()
+            .ok()
+            .is_some_and(|p| p.x == 24 && p.y == 24)
+        {
             if let (Ok(Some(monitor)), Ok(size)) = (w.primary_monitor(), w.outer_size()) {
                 let area = monitor.size();
                 let x = ((area.width as i32 - size.width as i32) / 2).max(0);
@@ -28,7 +32,10 @@ pub fn setup(app: &AppHandle) -> Result<()> {
         // move/resize instead so the HUD position survives anything.
         let handle = app.clone();
         w.on_window_event(move |e| {
-            if matches!(e, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)) {
+            if matches!(
+                e,
+                tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+            ) {
                 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
                 if let Err(err) = handle.save_window_state(StateFlags::all()) {
                     tracing::warn!(error = %err, "could not save window state");
@@ -73,7 +80,9 @@ pub fn setup(app: &AppHandle) -> Result<()> {
             .build(),
     )
     .context("registering global shortcut plugin")?;
-    app.global_shortcut().register(hide).context("registering Ctrl+Shift+H")?;
+    app.global_shortcut()
+        .register(hide)
+        .context("registering Ctrl+Shift+H")?;
     tracing::info!("overlay ready: Ctrl+Shift+H to hide or show; unlock it from Settings");
     Ok(())
 }
@@ -87,7 +96,9 @@ pub fn set_interactive(app: &AppHandle, state: &AppState, interactive: bool) -> 
     if interactive {
         let _ = w.set_focus();
     }
-    state.overlay_interactive.store(interactive, Ordering::Relaxed);
+    state
+        .overlay_interactive
+        .store(interactive, Ordering::Relaxed);
     tracing::info!(interactive, "overlay interaction toggled");
     let _ = app.emit(crate::events::OVERLAY_INTERACTIVE, interactive);
     Ok(interactive)

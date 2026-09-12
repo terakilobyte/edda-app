@@ -26,10 +26,17 @@ fn main() -> anyhow::Result<()> {
         );
     };
     let stats = if src == "-" {
-        ed_galaxy::import::import_reader(Box::new(std::io::stdin().lock()), Path::new(&out), &mut progress)?
+        ed_galaxy::import::import_reader(
+            Box::new(std::io::stdin().lock()),
+            Path::new(&out),
+            &mut progress,
+        )?
     } else {
         ed_galaxy::import::import(Path::new(&src), Path::new(&out), &mut progress)?
     };
-    eprintln!("done in {:.0} s: {stats:?}", started.elapsed().as_secs_f64());
+    eprintln!(
+        "done in {:.0} s: {stats:?}",
+        started.elapsed().as_secs_f64()
+    );
     Ok(())
 }

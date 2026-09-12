@@ -38,10 +38,14 @@ impl Default for LinuxSink {
 impl LinuxSink {
     pub fn new() -> Self {
         match open_uinput() {
-            Ok(dev) => LinuxSink { backend: Backend::Uinput(dev) },
+            Ok(dev) => LinuxSink {
+                backend: Backend::Uinput(dev),
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "uinput unavailable; falling back to xdotool (add the udev rule from the README for scan-code fidelity)");
-                LinuxSink { backend: Backend::Xdotool }
+                LinuxSink {
+                    backend: Backend::Xdotool,
+                }
             }
         }
     }
@@ -75,24 +79,35 @@ fn send(backend: &mut Backend, sc: ScanCode, down: bool) {
     match backend {
         Backend::Uinput(dev) => {
             let Some(code) = evdev_code(sc) else {
-                tracing::warn!(code = sc.code, extended = sc.extended, "no evdev code for scan code");
+                tracing::warn!(
+                    code = sc.code,
+                    extended = sc.extended,
+                    "no evdev code for scan code"
+                );
                 return;
             };
-            let ev = evdev::InputEvent::new(evdev::EventType::KEY.0, code, if down { 1 } else { 0 });
+            let ev =
+                evdev::InputEvent::new(evdev::EventType::KEY.0, code, if down { 1 } else { 0 });
             if let Err(e) = dev.emit(&[ev]) {
                 tracing::warn!(error = %e, code, "uinput rejected the event");
             }
         }
         Backend::Xdotool => {
             let Some(sym) = x_keysym(sc) else {
-                tracing::warn!(code = sc.code, extended = sc.extended, "no X keysym for scan code");
+                tracing::warn!(
+                    code = sc.code,
+                    extended = sc.extended,
+                    "no X keysym for scan code"
+                );
                 return;
             };
             let verb = if down { "keydown" } else { "keyup" };
             match Command::new("xdotool").args([verb, sym]).status() {
                 Ok(s) if s.success() => {}
                 Ok(s) => tracing::warn!(%s, sym, "xdotool failed"),
-                Err(e) => tracing::warn!(error = %e, "xdotool not runnable; install it or enable uinput"),
+                Err(e) => {
+                    tracing::warn!(error = %e, "xdotool not runnable; install it or enable uinput")
+                }
             }
         }
     }
@@ -118,7 +133,9 @@ impl KeySink for LinuxSink {
 
 fn xdotool(args: &[&str]) -> Option<String> {
     let out = Command::new("xdotool").args(args).output().ok()?;
-    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 /// Title of the active X11 window; empty on Wayland or without xdotool.
@@ -152,7 +169,9 @@ fn parse_geometry(text: &str) -> Option<(i32, i32, i32, i32)> {
 }
 
 pub fn move_mouse_in_foreground(xf: f32, yf: f32) -> bool {
-    let Some((x, y, w, h)) = active_geometry() else { return false };
+    let Some((x, y, w, h)) = active_geometry() else {
+        return false;
+    };
     let px = x + (w as f32 * xf.clamp(0.0, 1.0)) as i32;
     let py = y + (h as f32 * yf.clamp(0.0, 1.0)) as i32;
     xdotool(&["mousemove", &px.to_string(), &py.to_string()]).is_some()

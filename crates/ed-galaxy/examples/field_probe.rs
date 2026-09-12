@@ -18,9 +18,15 @@ fn main() -> anyhow::Result<()> {
     let dir = Path::new(args.first().map(String::as_str).unwrap_or(".data/galaxy"));
     let g = Galaxy::open(dir)?;
     let sub = Galaxy::open(&ed_galaxy::long_range::neutron_dir(dir))?;
-    let cg = sub.cell_graph().ok_or_else(|| anyhow::anyhow!("no graph250.bin"))?;
-    let from = g.find(&args[1]).ok_or_else(|| anyhow::anyhow!("unknown from"))?;
-    let to = g.find(&args[2]).ok_or_else(|| anyhow::anyhow!("unknown to"))?;
+    let cg = sub
+        .cell_graph()
+        .ok_or_else(|| anyhow::anyhow!("no graph250.bin"))?;
+    let from = g
+        .find(&args[1])
+        .ok_or_else(|| anyhow::anyhow!("unknown from"))?;
+    let to = g
+        .find(&args[2])
+        .ok_or_else(|| anyhow::anyhow!("unknown to"))?;
     let min_stars: u32 = args
         .iter()
         .position(|a| a == "--min-stars")
@@ -36,7 +42,9 @@ fn main() -> anyhow::Result<()> {
         .cell_index_of_pos(to_pos)
         .or_else(|| ed_galaxy::cgraph::nearest_cell(&sub, to_pos, 2_000.0))
         .ok_or_else(|| anyhow::anyhow!("no goal cell"))?;
-    let keep = |c: usize| c == from_cell || c == to_cell || sub.cell_records(c).is_some_and(|(_, n)| n >= min_stars);
+    let keep = |c: usize| {
+        c == from_cell || c == to_cell || sub.cell_records(c).is_some_and(|(_, n)| n >= min_stars)
+    };
     let field = cg.goal_field_where(to_cell, keep);
     eprintln!(
         "field toward {} (cell {to_cell}), floor {min_stars}; start cell {from_cell} field {:?}",
@@ -92,7 +100,12 @@ fn main() -> anyhow::Result<()> {
         let next_stars = stars_of(next);
         let hop = min_pair(&prev_stars, &next_stars);
         let kept = keep(next);
-        let verdict = if hop <= 467.0 { "ok" } else { broken += 1; "BROKEN" };
+        let verdict = if hop <= 467.0 {
+            "ok"
+        } else {
+            broken += 1;
+            "BROKEN"
+        };
         if hop > 467.0 || step < 12 || step % 20 == 0 {
             println!(
                 "{:>4} {:>8.2} {:>7} {:>6} {:>10.1} {:>8}",

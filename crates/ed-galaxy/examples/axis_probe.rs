@@ -5,13 +5,17 @@
 //!     axis_probe <index_dir>
 
 fn main() -> anyhow::Result<()> {
-    let dir = std::path::PathBuf::from(std::env::args().nth(1).expect("usage: axis_probe <index_dir>"));
+    let dir = std::path::PathBuf::from(
+        std::env::args()
+            .nth(1)
+            .expect("usage: axis_probe <index_dir>"),
+    );
     let g = ed_galaxy::Galaxy::open(&dir)?;
     // A z-band well inside the disc, away from Sol's local bubble.
     let (z_lo, z_hi) = (8_000.0f32, 12_000.0f32);
     let mut x_lane = 0u64; // |x| < 250 in the band
     let mut x_side = 0u64; // 500 < |x| < 750, same band
-    // An x-band for the horizontal lane.
+                           // An x-band for the horizontal lane.
     let (x_lo, x_hi) = (8_000.0f32, 12_000.0f32);
     let mut z_lane = 0u64; // |z| < 250
     let mut z_side = 0u64; // 500 < |z| < 750
@@ -48,7 +52,9 @@ fn main() -> anyhow::Result<()> {
     }
     println!("vertical lane   (|x|<250, z 8k..12k): {x_lane:>9}  neutron {x_lane_n:>6}  unknown {x_lane_u:>9}");
     println!("vertical ctrl   (500<|x|<750, same z): {x_side:>8}  neutron {x_side_n:>6}  unknown {x_side_u:>9}");
-    println!("horizontal lane (|z|<250, x 8k..12k): {z_lane:>9}   control (500<|z|<750): {z_side:>9}");
+    println!(
+        "horizontal lane (|z|<250, x 8k..12k): {z_lane:>9}   control (500<|z|<750): {z_side:>9}"
+    );
     let mut lane_hist = [0u64; 32];
     let mut ctrl_hist = [0u64; 32];
     for i in 0..g.count as u32 {
@@ -68,7 +74,10 @@ fn main() -> anyhow::Result<()> {
     for code in 0..32 {
         if lane_hist[code] + ctrl_hist[code] > 0 {
             let class = ed_galaxy::StarClass::from_code(code as u8);
-            println!("  {code:>2} {class:?}: {} / {}", lane_hist[code], ctrl_hist[code]);
+            println!(
+                "  {code:>2} {class:?}: {} / {}",
+                lane_hist[code], ctrl_hist[code]
+            );
         }
     }
     // Who lives in the lane? Sample names from both slabs.
@@ -86,10 +95,24 @@ fn main() -> anyhow::Result<()> {
         let ax = p[0].abs();
         if ax < 250.0 && lane_names < 12 {
             lane_names += 1;
-            println!("lane: {:<44} [{:>8.1} {:>7.1} {:>8.1}] id64={}", g.name(&r), p[0], p[1], p[2], r.id64);
+            println!(
+                "lane: {:<44} [{:>8.1} {:>7.1} {:>8.1}] id64={}",
+                g.name(&r),
+                p[0],
+                p[1],
+                p[2],
+                r.id64
+            );
         } else if (500.0..750.0).contains(&ax) && ctrl_names < 12 {
             ctrl_names += 1;
-            println!("ctrl: {:<44} [{:>8.1} {:>7.1} {:>8.1}] id64={}", g.name(&r), p[0], p[1], p[2], r.id64);
+            println!(
+                "ctrl: {:<44} [{:>8.1} {:>7.1} {:>8.1}] id64={}",
+                g.name(&r),
+                p[0],
+                p[1],
+                p[2],
+                r.id64
+            );
         }
     }
     Ok(())

@@ -12,13 +12,32 @@
 /// NATO word for one ASCII letter.
 fn nato(c: char) -> Option<&'static str> {
     Some(match c.to_ascii_uppercase() {
-        'A' => "Alpha", 'B' => "Bravo", 'C' => "Charlie", 'D' => "Delta",
-        'E' => "Echo", 'F' => "Foxtrot", 'G' => "Golf", 'H' => "Hotel",
-        'I' => "India", 'J' => "Juliett", 'K' => "Kilo", 'L' => "Lima",
-        'M' => "Mike", 'N' => "November", 'O' => "Oscar", 'P' => "Papa",
-        'Q' => "Quebec", 'R' => "Romeo", 'S' => "Sierra", 'T' => "Tango",
-        'U' => "Uniform", 'V' => "Victor", 'W' => "Whiskey", 'X' => "X-ray",
-        'Y' => "Yankee", 'Z' => "Zulu",
+        'A' => "Alpha",
+        'B' => "Bravo",
+        'C' => "Charlie",
+        'D' => "Delta",
+        'E' => "Echo",
+        'F' => "Foxtrot",
+        'G' => "Golf",
+        'H' => "Hotel",
+        'I' => "India",
+        'J' => "Juliett",
+        'K' => "Kilo",
+        'L' => "Lima",
+        'M' => "Mike",
+        'N' => "November",
+        'O' => "Oscar",
+        'P' => "Papa",
+        'Q' => "Quebec",
+        'R' => "Romeo",
+        'S' => "Sierra",
+        'T' => "Tango",
+        'U' => "Uniform",
+        'V' => "Victor",
+        'W' => "Whiskey",
+        'X' => "X-ray",
+        'Y' => "Yankee",
+        'Z' => "Zulu",
         _ => return None,
     })
 }
@@ -96,8 +115,11 @@ fn coordinate_block(s: &str) -> Option<usize> {
     if b.len() < 8 {
         return None;
     }
-    if !(b[0].is_ascii_uppercase() && b[1].is_ascii_uppercase() && b[2] == b'-'
-        && b[3].is_ascii_uppercase() && b[4] == b' '
+    if !(b[0].is_ascii_uppercase()
+        && b[1].is_ascii_uppercase()
+        && b[2] == b'-'
+        && b[3].is_ascii_uppercase()
+        && b[4] == b' '
         && (b'a'..=b'h').contains(&b[5]))
     {
         return None;
@@ -163,7 +185,10 @@ mod tests {
             speak_system_names("A well-known KGB-FOAM mnemonic, USS-scan at 12-3."),
             "A well-known KGB-FOAM mnemonic, USS-scan at 12-3."
         );
-        assert_eq!(speak_system_names("HIP 12345 is 20 ly out."), "HIP 12345 is 20 ly out.");
+        assert_eq!(
+            speak_system_names("HIP 12345 is 20 ly out."),
+            "HIP 12345 is 20 ly out."
+        );
     }
 
     #[test]

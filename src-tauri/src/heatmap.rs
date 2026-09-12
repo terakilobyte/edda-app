@@ -95,7 +95,10 @@ fn decay(value: f64, elapsed_s: f64, half_life_s: f64) -> f64 {
 impl Heatmap {
     /// Install the name → position resolver (the galaxy index lookup).
     /// Until one is set, only operations that carry positions place.
-    pub fn set_resolver(&self, resolver: impl Fn(&str) -> Option<[f32; 3]> + Send + Sync + 'static) {
+    pub fn set_resolver(
+        &self,
+        resolver: impl Fn(&str) -> Option<[f32; 3]> + Send + Sync + 'static,
+    ) {
         *self.resolver.write().unwrap_or_else(|e| e.into_inner()) = Some(Box::new(resolver));
     }
 
@@ -107,7 +110,9 @@ impl Heatmap {
             self.seen.fetch_add(1, Ordering::Relaxed);
             let (name, pos, market_w, traffic_w) = match op {
                 Operation::Market(s) => (Some(s.system_name.as_str()), None, W_MARKET, 0.0),
-                Operation::Outfitting(s) => (Some(s.system_name.as_str()), None, W_AVAILABILITY, 0.0),
+                Operation::Outfitting(s) => {
+                    (Some(s.system_name.as_str()), None, W_AVAILABILITY, 0.0)
+                }
                 Operation::Shipyard(s) => (Some(s.system_name.as_str()), None, W_AVAILABILITY, 0.0),
                 Operation::StationIdentity(s) => (Some(s.system_name.as_str()), None, 0.0, W_DOCK),
                 Operation::System(s) => (
@@ -120,7 +125,10 @@ impl Heatmap {
                 // not presence: a NavRoute is a plan, a Scan already
                 // counted through its own system event. The map stays a
                 // map of traffic and trade.
-                Operation::Star(_) | Operation::Body(_) | Operation::RingHotspots(_) | Operation::BodySignals(_) => continue,
+                Operation::Star(_)
+                | Operation::Body(_)
+                | Operation::RingHotspots(_)
+                | Operation::BodySignals(_) => continue,
             };
             let pos = pos.or_else(|| {
                 let resolver = self.resolver.read().unwrap_or_else(|e| e.into_inner());
@@ -144,7 +152,10 @@ impl Heatmap {
         let mut cells = self.cells.lock().unwrap_or_else(|e| e.into_inner());
         if cells.len() >= MAX_CELLS && !cells.contains_key(&key) {
             let floor = FLOOR.max(
-                cells.values().map(|c| c.market + c.traffic).fold(f64::MAX, f64::min),
+                cells
+                    .values()
+                    .map(|c| c.market + c.traffic)
+                    .fold(f64::MAX, f64::min),
             );
             cells.retain(|_, c| c.market + c.traffic > floor);
         }
@@ -178,7 +189,11 @@ impl Heatmap {
             if total < FLOOR {
                 return false;
             }
-            let y = if cell.weight > 0.0 { (cell.y_sum / cell.weight) as f32 } else { 0.0 };
+            let y = if cell.weight > 0.0 {
+                (cell.y_sum / cell.weight) as f32
+            } else {
+                0.0
+            };
             out.push(HeatCell {
                 x: (key.0 as f32 + 0.5) * CELL_LY,
                 y,
@@ -252,7 +267,11 @@ mod tests {
         let fresh = map.snapshot(t0);
         assert_eq!(fresh.cells.len(), 1);
         let cell = &fresh.cells[0];
-        assert!(cell.rising > 0.9, "a brand-new hot cell is rising: {}", cell.rising);
+        assert!(
+            cell.rising > 0.9,
+            "a brand-new hot cell is rising: {}",
+            cell.rising
+        );
         assert!(cell.market > 0.9 && cell.traffic == 0.0);
         // Steady ticks for 20 minutes: still hot, no longer "rising"
         // (the fast clock decays while the slow one accumulates).
@@ -262,15 +281,26 @@ mod tests {
             map.record_ops(&[market("Ega")], t);
         }
         let steady = map.snapshot(t);
-        assert!(steady.cells[0].market > 2.0, "steady route is hot: {}", steady.cells[0].market);
-        assert!(steady.cells[0].rising < 0.75, "steady is not rising: {}", steady.cells[0].rising);
+        assert!(
+            steady.cells[0].market > 2.0,
+            "steady route is hot: {}",
+            steady.cells[0].market
+        );
+        assert!(
+            steady.cells[0].rising < 0.75,
+            "steady is not rising: {}",
+            steady.cells[0].rising
+        );
         // Forty-five minutes of silence: three slow half-lives, faded to
         // a remnant; four hours (sixteen half-lives): collected entirely
         // — a 20-minute steady route accumulates ~44 intensity, so it
         // rightly takes hours, not minutes, to leave the map.
         let faded = map.snapshot(t + 2_700_000);
         assert!(faded.cells.is_empty() || faded.cells[0].market < steady.cells[0].market / 7.0);
-        assert!(map.snapshot(t + 14_400_000).cells.is_empty(), "dead routes leave the map");
+        assert!(
+            map.snapshot(t + 14_400_000).cells.is_empty(),
+            "dead routes leave the map"
+        );
     }
 
     /// Privacy: the snapshot type carries positions and intensities only.
@@ -281,7 +311,10 @@ mod tests {
         let map = Heatmap::default();
         map.record_ops(&[jump("Secret Hotspot", [1.0, 2.0, 3.0])], 5_000);
         let json = serde_json::to_string(&map.snapshot(5_000)).unwrap();
-        assert!(!json.contains("Secret"), "no identity may leave the accumulator: {json}");
+        assert!(
+            !json.contains("Secret"),
+            "no identity may leave the accumulator: {json}"
+        );
         assert!(json.contains("rising"));
     }
 

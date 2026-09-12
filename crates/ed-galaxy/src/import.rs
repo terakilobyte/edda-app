@@ -116,11 +116,7 @@ fn parse_system_line(line: &str) -> ParsedLine {
         .bodies
         .iter()
         .find(|b| b.main_star == Some(true) && b.kind == Some("Star"))
-        .or_else(|| {
-            sys.bodies
-                .iter()
-                .find(|b| b.kind == Some("Star"))
-        });
+        .or_else(|| sys.bodies.iter().find(|b| b.kind == Some("Star")));
     let class = main
         .and_then(|b| b.sub_type)
         .map(StarClass::from_subtype)
@@ -144,7 +140,8 @@ fn parse_system_line(line: &str) -> ParsedLine {
         .filter(|b| b.kind == Some("Star") && b.main_star != Some(true))
         .filter_map(|b| {
             let c = StarClass::from_subtype(b.sub_type?);
-            matches!(c, StarClass::Neutron | StarClass::WhiteDwarf).then_some((c, b.distance_to_arrival?))
+            matches!(c, StarClass::Neutron | StarClass::WhiteDwarf)
+                .then_some((c, b.distance_to_arrival?))
         })
         .min_by(|a, b| a.1.total_cmp(&b.1));
     ParsedLine::System(ParsedSystem {
@@ -263,7 +260,11 @@ pub fn import_reader(
             }
             if let Some((class, ls)) = sys.boost_secondary {
                 stats.boost_secondaries += 1;
-                secondaries.push(crate::boost_side::SecondaryBoost { id64: sys.id64, ls: ls as f32, class: class.code() });
+                secondaries.push(crate::boost_side::SecondaryBoost {
+                    id64: sys.id64,
+                    ls: ls as f32,
+                    class: class.code(),
+                });
             }
             let (cx, cy, cz) = cell_of(sys.pos);
             let name_off = names.len() as u64;
@@ -304,7 +305,10 @@ pub fn import_reader(
     stats.phase = "sorting spatial index".into();
     progress(&stats);
     write_index(out_dir, pending, names, &mut stats, Some(progress))?;
-    crate::boost_side::write(&out_dir.join(crate::boost_side::BOOST_SIDE_FILE), &mut secondaries)?;
+    crate::boost_side::write(
+        &out_dir.join(crate::boost_side::BOOST_SIDE_FILE),
+        &mut secondaries,
+    )?;
     stats.phase = "complete".into();
     progress(&stats);
     Ok(stats)
@@ -576,7 +580,10 @@ mod tests {
         let out = dir.path().join("sub");
         let err = subset_cells_cancellable(&g, &out, 100.0, |_| true, &|| true).unwrap_err();
         assert!(err.downcast_ref::<SubsetCancelled>().is_some(), "{err}");
-        assert!(!crate::Galaxy::exists(&out), "a cancelled build must not leave an index");
+        assert!(
+            !crate::Galaxy::exists(&out),
+            "a cancelled build must not leave an index"
+        );
         let stats = subset_cells_cancellable(&g, &out, 100.0, |_| true, &|| false).unwrap();
         assert_eq!(stats.systems as usize, g.count as usize);
         assert!(crate::Galaxy::exists(&out));
@@ -719,7 +726,11 @@ mod tests {
         ];
         for (name, hex, sha256) in fixtures {
             let bytes = fixture_hex(hex);
-            assert_eq!(format!("{:x}", Sha256::digest(&bytes)), sha256, "{name} fixture corrupted");
+            assert_eq!(
+                format!("{:x}", Sha256::digest(&bytes)),
+                sha256,
+                "{name} fixture corrupted"
+            );
             std::fs::write(dir.path().join(name), bytes).unwrap();
         }
 
@@ -731,7 +742,11 @@ mod tests {
         assert_eq!(galaxy.complete("a", 10), vec![2]);
         assert_eq!(galaxy.class_code(0), crate::StarClass::Neutron.code());
         assert_eq!(galaxy.flags(0), crate::format::FLAG_MAIN_STAR);
-        assert_eq!(galaxy.companion_ls(0), None, "v2 records carry no companion distance");
+        assert_eq!(
+            galaxy.companion_ls(0),
+            None,
+            "v2 records carry no companion distance"
+        );
     }
 
     /// The v3 writer's exact bytes are frozen: any unintended change to
@@ -790,17 +805,37 @@ mod tests {
 {"id64":4,"name":"Primary","coords":{"x":60,"y":0,"z":0},"bodies":[{"type":"Star","subType":"Neutron Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":500.0}]}
 ]"#;
         let dir = tempfile::tempdir().unwrap();
-        let stats = import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), dir.path(), &mut |_| {}).unwrap();
+        let stats = import_reader(
+            Box::new(std::io::Cursor::new(json.as_bytes().to_vec())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         assert_eq!(stats.boost_secondaries, 3);
         let g = Galaxy::open(dir.path()).unwrap();
         let by = |n: &str| g.find(n).unwrap();
         assert_eq!(g.boost_secondary(by("Sol")), None);
         assert_eq!(g.flags(by("Sol")) & crate::format::FLAG_BOOST_SECONDARY, 0);
-        assert_eq!(g.class_code(by("Lalande")), StarClass::F.code(), "the arrival star's class stands");
-        assert_eq!(g.boost_secondary(by("Lalande")), Some((StarClass::Neutron, 6061.0)));
-        assert_eq!(g.boost_secondary(by("Twin")), Some((StarClass::Neutron, 800.0)), "the nearest secondary wins");
+        assert_eq!(
+            g.class_code(by("Lalande")),
+            StarClass::F.code(),
+            "the arrival star's class stands"
+        );
+        assert_eq!(
+            g.boost_secondary(by("Lalande")),
+            Some((StarClass::Neutron, 6061.0))
+        );
+        assert_eq!(
+            g.boost_secondary(by("Twin")),
+            Some((StarClass::Neutron, 800.0)),
+            "the nearest secondary wins"
+        );
         assert_eq!(g.class_code(by("Primary")), StarClass::Neutron.code());
-        assert_eq!(g.boost_secondary(by("Primary")), Some((StarClass::Neutron, 500.0)), "a second neutron beside a neutron primary is still recorded");
+        assert_eq!(
+            g.boost_secondary(by("Primary")),
+            Some((StarClass::Neutron, 500.0)),
+            "a second neutron beside a neutron primary is still recorded"
+        );
     }
 
     fn edgx_v3_build_is_morton_keyed_with_contiguous_names_and_companions() {
@@ -814,7 +849,9 @@ mod tests {
         Galaxy::validate_dir(dir.path()).unwrap();
         let galaxy = Galaxy::open(dir.path()).unwrap();
         let sol = galaxy.find("Sol").unwrap();
-        let ls = galaxy.companion_ls(sol).expect("Sol's fixture companion at 300 ls");
+        let ls = galaxy
+            .companion_ls(sol)
+            .expect("Sol's fixture companion at 300 ls");
         assert!((250.0..=360.0).contains(&ls), "decoded {ls:.0} ls");
         assert!(galaxy.scoopable(sol));
         let beta = galaxy.find("beta").unwrap();
@@ -824,7 +861,10 @@ mod tests {
         let mut expected = 0u64;
         for idx in 0..galaxy.count as u32 {
             let record = galaxy.record(idx);
-            assert_eq!(record.name_off, expected, "record {idx} name is out of line");
+            assert_eq!(
+                record.name_off, expected,
+                "record {idx} name is out of line"
+            );
             expected += u64::from(record.name_len);
         }
         // A file with the old axis-major keys refuses v3 validation: the
@@ -834,7 +874,10 @@ mod tests {
         let mut stars = std::fs::read(dir.path().join("stars.bin")).unwrap();
         stars[4..8].copy_from_slice(&2u32.to_le_bytes());
         std::fs::write(dir.path().join("stars.bin"), stars).unwrap();
-        assert!(Galaxy::validate_dir(dir.path()).is_err(), "v3 keys must not validate as v2");
+        assert!(
+            Galaxy::validate_dir(dir.path()).is_err(),
+            "v3 keys must not validate as v2"
+        );
     }
 
     #[test]

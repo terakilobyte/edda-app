@@ -68,9 +68,16 @@ static SEARCHES: OnceLock<Mutex<Vec<SearchRow>>> = OnceLock::new();
 /// at the server boundary, which is the test's job to prevent.
 pub fn record_timing(kind: &'static str, ms: u128, ok: bool) {
     debug_assert!(matches!(kind, "plot" | "trade" | "sync" | "hydrate"));
-    let mut timings = TIMINGS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    let mut timings = TIMINGS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if timings.len() < MAX_TIMINGS {
-        timings.push(TimingRow { kind, ms: ms.min(u128::from(u32::MAX)) as u32, ok });
+        timings.push(TimingRow {
+            kind,
+            ms: ms.min(u128::from(u32::MAX)) as u32,
+            ok,
+        });
     }
 }
 
@@ -78,8 +85,14 @@ pub fn record_timing(kind: &'static str, ms: u128, ok: bool) {
 /// the contract's closed set (trade_max_age_hours|plot_range_ly) — a typo
 /// would be rejected at the server boundary, the test's job to prevent.
 pub fn record_search(kind: &'static str, value: u32) {
-    debug_assert!(matches!(kind, "trade_max_age_hours" | "plot_router_gate_ly"));
-    let mut searches = SEARCHES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    debug_assert!(matches!(
+        kind,
+        "trade_max_age_hours" | "plot_router_gate_ly"
+    ));
+    let mut searches = SEARCHES
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if searches.len() < MAX_SEARCHES {
         searches.push(SearchRow { kind, value });
     }
@@ -87,21 +100,35 @@ pub fn record_search(kind: &'static str, value: u32) {
 
 /// Assemble a batch from everything accumulated since the last one.
 /// `None` when there is nothing to say — quiet clients send nothing.
-pub fn take_batch(enabled_features: Vec<&'static str>, router_gate_ly: u32, created_at: String) -> Option<Batch> {
+pub fn take_batch(
+    enabled_features: Vec<&'static str>,
+    router_gate_ly: u32,
+    created_at: String,
+) -> Option<Batch> {
     let mut events: Vec<EventRow> = ed_store::observe::drain_event_counts()
         .into_iter()
         .map(|(mut callsite, level, count)| {
             callsite.truncate(160);
-            EventRow { callsite, level, count }
+            EventRow {
+                callsite,
+                level,
+                count,
+            }
         })
         .collect();
     events.sort_by(|a, b| (&a.callsite, a.level).cmp(&(&b.callsite, b.level)));
     events.truncate(128);
     let timings = std::mem::take(
-        &mut *TIMINGS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()),
+        &mut *TIMINGS
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()),
     );
     let mut searches = std::mem::take(
-        &mut *SEARCHES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()),
+        &mut *SEARCHES
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()),
     );
     if events.is_empty() && timings.is_empty() && searches.is_empty() {
         return None;
@@ -112,7 +139,10 @@ pub fn take_batch(enabled_features: Vec<&'static str>, router_gate_ly: u32, crea
     // active batch, never per plot: a high gate means short hops never
     // reach the plotter, so per-plot sampling would hide exactly the
     // commanders who set it highest. A number only, same anonymity shape.
-    searches.push(SearchRow { kind: "plot_router_gate_ly", value: router_gate_ly });
+    searches.push(SearchRow {
+        kind: "plot_router_gate_ly",
+        value: router_gate_ly,
+    });
     Some(Batch {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         os: format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
@@ -128,7 +158,11 @@ type ConfigHandle = std::sync::Arc<Mutex<crate::state::AppConfig>>;
 
 /// Is telemetry enabled right now? Opt-out: absent choice means yes.
 pub fn consented(config: &ConfigHandle) -> bool {
-    config.lock().unwrap_or_else(|e| e.into_inner()).send_telemetry.unwrap_or(true)
+    config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .send_telemetry
+        .unwrap_or(true)
 }
 
 /// Which speech engine is actually answering (maintainer, 2026-09-05: the
@@ -146,7 +180,10 @@ pub fn set_voice_engine(flag: &'static str) {
 /// A setting, not a per-search choice — sampled here so its distribution
 /// isn't biased by how often anyone plots.
 pub fn router_gate_ly(config: &ConfigHandle) -> u32 {
-    config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly
+    config
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .game_route_max_ly
 }
 
 /// The feature-toggle snapshot the contract carries.
@@ -166,20 +203,37 @@ pub async fn flush(http: &reqwest::Client, config: &ConfigHandle) {
     if !consented(config) {
         // Consent off: discard accumulations so nothing lingers.
         let _ = ed_store::observe::drain_event_counts();
-        TIMINGS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()).clear();
-        SEARCHES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()).clear();
+        TIMINGS
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        SEARCHES
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         return;
     }
     let (dev_local, saved) = {
         let c = config.lock().unwrap_or_else(|e| e.into_inner());
         // Same resolution as exchange::endpoint — dev-build batches go
         // to the dev server, never into prod's histograms.
-        (cfg!(debug_assertions) && c.dev_api_local == Some(true), c.community_api_url.clone())
+        (
+            cfg!(debug_assertions) && c.dev_api_local == Some(true),
+            c.community_api_url.clone(),
+        )
     };
-    let Some(api) = crate::exchange::pick_endpoint(std::env::var("EDDA_API_URL").ok(), dev_local, saved) else {
+    let Some(api) =
+        crate::exchange::pick_endpoint(std::env::var("EDDA_API_URL").ok(), dev_local, saved)
+    else {
         return;
     };
-    let Some(batch) = take_batch(feature_flags(config), router_gate_ly(config), chrono::Utc::now().to_rfc3339()) else {
+    let Some(batch) = take_batch(
+        feature_flags(config),
+        router_gate_ly(config),
+        chrono::Utc::now().to_rfc3339(),
+    ) else {
         return;
     };
     let sent = http
@@ -190,7 +244,11 @@ pub async fn flush(http: &reqwest::Client, config: &ConfigHandle) {
         .await;
     match sent {
         Ok(r) if r.status().is_success() => {
-            tracing::debug!(events = batch.events.len(), timings = batch.timings.len(), "telemetry batch sent")
+            tracing::debug!(
+                events = batch.events.len(),
+                timings = batch.timings.len(),
+                "telemetry batch sent"
+            )
         }
         Ok(r) => tracing::debug!(status = %r.status(), "telemetry batch refused; dropped"),
         Err(_) => tracing::debug!("telemetry batch unsendable; dropped"),
@@ -234,24 +292,47 @@ mod tests {
         for _ in 0..300 {
             record_search("trade_max_age_hours", 2);
         }
-        let batch = take_batch(vec!["overlay"], 1000, "2026-09-05T00:00:00Z".into()).expect("timings exist");
-        assert!(batch.timings.len() <= MAX_TIMINGS, "timing cap holds: {}", batch.timings.len());
-        assert!(batch.timings.iter().all(|t| matches!(t.kind, "plot" | "trade" | "sync" | "hydrate")));
+        let batch = take_batch(vec!["overlay"], 1000, "2026-09-05T00:00:00Z".into())
+            .expect("timings exist");
+        assert!(
+            batch.timings.len() <= MAX_TIMINGS,
+            "timing cap holds: {}",
+            batch.timings.len()
+        );
+        assert!(batch
+            .timings
+            .iter()
+            .all(|t| matches!(t.kind, "plot" | "trade" | "sync" | "hydrate")));
         // Recorded search params are capped; the per-batch router-gate
         // snapshot rides on top of that cap as exactly one sample.
         assert!(
-            batch.searches.iter().filter(|s| s.kind == "trade_max_age_hours").count() <= MAX_SEARCHES,
+            batch
+                .searches
+                .iter()
+                .filter(|s| s.kind == "trade_max_age_hours")
+                .count()
+                <= MAX_SEARCHES,
             "search cap holds"
         );
         assert_eq!(
-            batch.searches.iter().filter(|s| s.kind == "plot_router_gate_ly").count(),
+            batch
+                .searches
+                .iter()
+                .filter(|s| s.kind == "plot_router_gate_ly")
+                .count(),
             1,
             "one router-gate snapshot per non-empty batch"
         );
-        assert!(batch.searches.iter().all(|s| matches!(s.kind, "trade_max_age_hours" | "plot_router_gate_ly")));
+        assert!(batch
+            .searches
+            .iter()
+            .all(|s| matches!(s.kind, "trade_max_age_hours" | "plot_router_gate_ly")));
         let json = serde_json::to_string(&batch).unwrap();
         for forbidden in ["commander", "cmdr", "name\"", "id\"", "email", "system\""] {
-            assert!(!json.contains(forbidden), "{forbidden} must not ride: {json}");
+            assert!(
+                !json.contains(forbidden),
+                "{forbidden} must not ride: {json}"
+            );
         }
         // Emptied by the take: a quiet interval sends nothing (the gate
         // snapshot only rides a batch that already has something to say).

@@ -79,7 +79,11 @@ pub fn canonical_input(state: &AppState, input: &Value) -> CapResult<Value> {
 /// "fsd", "thruster", "Power Plant" -> the blueprint database's module type.
 fn resolve_module_type(state: &AppState, raw: &str) -> Option<String> {
     let norm = |s: &str| -> String {
-        let mut n: String = s.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_lowercase();
+        let mut n: String = s
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect::<String>()
+            .to_ascii_lowercase();
         if n.ends_with('s') && n.len() > 3 {
             n.pop();
         }
@@ -118,7 +122,10 @@ fn resolve_module_type(state: &AppState, raw: &str) -> Option<String> {
         return Some(t.to_string());
     }
     // Unique substring match ("cannon" -> "Multi-cannon" is not unique; "surface" -> "Detailed Surface Scanner" is).
-    let hits: Vec<&&str> = types.iter().filter(|t| norm(t).contains(&key) && key.len() >= 4).collect();
+    let hits: Vec<&&str> = types
+        .iter()
+        .filter(|t| norm(t).contains(&key) && key.len() >= 4)
+        .collect();
     if hits.len() == 1 {
         return Some(hits[0].to_string());
     }
@@ -129,7 +136,10 @@ fn clean_security(v: &mut Value, pointer: &str) {
     // "$SYSTEM_SECURITY_medium;" -> "medium": the model should not have to decode journal symbols.
     if let Some(sec) = v.pointer_mut(pointer) {
         if let Some(s) = sec.as_str() {
-            let clean = s.trim_start_matches("$SYSTEM_SECURITY_").trim_end_matches(';').to_string();
+            let clean = s
+                .trim_start_matches("$SYSTEM_SECURITY_")
+                .trim_end_matches(';')
+                .to_string();
             *sec = json!(clean);
         }
     }
@@ -148,8 +158,15 @@ fn get_ship_status(ctx: &Ctx, _: &Value) -> CapResult<Value> {
 }
 
 fn list_ships(ctx: &Ctx, _: &Value) -> CapResult<Value> {
-    let ships = commander::ships_list(ctx.state, &commander::ShipsListRequest { include_historical: false })?;
-    Ok(json!({ "ships": ships, "note": "Locations are journal-derived: stored ships from the last shipyard visit (as_of), moving ships from the transfer request. A ship aboard a carrier reports the carrier's current system." }))
+    let ships = commander::ships_list(
+        ctx.state,
+        &commander::ShipsListRequest {
+            include_historical: false,
+        },
+    )?;
+    Ok(
+        json!({ "ships": ships, "note": "Locations are journal-derived: stored ships from the last shipyard visit (as_of), moving ships from the transfer request. A ship aboard a carrier reports the carrier's current system." }),
+    )
 }
 
 fn plot_carrier_route_schema() -> Value {
@@ -164,9 +181,21 @@ fn plot_carrier_route_schema() -> Value {
 }
 
 fn plot_carrier_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
-    let to = input.get("to").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| CapError::invalid("to is required"))?;
-    let from = input.get("from").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty());
-    crate::carrier_follow::plot_and_follow(ctx.state, to, from).map_err(|e| CapError::invalid(e).hint("check the system names; the carrier's position comes from Carrier Management"))
+    let to = input
+        .get("to")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| CapError::invalid("to is required"))?;
+    let from = input
+        .get("from")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    crate::carrier_follow::plot_and_follow(ctx.state, to, from).map_err(|e| {
+        CapError::invalid(e)
+            .hint("check the system names; the carrier's position comes from Carrier Management")
+    })
 }
 
 fn carrier_route_schema() -> Value {
@@ -174,19 +203,34 @@ fn carrier_route_schema() -> Value {
 }
 
 fn carrier_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
-    let action = input.get("action").and_then(Value::as_str).unwrap_or("status");
+    let action = input
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("status");
     match action {
         "next" => {
-            let plan = ctx.state.with_read(|s| crate::carrier_follow::load(s.conn())).ok_or_else(|| CapError::not_found("no carrier route is being followed"))?;
-            let next = plan.next_hop().ok_or_else(|| CapError::not_found("the carrier route is complete"))?;
+            let plan = ctx
+                .state
+                .with_read(|s| crate::carrier_follow::load(s.conn()))
+                .ok_or_else(|| CapError::not_found("no carrier route is being followed"))?;
+            let next = plan
+                .next_hop()
+                .ok_or_else(|| CapError::not_found("the carrier route is complete"))?;
             crate::follow::set_clipboard(&next.name).map_err(CapError::internal)?;
-            Ok(json!({ "next_system": next.name, "distance_ly": next.distance_ly, "fuel_t": next.fuel_t, "clipboard": true }))
+            Ok(
+                json!({ "next_system": next.name, "distance_ly": next.distance_ly, "fuel_t": next.fuel_t, "clipboard": true }),
+            )
         }
         "clear" => {
-            ctx.state.with_store(|s| crate::carrier_follow::clear(s.conn()));
+            ctx.state
+                .with_store(|s| crate::carrier_follow::clear(s.conn()));
             Ok(crate::carrier_follow::view(None))
         }
-        _ => Ok(crate::carrier_follow::view(ctx.state.with_read(|s| crate::carrier_follow::load(s.conn())).as_ref())),
+        _ => Ok(crate::carrier_follow::view(
+            ctx.state
+                .with_read(|s| crate::carrier_follow::load(s.conn()))
+                .as_ref(),
+        )),
     }
 }
 
@@ -239,8 +283,10 @@ fn missions_schema() -> Value {
 fn missions(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: commander::MissionsRequest = parse(input)?;
     let (list, now) = commander::missions(ctx.state, &req)?;
-    Ok(json!({ "missions": list, "now": now, "provenance": "journal",
-        "note": "kills_done is inferred from kill events by victim faction and may over-count kills made outside the destination system" }))
+    Ok(
+        json!({ "missions": list, "now": now, "provenance": "journal",
+        "note": "kills_done is inferred from kill events by victim faction and may over-count kills made outside the destination system" }),
+    )
 }
 
 fn missions_route_schema() -> Value {
@@ -248,8 +294,12 @@ fn missions_route_schema() -> Value {
 }
 
 fn missions_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
-    let start_system = input.get("system").and_then(Value::as_str).map(str::to_string);
-    let (list, now) = commander::missions(ctx.state, &commander::MissionsRequest { active_only: true })?;
+    let start_system = input
+        .get("system")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let (list, now) =
+        commander::missions(ctx.state, &commander::MissionsRequest { active_only: true })?;
     ctx.state.with_read(|s| {
         let conn = s.conn();
         let origin = galaxy::system_or_current(conn, start_system.as_deref())?;
@@ -314,9 +364,14 @@ fn commander_ranks(ctx: &Ctx, _: &Value) -> CapResult<Value> {
         let power = obj.remove("powerplay_power").unwrap_or(Value::Null);
         let rank = obj.remove("powerplay_rank").unwrap_or(Value::Null);
         let merits = obj.remove("powerplay_merits").unwrap_or(Value::Null);
-        obj.insert("powerplay".into(), json!({ "power": power, "rank": rank, "merits": merits }));
+        obj.insert(
+            "powerplay".into(),
+            json!({ "power": power, "rank": rank, "merits": merits }),
+        );
     }
-    Ok(json!({ "ranks": v, "provenance": "journal", "note": "progress is percent toward the next rank as the game reports it; the underlying point curve is not exposed" }))
+    Ok(
+        json!({ "ranks": v, "provenance": "journal", "note": "progress is percent toward the next rank as the game reports it; the underlying point curve is not exposed" }),
+    )
 }
 
 fn ship_modules_schema() -> Value {
@@ -366,13 +421,35 @@ fn find_module_schema() -> Value {
 /// 'Auto Field-Maintenance Unit' via its int_repairer symbol alias.
 pub fn module_matches(query: &str, haystacks: &[&str]) -> bool {
     fn flat(s: &str) -> String {
-        s.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { ' ' }).collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
+        s.chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() {
+                    c.to_ascii_lowercase()
+                } else {
+                    ' '
+                }
+            })
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
     }
-    let words: Vec<String> = flat(query).split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect();
+    let words: Vec<String> = flat(query)
+        .split(' ')
+        .filter(|w| !w.is_empty())
+        .map(str::to_string)
+        .collect();
     if words.is_empty() {
         return false;
     }
-    let hay = format!(" {} ", haystacks.iter().map(|h| flat(h)).collect::<Vec<_>>().join(" "));
+    let hay = format!(
+        " {} ",
+        haystacks
+            .iter()
+            .map(|h| flat(h))
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
     words.iter().all(|w| {
         let w = match w.as_str() {
             "afmu" | "afm" => "auto field maintenance",
@@ -388,9 +465,20 @@ pub fn module_matches(query: &str, haystacks: &[&str]) -> bool {
 }
 
 fn find_module(ctx: &Ctx, input: &Value) -> CapResult<Value> {
-    let query = input.get("query").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| CapError::invalid("query is required"))?;
-    let include_historical = input.get("include_historical").and_then(Value::as_bool).unwrap_or(false);
-    let ships = commander::ships_list(ctx.state, &commander::ShipsListRequest { include_historical })?;
+    let query = input
+        .get("query")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| CapError::invalid("query is required"))?;
+    let include_historical = input
+        .get("include_historical")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let ships = commander::ships_list(
+        ctx.state,
+        &commander::ShipsListRequest { include_historical },
+    )?;
     let mut hits = Vec::new();
     let mut searched = 0usize;
     let mut unreadable = Vec::new();
@@ -433,16 +521,31 @@ mod find_module_tests {
     /// word has to hit, so 'wake scoop' finds nothing.
     #[test]
     fn a_module_is_found_by_any_words_of_its_names() {
-        let wake = ["Utility Mount 1", "Frame Shift Wake Scanner 0B", "hpt_cloudscanner_size0_class2", ""];
+        let wake = [
+            "Utility Mount 1",
+            "Frame Shift Wake Scanner 0B",
+            "hpt_cloudscanner_size0_class2",
+            "",
+        ];
         assert!(module_matches("wake scanner", &wake));
         assert!(module_matches("Wake Scanner", &wake));
         assert!(module_matches("cloudscanner", &wake));
         assert!(!module_matches("wake scoop", &wake));
         assert!(!module_matches("   ", &wake));
-        let afmu = ["Optional 5 (size 3)", "Auto Field-Maintenance Unit 3A", "int_repairer_size3_class5", ""];
+        let afmu = [
+            "Optional 5 (size 3)",
+            "Auto Field-Maintenance Unit 3A",
+            "int_repairer_size3_class5",
+            "",
+        ];
         assert!(module_matches("AFMU", &afmu));
         assert!(module_matches("field maintenance", &afmu));
-        let scoop = ["Optional 7 (size 7)", "Fuel Scoop 7A", "int_fuelscoop_size7_class5", "Fuel Scoop"];
+        let scoop = [
+            "Optional 7 (size 7)",
+            "Fuel Scoop 7A",
+            "int_fuelscoop_size7_class5",
+            "Fuel Scoop",
+        ];
         assert!(module_matches("7a fuel scoop", &scoop));
         assert!(!module_matches("6a fuel scoop", &scoop));
     }
@@ -460,7 +563,11 @@ struct BlueprintAccessRequest {
 
 impl Default for BlueprintAccessRequest {
     fn default() -> Self {
-        BlueprintAccessRequest { module_type: String::new(), blueprint_name: String::new(), grade: 5 }
+        BlueprintAccessRequest {
+            module_type: String::new(),
+            blueprint_name: String::new(),
+            grade: 5,
+        }
     }
 }
 
@@ -482,15 +589,21 @@ fn check_blueprint_access(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let engineers = commander::engineers(state)?;
     let status_of = |n: &str| -> (String, Option<i64>, bool) {
         match engineers.iter().find(|e| e.name.eq_ignore_ascii_case(n)) {
-            Some(e) => (e.progress.clone().unwrap_or_else(|| "Unknown".into()), e.rank, e.is_unlocked()),
+            Some(e) => (
+                e.progress.clone().unwrap_or_else(|| "Unknown".into()),
+                e.rank,
+                e.is_unlocked(),
+            ),
             None => ("Not known".into(), None, false),
         }
     };
     let (module_type, name, grade) = (&req.module_type, &req.blueprint_name, req.grade);
     let Some(bp) = state.engineering.find(module_type, name, grade) else {
-        return Err(CapError::not_found(format!("no blueprint {name:?} at grade {grade} for {module_type:?}"))
-            .hint("pick a blueprint from data.available")
-            .data(json!({ "available": state.engineering.blueprint_names_for(module_type) })));
+        return Err(CapError::not_found(format!(
+            "no blueprint {name:?} at grade {grade} for {module_type:?}"
+        ))
+        .hint("pick a blueprint from data.available")
+        .data(json!({ "available": state.engineering.blueprint_names_for(module_type) })));
     };
     let engineers_out: Vec<Value> = bp
         .engineers
@@ -500,7 +613,9 @@ fn check_blueprint_access(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             json!({ "engineer": e, "status": status, "rank": rank, "unlocked": unlocked })
         })
         .collect();
-    let reachable = engineers_out.iter().any(|e| e.get("unlocked").and_then(Value::as_bool).unwrap_or(false));
+    let reachable = engineers_out
+        .iter()
+        .any(|e| e.get("unlocked").and_then(Value::as_bool).unwrap_or(false));
     let mut max_reachable = None;
     for g in 1..=5 {
         if let Some(b) = state.engineering.find(module_type, name, g) {
@@ -534,7 +649,15 @@ struct ShoppingRequest {
 
 impl Default for ShoppingRequest {
     fn default() -> Self {
-        ShoppingRequest { module_type: String::new(), blueprint: None, from_grade: 0, target_grade: 5, experimental: None, minimum: false, complete_target: true }
+        ShoppingRequest {
+            module_type: String::new(),
+            blueprint: None,
+            from_grade: 0,
+            target_grade: 5,
+            experimental: None,
+            minimum: false,
+            complete_target: true,
+        }
     }
 }
 
@@ -558,7 +681,18 @@ fn material_shopping_list(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let q: ShoppingRequest = parse(input)?;
     let galaxy = ctx.state.routing.galaxy(&ctx.state.data_dir);
     let mut r = ctx.state.with_read(|st| {
-        crate::commands::shopping_for(st.conn(), galaxy.as_deref(), &ctx.state.engineering, &q.module_type, q.blueprint.as_deref(), q.from_grade, q.target_grade, q.minimum, q.complete_target, q.experimental.as_deref())
+        crate::commands::shopping_for(
+            st.conn(),
+            galaxy.as_deref(),
+            &ctx.state.engineering,
+            &q.module_type,
+            q.blueprint.as_deref(),
+            q.from_grade,
+            q.target_grade,
+            q.minimum,
+            q.complete_target,
+            q.experimental.as_deref(),
+        )
     })?;
     tauri::async_runtime::block_on(crate::commands::fill_traders(ctx.state, &mut r));
     Ok(to_json(&r))
@@ -577,7 +711,9 @@ struct MaterialRequest {
 fn material_sources(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: MaterialRequest = parse(input)?;
     let galaxy = ctx.state.routing.galaxy(&ctx.state.data_dir);
-    let r = ctx.state.with_read(|st| crate::commands::sources_for(st.conn(), galaxy.as_deref(), &req.material))?;
+    let r = ctx.state.with_read(|st| {
+        crate::commands::sources_for(st.conn(), galaxy.as_deref(), &req.material)
+    })?;
     Ok(to_json(&r))
 }
 
@@ -597,9 +733,22 @@ fn synthesis_recipes(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let catalog = &ctx.state.engineering;
     let materials = ed_journal::Catalog::load();
     let have = |display: &str| -> i64 {
-        let symbol = materials.by_name(display).map(|i| i.symbol.clone()).unwrap_or_else(|| display.replace(' ', "").to_ascii_lowercase());
+        let symbol = materials
+            .by_name(display)
+            .map(|i| i.symbol.clone())
+            .unwrap_or_else(|| display.replace(' ', "").to_ascii_lowercase());
         ctx.state
-            .with_read(|s| Ok::<i64, CapError>(s.conn().query_row("SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE", [symbol], |r| r.get::<_, i64>(0)).unwrap_or(0)))
+            .with_read(|s| {
+                Ok::<i64, CapError>(
+                    s.conn()
+                        .query_row(
+                            "SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE",
+                            [symbol],
+                            |r| r.get::<_, i64>(0),
+                        )
+                        .unwrap_or(0),
+                )
+            })
             .unwrap_or(0)
     };
     let describe = |r: &ed_engineering::SynthesisRecipe| {
@@ -621,10 +770,19 @@ fn synthesis_recipes(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let provenance = catalog.synthesis_provenance();
     match name {
         Some(n) => match catalog.find_synthesis(n) {
-            Some(r) => Ok(json!({ "recipe": describe(r), "source": provenance.source, "fetched": provenance.fetched, "provenance": "vendored" })),
+            Some(r) => Ok(
+                json!({ "recipe": describe(r), "source": provenance.source, "fetched": provenance.fetched, "provenance": "vendored" }),
+            ),
             None => {
-                let names: Vec<&str> = catalog.synthesis_recipes().iter().map(|r| r.name.as_str()).collect();
-                Err(CapError::invalid(format!("no synthesis recipe matches {n:?}")).hint(format!("one of: {}", names.join(", "))))
+                let names: Vec<&str> = catalog
+                    .synthesis_recipes()
+                    .iter()
+                    .map(|r| r.name.as_str())
+                    .collect();
+                Err(
+                    CapError::invalid(format!("no synthesis recipe matches {n:?}"))
+                        .hint(format!("one of: {}", names.join(", "))),
+                )
             }
         },
         None => Ok(json!({
@@ -668,8 +826,10 @@ fn engineer_unlocks(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             .hint("use one of data.available, or omit name for all")
             .data(json!({ "available": guide.engineers.iter().map(|e| e.name.clone()).collect::<Vec<_>>() })));
     }
-    Ok(json!({ "engineers": entries, "source": guide.source, "fetched": guide.fetched, "note": guide.note,
-        "provenance": "vendored community guide + journal unlock status" }))
+    Ok(
+        json!({ "engineers": entries, "source": guide.source, "fetched": guide.fetched, "note": guide.note,
+        "provenance": "vendored community guide + journal unlock status" }),
+    )
 }
 
 fn list_blueprints_schema() -> Value {
@@ -686,7 +846,9 @@ fn list_blueprints(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: ModuleTypeRequest = parse(input)?;
     let module_type = req.module_type.trim();
     if module_type.is_empty() {
-        return Ok(json!({ "module_types": ctx.state.engineering.module_types(), "note": "pass one of these as module_type to list its blueprints" }));
+        return Ok(
+            json!({ "module_types": ctx.state.engineering.module_types(), "note": "pass one of these as module_type to list its blueprints" }),
+        );
     }
     let eng = &ctx.state.engineering;
     Ok(json!({
@@ -711,7 +873,13 @@ struct GapRequest {
 
 impl Default for GapRequest {
     fn default() -> Self {
-        GapRequest { module_type: String::new(), blueprint_name: String::new(), from_grade: 0, target_grade: 1, complete_target: true }
+        GapRequest {
+            module_type: String::new(),
+            blueprint_name: String::new(),
+            from_grade: 0,
+            target_grade: 1,
+            complete_target: true,
+        }
     }
 }
 
@@ -735,9 +903,14 @@ fn get_engineering_gap(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         let catalog = ed_journal::Catalog::load();
         let mut have = std::collections::HashMap::new();
         if let Ok(mut stmt) = s.conn().prepare("SELECT symbol, count FROM materials") {
-            if let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))) {
+            if let Ok(rows) =
+                stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+            {
                 for (symbol, count) in rows.flatten() {
-                    let display = catalog.by_symbol(&symbol).map(|i| i.name.clone()).unwrap_or(symbol);
+                    let display = catalog
+                        .by_symbol(&symbol)
+                        .map(|i| i.name.clone())
+                        .unwrap_or(symbol);
                     have.insert(display, count);
                 }
             }
@@ -746,11 +919,22 @@ fn get_engineering_gap(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     });
     let (module_type, blueprint_name) = (&req.module_type, &req.blueprint_name);
     // An experimental effect has no grades: report its single cost.
-    if state.engineering.grades_for(module_type, blueprint_name).is_empty() {
-        return match state.engineering.experimental_gap(module_type, blueprint_name, &have) {
-            Some(gap) => Ok(json!({ "experimental_effect": true, "gap": gap, "note": "one application, no grade" })),
-            None => Err(CapError::not_found(format!("no blueprint or experimental effect {blueprint_name:?} for {module_type:?}"))
-                .hint("list_blueprints shows what exists for this module type")),
+    if state
+        .engineering
+        .grades_for(module_type, blueprint_name)
+        .is_empty()
+    {
+        return match state
+            .engineering
+            .experimental_gap(module_type, blueprint_name, &have)
+        {
+            Some(gap) => Ok(
+                json!({ "experimental_effect": true, "gap": gap, "note": "one application, no grade" }),
+            ),
+            None => Err(CapError::not_found(format!(
+                "no blueprint or experimental effect {blueprint_name:?} for {module_type:?}"
+            ))
+            .hint("list_blueprints shows what exists for this module type")),
         };
     }
     Ok(json!({
@@ -782,7 +966,10 @@ struct ControlRequest {
 
 impl Default for ControlRequest {
     fn default() -> Self {
-        ControlRequest { name: String::new(), times: 1 }
+        ControlRequest {
+            name: String::new(),
+            times: 1,
+        }
     }
 }
 
@@ -817,7 +1004,9 @@ struct PipsRequest {
 fn set_pips(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: PipsRequest = parse(input)?;
     let (presses, reached) = crate::control::pip_presses([req.systems, req.engines, req.weapons])
-        .map_err(|e| CapError::invalid(e).hint("pips add up to 6, each at most 4, halves allowed"))?;
+        .map_err(|e| {
+        CapError::invalid(e).hint("pips add up to 6, each at most 4, halves allowed")
+    })?;
     let mut done = Vec::new();
     for (name, times) in &presses {
         match ctx.fx.press(ctx.state, name, *times) {
@@ -825,7 +1014,9 @@ fn set_pips(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             Err(e) => return Ok(json!({ "ok": false, "error": e, "pressed": done })),
         }
     }
-    Ok(json!({ "ok": true, "reached": { "systems": reached[0], "engines": reached[1], "weapons": reached[2] }, "presses": presses.iter().map(|(n, t)| format!("{n} x{t}")).collect::<Vec<_>>() }))
+    Ok(
+        json!({ "ok": true, "reached": { "systems": reached[0], "engines": reached[1], "weapons": reached[2] }, "presses": presses.iter().map(|(n, t)| format!("{n} x{t}")).collect::<Vec<_>>() }),
+    )
 }
 
 fn follow_route_schema() -> Value {
@@ -845,7 +1036,10 @@ struct ActionRequest {
 
 impl Default for ActionRequest {
     fn default() -> Self {
-        ActionRequest { action: "status".into(), signal: String::new() }
+        ActionRequest {
+            action: "status".into(),
+            signal: String::new(),
+        }
     }
 }
 
@@ -854,8 +1048,12 @@ fn follow_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let (state, fx) = (ctx.state, ctx.fx);
     let ar = state.with_read(|s| crate::follow::load(s.conn()));
     Ok(match (req.action.as_str(), ar) {
-        (_, None) => json!({ "active": false, "note": "no route is being followed; plot or import one and press Follow in the Route tab" }),
-        ("status", Some(a)) => json!({ "active": true, "spoken": crate::follow::advance_text(&a), "view": crate::follow::view(Some(&a)) }),
+        (_, None) => {
+            json!({ "active": false, "note": "no route is being followed; plot or import one and press Follow in the Route tab" })
+        }
+        ("status", Some(a)) => {
+            json!({ "active": true, "spoken": crate::follow::advance_text(&a), "view": crate::follow::view(Some(&a)) })
+        }
         ("target_next", Some(_)) => match fx.target_next(state) {
             Ok(m) => json!({ "ok": true, "result": m }),
             Err(e) => json!({ "ok": false, "error": e }),
@@ -870,7 +1068,10 @@ fn follow_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             let game = fx.clear_in_game(state);
             json!({ "ok": r.is_ok(), "spoken": "Route cleared.", "game": game.unwrap_or_else(|e| format!("not cleared in game: {e}")) })
         }
-        (other, _) => return Err(CapError::invalid(format!("unknown action {other}")).hint("action is status, target_next, skip or stop")),
+        (other, _) => {
+            return Err(CapError::invalid(format!("unknown action {other}"))
+                .hint("action is status, target_next, skip or stop"))
+        }
     })
 }
 
@@ -893,7 +1094,9 @@ fn signal_watch(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let sig = req.signal.as_str();
     let mut ids = crate::callouts::signal_watch();
     if req.action != "list" {
-        let Some((id, _, _)) = crate::callouts::signal_by_words(sig).or_else(|| crate::callouts::SIGNALS.iter().find(|(i, _, _)| *i == sig)) else {
+        let Some((id, _, _)) = crate::callouts::signal_by_words(sig)
+            .or_else(|| crate::callouts::SIGNALS.iter().find(|(i, _, _)| *i == sig))
+        else {
             return Err(CapError::not_found(format!("unknown signal {sig:?}"))
                 .hint("signal is one of data.signals[].id")
                 .data(json!({ "signals": crate::callouts::SIGNALS.iter().map(|(i, l, _)| json!({ "id": i, "label": l })).collect::<Vec<_>>() })));
@@ -944,9 +1147,10 @@ fn find_system(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         return Ok(json!({ "found": false, "system": req.name }));
     };
     let galaxy = ctx.state.routing.galaxy(&ctx.state.data_dir);
-    let origin = ctx
-        .state
-        .with_read(|s| here.as_deref().and_then(|h| galaxy::coords_hint(s.conn(), galaxy.as_deref(), h)));
+    let origin = ctx.state.with_read(|s| {
+        here.as_deref()
+            .and_then(|h| galaxy::coords_hint(s.conn(), galaxy.as_deref(), h))
+    });
     let mut v = to_json(&sys);
     if let (Some(o), Some(c)) = (origin, sys.coords) {
         let d = ((c.0 - o.0).powi(2) + (c.1 - o.1).powi(2) + (c.2 - o.2).powi(2)).sqrt();
@@ -971,8 +1175,9 @@ fn stations_in_system_schema() -> Value {
 
 fn stations_in_system(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: galaxy::StationsInSystemRequest = parse(input)?;
-    let v = tauri::async_runtime::block_on(crate::remote_lookup::stations_in_system(ctx.state, &req))
-        .ok_or_else(|| crate::remote_lookup::api_down("stations"))?;
+    let v =
+        tauri::async_runtime::block_on(crate::remote_lookup::stations_in_system(ctx.state, &req))
+            .ok_or_else(|| crate::remote_lookup::api_down("stations"))?;
     Ok(json!({
         "system": req.system,
         "stations": v,
@@ -987,8 +1192,9 @@ fn find_station_schema() -> Value {
 
 fn find_station(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: galaxy::FindStationRequest = parse(input)?;
-    let stations = tauri::async_runtime::block_on(crate::remote_lookup::find_station(ctx.state, &req))
-        .ok_or_else(|| crate::remote_lookup::api_down("stations"))?;
+    let stations =
+        tauri::async_runtime::block_on(crate::remote_lookup::find_station(ctx.state, &req))
+            .ok_or_else(|| crate::remote_lookup::api_down("stations"))?;
     Ok(json!({ "stations": stations }))
 }
 
@@ -1011,16 +1217,30 @@ fn nearest_service(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let service = req.service_key();
     let note = "distance_ly is light-years from the origin system (0 = same system); distance_to_arrival is light-seconds from the star inside that system";
     // Material traders: the dump only says "Material Trader"; the kind follows the station economy.
-    if let Some(kind) = service.strip_suffix("_material_trader").or_else(|| service.strip_suffix("_trader")) {
+    if let Some(kind) = service
+        .strip_suffix("_material_trader")
+        .or_else(|| service.strip_suffix("_trader"))
+    {
         if matches!(kind, "raw" | "manufactured" | "encoded") {
-            let system = ctx.state.with_read(|s| galaxy::system_or_current(s.conn(), req.system.as_deref()))?;
-            let v = tauri::async_runtime::block_on(crate::remote_lookup::nearest_material_traders(ctx.state, &system, kind, req.radius_ly.max(150.0), 10))
-                .ok_or_else(|| crate::remote_lookup::api_down("material traders"))?;
-            return Ok(json!({ "origin": system, "service": format!("{kind} material trader"), "results": v, "note": note, "provenance": "community" }));
+            let system = ctx
+                .state
+                .with_read(|s| galaxy::system_or_current(s.conn(), req.system.as_deref()))?;
+            let v = tauri::async_runtime::block_on(crate::remote_lookup::nearest_material_traders(
+                ctx.state,
+                &system,
+                kind,
+                req.radius_ly.max(150.0),
+                10,
+            ))
+            .ok_or_else(|| crate::remote_lookup::api_down("material traders"))?;
+            return Ok(
+                json!({ "origin": system, "service": format!("{kind} material trader"), "results": v, "note": note, "provenance": "community" }),
+            );
         }
     }
-    let (system, v) = tauri::async_runtime::block_on(crate::remote_lookup::nearest_service(ctx.state, &req))
-        .ok_or_else(|| crate::remote_lookup::api_down("nearest service"))?;
+    let (system, v) =
+        tauri::async_runtime::block_on(crate::remote_lookup::nearest_service(ctx.state, &req))
+            .ok_or_else(|| crate::remote_lookup::api_down("nearest service"))?;
     let hint = if v.is_empty() {
         Some(format!(
             "nothing within {:.0} ly{}; do not repeat this call unchanged -- widen radius_ly, drop min_pad, or tell the commander",
@@ -1030,7 +1250,9 @@ fn nearest_service(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     } else {
         None
     };
-    Ok(json!({ "origin": system, "service": service, "results": v, "note": note, "hint": hint, "provenance": "community" }))
+    Ok(
+        json!({ "origin": system, "service": service, "results": v, "note": note, "hint": hint, "provenance": "community" }),
+    )
 }
 
 fn station_market_schema() -> Value {
@@ -1048,7 +1270,8 @@ fn station_market_schema() -> Value {
 /// that does not answer is an error, never an empty board.
 fn station_market(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: galaxy::StationMarketRequest = parse(input)?;
-    let mut v = tauri::async_runtime::block_on(crate::commands::station_board(ctx.state, req.station_id))?;
+    let mut v =
+        tauri::async_runtime::block_on(crate::commands::station_board(ctx.state, req.station_id))?;
     if let Some(obj) = v.as_object_mut() {
         if let Some(entries) = obj.remove("entries") {
             obj.insert("commodities".into(), entries);
@@ -1085,7 +1308,11 @@ fn market_search(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let mut req: galaxy::MarketSearchRequest = parse(input)?;
     req.limit = Some(MARKET_SEARCH_TOOL_LIMIT);
     let kind = req.kind.clone();
-    let mut v = tauri::async_runtime::block_on(crate::commands::market_search_of(ctx.state, &kind, req.clone()))?;
+    let mut v = tauri::async_runtime::block_on(crate::commands::market_search_of(
+        ctx.state,
+        &kind,
+        req.clone(),
+    ))?;
     // The tool's shape: `kind`, `item`, `action` alongside the shared fields.
     if let Some(obj) = v.as_object_mut() {
         let kind = match req.kind.trim().to_ascii_lowercase().as_str() {
@@ -1094,7 +1321,10 @@ fn market_search(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             _ => "commodity",
         };
         obj.insert("kind".into(), json!(kind));
-        let item = obj.remove("commodity").or_else(|| obj.remove("query")).unwrap_or(json!(req.text));
+        let item = obj
+            .remove("commodity")
+            .or_else(|| obj.remove("query"))
+            .unwrap_or(json!(req.text));
         obj.insert("item".into(), item);
         if let Some(side) = obj.remove("side") {
             obj.insert("action".into(), side);
@@ -1116,8 +1346,9 @@ fn systems_near_schema() -> Value {
 
 fn systems_near(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: galaxy::SystemsNearRequest = parse(input)?;
-    let systems = tauri::async_runtime::block_on(crate::remote_lookup::systems_near(ctx.state, &req))
-        .ok_or_else(|| crate::remote_lookup::api_down("systems near"))?;
+    let systems =
+        tauri::async_runtime::block_on(crate::remote_lookup::systems_near(ctx.state, &req))
+            .ok_or_else(|| crate::remote_lookup::api_down("systems near"))?;
     Ok(json!({ "origin": req.system, "systems": systems }))
 }
 
@@ -1159,7 +1390,9 @@ fn find_profit(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     req.from_station_id = None;
     req.jump_range_ly = None;
     req.limit = req.limit.or(Some(FIND_PROFIT_TOOL_LIMIT));
-    Ok(to_json(tauri::async_runtime::block_on(crate::remote_trade::report(ctx.state, &req))?))
+    Ok(to_json(tauri::async_runtime::block_on(
+        crate::remote_trade::report(ctx.state, &req),
+    )?))
 }
 
 // ── Routes ────────────────────────────────────────────────────────────
@@ -1209,7 +1442,14 @@ struct PlotRequest {
 
 impl Default for PlotRequest {
     fn default() -> Self {
-        PlotRequest { from: None, to: String::new(), range_ly: None, supercharge: true, max_dry_jumps: 0, thorough: false }
+        PlotRequest {
+            from: None,
+            to: String::new(),
+            range_ly: None,
+            supercharge: true,
+            max_dry_jumps: 0,
+            thorough: false,
+        }
     }
 }
 
@@ -1223,7 +1463,11 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     // game's own plotter. Anything longer, any explicit origin, or an
     // untaught recipe falls through to EDDA's planner.
     if req.from.as_deref().map(str::trim).is_none_or(str::is_empty) {
-        let max = state.config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly;
+        let max = state
+            .config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .game_route_max_ly;
         if max > 0 {
             let galaxy = state.routing.galaxy(&state.data_dir);
             let straight = state.with_read(|s| {
@@ -1243,15 +1487,17 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
                             "note": "within the commander's route-coverage threshold, so Elite plots this one itself: the system is on the clipboard and the next Target Next press asks the game to plot it. No EDDA hops to list.",
                         }));
                     }
-                    Err(error) => tracing::info!(%error, "plot_route: game plotter unavailable, EDDA plans"),
+                    Err(error) => {
+                        tracing::info!(%error, "plot_route: game plotter unavailable, EDDA plans")
+                    }
                 }
             }
         }
     }
-    let g = state
-        .routing
-        .galaxy(&state.data_dir)
-        .ok_or_else(|| CapError::unavailable("no galaxy index built yet", false).hint("the commander builds it under Settings → Galaxy index"))?;
+    let g = state.routing.galaxy(&state.data_dir).ok_or_else(|| {
+        CapError::unavailable("no galaxy index built yet", false)
+            .hint("the commander builds it under Settings → Galaxy index")
+    })?;
     let (here, ship_range, ship, time_fit) = state.with_read(|s| {
         let conn = s.conn();
         let ship = crate::routing::ship_fuel(conn);
@@ -1259,20 +1505,34 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             let name = label.split(" \u{b7}").next().unwrap_or("").trim();
             crate::time_fit::fit_for_ship(conn, name)
         });
-        (galaxy::current_system(conn), crate::routing::current_range(conn), ship, time_fit)
+        (
+            galaxy::current_system(conn),
+            crate::routing::current_range(conn),
+            ship,
+            time_fit,
+        )
     });
     let from_name = req
         .from
         .filter(|s| !s.trim().is_empty())
         .or(here)
         .ok_or_else(|| CapError::invalid("no origin known").hint("pass from"))?;
-    let a = g.find(&from_name).ok_or_else(|| CapError::not_found(format!("unknown system {from_name:?}")))?;
-    let b = g.find(&req.to).ok_or_else(|| CapError::not_found(format!("unknown system {:?}", req.to)))?;
+    let a = g
+        .find(&from_name)
+        .ok_or_else(|| CapError::not_found(format!("unknown system {from_name:?}")))?;
+    let b = g
+        .find(&req.to)
+        .ok_or_else(|| CapError::not_found(format!("unknown system {:?}", req.to)))?;
     // Same physics as the Route tab: the ship's fuel model and
     // supercharge profile, full-tank range as the planning range.
     let (fuel, boost, start_fuel, ship_label) = match &ship {
         Some((m, bst, now, label)) => (Some(*m), *bst, *now, label.clone()),
-        None => (None, ed_galaxy::fuel::BoostProfile::default(), 0.0, "unknown ship".to_string()),
+        None => (
+            None,
+            ed_galaxy::fuel::BoostProfile::default(),
+            0.0,
+            "unknown ship".to_string(),
+        ),
     };
     // The commander's safe-margins choice applies here too.
     let fuel = fuel.map(|mut m| {
@@ -1282,7 +1542,12 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let plan = ed_galaxy::router::RouteRequest {
         from: a,
         to: b,
-        range_ly: req.range_ly.or(fuel.map(|m| m.range_at(m.capacity))).or(ship_range.map(|r| r as f32)).unwrap_or(30.0).max(1.0),
+        range_ly: req
+            .range_ly
+            .or(fuel.map(|m| m.range_at(m.capacity)))
+            .or(ship_range.map(|r| r as f32))
+            .unwrap_or(30.0)
+            .max(1.0),
         supercharge: req.supercharge,
         max_dry_jumps: req.max_dry_jumps,
         weight: 1.3,
@@ -1307,19 +1572,33 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     };
     let ctl = ed_galaxy::router::Control::none();
     let straight = ed_galaxy::format::dist(g.record(a).pos(), g.record(b).pos());
-    let no_route = |e: ed_galaxy::router::RouteError| CapError::not_found(e.to_string()).hint("try a larger range_ly, allow supercharge, or raise max_dry_jumps");
+    let no_route = |e: ed_galaxy::router::RouteError| {
+        CapError::not_found(e.to_string())
+            .hint("try a larger range_ly, allow supercharge, or raise max_dry_jumps")
+    };
     // Same dispatch as the Route tab (`plan_best`: neutron-first over the
     // long-route threshold, exact plus neutron-first in the corridor under
     // it), except that a thorough long plot stays on the exact search here.
     let route = if plan.thorough && straight > ed_galaxy::long_range::LONG_ROUTE_LY {
         ed_galaxy::router::plan(&g, &plan, &ctl).map_err(no_route)?
     } else {
-        let neutrons = if plan.supercharge { Some(state.routing.neutrons(&g, || {}, &|| false)?) } else { None };
+        let neutrons = if plan.supercharge {
+            Some(state.routing.neutrons(&g, || {}, &|| false)?)
+        } else {
+            None
+        };
         ed_galaxy::long_range::plan_best(&g, neutrons.as_deref(), &plan, &ctl).map_err(no_route)?
     };
     // A route the commander asked for is the route they mean by
     // "target it" -- follow it from here.
-    let followed = ctx.fx.follow(state, &crate::follow::ActiveRoute { route: route.clone(), next: 1.min(route.hops.len()), source: "ai".into() });
+    let followed = ctx.fx.follow(
+        state,
+        &crate::follow::ActiveRoute {
+            route: route.clone(),
+            next: 1.min(route.hops.len()),
+            source: "ai".into(),
+        },
+    );
     Ok(json!({
         "from": from_name, "to": req.to, "range_ly": plan.range_ly, "ship": ship_label,
         "following": followed,

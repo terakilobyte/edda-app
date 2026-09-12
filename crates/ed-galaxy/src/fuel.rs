@@ -33,12 +33,18 @@ pub struct BoostProfile {
 impl Default for BoostProfile {
     /// A standard drive: the multipliers [`StarClass::boost`] gives.
     fn default() -> Self {
-        BoostProfile { neutron: StarClass::Neutron.boost(), white_dwarf: StarClass::WhiteDwarf.boost() }
+        BoostProfile {
+            neutron: StarClass::Neutron.boost(),
+            white_dwarf: StarClass::WhiteDwarf.boost(),
+        }
     }
 }
 
 impl BoostProfile {
-    pub const MK2_SCO: BoostProfile = BoostProfile { neutron: 6.0, white_dwarf: 3.0 };
+    pub const MK2_SCO: BoostProfile = BoostProfile {
+        neutron: 6.0,
+        white_dwarf: 3.0,
+    };
 
     /// FSD integrity lost per supercharge, as a fraction of full health:
     /// one constant for every drive and both star classes.
@@ -158,7 +164,11 @@ pub const FUEL_HEADROOM_MAX_T: f32 = 10.0;
 
 pub fn fuel_headroom_override() -> Option<f32> {
     static OVERRIDE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
-    *OVERRIDE.get_or_init(|| std::env::var("ED_FUEL_HEADROOM").ok().and_then(|v| v.parse::<f32>().ok()))
+    *OVERRIDE.get_or_init(|| {
+        std::env::var("ED_FUEL_HEADROOM")
+            .ok()
+            .and_then(|v| v.parse::<f32>().ok())
+    })
 }
 
 /// The PRE-item-31 default margin (8% of tank, clamped 2-10 t), kept
@@ -171,7 +181,11 @@ pub fn fuel_headroom_for(capacity: f32) -> f32 {
     // exact + neutron-first pair) serialised on it, an exact plot going
     // from 44 ms alone to 124 ms beside one other search.
     static OVERRIDE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
-    if let Some(v) = *OVERRIDE.get_or_init(|| std::env::var("ED_FUEL_HEADROOM").ok().and_then(|v| v.parse::<f32>().ok())) {
+    if let Some(v) = *OVERRIDE.get_or_init(|| {
+        std::env::var("ED_FUEL_HEADROOM")
+            .ok()
+            .and_then(|v| v.parse::<f32>().ok())
+    }) {
         return v;
     }
     (capacity * FUEL_HEADROOM_FRACTION).clamp(FUEL_HEADROOM_MIN_T, FUEL_HEADROOM_MAX_T)
@@ -189,7 +203,8 @@ impl FuelModel {
     /// The distance the planner allows for a jump with `fuel` aboard and
     /// `boost` from the departure star: the physical range less the margin.
     pub fn reach(&self, fuel: f32, boost: f32) -> f32 {
-        let heavy = (fuel + fuel_headroom_override().unwrap_or(self.headroom_t)).min(self.capacity.max(fuel));
+        let heavy = (fuel + fuel_headroom_override().unwrap_or(self.headroom_t))
+            .min(self.capacity.max(fuel));
         (self.range_at(heavy) * boost.max(1.0) - REACH_SLACK_LY).max(0.0)
     }
 
@@ -209,9 +224,21 @@ impl FuelModel {
     ) -> Self {
         let (power, multiplier) = drive_curve(drive_size, sco, mk2);
         let k = (max_fuel_per_jump / multiplier).powf(1.0 / power);
-        let optimal_mass = (max_jump_range - booster).max(1.0) * (unladen_mass + max_fuel_per_jump) / k;
-        FuelModel { unladen_mass, capacity, max_fuel_per_jump, power, multiplier, optimal_mass, headroom_t: 0.0,
-            scoop_rate: 0.0, booster, reserve: 0.0, cargo }
+        let optimal_mass =
+            (max_jump_range - booster).max(1.0) * (unladen_mass + max_fuel_per_jump) / k;
+        FuelModel {
+            unladen_mass,
+            capacity,
+            max_fuel_per_jump,
+            power,
+            multiplier,
+            optimal_mass,
+            headroom_t: 0.0,
+            scoop_rate: 0.0,
+            booster,
+            reserve: 0.0,
+            cargo,
+        }
     }
 
     pub fn mass(&self, fuel: f32) -> f32 {
@@ -219,7 +246,8 @@ impl FuelModel {
     }
 
     fn r0(&self, fuel: f32) -> f32 {
-        self.optimal_mass / self.mass(fuel) * (self.max_fuel_per_jump / self.multiplier).powf(1.0 / self.power)
+        self.optimal_mass / self.mass(fuel)
+            * (self.max_fuel_per_jump / self.multiplier).powf(1.0 / self.power)
     }
 
     /// Unboosted range with `fuel` tonnes aboard.
@@ -342,7 +370,11 @@ mod tests {
     #[test]
     fn optimal_mass_is_recovered_from_the_loadout_range() {
         let m = mandalay();
-        assert!((m.optimal_mass - 1894.0).abs() < 40.0, "optimal mass {}", m.optimal_mass);
+        assert!(
+            (m.optimal_mass - 1894.0).abs() < 40.0,
+            "optimal mass {}",
+            m.optimal_mass
+        );
         assert!((m.range_at(5.2) - 77.9).abs() < 0.05);
         // Full tank: ~72 ly, not 78.
         let full = m.range_at(32.0);
@@ -367,6 +399,9 @@ mod tests {
         m.reserve = 1.0;
         assert!(m.jump(200.0, 32.0, 1.0).is_none(), "beyond range");
         assert!(m.jump(70.0, 32.0, 4.0).is_some());
-        assert!(m.jump(m.range_at(3.0), 3.0, 1.0).is_none(), "would dip under the reserve");
+        assert!(
+            m.jump(m.range_at(3.0), 3.0, 1.0).is_none(),
+            "would dip under the reserve"
+        );
     }
 }

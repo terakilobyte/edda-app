@@ -74,7 +74,11 @@ fn system_id_for(conn: &Connection, name: &str) -> Result<i64> {
 fn system_id_for_addressed(conn: &Connection, name: &str, address: Option<i64>) -> Result<i64> {
     if let Some(address) = address.filter(|a| *a > 0) {
         let known: bool = conn
-            .query_row("SELECT 1 FROM sys_systems WHERE id64 = ?1", [address], |_| Ok(true))
+            .query_row(
+                "SELECT 1 FROM sys_systems WHERE id64 = ?1",
+                [address],
+                |_| Ok(true),
+            )
             .optional()?
             .unwrap_or(false);
         if !known {
@@ -149,7 +153,10 @@ pub fn apply_operation(conn: &Connection, operation: &Operation) -> Result<Appli
     match operation {
         // The service's prospecting and star teachings (2026-09-09) have
         // no local tables since B.4: the client keeps only its journal.
-        Operation::Star(_) | Operation::Body(_) | Operation::RingHotspots(_) | Operation::BodySignals(_) => {
+        Operation::Star(_)
+        | Operation::Body(_)
+        | Operation::RingHotspots(_)
+        | Operation::BodySignals(_) => {
             stats.skipped += 1;
             tx.commit()?;
             return Ok(stats);
@@ -501,13 +508,21 @@ mod tests {
         .unwrap();
         apply(&conn, &env).unwrap();
         let parent: i64 = conn
-            .query_row("SELECT system_id64 FROM sys_stations WHERE id = 900", [], |r| r.get(0))
+            .query_row(
+                "SELECT system_id64 FROM sys_stations WHERE id = 900",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(parent, 500, "the real system wins over the ghost");
 
         // (3): a station stuck on the ghost (pre-fix databases) is healed
         // by the next Docked frame, which carries the game's address.
-        conn.execute("UPDATE sys_stations SET system_id64 = -7 WHERE id = 900", []).unwrap();
+        conn.execute(
+            "UPDATE sys_stations SET system_id64 = -7 WHERE id = 900",
+            [],
+        )
+        .unwrap();
         let docked = zlib(
             r#"{"$schemaRef":"https://eddn.edcd.io/schemas/journal/1","header":{},
                 "message":{"timestamp":"2026-09-05T13:00:00Z","event":"Docked","StarSystem":"Ega",
@@ -519,9 +534,16 @@ mod tests {
         let env = ed_eddn::decode(&docked).unwrap();
         apply(&conn, &env).unwrap();
         let parent: i64 = conn
-            .query_row("SELECT system_id64 FROM sys_stations WHERE id = 900", [], |r| r.get(0))
+            .query_row(
+                "SELECT system_id64 FROM sys_stations WHERE id = 900",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
-        assert_eq!(parent, 500, "the address re-parents the station off the ghost");
+        assert_eq!(
+            parent, 500,
+            "the address re-parents the station off the ghost"
+        );
 
         // A message naming an UNKNOWN system mints a ghost for it but may
         // not drag a really-parented station onto it.
@@ -533,7 +555,11 @@ mod tests {
         .unwrap();
         apply(&conn, &env).unwrap();
         let parent: i64 = conn
-            .query_row("SELECT system_id64 FROM sys_stations WHERE id = 900", [], |r| r.get(0))
+            .query_row(
+                "SELECT system_id64 FROM sys_stations WHERE id = 900",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(parent, 500, "a fresh ghost never steals from a real parent");
     }
@@ -565,7 +591,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .unwrap();
-        assert_eq!((pads, carrier, arrival, kind.as_str()), (2, 0, 346.5, "Coriolis"));
+        assert_eq!(
+            (pads, carrier, arrival, kind.as_str()),
+            (2, 0, 346.5, "Coriolis")
+        );
         assert!(
             crate::market::has_black_market(&conn, 900).unwrap(),
             "the journal's blackmarket token counts"
@@ -575,7 +604,11 @@ mod tests {
         let s = apply(&conn, &stale).unwrap();
         assert_eq!(s.skipped, 1);
         let carrier: i64 = conn
-            .query_row("SELECT is_carrier FROM sys_stations WHERE id = 900", [], |r| r.get(0))
+            .query_row(
+                "SELECT is_carrier FROM sys_stations WHERE id = 900",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(carrier, 0, "stale identity is refused");
 
@@ -590,13 +623,19 @@ mod tests {
         let env = ed_eddn::decode(&board).unwrap();
         apply(&conn, &env).unwrap();
         let goods: Vec<String> = conn
-            .prepare("SELECT symbol FROM sys_market_prohibited WHERE station_id = 900 ORDER BY symbol")
+            .prepare(
+                "SELECT symbol FROM sys_market_prohibited WHERE station_id = 900 ORDER BY symbol",
+            )
             .unwrap()
             .query_map([], |r| r.get(0))
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(goods, vec!["battle weapons", "slaves"], "lowercased wire values");
+        assert_eq!(
+            goods,
+            vec!["battle weapons", "slaves"],
+            "lowercased wire values"
+        );
     }
 
     #[test]

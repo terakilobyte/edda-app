@@ -64,7 +64,9 @@ const FANOUT_WIDE: usize = 512;
 
 /// Tritium for one jump.
 pub fn jump_fuel_t(distance_ly: f32, capacity_used_t: f32, tank_t: f32) -> u32 {
-    (5.0 + distance_ly * (capacity_used_t + tank_t + CARRIER_MASS_T) / 200_000.0).round().max(5.0) as u32
+    (5.0 + distance_ly * (capacity_used_t + tank_t + CARRIER_MASS_T) / 200_000.0)
+        .round()
+        .max(5.0) as u32
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +123,10 @@ pub enum Verdict {
     /// The tank (plus hold) runs dry: this many tonnes short, at this hop
     /// (1-based). The route is still returned so the commander can plan
     /// a refuel.
-    ShortBy { tons: u32, at_hop: u32 },
+    ShortBy {
+        tons: u32,
+        at_hop: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,10 +163,15 @@ pub enum CarrierError {
 impl std::fmt::Display for CarrierError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CarrierError::NoRoute => write!(f, "no carrier route: a gap wider than 500 ly, or only permit-locked bridges"),
+            CarrierError::NoRoute => write!(
+                f,
+                "no carrier route: a gap wider than 500 ly, or only permit-locked bridges"
+            ),
             CarrierError::Budget => write!(f, "no carrier route found within the search limit"),
             CarrierError::Cancelled => write!(f, "carrier plot cancelled"),
-            CarrierError::DestinationBlocked => write!(f, "a carrier cannot jump into a permit-locked system"),
+            CarrierError::DestinationBlocked => {
+                write!(f, "a carrier cannot jump into a permit-locked system")
+            }
         }
     }
 }
@@ -176,7 +186,9 @@ struct Open {
 impl Eq for Open {}
 impl Ord for Open {
     fn cmp(&self, o: &Self) -> Ordering {
-        o.f.partial_cmp(&self.f).unwrap_or(Ordering::Equal).then_with(|| o.ly.partial_cmp(&self.ly).unwrap_or(Ordering::Equal))
+        o.f.partial_cmp(&self.f)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| o.ly.partial_cmp(&self.ly).unwrap_or(Ordering::Equal))
     }
 }
 impl PartialOrd for Open {
@@ -186,7 +198,11 @@ impl PartialOrd for Open {
 }
 
 /// Plan a carrier route. `cancelled` is polled every 200 expansions.
-pub fn plan(g: &Galaxy, req: &CarrierRequest, cancelled: &dyn Fn() -> bool) -> Result<CarrierRoute, CarrierError> {
+pub fn plan(
+    g: &Galaxy,
+    req: &CarrierRequest,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<CarrierRoute, CarrierError> {
     if req.blocked.binary_search(&req.to).is_ok() {
         return Err(CarrierError::DestinationBlocked);
     }
@@ -221,11 +237,19 @@ fn search(
     let mut parent: HashMap<u32, u32> = HashMap::default();
     let mut open = BinaryHeap::new();
     best.insert(req.from, (0, 0.0));
-    open.push(Open { f: h(start), g: 0, ly: 0.0, idx: req.from });
+    open.push(Open {
+        f: h(start),
+        g: 0,
+        ly: 0.0,
+        idx: req.from,
+    });
     let mut cands: Vec<(f32, u32, f32)> = Vec::with_capacity(fanout * 4);
 
     while let Some(cur) = open.pop() {
-        if best.get(&cur.idx).is_some_and(|&(bg, bl)| (bg, bl) < (cur.g, cur.ly)) {
+        if best
+            .get(&cur.idx)
+            .is_some_and(|&(bg, bl)| (bg, bl) < (cur.g, cur.ly))
+        {
             continue;
         }
         if cur.idx == req.to {
@@ -257,18 +281,33 @@ fn search(
         for &(_, idx, d) in cands.iter().take(fanout) {
             let ng = cur.g + 1;
             let nly = cur.ly + d;
-            if best.get(&idx).is_some_and(|&(bg, bl)| cost(bg, bl) <= cost(ng, nly)) {
+            if best
+                .get(&idx)
+                .is_some_and(|&(bg, bl)| cost(bg, bl) <= cost(ng, nly))
+            {
                 continue;
             }
             best.insert(idx, (ng, nly));
             parent.insert(idx, cur.idx);
-            open.push(Open { f: cost(ng, nly) + h(g.pos_of(idx)), g: ng, ly: nly, idx });
+            open.push(Open {
+                f: cost(ng, nly) + h(g.pos_of(idx)),
+                g: ng,
+                ly: nly,
+                idx,
+            });
         }
     }
     Err(CarrierError::NoRoute)
 }
 
-fn reconstruct(g: &Galaxy, req: &CarrierRequest, parent: &HashMap<u32, u32>, straight: f32, expansions: u64, started: &std::time::Instant) -> CarrierRoute {
+fn reconstruct(
+    g: &Galaxy,
+    req: &CarrierRequest,
+    parent: &HashMap<u32, u32>,
+    straight: f32,
+    expansions: u64,
+    started: &std::time::Instant,
+) -> CarrierRoute {
     let mut path = vec![req.to];
     let mut at = req.to;
     while let Some(&p) = parent.get(&at) {
@@ -301,7 +340,10 @@ fn reconstruct(g: &Galaxy, req: &CarrierRequest, parent: &HashMap<u32, u32>, str
         let fuel = jump_fuel_t(d, used, tank);
         tank -= fuel as f32;
         if tank < 0.0 && verdict == Verdict::Ok {
-            verdict = Verdict::ShortBy { tons: (-tank).ceil() as u32, at_hop: (n + 1) as u32 };
+            verdict = Verdict::ShortBy {
+                tons: (-tank).ceil() as u32,
+                at_hop: (n + 1) as u32,
+            };
         }
         total_ly += d;
         fuel_total += fuel;
@@ -360,7 +402,12 @@ mod tests {
         lines.push(format!(r#"{{"id64":{id},"name":"Lost","coords":{{"x":9000,"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}}]}}"#));
         lines.push("]".into());
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(
+            Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         (dir, g)
     }
@@ -385,7 +432,11 @@ mod tests {
     #[test]
     fn minimises_jumps_at_a_fixed_500_ly_reach() {
         let (_d, g) = galaxy();
-        let req = CarrierRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), ..Default::default() };
+        let req = CarrierRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            ..Default::default()
+        };
         let r = plan(&g, &req, &never).unwrap();
         // 4,000 ly at 400 ly spacing: a 500 ly reach still needs every star
         // (800 is out of reach), so 10 jumps, all 400 ly.
@@ -401,10 +452,21 @@ mod tests {
     #[test]
     fn a_gap_is_bridged_by_the_off_line_star_and_a_true_gap_is_no_route() {
         let (_d, g) = galaxy();
-        let req = CarrierRequest { from: g.find("S10").unwrap(), to: g.find("Far").unwrap(), ..Default::default() };
+        let req = CarrierRequest {
+            from: g.find("S10").unwrap(),
+            to: g.find("Far").unwrap(),
+            ..Default::default()
+        };
         let r = plan(&g, &req, &never).unwrap();
-        assert_eq!(r.hops.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(), vec!["Bridge", "Far"]);
-        let req = CarrierRequest { from: g.find("Far").unwrap(), to: g.find("Lost").unwrap(), ..Default::default() };
+        assert_eq!(
+            r.hops.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
+            vec!["Bridge", "Far"]
+        );
+        let req = CarrierRequest {
+            from: g.find("Far").unwrap(),
+            to: g.find("Lost").unwrap(),
+            ..Default::default()
+        };
         assert_eq!(plan(&g, &req, &never).err(), Some(CarrierError::NoRoute));
     }
 
@@ -413,23 +475,49 @@ mod tests {
         let (_d, g) = galaxy();
         let mut blocked = vec![g.find("Bridge").unwrap()];
         blocked.sort();
-        let req = CarrierRequest { from: g.find("S10").unwrap(), to: g.find("Far").unwrap(), blocked, ..Default::default() };
-        assert_eq!(plan(&g, &req, &never).err(), Some(CarrierError::NoRoute), "the only bridge is locked");
+        let req = CarrierRequest {
+            from: g.find("S10").unwrap(),
+            to: g.find("Far").unwrap(),
+            blocked,
+            ..Default::default()
+        };
+        assert_eq!(
+            plan(&g, &req, &never).err(),
+            Some(CarrierError::NoRoute),
+            "the only bridge is locked"
+        );
         let mut blocked = vec![g.find("Far").unwrap()];
         blocked.sort();
-        let req = CarrierRequest { from: g.find("S10").unwrap(), to: g.find("Far").unwrap(), blocked, ..Default::default() };
-        assert_eq!(plan(&g, &req, &never).err(), Some(CarrierError::DestinationBlocked));
+        let req = CarrierRequest {
+            from: g.find("S10").unwrap(),
+            to: g.find("Far").unwrap(),
+            blocked,
+            ..Default::default()
+        };
+        assert_eq!(
+            plan(&g, &req, &never).err(),
+            Some(CarrierError::DestinationBlocked)
+        );
     }
 
     #[test]
     fn a_dry_tank_is_an_honest_shortfall_not_a_truncated_route() {
         let (_d, g) = galaxy();
-        let req = CarrierRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), tank_t: 100.0, capacity_used_t: 20_000.0, ..Default::default() };
+        let req = CarrierRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            tank_t: 100.0,
+            capacity_used_t: 20_000.0,
+            ..Default::default()
+        };
         let r = plan(&g, &req, &never).unwrap();
         assert_eq!(r.jumps, 10, "the path is still the path");
         match r.verdict {
             Verdict::ShortBy { tons, at_hop } => {
-                assert!(tons > 0 && (1..=10).contains(&at_hop), "{tons} t short at hop {at_hop}");
+                assert!(
+                    tons > 0 && (1..=10).contains(&at_hop),
+                    "{tons} t short at hop {at_hop}"
+                );
             }
             Verdict::Ok => panic!("100 t cannot move a laden carrier 4,000 ly"),
         }
@@ -439,12 +527,22 @@ mod tests {
     #[test]
     fn hold_tritium_tops_the_tank_up_only_when_a_jump_needs_it() {
         let (_d, g) = galaxy();
-        let req = CarrierRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), tank_t: 100.0, hold_tritium_t: 900.0, capacity_used_t: 900.0, ..Default::default() };
+        let req = CarrierRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            tank_t: 100.0,
+            hold_tritium_t: 900.0,
+            capacity_used_t: 900.0,
+            ..Default::default()
+        };
         let r = plan(&g, &req, &never).unwrap();
         assert_eq!(r.verdict, Verdict::Ok);
         let topped: u32 = r.hops.iter().map(|h| h.topped_up_t).sum();
         assert!(topped > 0 && topped <= 900, "{topped}");
-        assert!(r.hops[0].topped_up_t == 0, "the first hop is affordable from the tank");
+        assert!(
+            r.hops[0].topped_up_t == 0,
+            "the first hop is affordable from the tank"
+        );
         assert_eq!(r.hold_tritium_end_t, 900 - topped);
     }
 
@@ -461,14 +559,37 @@ mod tests {
         };
         let g = Galaxy::open(std::path::Path::new(&dir)).unwrap();
         println!("from,to,straight_ly,jumps,total_ly,fuel_t,eta_min,expansions,wall_ms,verdict");
-        for (from, to) in [("Sol", "Colonia"), ("Sol", "Beagle Point"), ("Sol", "Deciat"), ("Deciat", "Maia"), ("Sol", "Sagittarius A*")] {
+        for (from, to) in [
+            ("Sol", "Colonia"),
+            ("Sol", "Beagle Point"),
+            ("Sol", "Deciat"),
+            ("Deciat", "Maia"),
+            ("Sol", "Sagittarius A*"),
+        ] {
             let (Some(a), Some(b)) = (g.find(from), g.find(to)) else {
                 println!("{from},{to},,,,,,,,unknown system in this index");
                 continue;
             };
-            let req = CarrierRequest { from: a, to: b, capacity_used_t: 6_270.0, tank_t: 1000.0, time_budget_ms: 120_000, ..Default::default() };
+            let req = CarrierRequest {
+                from: a,
+                to: b,
+                capacity_used_t: 6_270.0,
+                tank_t: 1000.0,
+                time_budget_ms: 120_000,
+                ..Default::default()
+            };
             match plan(&g, &req, &never) {
-                Ok(r) => println!("{from},{to},{:.0},{},{:.0},{},{},{},{},{:?}", r.straight_ly, r.jumps, r.total_ly, r.fuel_t, r.eta_minutes, r.expansions, r.wall_ms, r.verdict),
+                Ok(r) => println!(
+                    "{from},{to},{:.0},{},{:.0},{},{},{},{},{:?}",
+                    r.straight_ly,
+                    r.jumps,
+                    r.total_ly,
+                    r.fuel_t,
+                    r.eta_minutes,
+                    r.expansions,
+                    r.wall_ms,
+                    r.verdict
+                ),
                 Err(e) => println!("{from},{to},,,,,,,,{e}"),
             }
         }

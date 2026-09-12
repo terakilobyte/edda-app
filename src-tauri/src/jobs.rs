@@ -54,7 +54,11 @@ pub struct Supervisor {
 
 impl Supervisor {
     pub fn new(runtime: Handle) -> Self {
-        Supervisor { runtime, root: CancellationToken::new(), jobs: Mutex::new(HashMap::new()) }
+        Supervisor {
+            runtime,
+            root: CancellationToken::new(),
+            jobs: Mutex::new(HashMap::new()),
+        }
     }
 
     fn jobs(&self) -> std::sync::MutexGuard<'_, HashMap<&'static str, Job>> {
@@ -66,7 +70,13 @@ impl Supervisor {
     /// old one, and cancelling the new one leaves the old one alone.
     pub fn begin(&self, name: &'static str) -> CancellationToken {
         let token = self.root.child_token();
-        self.jobs().insert(name, Job { token: token.clone(), handle: None });
+        self.jobs().insert(
+            name,
+            Job {
+                token: token.clone(),
+                handle: None,
+            },
+        );
         token
     }
 
@@ -77,12 +87,21 @@ impl Supervisor {
         Fut: Future<Output = ()> + Send + 'static,
     {
         let mut jobs = self.jobs();
-        if jobs.get(name).is_some_and(|j| j.handle.as_ref().is_some_and(|h| !h.is_finished())) {
+        if jobs
+            .get(name)
+            .is_some_and(|j| j.handle.as_ref().is_some_and(|h| !h.is_finished()))
+        {
             return Err(AlreadyRunning(name));
         }
         let token = self.root.child_token();
         let handle = self.runtime.spawn(f(token.clone()));
-        jobs.insert(name, Job { token, handle: Some(handle) });
+        jobs.insert(
+            name,
+            Job {
+                token,
+                handle: Some(handle),
+            },
+        );
         Ok(())
     }
 
@@ -93,13 +112,22 @@ impl Supervisor {
         F: FnOnce(CancellationToken) + Send + 'static,
     {
         let mut jobs = self.jobs();
-        if jobs.get(name).is_some_and(|j| j.handle.as_ref().is_some_and(|h| !h.is_finished())) {
+        if jobs
+            .get(name)
+            .is_some_and(|j| j.handle.as_ref().is_some_and(|h| !h.is_finished()))
+        {
             return Err(AlreadyRunning(name));
         }
         let token = self.root.child_token();
         let t = token.clone();
         let handle = self.runtime.spawn_blocking(move || f(t));
-        jobs.insert(name, Job { token, handle: Some(handle) });
+        jobs.insert(
+            name,
+            Job {
+                token,
+                handle: Some(handle),
+            },
+        );
         Ok(())
     }
 
@@ -203,7 +231,13 @@ mod tests {
         assert_eq!(sup.running(), vec![GAME_POLL, JOURNAL_WATCHER]);
 
         let report = sup.shutdown(Duration::from_secs(2)).await;
-        assert_eq!(report, ShutdownReport { joined: vec![GAME_POLL, JOURNAL_WATCHER], timed_out: vec![] });
+        assert_eq!(
+            report,
+            ShutdownReport {
+                joined: vec![GAME_POLL, JOURNAL_WATCHER],
+                timed_out: vec![]
+            }
+        );
         assert!(stopped.load(Ordering::SeqCst) && s2.load(Ordering::SeqCst));
         assert!(ticks.load(Ordering::SeqCst) > 0);
         assert!(sup.running().is_empty());

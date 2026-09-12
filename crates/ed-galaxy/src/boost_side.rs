@@ -129,16 +129,46 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(BOOST_SIDE_FILE);
         let mut entries = vec![
-            SecondaryBoost { id64: 30, ls: 900.0, class: 13 },
-            SecondaryBoost { id64: 10, ls: 3_000.0, class: 14 },
-            SecondaryBoost { id64: 30, ls: 8_000.0, class: 14 }, // farther duplicate: dropped
-            SecondaryBoost { id64: 20, ls: 120_000.0, class: 14 },
+            SecondaryBoost {
+                id64: 30,
+                ls: 900.0,
+                class: 13,
+            },
+            SecondaryBoost {
+                id64: 10,
+                ls: 3_000.0,
+                class: 14,
+            },
+            SecondaryBoost {
+                id64: 30,
+                ls: 8_000.0,
+                class: 14,
+            }, // farther duplicate: dropped
+            SecondaryBoost {
+                id64: 20,
+                ls: 120_000.0,
+                class: 14,
+            },
         ];
         write(&path, &mut entries).unwrap();
         let side = BoostSide::open(&path).unwrap();
         assert_eq!(side.len(), 3);
-        assert_eq!(side.lookup(10), Some(SecondaryBoost { id64: 10, ls: 3_000.0, class: 14 }));
-        assert_eq!(side.lookup(30), Some(SecondaryBoost { id64: 30, ls: 900.0, class: 13 }));
+        assert_eq!(
+            side.lookup(10),
+            Some(SecondaryBoost {
+                id64: 10,
+                ls: 3_000.0,
+                class: 14
+            })
+        );
+        assert_eq!(
+            side.lookup(30),
+            Some(SecondaryBoost {
+                id64: 30,
+                ls: 900.0,
+                class: 13
+            })
+        );
         assert_eq!(side.lookup(20).map(|e| e.ls), Some(120_000.0));
         assert_eq!(side.lookup(25), None);
         assert_eq!(side.lookup(5), None);
@@ -151,7 +181,11 @@ mod tests {
         let path = dir.path().join(BOOST_SIDE_FILE);
         std::fs::write(&path, b"EDGX....").unwrap();
         assert!(BoostSide::open(&path).is_err());
-        let mut one = vec![SecondaryBoost { id64: 1, ls: 1.0, class: 14 }];
+        let mut one = vec![SecondaryBoost {
+            id64: 1,
+            ls: 1.0,
+            class: 14,
+        }];
         write(&path, &mut one).unwrap();
         let bytes = std::fs::read(&path).unwrap();
         std::fs::write(&path, &bytes[..bytes.len() - 4]).unwrap();

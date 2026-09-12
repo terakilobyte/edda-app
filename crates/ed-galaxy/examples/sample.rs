@@ -17,7 +17,11 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(2);
     }
     let g = Galaxy::open(Path::new(&args[0]))?;
-    let want: usize = if args[1] == "all" { g.count } else { args[1].parse()? };
+    let want: usize = if args[1] == "all" {
+        g.count
+    } else {
+        args[1].parse()?
+    };
     let n = g.count as u64;
     let mut out = std::io::BufWriter::new(std::fs::File::create(&args[2])?);
     // Deterministic stride with a scrambled start so the sample is spread
@@ -37,7 +41,11 @@ fn main() -> anyhow::Result<()> {
         x ^= x << 13;
         x ^= x >> 7;
         x ^= x << 17;
-        i += if step > 1 { 1 + (x % (2 * step - 1)) } else { 1 };
+        i += if step > 1 {
+            1 + (x % (2 * step - 1))
+        } else {
+            1
+        };
     }
     out.flush()?;
     eprintln!("{written} stars written to {}", args[2]);

@@ -6,7 +6,6 @@
 //! blocking worker with a cancel flag and progress events, like the trade
 //! search, because a 20,000 ly plot can take a while.
 
-use tauri::Manager as _;
 use crate::exchange::SendApi;
 use crate::state::AppState;
 use ed_galaxy::router::{Control, RouteRequest};
@@ -14,6 +13,7 @@ use ed_galaxy::Galaxy;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
+use tauri::Manager as _;
 use tauri::{AppHandle, Emitter, State};
 
 pub struct RoutingState {
@@ -39,10 +39,22 @@ pub struct RoutingState {
 /// routing. ~3 MB compressed buys day-zero plotting; the community sync's
 /// full routing index replaces it.
 const BUNDLED_BUBBLE: [(&str, &[u8]); 4] = [
-    ("stars.bin", include_bytes!("../assets/bubble/stars.bin.zst")),
-    ("cells.bin", include_bytes!("../assets/bubble/cells.bin.zst")),
-    ("names.bin", include_bytes!("../assets/bubble/names.bin.zst")),
-    ("byname.bin", include_bytes!("../assets/bubble/byname.bin.zst")),
+    (
+        "stars.bin",
+        include_bytes!("../assets/bubble/stars.bin.zst"),
+    ),
+    (
+        "cells.bin",
+        include_bytes!("../assets/bubble/cells.bin.zst"),
+    ),
+    (
+        "names.bin",
+        include_bytes!("../assets/bubble/names.bin.zst"),
+    ),
+    (
+        "byname.bin",
+        include_bytes!("../assets/bubble/byname.bin.zst"),
+    ),
 ];
 
 /// The pointer file naming the live highway sub-index directory. The
@@ -55,7 +67,9 @@ fn neutron_pointer_path(galaxy_dir: &std::path::Path) -> std::path::PathBuf {
     let base = ed_galaxy::long_range::neutron_dir(galaxy_dir);
     base.with_file_name(format!(
         "{}.current",
-        base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "boost".into())
+        base.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "boost".into())
     ))
 }
 
@@ -66,7 +80,10 @@ fn current_neutron_dir(galaxy_dir: &std::path::Path) -> std::path::PathBuf {
     match std::fs::read_to_string(neutron_pointer_path(galaxy_dir)) {
         Ok(name) => {
             let name = name.trim();
-            let base = legacy.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let base = legacy
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
             // Only a sibling versioned dir is ever pointed at; anything
             // else in the file is corruption and falls back to legacy.
             if !name.is_empty() && name.starts_with(base.as_str()) && !name.contains(['/', '\\']) {
@@ -86,7 +103,10 @@ fn fresh_neutron_dir(galaxy_dir: &std::path::Path) -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let name = base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "boost".into());
+    let name = base
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "boost".into());
     // A build and an immediate rebuild can share a millisecond; never
     // hand out a name that already exists.
     let mut tick = millis;
@@ -118,14 +138,22 @@ fn point_neutrons_at(galaxy_dir: &std::path::Path, dir: &std::path::Path) -> any
 /// Best effort — a directory a plot still maps stays for a later pass.
 fn collect_retired_neutron_dirs(galaxy_dir: &std::path::Path, current: &std::path::Path) {
     let base = ed_galaxy::long_range::neutron_dir(galaxy_dir);
-    let base_name = base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let base_name = base
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let mut retired = vec![
         galaxy_dir.join("neutrons"),
-        galaxy_dir.join(format!("neutrons{}", ed_galaxy::long_range::NEUTRON_CELL_LY as u32)),
+        galaxy_dir.join(format!(
+            "neutrons{}",
+            ed_galaxy::long_range::NEUTRON_CELL_LY as u32
+        )),
     ];
     if let Ok(entries) = std::fs::read_dir(galaxy_dir) {
         for path in entries.flatten().map(|e| e.path()) {
-            let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else { continue };
+            let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+                continue;
+            };
             let ours = name == base_name
                 || name.starts_with(&format!("{base_name}.old-"))
                 || name == format!("{base_name}.staging")
@@ -138,7 +166,9 @@ fn collect_retired_neutron_dirs(galaxy_dir: &std::path::Path, current: &std::pat
     for old in retired.into_iter().filter(|p| p.is_dir() && p != current) {
         match std::fs::remove_dir_all(&old) {
             Ok(()) => tracing::info!(dir = %old.display(), "retired highway sub-index removed"),
-            Err(e) => tracing::debug!(dir = %old.display(), error = %e, "retired highway sub-index still mapped; removed later"),
+            Err(e) => {
+                tracing::debug!(dir = %old.display(), error = %e, "retired highway sub-index still mapped; removed later")
+            }
         }
     }
 }
@@ -166,7 +196,9 @@ fn rebuild_neutrons_blocking(
         Ok(stats) => stats,
         Err(e) => {
             let _ = std::fs::remove_dir_all(&fresh);
-            if e.downcast_ref::<ed_galaxy::import::SubsetCancelled>().is_some() {
+            if e.downcast_ref::<ed_galaxy::import::SubsetCancelled>()
+                .is_some()
+            {
                 tracing::info!("highway sub-index rebuild cancelled");
             } else {
                 tracing::warn!(error = %e, "highway sub-index rebuild failed; keeping the current one");
@@ -251,7 +283,9 @@ impl RoutingState {
                         tracing::info!(dir = %dir.display(), systems = gal.count, "galaxy index opened");
                         *g = Some(Arc::new(gal));
                     }
-                    Err(e) => tracing::warn!(error = %e, dir = %dir.display(), "galaxy index unreadable"),
+                    Err(e) => {
+                        tracing::warn!(error = %e, dir = %dir.display(), "galaxy index unreadable")
+                    }
                 }
             }
         }
@@ -268,8 +302,14 @@ impl RoutingState {
     /// the new files. A rebuild already running is left to finish; the
     /// supervisor's token cancels it (a build over the full galaxy is a
     /// minute of one core).
-    pub fn rebuild_neutrons_in_background(self: &Arc<Self>, jobs: &crate::jobs::Supervisor, data_dir: &std::path::Path) {
-        let Some(g) = self.galaxy(data_dir) else { return };
+    pub fn rebuild_neutrons_in_background(
+        self: &Arc<Self>,
+        jobs: &crate::jobs::Supervisor,
+        data_dir: &std::path::Path,
+    ) {
+        let Some(g) = self.galaxy(data_dir) else {
+            return;
+        };
         self.rebuild_neutrons_in_background_with(jobs, g);
     }
 
@@ -279,7 +319,11 @@ impl RoutingState {
         *self.jobs.lock().unwrap_or_else(|e| e.into_inner()) = Some(jobs);
     }
 
-    fn rebuild_neutrons_in_background_with(self: &Arc<Self>, jobs: &crate::jobs::Supervisor, g: Arc<Galaxy>) {
+    fn rebuild_neutrons_in_background_with(
+        self: &Arc<Self>,
+        jobs: &crate::jobs::Supervisor,
+        g: Arc<Galaxy>,
+    ) {
         let routing = self.clone();
         let spawned = jobs.spawn_blocking(crate::jobs::HIGHWAY_REBUILD, move |token| {
             rebuild_neutrons_blocking(&routing, &g, &|| token.is_cancelled());
@@ -293,7 +337,12 @@ impl RoutingState {
     /// The highway sub-index for `g`, building it on first use (a single
     /// pass over the full index, ~1 min for the whole galaxy). `on_build` is
     /// told when a build starts; `cancelled` stops one (the plot's Stop).
-    pub fn neutrons(&self, g: &Arc<Galaxy>, on_build: impl FnOnce(), cancelled: &(dyn Fn() -> bool + Sync)) -> anyhow::Result<Arc<Galaxy>> {
+    pub fn neutrons(
+        &self,
+        g: &Arc<Galaxy>,
+        on_build: impl FnOnce(),
+        cancelled: &(dyn Fn() -> bool + Sync),
+    ) -> anyhow::Result<Arc<Galaxy>> {
         let mut n = self.neutrons.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(n) = n.as_ref() {
             return Ok(n.clone());
@@ -309,12 +358,18 @@ impl RoutingState {
             on_build();
             let started = std::time::Instant::now();
             let fresh = fresh_neutron_dir(&g.dir);
-            let built = ed_galaxy::import::subset_cells_cancellable(g, &fresh, ed_galaxy::long_range::NEUTRON_CELL_LY, |r| {
-                // Learned classes count: a neutron or white dwarf found by
-                // a scan or a knowledge sweep joins the highway on the next
-                // rebuild.
-                ed_galaxy::long_range::highway_star(g.class(r))
-            }, cancelled);
+            let built = ed_galaxy::import::subset_cells_cancellable(
+                g,
+                &fresh,
+                ed_galaxy::long_range::NEUTRON_CELL_LY,
+                |r| {
+                    // Learned classes count: a neutron or white dwarf found by
+                    // a scan or a knowledge sweep joins the highway on the next
+                    // rebuild.
+                    ed_galaxy::long_range::highway_star(g.class(r))
+                },
+                cancelled,
+            );
             let stats = match built {
                 Ok(stats) => stats,
                 Err(e) => {
@@ -334,7 +389,6 @@ impl RoutingState {
         *n = Some(opened.clone());
         Ok(opened)
     }
-
 }
 
 #[derive(Debug, Serialize)]
@@ -347,16 +401,19 @@ pub struct GalaxyStatus {
 }
 
 #[tauri::command]
-pub async fn galaxy_status(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>) -> Result<GalaxyStatus, String> {
+pub async fn galaxy_status(
+    state: State<'_, AppState>,
+    routing: State<'_, Arc<RoutingState>>,
+) -> Result<GalaxyStatus, String> {
     Ok({
-    let g = routing.galaxy(&state.data_dir);
-    let bubble = state.data_dir.join("galaxy_populated");
-    GalaxyStatus {
-        available: g.is_some(),
-        systems: g.as_ref().map(|g| g.count).unwrap_or(0),
-        dir: g.as_ref().map(|g| g.dir.display().to_string()),
-        populated_only: g.as_ref().is_some_and(|g| g.dir == bubble),
-    }
+        let g = routing.galaxy(&state.data_dir);
+        let bubble = state.data_dir.join("galaxy_populated");
+        GalaxyStatus {
+            available: g.is_some(),
+            systems: g.as_ref().map(|g| g.count).unwrap_or(0),
+            dir: g.as_ref().map(|g| g.dir.display().to_string()),
+            populated_only: g.as_ref().is_some_and(|g| g.dir == bubble),
+        }
     })
 }
 
@@ -370,34 +427,60 @@ pub struct SystemHit {
 
 /// Name autocomplete over the index.
 #[tauri::command]
-pub async fn galaxy_complete(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>, prefix: String) -> Result<Vec<SystemHit>, String> {
+pub async fn galaxy_complete(
+    state: State<'_, AppState>,
+    routing: State<'_, Arc<RoutingState>>,
+    prefix: String,
+) -> Result<Vec<SystemHit>, String> {
     Ok({
-    let Some(g) = routing.galaxy(&state.data_dir) else { return Ok(Vec::new()) };
-    g.complete(&prefix, 12)
-        .into_iter()
-        .map(|i| {
-            let r = g.record(i);
-            SystemHit { name: g.name(&r).to_string(), id64: r.id64, pos: r.pos(), class: g.class(&r) }
-        })
-        .collect()
+        let Some(g) = routing.galaxy(&state.data_dir) else {
+            return Ok(Vec::new());
+        };
+        g.complete(&prefix, 12)
+            .into_iter()
+            .map(|i| {
+                let r = g.record(i);
+                SystemHit {
+                    name: g.name(&r).to_string(),
+                    id64: r.id64,
+                    pos: r.pos(),
+                    class: g.class(&r),
+                }
+            })
+            .collect()
     })
 }
 
 /// Exact system lookup in the compact route index. Unlike the populated
 /// SQLite tables, this can resolve uninhabited systems from a full import.
 #[tauri::command]
-pub async fn galaxy_find(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>, name: String) -> Result<Option<SystemHit>, String> {
+pub async fn galaxy_find(
+    state: State<'_, AppState>,
+    routing: State<'_, Arc<RoutingState>>,
+    name: String,
+) -> Result<Option<SystemHit>, String> {
     Ok({
-        let Some(g) = routing.galaxy(&state.data_dir) else { return Ok(None) };
+        let Some(g) = routing.galaxy(&state.data_dir) else {
+            return Ok(None);
+        };
         g.find(&name).map(|i| {
             let r = g.record(i);
-            SystemHit { name: g.name(&r).to_string(), id64: r.id64, pos: r.pos(), class: g.class(&r) }
+            SystemHit {
+                name: g.name(&r).to_string(),
+                id64: r.id64,
+                pos: r.pos(),
+                class: g.class(&r),
+            }
         })
     })
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct EdsmCoords { x: f64, y: f64, z: f64 }
+struct EdsmCoords {
+    x: f64,
+    y: f64,
+    z: f64,
+}
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(default)]
@@ -444,7 +527,10 @@ pub struct EdsmSystemInfo {
 /// Network fallback for systems absent from the local inhabited database.
 /// This async command runs outside the webview/UI thread.
 #[tauri::command]
-pub async fn edsm_system(state: State<'_, AppState>, name: String) -> Result<Option<EdsmSystemInfo>, String> {
+pub async fn edsm_system(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<Option<EdsmSystemInfo>, String> {
     // Through OUR server only (maintainer, 2026-09-06: "route the EDSM calls
     // through our API"): the community proxy answers from its own galaxy
     // and asks EDSM upstream on our behalf, so a system name never leaves
@@ -459,15 +545,23 @@ pub async fn edsm_system(state: State<'_, AppState>, name: String) -> Result<Opt
         .get(format!("{api}/v1/knowledge/system"))
         .timeout(std::time::Duration::from_secs(20))
         .query(&[("name", name.as_str())])
-        .send_api().await.map_err(|e| e.to_string())?;
+        .send_api()
+        .await
+        .map_err(|e| e.to_string())?;
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }
     let response: EdsmSystemResponse = response
-        .error_for_status().map_err(|e| e.to_string())?
-        .json().await.map_err(|e| e.to_string())?;
-    let Some(found_name) = response.name.filter(|n| !n.is_empty()) else { return Ok(None) };
-    let info = response.information
+        .error_for_status()
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(found_name) = response.name.filter(|n| !n.is_empty()) else {
+        return Ok(None);
+    };
+    let info = response
+        .information
         .and_then(|v| serde_json::from_value::<EdsmInformation>(v).ok())
         .unwrap_or_default();
     Ok(Some(EdsmSystemInfo {
@@ -505,28 +599,38 @@ pub enum NameKind {
 }
 
 #[tauri::command]
-pub async fn name_complete(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>, kind: NameKind, prefix: String) -> Result<Vec<NameHit>, String> {
+pub async fn name_complete(
+    state: State<'_, AppState>,
+    routing: State<'_, Arc<RoutingState>>,
+    kind: NameKind,
+    prefix: String,
+) -> Result<Vec<NameHit>, String> {
     Ok({
-    let p = prefix.trim();
-    if p.len() < 2 {
-        return Ok(Vec::new());
-    }
-    let local: Vec<NameHit> = match (kind, routing.galaxy(&state.data_dir)) {
-        (NameKind::System, Some(g)) => g
-            .complete(p, NAME_HITS)
-            .into_iter()
-            .map(|i| {
-                let r = g.record(i);
-                NameHit { name: g.name(&r).to_string(), detail: None }
-            })
-            .collect(),
-        _ => Vec::new(),
-    };
-    if local.len() >= NAME_HITS {
-        return Ok(local);
-    }
-    let remote = crate::remote_lookup::complete_names(&state, kind, p, NAME_HITS).await.unwrap_or_default();
-    merge_name_hits(local, remote, NAME_HITS)
+        let p = prefix.trim();
+        if p.len() < 2 {
+            return Ok(Vec::new());
+        }
+        let local: Vec<NameHit> = match (kind, routing.galaxy(&state.data_dir)) {
+            (NameKind::System, Some(g)) => g
+                .complete(p, NAME_HITS)
+                .into_iter()
+                .map(|i| {
+                    let r = g.record(i);
+                    NameHit {
+                        name: g.name(&r).to_string(),
+                        detail: None,
+                    }
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        if local.len() >= NAME_HITS {
+            return Ok(local);
+        }
+        let remote = crate::remote_lookup::complete_names(&state, kind, p, NAME_HITS)
+            .await
+            .unwrap_or_default();
+        merge_name_hits(local, remote, NAME_HITS)
     })
 }
 
@@ -554,18 +658,33 @@ mod name_hits_tests {
     use super::*;
 
     fn hit(name: &str) -> NameHit {
-        NameHit { name: name.into(), detail: None }
+        NameHit {
+            name: name.into(),
+            detail: None,
+        }
     }
 
     /// The bundle knows the bubble; the API knows Beagle Point. Local
     /// stays first, a name both know appears once, the limit holds.
     #[test]
     fn remote_names_fill_what_the_bundle_lacks() {
-        let merged = merge_name_hits(vec![hit("Beta Hydri")], vec![hit("beta hydri"), hit("Beagle Point"), hit("Bebia")], 2);
+        let merged = merge_name_hits(
+            vec![hit("Beta Hydri")],
+            vec![hit("beta hydri"), hit("Beagle Point"), hit("Bebia")],
+            2,
+        );
         assert_eq!(merged, vec![hit("Beta Hydri"), hit("Beagle Point")]);
-        assert_eq!(merge_name_hits(vec![], vec![hit("Beagle Point")], 12), vec![hit("Beagle Point")], "an empty bundle answer is the API's");
+        assert_eq!(
+            merge_name_hits(vec![], vec![hit("Beagle Point")], 12),
+            vec![hit("Beagle Point")],
+            "an empty bundle answer is the API's"
+        );
         let full: Vec<NameHit> = (0..12).map(|i| hit(&format!("S{i}"))).collect();
-        assert_eq!(merge_name_hits(full.clone(), vec![hit("Beagle Point")], 12), full, "a full local list is not touched");
+        assert_eq!(
+            merge_name_hits(full.clone(), vec![hit("Beagle Point")], 12),
+            full,
+            "a full local list is not touched"
+        );
     }
 }
 
@@ -633,7 +752,10 @@ pub struct PlotQuery {
 /// The fuel model at a PLANNED load rather than the live hold: the
 /// trade follower plots the leg out of a pad at the mass its shopping
 /// list will create (maintainer, 2026-09-05). `None` keeps the live cargo.
-pub fn with_planned_cargo(mut m: ed_galaxy::fuel::FuelModel, cargo_t: Option<i64>) -> ed_galaxy::fuel::FuelModel {
+pub fn with_planned_cargo(
+    mut m: ed_galaxy::fuel::FuelModel,
+    cargo_t: Option<i64>,
+) -> ed_galaxy::fuel::FuelModel {
     if let Some(t) = cargo_t {
         m.cargo = t.max(0) as f32;
     }
@@ -655,7 +777,15 @@ pub fn effort_budget_ms(effort: Option<&str>) -> u64 {
 /// Panther's 13 t hops and planned it as if it could barely jump twice.)
 fn observed_max_fuel(conn: &rusqlite::Connection, ship: &str) -> Option<f32> {
     let mut st = conn.prepare("SELECT event, json_extract(raw,'$.Ship'), json_extract(raw,'$.FuelUsed') FROM events WHERE event IN ('Loadout','FSDJump') ORDER BY file, offset").ok()?;
-    let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, Option<f64>>(2)?))).ok()?;
+    let rows = st
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<f64>>(2)?,
+            ))
+        })
+        .ok()?;
     let mut current: Option<String> = None;
     let mut best: Option<f32> = None;
     for (event, s, used) in rows.flatten() {
@@ -689,7 +819,14 @@ pub fn apply_safe_margins(m: &mut ed_galaxy::fuel::FuelModel, safe: bool) {
     m.headroom_t = if safe { 2.0 } else { 0.0 };
 }
 
-pub fn ship_fuel(conn: &rusqlite::Connection) -> Option<(ed_galaxy::fuel::FuelModel, ed_galaxy::fuel::BoostProfile, f32, String)> {
+pub fn ship_fuel(
+    conn: &rusqlite::Connection,
+) -> Option<(
+    ed_galaxy::fuel::FuelModel,
+    ed_galaxy::fuel::BoostProfile,
+    f32,
+    String,
+)> {
     ship_fuel_for(conn, None)
 }
 
@@ -698,7 +835,10 @@ pub fn ship_fuel(conn: &rusqlite::Connection) -> Option<(ed_galaxy::fuel::FuelMo
 /// vanadium + germanium (+25 %); standard adds cadmium + niobium (+50 %);
 /// premium carbon + germanium + arsenic + niobium + yttrium + polonium (+100 %).
 pub fn injection_available(state: &AppState) -> Option<(f32, &'static str, u32)> {
-    injections_status(state).into_iter().find(|g| g.can_make > 0).map(|g| (g.mult, g.grade, g.can_make))
+    injections_status(state)
+        .into_iter()
+        .find(|g| g.can_make > 0)
+        .map(|g| (g.mult, g.grade, g.can_make))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -719,28 +859,52 @@ pub struct InjectionGrade {
 /// Every injection grade against the materials aboard, best first.
 pub fn injections_status(state: &AppState) -> Vec<InjectionGrade> {
     let have = |sym: &str| -> u32 {
-        state.with_read(|s| s.conn().query_row("SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE", [sym], |r| r.get::<_, i64>(0)).unwrap_or(0)) as u32
+        state.with_read(|s| {
+            s.conn()
+                .query_row(
+                    "SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE",
+                    [sym],
+                    |r| r.get::<_, i64>(0),
+                )
+                .unwrap_or(0)
+        }) as u32
     };
     ed_galaxy::router::INJECTION_RECIPES
         .iter()
         .map(|&(mult, grade, mats)| {
-            let materials: Vec<InjectionMaterial> = mats.iter().map(|m| InjectionMaterial { name: (*m).to_string(), have: have(m) }).collect();
+            let materials: Vec<InjectionMaterial> = mats
+                .iter()
+                .map(|m| InjectionMaterial {
+                    name: (*m).to_string(),
+                    have: have(m),
+                })
+                .collect();
             let can_make = materials.iter().map(|m| m.have).min().unwrap_or(0);
-            InjectionGrade { grade, mult, can_make, materials }
+            InjectionGrade {
+                grade,
+                mult,
+                can_make,
+                materials,
+            }
         })
         .collect()
 }
 
 /// The FSD injections the commander can synthesise now, by grade.
 #[tauri::command]
-pub async fn injections_available(state: State<'_, AppState>) -> Result<Vec<InjectionGrade>, String> {
+pub async fn injections_available(
+    state: State<'_, AppState>,
+) -> Result<Vec<InjectionGrade>, String> {
     Ok(injections_status(&state))
 }
 
 /// The journal ShipID of the ship being flown (latest Loadout).
 pub fn current_ship_id(conn: &rusqlite::Connection) -> Option<i64> {
     let raw: String = conn.query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()?;
-    serde_json::from_str::<serde_json::Value>(&raw).ok()?.get("ShipID")?.as_i64()
+    serde_json::from_str::<serde_json::Value>(&raw)
+        .ok()?
+        .get("ShipID")?
+        .as_i64()
 }
 
 /// Fuel model for one ship by ShipID (its latest Loadout), or the current
@@ -781,7 +945,13 @@ pub fn loadout_has_afmu(loadout: &serde_json::Value) -> bool {
     loadout
         .get("Modules")
         .and_then(serde_json::Value::as_array)
-        .is_some_and(|ms| ms.iter().any(|m| m.get("Item").and_then(serde_json::Value::as_str).is_some_and(|i| i.to_ascii_lowercase().contains("int_repairer"))))
+        .is_some_and(|ms| {
+            ms.iter().any(|m| {
+                m.get("Item")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|i| i.to_ascii_lowercase().contains("int_repairer"))
+            })
+        })
 }
 
 /// Whether the ship (`ship_id`, or the one being flown) has an AFMU, from
@@ -795,7 +965,13 @@ pub fn loadout_has_fuel_scoop(loadout: &serde_json::Value) -> bool {
     loadout
         .get("Modules")
         .and_then(serde_json::Value::as_array)
-        .is_some_and(|ms| ms.iter().any(|m| m.get("Item").and_then(serde_json::Value::as_str).is_some_and(|i| i.to_ascii_lowercase().contains("fuelscoop"))))
+        .is_some_and(|ms| {
+            ms.iter().any(|m| {
+                m.get("Item")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|i| i.to_ascii_lowercase().contains("fuelscoop"))
+            })
+        })
 }
 
 /// Fuel-scoop rate in tonnes per second from a Loadout's
@@ -902,16 +1078,31 @@ pub struct ScoopInfo {
 }
 
 #[tauri::command]
-pub async fn ship_scoop_info(state: State<'_, AppState>, ship_id: Option<i64>) -> Result<Option<ScoopInfo>, String> {
+pub async fn ship_scoop_info(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+) -> Result<Option<ScoopInfo>, String> {
     Ok(state.with_read(|s| {
         let conn = s.conn();
         let (model, _, _, _) = ship_fuel_for(conn, ship_id)?;
         let rate = latest_loadout(conn, ship_id).and_then(|l| loadout_scoop_rate_t_per_s(&l));
-        Some(ScoopInfo { scoop_rate_t_per_s: rate, max_fuel_per_jump: model.max_fuel_per_jump, capacity: model.capacity })
+        Some(ScoopInfo {
+            scoop_rate_t_per_s: rate,
+            max_fuel_per_jump: model.max_fuel_per_jump,
+            capacity: model.capacity,
+        })
     }))
 }
 
-pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Option<(ed_galaxy::fuel::FuelModel, ed_galaxy::fuel::BoostProfile, f32, String)> {
+pub fn ship_fuel_for(
+    conn: &rusqlite::Connection,
+    ship_id: Option<i64>,
+) -> Option<(
+    ed_galaxy::fuel::FuelModel,
+    ed_galaxy::fuel::BoostProfile,
+    f32,
+    String,
+)> {
     let current = current_ship_id(conn);
     let raw: String = match ship_id {
         Some(id) if Some(id) != current => conn
@@ -927,9 +1118,17 @@ pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Optio
     // journal adds what only it knows: the most this ship has actually
     // burned in one jump (first-hand beats the table), the hold, the
     // real scoop rate and the tank right now.
-    let ship = v.get("Ship").and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+    let ship = v
+        .get("Ship")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let observed: Option<f32> = observed_max_fuel(conn, &ship);
-    let cargo: f32 = conn.query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| r.get::<_, i64>(0)).unwrap_or(0) as f32;
+    let cargo: f32 = conn
+        .query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap_or(0) as f32;
     let physics = match ed_galaxy::loadout::physics_from_loadout(&v, cargo, observed) {
         Ok(p) => p,
         Err(error) => {
@@ -950,7 +1149,11 @@ pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Optio
     // the journal's last fuel reading is the truth we have; capacity
     // only when the journal has never seen this tank at all.
     let now: f32 = conn
-        .query_row("SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name = 'Status.json'", [], |r| r.get::<_, Option<f64>>(0))
+        .query_row(
+            "SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name = 'Status.json'",
+            [],
+            |r| r.get::<_, Option<f64>>(0),
+        )
         .ok()
         .flatten()
         .or_else(|| last_journal_fuel(conn))
@@ -962,7 +1165,9 @@ pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Optio
     let label = format!(
         "{} · {}",
         ed_journal::ships::display_name(&ship),
-        physics.summary().replace(" Mk II", " Mk II (x6 neutron, 6.8 t cap)"),
+        physics
+            .summary()
+            .replace(" Mk II", " Mk II (x6 neutron, 6.8 t cap)"),
     );
     Some((model, boost, if other_ship { capacity } else { now }, label))
 }
@@ -981,16 +1186,61 @@ pub async fn plot_route(
 /// keep following it, and say what changed.
 pub async fn replan_followed(app: AppHandle) -> Result<String, String> {
     let state = app.state::<AppState>();
-    let ar = state.with_read(|s| crate::follow::load(s.conn())).ok_or("no route is being followed")?;
-    let dest = ar.route.hops.last().map(|h| h.name.clone()).ok_or("empty route")?;
+    let ar = state
+        .with_read(|s| crate::follow::load(s.conn()))
+        .ok_or("no route is being followed")?;
+    let dest = ar
+        .route
+        .hops
+        .last()
+        .map(|h| h.name.clone())
+        .ok_or("empty route")?;
     let routing = state.routing.clone();
-    let white_dwarfs = routing.white_dwarfs.load(std::sync::atomic::Ordering::Relaxed);
+    let white_dwarfs = routing
+        .white_dwarfs
+        .load(std::sync::atomic::Ordering::Relaxed);
     let min_fuel = routing.min_fuel.load(std::sync::atomic::Ordering::Relaxed);
-    let safe_margins = routing.safe_margins.load(std::sync::atomic::Ordering::Relaxed);
-    let query = PlotQuery { from: None, to: dest.clone(), range_ly: None, supercharge: Some(true), max_dry_jumps: None, weight: None, thorough: Some(false), fuel: Some(true), reserve_t: None, ship_id: None, effort: Some("medium".into()), injections: None, white_dwarfs: Some(white_dwarfs), min_fuel: Some(min_fuel), safe_margins: Some(safe_margins), stop_weight: None, try_hard: None, cargo_t: None };
+    let safe_margins = routing
+        .safe_margins
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let query = PlotQuery {
+        from: None,
+        to: dest.clone(),
+        range_ly: None,
+        supercharge: Some(true),
+        max_dry_jumps: None,
+        weight: None,
+        thorough: Some(false),
+        fuel: Some(true),
+        reserve_t: None,
+        ship_id: None,
+        effort: Some("medium".into()),
+        injections: None,
+        white_dwarfs: Some(white_dwarfs),
+        min_fuel: Some(min_fuel),
+        safe_margins: Some(safe_margins),
+        stop_weight: None,
+        try_hard: None,
+        cargo_t: None,
+    };
     let route = plot_inner(app.clone(), state.inner(), routing, query).await?;
-    let here = state.with_read(|s| ed_store::query::location(s.conn()).ok().flatten().and_then(|l| l.system_name));
-    let next = here.as_deref().and_then(|h| route.hops.iter().position(|x| x.name.eq_ignore_ascii_case(h))).map(|i| i + 1).unwrap_or(1).min(route.hops.len());
+    let here = state.with_read(|s| {
+        ed_store::query::location(s.conn())
+            .ok()
+            .flatten()
+            .and_then(|l| l.system_name)
+    });
+    let next = here
+        .as_deref()
+        .and_then(|h| {
+            route
+                .hops
+                .iter()
+                .position(|x| x.name.eq_ignore_ascii_case(h))
+        })
+        .map(|i| i + 1)
+        .unwrap_or(1)
+        .min(route.hops.len());
     let jumps = route.jumps;
     let stops = route.refuel_stops;
     // Same hops ahead and the same stops: the tank changed nothing worth
@@ -998,46 +1248,125 @@ pub async fn replan_followed(app: AppHandle) -> Result<String, String> {
     // routes" — a re-plan two minutes after the plot spoke a plan
     // identical to the one being flown).
     let unchanged = replan_is_same(&ar, &route, next);
-    let new = crate::follow::ActiveRoute { route, next, source: "replan".into() };
+    let new = crate::follow::ActiveRoute {
+        route,
+        next,
+        source: "replan".into(),
+    };
     state.with_store(|s| crate::follow::save_pub(s.conn(), &new))?;
     use tauri::Emitter;
     let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(Some(&new)));
     let _ = app.emit(crate::events::ROUTE_REPLANNED, &new.route);
     if unchanged {
-        tracing::info!(jumps, stops, "re-plan: same hops ahead and same stops; nothing said");
-        return Ok(format!("Plan unchanged: {jumps} jumps to {dest}, {stops} fuel stop{}.", if stops == 1 { "" } else { "s" }));
+        tracing::info!(
+            jumps,
+            stops,
+            "re-plan: same hops ahead and same stops; nothing said"
+        );
+        return Ok(format!(
+            "Plan unchanged: {jumps} jumps to {dest}, {stops} fuel stop{}.",
+            if stops == 1 { "" } else { "s" }
+        ));
     }
-    let text = format!("Re-planned for the tank: {jumps} jumps to {dest}, {stops} fuel stop{}. {}", if stops == 1 { "" } else { "s" }, crate::follow::advance_text(&new));
-    crate::watcher::deliver(&app, vec![(crate::callouts::Callout { kind: "route", text: text.clone(), priority: 1, speak: true, ts: String::new() }, None)]);
+    let text = format!(
+        "Re-planned for the tank: {jumps} jumps to {dest}, {stops} fuel stop{}. {}",
+        if stops == 1 { "" } else { "s" },
+        crate::follow::advance_text(&new)
+    );
+    crate::watcher::deliver(
+        &app,
+        vec![(
+            crate::callouts::Callout {
+                kind: "route",
+                text: text.clone(),
+                priority: 1,
+                speak: true,
+                ts: String::new(),
+            },
+            None,
+        )],
+    );
     Ok(text)
 }
 
 /// Does the re-planned route repeat what is already being flown: the
 /// same systems from the cursor onward and the same number of stops?
-pub fn replan_is_same(old: &crate::follow::ActiveRoute, new: &ed_galaxy::router::Route, new_next: usize) -> bool {
-    let names = |hops: &[ed_galaxy::router::Hop]| -> Vec<String> { hops.iter().map(|h| h.name.to_ascii_lowercase()).collect() };
-    same_plan_ahead(&names(&old.route.hops), old.next, old.route.refuel_stops, &names(&new.hops), new_next, new.refuel_stops)
+pub fn replan_is_same(
+    old: &crate::follow::ActiveRoute,
+    new: &ed_galaxy::router::Route,
+    new_next: usize,
+) -> bool {
+    let names = |hops: &[ed_galaxy::router::Hop]| -> Vec<String> {
+        hops.iter().map(|h| h.name.to_ascii_lowercase()).collect()
+    };
+    same_plan_ahead(
+        &names(&old.route.hops),
+        old.next,
+        old.route.refuel_stops,
+        &names(&new.hops),
+        new_next,
+        new.refuel_stops,
+    )
 }
 
 /// The rule behind [`replan_is_same`], on names so it can be pinned.
-pub fn same_plan_ahead(old: &[String], old_next: usize, old_stops: usize, new: &[String], new_next: usize, new_stops: usize) -> bool {
-    old.iter().skip(old_next.saturating_sub(1)).eq(new.iter().skip(new_next.saturating_sub(1))) && old_stops == new_stops
+pub fn same_plan_ahead(
+    old: &[String],
+    old_next: usize,
+    old_stops: usize,
+    new: &[String],
+    new_next: usize,
+    new_stops: usize,
+) -> bool {
+    old.iter()
+        .skip(old_next.saturating_sub(1))
+        .eq(new.iter().skip(new_next.saturating_sub(1)))
+        && old_stops == new_stops
 }
 
 #[cfg(test)]
 mod replan_same_tests {
     use super::same_plan_ahead;
-    fn n(v: &[&str]) -> Vec<String> { v.iter().map(|s| s.to_string()).collect() }
+    fn n(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
     /// The 02:07 re-plan: same three hops ahead, zero stops both times -
     /// silent. A different hop, a new stop, or a shifted cursor is worth saying.
     #[test]
     fn a_replan_that_repeats_the_plan_is_silent() {
         let old = n(&["ega", "a", "b", "crucis"]);
-        assert!(same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "b", "crucis"]), 1, 0));
-        assert!(same_plan_ahead(&old, 2, 0, &n(&["a", "b", "crucis"]), 1, 0), "re-planned from the second hop: what is AHEAD still matches");
-        assert!(!same_plan_ahead(&old, 1, 0, &n(&["a", "b", "crucis"]), 1, 0), "the old cursor still sees ega ahead");
-        assert!(!same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "c", "crucis"]), 1, 0));
-        assert!(!same_plan_ahead(&old, 1, 0, &n(&["ega", "a", "b", "crucis"]), 1, 1));
+        assert!(same_plan_ahead(
+            &old,
+            1,
+            0,
+            &n(&["ega", "a", "b", "crucis"]),
+            1,
+            0
+        ));
+        assert!(
+            same_plan_ahead(&old, 2, 0, &n(&["a", "b", "crucis"]), 1, 0),
+            "re-planned from the second hop: what is AHEAD still matches"
+        );
+        assert!(
+            !same_plan_ahead(&old, 1, 0, &n(&["a", "b", "crucis"]), 1, 0),
+            "the old cursor still sees ega ahead"
+        );
+        assert!(!same_plan_ahead(
+            &old,
+            1,
+            0,
+            &n(&["ega", "a", "c", "crucis"]),
+            1,
+            0
+        ));
+        assert!(!same_plan_ahead(
+            &old,
+            1,
+            0,
+            &n(&["ega", "a", "b", "crucis"]),
+            1,
+            1
+        ));
     }
 }
 
@@ -1045,13 +1374,40 @@ mod replan_same_tests {
 /// medium-effort shape as a replan, honoring the sticky toggles.
 /// `cargo_t` is the load the leg will CARRY (the departing stop's
 /// shopping list) so the plan is laden-honest before the buy happens.
-pub(crate) async fn plot_for_trade(app: AppHandle, dest: String, cargo_t: Option<i64>) -> Result<ed_galaxy::router::Route, String> {
+pub(crate) async fn plot_for_trade(
+    app: AppHandle,
+    dest: String,
+    cargo_t: Option<i64>,
+) -> Result<ed_galaxy::router::Route, String> {
     let state = app.state::<AppState>();
     let routing = state.routing.clone();
-    let white_dwarfs = routing.white_dwarfs.load(std::sync::atomic::Ordering::Relaxed);
+    let white_dwarfs = routing
+        .white_dwarfs
+        .load(std::sync::atomic::Ordering::Relaxed);
     let min_fuel = routing.min_fuel.load(std::sync::atomic::Ordering::Relaxed);
-    let safe_margins = routing.safe_margins.load(std::sync::atomic::Ordering::Relaxed);
-    let query = PlotQuery { from: None, to: dest, range_ly: None, supercharge: Some(true), max_dry_jumps: None, weight: None, thorough: Some(false), fuel: Some(true), reserve_t: None, ship_id: None, effort: Some("medium".into()), injections: None, white_dwarfs: Some(white_dwarfs), min_fuel: Some(min_fuel), safe_margins: Some(safe_margins), stop_weight: None, try_hard: None, cargo_t };
+    let safe_margins = routing
+        .safe_margins
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let query = PlotQuery {
+        from: None,
+        to: dest,
+        range_ly: None,
+        supercharge: Some(true),
+        max_dry_jumps: None,
+        weight: None,
+        thorough: Some(false),
+        fuel: Some(true),
+        reserve_t: None,
+        ship_id: None,
+        effort: Some("medium".into()),
+        injections: None,
+        white_dwarfs: Some(white_dwarfs),
+        min_fuel: Some(min_fuel),
+        safe_margins: Some(safe_margins),
+        stop_weight: None,
+        try_hard: None,
+        cargo_t,
+    };
     plot_inner(app.clone(), state.inner(), routing, query).await
 }
 
@@ -1061,12 +1417,18 @@ pub(crate) async fn plot_for_trade(app: AppHandle, dest: String, cargo_t: Option
 /// One honest divergence: the server can't know the start star's
 /// scoopability, so the plan departs on the actual tank (its resolve
 /// tops up to full only when we send no figure at all).
-async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::router::Route, String> {
+async fn plot_via_api(
+    state: &AppState,
+    query: &PlotQuery,
+) -> Result<ed_galaxy::router::Route, String> {
     let api = crate::exchange::endpoint(state)
         .ok_or("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there")?;
     let (here, ship) = state.with_read(|s| {
         let conn = s.conn();
-        let here = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
+        let here = ed_store::query::location(conn)
+            .ok()
+            .flatten()
+            .and_then(|l| l.system_name);
         (here, ship_fuel_for(conn, query.ship_id))
     });
     let from = query
@@ -1137,9 +1499,20 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
                     .filter(|v| v.get("error").and_then(|e| e.as_str()) == Some("unknown_system"))
                     .and_then(|v| v.get("system").and_then(|n| n.as_str()).map(str::to_string))
                 {
-                    let coords = state.read_conn().ok().and_then(|conn| journal_coords(&conn, &unknown));
+                    let coords = state
+                        .read_conn()
+                        .ok()
+                        .and_then(|conn| journal_coords(&conn, &unknown));
                     if let Some(pos) = coords {
-                        let key = if body.get("to").and_then(|t| t.as_str()).is_some_and(|t| t.eq_ignore_ascii_case(&unknown)) { "to_coords" } else { "from_coords" };
+                        let key = if body
+                            .get("to")
+                            .and_then(|t| t.as_str())
+                            .is_some_and(|t| t.eq_ignore_ascii_case(&unknown))
+                        {
+                            "to_coords"
+                        } else {
+                            "from_coords"
+                        };
                         tracing::info!(system = %unknown, key, "route: server does not know the system; retrying with the journal's coordinates");
                         body[key] = serde_json::json!(pos);
                         retried_with_coords = true;
@@ -1157,7 +1530,12 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             .json()
             .await
             .map_err(|error| format!("route server answer unreadable: {error}"))?;
-        tracing::info!(hops = route.hops.len(), ms, retried_with_coords, "route planned by API");
+        tracing::info!(
+            hops = route.hops.len(),
+            ms,
+            retried_with_coords,
+            "route planned by API"
+        );
         return Ok(route);
     }
 }
@@ -1180,17 +1558,31 @@ pub fn journal_coords(conn: &rusqlite::Connection, name: &str) -> Option<[f32; 3
 /// A journal event's `StarPos`, as the planner's coordinates.
 pub fn star_pos(event: &serde_json::Value) -> Option<[f32; 3]> {
     let p = event.get("StarPos")?.as_array()?;
-    Some([p.first()?.as_f64()? as f32, p.get(1)?.as_f64()? as f32, p.get(2)?.as_f64()? as f32])
+    Some([
+        p.first()?.as_f64()? as f32,
+        p.get(1)?.as_f64()? as f32,
+        p.get(2)?.as_f64()? as f32,
+    ])
 }
 
-async fn plot_inner(app: AppHandle, state: &AppState, routing: Arc<RoutingState>, query: PlotQuery) -> Result<ed_galaxy::router::Route, String> {
+async fn plot_inner(
+    app: AppHandle,
+    state: &AppState,
+    routing: Arc<RoutingState>,
+    query: PlotQuery,
+) -> Result<ed_galaxy::router::Route, String> {
     let started = std::time::Instant::now();
     let result = plot_inner_untimed(app, state, routing, query).await;
     crate::telemetry::record_timing("plot", started.elapsed().as_millis(), result.is_ok());
     result
 }
 
-async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<RoutingState>, query: PlotQuery) -> Result<ed_galaxy::router::Route, String> {
+async fn plot_inner_untimed(
+    app: AppHandle,
+    state: &AppState,
+    routing: Arc<RoutingState>,
+    query: PlotQuery,
+) -> Result<ed_galaxy::router::Route, String> {
     // The plot runs on POST /v1/route — same engine, same Route type,
     // the server's full-galaxy index. When the server does not answer,
     // the bundled bubble index plots what it can (the inhabited galaxy)
@@ -1212,7 +1604,12 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     })
 }
 
-async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>, query: &PlotQuery) -> Result<ed_galaxy::router::Route, String> {
+async fn plot_local(
+    app: AppHandle,
+    state: &AppState,
+    routing: Arc<RoutingState>,
+    query: &PlotQuery,
+) -> Result<ed_galaxy::router::Route, String> {
     let query = query.clone();
     let Some(g) = routing.galaxy(&state.data_dir) else {
         return Err("no local routing index".into());
@@ -1223,7 +1620,10 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     // the game plots with what is actually aboard.
     let (here, ship_range, ship, time_fit) = state.with_read(|s| {
         let conn = s.conn();
-        let here = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
+        let here = ed_store::query::location(conn)
+            .ok()
+            .flatten()
+            .and_then(|l| l.system_name);
         let ship = ship_fuel_for(conn, query.ship_id);
         // Item 28: this commander's own cadence, fitted per ship from
         // their journals; a fresh install has no fit and keeps defaults.
@@ -1233,9 +1633,18 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
         });
         (here, current_range(conn), ship, fit)
     });
-    let from_name = query.from.clone().filter(|s| !s.trim().is_empty()).or(here).ok_or("no origin: not in a known system")?;
-    let from = g.find(&from_name).ok_or_else(|| format!("unknown system {from_name:?}"))?;
-    let to = g.find(&query.to).ok_or_else(|| format!("unknown system {:?}", query.to))?;
+    let from_name = query
+        .from
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .or(here)
+        .ok_or("no origin: not in a known system")?;
+    let from = g
+        .find(&from_name)
+        .ok_or_else(|| format!("unknown system {from_name:?}"))?;
+    let to = g
+        .find(&query.to)
+        .ok_or_else(|| format!("unknown system {:?}", query.to))?;
     // Fuel physics from the ship unless switched off; the planning range
     // is then the full-tank range (the honest one), not the Loadout maximum.
     let use_fuel = query.fuel.unwrap_or(true);
@@ -1263,11 +1672,22 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     let try_hard = query.try_hard.unwrap_or(false);
     // The dial multiplies the refuel term of the pilot-seconds judge;
     // try-hard is the preset that zeroes it and removes every early-out.
-    let stop_weight = if try_hard { 0.0 } else { query.stop_weight.unwrap_or(1.0).clamp(0.0, 5.0) };
+    let stop_weight = if try_hard {
+        0.0
+    } else {
+        query.stop_weight.unwrap_or(1.0).clamp(0.0, 5.0)
+    };
     tracing::info!(white_dwarfs, min_fuel, supercharge = query.supercharge.unwrap_or(true), injections = query.injections.unwrap_or(true), effort = ?query.effort, "plot options");
-    routing.white_dwarfs.store(white_dwarfs, std::sync::atomic::Ordering::Relaxed);
-    routing.min_fuel.store(min_fuel, std::sync::atomic::Ordering::Relaxed);
-    routing.safe_margins.store(query.safe_margins.unwrap_or(false), std::sync::atomic::Ordering::Relaxed);
+    routing
+        .white_dwarfs
+        .store(white_dwarfs, std::sync::atomic::Ordering::Relaxed);
+    routing
+        .min_fuel
+        .store(min_fuel, std::sync::atomic::Ordering::Relaxed);
+    routing.safe_margins.store(
+        query.safe_margins.unwrap_or(false),
+        std::sync::atomic::Ordering::Relaxed,
+    );
     if !white_dwarfs {
         // The commander's opt-out: a white dwarf is a plain star to this plot.
         boost.white_dwarf = 1.0;
@@ -1292,7 +1712,11 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
         boost,
         fuel: fuel_model,
         start_fuel,
-        time_budget_ms: if try_hard { effort_budget_ms(None) } else { effort_budget_ms(query.effort.as_deref()) },
+        time_budget_ms: if try_hard {
+            effort_budget_ms(None)
+        } else {
+            effort_budget_ms(query.effort.as_deref())
+        },
         // Once a variant has a route the rest get a second to beat it.
         grace_ms: 1_000,
         min_fuel,
@@ -1309,7 +1733,11 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     crate::spansh::load_star_overrides(state);
     // Only for the retry after "no route possible": a plan that works
     // without injections never gets one.
-    let injection = if query.injections == Some(false) { None } else { injection_available(state) };
+    let injection = if query.injections == Some(false) {
+        None
+    } else {
+        injection_available(state)
+    };
     let app_sweep = app.clone();
     let result: Result<ed_galaxy::router::Route, String> = tauri::async_runtime::spawn_blocking(move || {
         let cancelled = || cancel.is_cancelled();
@@ -1432,7 +1860,14 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     // Which ship this plan belongs to.
     let (sid, slabel, has_scoop, integrity, has_afmu) = state.with_read(|s| {
         let id = query.ship_id.or_else(|| current_ship_id(s.conn()));
-        (id, ship.as_ref().map(|(_, _, _, l)| l.split(" · ").next().unwrap_or(l).to_string()), ship_has_fuel_scoop(s.conn(), query.ship_id), ship_fsd_integrity(s.conn(), query.ship_id), ship_has_afmu(s.conn(), query.ship_id))
+        (
+            id,
+            ship.as_ref()
+                .map(|(_, _, _, l)| l.split(" · ").next().unwrap_or(l).to_string()),
+            ship_has_fuel_scoop(s.conn(), query.ship_id),
+            ship_fsd_integrity(s.conn(), query.ship_id),
+            ship_has_afmu(s.conn(), query.ship_id),
+        )
     });
     route.ship_id = sid;
     route.ship = slabel;
@@ -1442,7 +1877,9 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     // Integrity is projected by the reader, not planned: 1 % per boost on
     // every drive but the Mk II SCO, repair due below 81 %.
     route.fsd_integrity = integrity;
-    route.integrity_loss_per_boost = ship.as_ref().map(|(_, b, _, _)| b.integrity_loss_per_boost());
+    route.integrity_loss_per_boost = ship
+        .as_ref()
+        .map(|(_, b, _, _)| b.integrity_loss_per_boost());
     route.ship_has_afmu = has_afmu;
     if let (Some((m, _, now, _)), Some(first)) = (&ship, route.hops.first_mut()) {
         if start_scoopable && use_fuel && *now < m.capacity - 0.5 {
@@ -1452,7 +1889,10 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
     }
     crate::spansh::resolve_unknown_stars(state, &mut route.hops).await;
     // In the background: star types around this route, from EDSM.
-    crate::knowledge::sweep_route(app_sweep, route.hops.iter().map(|h| (h.name.clone(), h.pos)).collect());
+    crate::knowledge::sweep_route(
+        app_sweep,
+        route.hops.iter().map(|h| (h.name.clone(), h.pos)).collect(),
+    );
     Ok(route)
 }
 
@@ -1463,18 +1903,31 @@ pub fn cancel_route(state: State<'_, AppState>) {
 
 /// Systems within a radius, for the map background around a route.
 #[tauri::command]
-pub async fn galaxy_near(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>, pos: [f32; 3], radius_ly: f32, limit: usize) -> Result<Vec<SystemHit>, String> {
+pub async fn galaxy_near(
+    state: State<'_, AppState>,
+    routing: State<'_, Arc<RoutingState>>,
+    pos: [f32; 3],
+    radius_ly: f32,
+    limit: usize,
+) -> Result<Vec<SystemHit>, String> {
     Ok({
-    let Some(g) = routing.galaxy(&state.data_dir) else { return Ok(Vec::new()) };
-    let mut hits = g.within(pos, radius_ly.clamp(1.0, 500.0));
-    hits.sort_by(|a, b| a.1.total_cmp(&b.1));
-    hits.truncate(limit.min(5000));
-    hits.into_iter()
-        .map(|(i, _)| {
-            let r = g.record(i);
-            SystemHit { name: g.name(&r).to_string(), id64: r.id64, pos: r.pos(), class: g.class(&r) }
-        })
-        .collect()
+        let Some(g) = routing.galaxy(&state.data_dir) else {
+            return Ok(Vec::new());
+        };
+        let mut hits = g.within(pos, radius_ly.clamp(1.0, 500.0));
+        hits.sort_by(|a, b| a.1.total_cmp(&b.1));
+        hits.truncate(limit.min(5000));
+        hits.into_iter()
+            .map(|(i, _)| {
+                let r = g.record(i);
+                SystemHit {
+                    name: g.name(&r).to_string(),
+                    id64: r.id64,
+                    pos: r.pos(),
+                    class: g.class(&r),
+                }
+            })
+            .collect()
     })
 }
 
@@ -1491,9 +1944,17 @@ pub fn current_range(conn: &rusqlite::Connection) -> Option<f64> {
         )
         .ok()?;
     let max_range = max_range?;
-    let cargo: f64 = conn.query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| r.get::<_, i64>(0)).unwrap_or(0) as f64;
+    let cargo: f64 = conn
+        .query_row("SELECT COALESCE(SUM(count),0) FROM cargo", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap_or(0) as f64;
     let fuel: f64 = conn
-        .query_row("SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name = 'Status.json'", [], |r| r.get::<_, Option<f64>>(0))
+        .query_row(
+            "SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name = 'Status.json'",
+            [],
+            |r| r.get::<_, Option<f64>>(0),
+        )
         .ok()
         .flatten()
         .or(fuel_cap)
@@ -1555,7 +2016,10 @@ pub fn mark_game_route_fuel(
         else {
             break;
         };
-        marks.push(GameFuelMark { index: j, via: hops[j].1.unwrap() });
+        marks.push(GameFuelMark {
+            index: j,
+            via: hops[j].1.unwrap(),
+        });
         // Re-simulate from the refill.
         fuel = m.capacity;
         i = j;
@@ -1576,19 +2040,37 @@ pub fn mark_game_route_fuel(
 /// The systems a game route still has ahead of the pilot, and the pad
 /// the ship needs there: what [`game_route_fuel_marks_for`] wants the
 /// API asked about (one `systems=` call, by the async caller).
-pub fn game_route_dock_query(conn: &rusqlite::Connection, brief: &ed_store::route::RouteBrief) -> Option<(Vec<String>, ed_store::lookup::PadSize)> {
+pub fn game_route_dock_query(
+    conn: &rusqlite::Connection,
+    brief: &ed_store::route::RouteBrief,
+) -> Option<(Vec<String>, ed_store::lookup::PadSize)> {
     let (ship_ident, _) = crate::trap::loadout_ship(conn)?;
-    let pad = ed_store::lookup::PadSize::for_journal_ship(&ship_ident).unwrap_or(ed_store::lookup::PadSize::Large);
+    let pad = ed_store::lookup::PadSize::for_journal_ship(&ship_ident)
+        .unwrap_or(ed_store::lookup::PadSize::Large);
     let start = game_route_start(conn, brief);
-    Some((brief.hops[start..].iter().map(|h| h.system.clone()).collect(), pad))
+    Some((
+        brief.hops[start..]
+            .iter()
+            .map(|h| h.system.clone())
+            .collect(),
+        pad,
+    ))
 }
 
 fn game_route_start(conn: &rusqlite::Connection, brief: &ed_store::route::RouteBrief) -> usize {
     // Simulate from the pilot's position on the route: the tank is what
     // it is NOW, and hops already behind need no decoration.
-    let here = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
+    let here = ed_store::query::location(conn)
+        .ok()
+        .flatten()
+        .and_then(|l| l.system_name);
     here.as_deref()
-        .and_then(|h| brief.hops.iter().position(|hop| hop.system.eq_ignore_ascii_case(h)))
+        .and_then(|h| {
+            brief
+                .hops
+                .iter()
+                .position(|hop| hop.system.eq_ignore_ascii_case(h))
+        })
         .unwrap_or(0)
 }
 
@@ -1597,9 +2079,17 @@ fn game_route_start(conn: &rusqlite::Connection, brief: &ed_store::route::RouteB
 /// carries a scoop; a dock counts when `docks` (lower-cased system
 /// names from `/v1/stations?systems=`, B.4 gap 3) names the hop's
 /// system. No dock known reads as dry, which errs toward warning.
-pub fn game_route_fuel_marks_for(conn: &rusqlite::Connection, brief: &ed_store::route::RouteBrief, docks: &std::collections::HashSet<String>) -> Vec<GameFuelMark> {
-    let Some((m, _b, fuel_now, _label)) = ship_fuel(conn) else { return Vec::new() };
-    let Some((_ship_ident, has_scoop)) = crate::trap::loadout_ship(conn) else { return Vec::new() };
+pub fn game_route_fuel_marks_for(
+    conn: &rusqlite::Connection,
+    brief: &ed_store::route::RouteBrief,
+    docks: &std::collections::HashSet<String>,
+) -> Vec<GameFuelMark> {
+    let Some((m, _b, fuel_now, _label)) = ship_fuel(conn) else {
+        return Vec::new();
+    };
+    let Some((_ship_ident, has_scoop)) = crate::trap::loadout_ship(conn) else {
+        return Vec::new();
+    };
     let start = game_route_start(conn, brief);
     let hops: Vec<(f64, Option<&'static str>)> = brief.hops[start..]
         .iter()
@@ -1607,7 +2097,9 @@ pub fn game_route_fuel_marks_for(conn: &rusqlite::Connection, brief: &ed_store::
             let via = if h.scoopable && has_scoop {
                 Some("scoop")
             } else {
-                docks.contains(&h.system.to_ascii_lowercase()).then_some("station")
+                docks
+                    .contains(&h.system.to_ascii_lowercase())
+                    .then_some("station")
             };
             (h.next_leg_ly, via)
         })
@@ -1643,14 +2135,28 @@ mod planned_cargo_tests {
         );
         // The maintainer's field numbers: ~37.6 empty, ~24.6 laden. The model
         // should land in that neighbourhood, not just "less".
-        assert!((20.0..30.0).contains(&laden_range), "laden range {laden_range:.1} out of family");
+        assert!(
+            (20.0..30.0).contains(&laden_range),
+            "laden range {laden_range:.1} out of family"
+        );
 
         let mut full = live;
         full.cargo = 1008.0;
         let emptied = with_planned_cargo(full, Some(0));
-        assert_eq!(emptied.cargo, 0.0, "an explicit empty plan overrides a full live hold");
-        assert_eq!(with_planned_cargo(full, None).cargo, 1008.0, "None keeps the live hold");
-        assert_eq!(with_planned_cargo(live, Some(-5)).cargo, 0.0, "negative wire values clamp");
+        assert_eq!(
+            emptied.cargo, 0.0,
+            "an explicit empty plan overrides a full live hold"
+        );
+        assert_eq!(
+            with_planned_cargo(full, None).cargo,
+            1008.0,
+            "None keeps the live hold"
+        );
+        assert_eq!(
+            with_planned_cargo(live, Some(-5)).cargo,
+            0.0,
+            "negative wire values clamp"
+        );
     }
 }
 
@@ -1685,8 +2191,15 @@ mod subindex_swap_tests {
 
         // A plot holds `live` mapped while the background rebuild runs.
         rebuild_neutrons_blocking(&routing, &g, &|| false);
-        assert!(live_dir.is_dir(), "the live sub-index dir must never be renamed or removed under an open mmap");
-        assert_eq!(live.name(&live.record(0)), "Jackson's Lighthouse", "the held handle still reads");
+        assert!(
+            live_dir.is_dir(),
+            "the live sub-index dir must never be renamed or removed under an open mmap"
+        );
+        assert_eq!(
+            live.name(&live.record(0)),
+            "Jackson's Lighthouse",
+            "the held handle still reads"
+        );
         let current = current_neutron_dir(&g.dir);
         assert_ne!(current, live_dir, "the pointer names the fresh rebuild");
         assert!(Galaxy::exists(&current));
@@ -1696,7 +2209,10 @@ mod subindex_swap_tests {
         drop(live);
         let reopened = routing.neutrons(&g, || {}, &|| false).unwrap();
         assert_eq!(reopened.dir, current);
-        assert!(!live_dir.exists(), "the retired dir is collected at the next open");
+        assert!(
+            !live_dir.exists(),
+            "the retired dir is collected at the next open"
+        );
     }
 
     /// Existing installs: a legacy fixed-name boost250 with no pointer
@@ -1712,14 +2228,22 @@ mod subindex_swap_tests {
         })
         .unwrap();
         let routing = Arc::new(RoutingState::new());
-        let opened = routing.neutrons(&g, || panic!("legacy dir exists; no build"), &|| false).unwrap();
+        let opened = routing
+            .neutrons(&g, || panic!("legacy dir exists; no build"), &|| false)
+            .unwrap();
         assert_eq!(opened.dir, legacy, "no pointer: the legacy dir serves");
 
         rebuild_neutrons_blocking(&routing, &g, &|| false);
         drop(opened);
         let reopened = routing.neutrons(&g, || {}, &|| false).unwrap();
-        assert_ne!(reopened.dir, legacy, "the pointer now names a versioned dir");
-        assert!(!legacy.exists(), "the legacy dir is collected once unpinned");
+        assert_ne!(
+            reopened.dir, legacy,
+            "the pointer now names a versioned dir"
+        );
+        assert!(
+            !legacy.exists(),
+            "the legacy dir is collected once unpinned"
+        );
     }
 }
 
@@ -1734,7 +2258,9 @@ mod game_fuel_tests {
     /// the danger case).
     #[test]
     fn game_route_marks_need_not_availability() {
-        let m = ed_galaxy::fuel::FuelModel::from_loadout(100.0, 100.0, 8.0, 5, false, false, 75.0, 0.0, 0.0);
+        let m = ed_galaxy::fuel::FuelModel::from_loadout(
+            100.0, 100.0, 8.0, 5, false, false, 75.0, 0.0, 0.0,
+        );
         // Five 50-ly legs from a 20 t tank burn ~5-6 t each; the floor is
         // 8 t, so fuel is needed mid-route. Hop 1 scoops, hop 3 has a
         // station.
@@ -1750,7 +2276,14 @@ mod game_fuel_tests {
         // Need arises before leg 3; the LATEST capable hop wins (the
         // min-fuel rewrite's rule), which is the station at 3 — not the
         // scoopable at 1 that a naive earliest-first would pick.
-        assert_eq!(marks, vec![GameFuelMark { index: 3, via: "station" }], "{marks:?}");
+        assert_eq!(
+            marks,
+            vec![GameFuelMark {
+                index: 3,
+                via: "station"
+            }],
+            "{marks:?}"
+        );
         // With only the early scoop available, it gets the mark instead.
         let scoop_only = [
             (50.0, None),
@@ -1761,10 +2294,20 @@ mod game_fuel_tests {
             (0.0, None),
         ];
         let marks = mark_game_route_fuel(&m, 20.0, &scoop_only);
-        assert_eq!(marks, vec![GameFuelMark { index: 1, via: "scoop" }], "{marks:?}");
+        assert_eq!(
+            marks,
+            vec![GameFuelMark {
+                index: 1,
+                via: "scoop"
+            }],
+            "{marks:?}"
+        );
         // From a FULL tank the same route needs nothing: no marks at all,
         // even though fuel is available at two hops.
-        assert!(mark_game_route_fuel(&m, 100.0, &hops).is_empty(), "availability without need is silent");
+        assert!(
+            mark_game_route_fuel(&m, 100.0, &hops).is_empty(),
+            "availability without need is silent"
+        );
         // No fuel anywhere: nothing to mark.
         let dry: Vec<(f64, Option<&'static str>)> = hops.iter().map(|(d, _)| (*d, None)).collect();
         assert!(mark_game_route_fuel(&m, 20.0, &dry).is_empty());
@@ -1779,7 +2322,9 @@ mod safe_margin_tests {
     /// optimistic, exactly like absent-means-eager for min-fuel.
     #[test]
     fn safe_margins_toggle_sets_two_tonnes_and_absent_means_optimistic() {
-        let mut m = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let mut m = ed_galaxy::fuel::FuelModel::from_loadout(
+            1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0,
+        );
         assert_eq!(m.headroom_t, 0.0, "the h0 era default");
         super::apply_safe_margins(&mut m, false);
         assert_eq!(m.headroom_t, 0.0, "absent/false leaves optimistic");
@@ -1800,11 +2345,18 @@ mod scoop_tests {
         let dir = tempfile::tempdir().unwrap();
         use super::install_bundled_bubble;
         use ed_galaxy::Galaxy;
-        assert!(install_bundled_bubble(dir.path()), "an empty data dir gets the bundled index");
+        assert!(
+            install_bundled_bubble(dir.path()),
+            "an empty data dir gets the bundled index"
+        );
         let bubble = dir.path().join("galaxy_populated");
         assert!(Galaxy::exists(&bubble));
         let galaxy = Galaxy::open(&bubble).unwrap();
-        assert!(galaxy.count > 100_000, "the bubble index knows the inhabited galaxy, got {}", galaxy.count);
+        assert!(
+            galaxy.count > 100_000,
+            "the bubble index knows the inhabited galaxy, got {}",
+            galaxy.count
+        );
         // Already present: nothing to do.
         assert!(!install_bundled_bubble(dir.path()));
         // A leftover downloaded full index (pre-B.4 installs kept one in
@@ -1824,8 +2376,12 @@ mod scoop_tests {
     fn loadout_fsd_health_is_read_from_the_drive_slot() {
         let v: serde_json::Value = serde_json::json!({"Modules": [{"Slot": "PowerPlant", "Item": "int_powerplant_size5_class5", "Health": 0.5}, {"Slot": "FrameShiftDrive", "Item": "int_hyperdrive_size5_class5", "Health": 0.9123}]});
         assert_eq!(super::loadout_fsd_health(&v), Some(0.9123));
-        assert_eq!(super::loadout_fsd_health(&serde_json::json!({"Modules": []})), None);
-        let afmu: serde_json::Value = serde_json::json!({"Modules": [{"Item": "Int_Repairer_Size5_Class5"}]});
+        assert_eq!(
+            super::loadout_fsd_health(&serde_json::json!({"Modules": []})),
+            None
+        );
+        let afmu: serde_json::Value =
+            serde_json::json!({"Modules": [{"Item": "Int_Repairer_Size5_Class5"}]});
         assert!(super::loadout_has_afmu(&afmu));
         assert!(!super::loadout_has_afmu(&v));
     }
@@ -1864,8 +2420,13 @@ mod scoop_rate_tests {
                 [loadout.to_string()],
             )
             .unwrap();
-        let (model, _, _, _) = super::ship_fuel_for(store.conn(), None).expect("model from loadout");
-        assert!((model.scoop_rate - 0.577).abs() < 1e-4, "5A scoop: {}", model.scoop_rate);
+        let (model, _, _, _) =
+            super::ship_fuel_for(store.conn(), None).expect("model from loadout");
+        assert!(
+            (model.scoop_rate - 0.577).abs() < 1e-4,
+            "5A scoop: {}",
+            model.scoop_rate
+        );
     }
 
     /// Item 45: with no live Status.json fuel (game closed, main menu),
@@ -1886,7 +2447,10 @@ mod scoop_rate_tests {
             [loadout.to_string()],
         ).unwrap();
         let fuel_now = || super::ship_fuel_for(store.conn(), None).expect("model").2;
-        assert!((fuel_now() - 32.0).abs() < 1e-4, "no reading anywhere: capacity is all we have");
+        assert!(
+            (fuel_now() - 32.0).abs() < 1e-4,
+            "no reading anywhere: capacity is all we have"
+        );
         store.conn().execute(
             "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 2, '2026-09-03T09:00:00Z', 'FuelScoop', '{\"Scooped\":3.0,\"Total\":26.5}')",
             [],
@@ -1895,12 +2459,20 @@ mod scoop_rate_tests {
             "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 3, '2026-09-03T09:05:00Z', 'FSDJump', '{\"StarSystem\":\"Boeph UF-D d13-126\",\"FuelLevel\":19.7}')",
             [],
         ).unwrap();
-        assert!((fuel_now() - 19.7).abs() < 1e-4, "latest journal reading, not capacity: {}", fuel_now());
+        assert!(
+            (fuel_now() - 19.7).abs() < 1e-4,
+            "latest journal reading, not capacity: {}",
+            fuel_now()
+        );
         store.conn().execute(
             "INSERT INTO snapshots (name, ts, mtime, raw) VALUES ('Status.json', '2026-09-03T09:06:00Z', 0, '{\"Fuel\":{\"FuelMain\":25.5}}')",
             [],
         ).unwrap();
-        assert!((fuel_now() - 25.5).abs() < 1e-4, "a live Status reading wins: {}", fuel_now());
+        assert!(
+            (fuel_now() - 25.5).abs() < 1e-4,
+            "a live Status reading wins: {}",
+            fuel_now()
+        );
     }
 
     /// The ladder pinned against the game's table: A rates per size,
@@ -1918,7 +2490,8 @@ mod scoop_rate_tests {
         assert!((rate(1, 1) - 0.018).abs() < 1e-4, "1E");
         assert!((rate(6, 4) - 0.75257).abs() < 1e-4, "6B");
         assert!((rate(3, 2) - 0.10057).abs() < 1e-4, "3D");
-        let no_scoop = serde_json::json!({ "Modules": [ { "Item": "int_cargorack_size6_class1" } ] });
+        let no_scoop =
+            serde_json::json!({ "Modules": [ { "Item": "int_cargorack_size6_class1" } ] });
         assert_eq!(super::loadout_scoop_rate_t_per_s(&no_scoop), None);
     }
 
@@ -1950,7 +2523,10 @@ mod scoop_rate_tests {
         // is also the conservative one: the ETA overstates scoop time
         // rather than understating it.
         let rate = super::loadout_scoop_rate_t_per_s(&engineered(1.5)).unwrap();
-        assert!((rate - 1.5).abs() < 1e-4, "ambiguous prefers absolute: {rate}");
+        assert!(
+            (rate - 1.5).abs() < 1e-4,
+            "ambiguous prefers absolute: {rate}"
+        );
         // A bare multiplier decodes where it is unambiguous: on a 1E
         // (stock 0.018 t/s), 1.4 fits no absolute reading and only works
         // as x1.4.
@@ -1959,10 +2535,16 @@ mod scoop_rate_tests {
             "Engineering": { "Modifiers": [ { "Label": "ScoopRate", "Value": 1.4 } ] },
         }]});
         let rate = super::loadout_scoop_rate_t_per_s(&small).unwrap();
-        assert!((rate - 0.018 * 1.4).abs() < 1e-5, "multiplier on a small scoop: {rate}");
+        assert!(
+            (rate - 0.018 * 1.4).abs() < 1e-5,
+            "multiplier on a small scoop: {rate}"
+        );
         // A nonsense value never beats the stock table.
         let rate = super::loadout_scoop_rate_t_per_s(&engineered(400_000.0)).unwrap();
-        assert!((rate - 1.245).abs() < 1e-4, "nonsense falls back to stock: {rate}");
+        assert!(
+            (rate - 1.245).abs() < 1e-4,
+            "nonsense falls back to stock: {rate}"
+        );
         // An engineered scoop with no rate modifier keeps the table value.
         let other_mod = serde_json::json!({ "Modules": [{
             "Item": "int_fuelscoop_size7_class5",

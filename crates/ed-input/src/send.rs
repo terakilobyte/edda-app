@@ -26,7 +26,11 @@ impl Default for Timing {
         // Human-like: the game samples input per frame and a chord whose
         // modifier arrives a frame or two before the key is not reliably
         // seen as a chord (Shift+H with a 30 ms lead opened nothing).
-        Timing { hold: 70, gap: 50, modifier_lead: 120 }
+        Timing {
+            hold: 70,
+            gap: 50,
+            modifier_lead: 120,
+        }
     }
 }
 
@@ -83,8 +87,20 @@ pub fn type_text(sink: &mut dyn KeySink, text: &str, t: Timing) -> Vec<char> {
     for c in text.chars() {
         match char_key(c) {
             Some((sc, upper)) => {
-                let mods: &[ScanCode] = if upper { std::slice::from_ref(&shift) } else { &[] };
-                press_chord(sink, mods, sc, Timing { gap: t.gap / 2, ..t });
+                let mods: &[ScanCode] = if upper {
+                    std::slice::from_ref(&shift)
+                } else {
+                    &[]
+                };
+                press_chord(
+                    sink,
+                    mods,
+                    sc,
+                    Timing {
+                        gap: t.gap / 2,
+                        ..t
+                    },
+                );
             }
             None => skipped.push(c),
         }
@@ -102,10 +118,18 @@ pub struct Recorder {
 
 impl KeySink for Recorder {
     fn key_down(&mut self, sc: ScanCode) {
-        self.events.push(format!("down {:#04x}{}", sc.code, if sc.extended { "e" } else { "" }));
+        self.events.push(format!(
+            "down {:#04x}{}",
+            sc.code,
+            if sc.extended { "e" } else { "" }
+        ));
     }
     fn key_up(&mut self, sc: ScanCode) {
-        self.events.push(format!("up {:#04x}{}", sc.code, if sc.extended { "e" } else { "" }));
+        self.events.push(format!(
+            "up {:#04x}{}",
+            sc.code,
+            if sc.extended { "e" } else { "" }
+        ));
     }
     fn sleep(&mut self, _d: Duration) {}
     fn move_mouse(&mut self, xf: f32, yf: f32) -> bool {
@@ -191,7 +215,8 @@ impl KeySink for WindowsSink {
 #[cfg(windows)]
 fn send(sc: ScanCode, up: bool) {
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
+        KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
     };
     let mut flags = KEYEVENTF_SCANCODE;
     if sc.extended {
@@ -202,7 +227,15 @@ fn send(sc: ScanCode, up: bool) {
     }
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: 0, wScan: sc.code, dwFlags: flags, time: 0, dwExtraInfo: 0 } },
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: 0,
+                wScan: sc.code,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
     };
     // SAFETY: a fully initialised INPUT array of length 1 and its size.
     let sent = unsafe { SendInput(1, &input, std::mem::size_of::<INPUT>() as i32) };
@@ -217,14 +250,21 @@ fn send(sc: ScanCode, up: bool) {
 #[cfg(windows)]
 pub fn move_mouse_in_foreground(xf: f32, yf: f32) -> bool {
     use windows_sys::Win32::Foundation::RECT;
-    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect, SetCursorPos};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetForegroundWindow, GetWindowRect, SetCursorPos,
+    };
     // SAFETY: plain Win32 calls with a valid out-pointer to a RECT we own.
     unsafe {
         let h = GetForegroundWindow();
         if h.is_null() {
             return false;
         }
-        let mut r = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        let mut r = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
         if GetWindowRect(h, &mut r) == 0 {
             return false;
         }
@@ -247,12 +287,27 @@ pub fn move_mouse_in_foreground(_xf: f32, _yf: f32) -> bool {
 /// Move to a fraction of the foreground window and left-click there.
 #[cfg(windows)]
 pub fn click_in_foreground(xf: f32, yf: f32) -> bool {
-    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT};
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_MOUSE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
+        MOUSEINPUT,
+    };
     if !move_mouse_in_foreground(xf, yf) {
         return false;
     }
     std::thread::sleep(std::time::Duration::from_millis(60));
-    let mk = |flags: u32| INPUT { r#type: INPUT_MOUSE, Anonymous: INPUT_0 { mi: MOUSEINPUT { dx: 0, dy: 0, mouseData: 0, dwFlags: flags, time: 0, dwExtraInfo: 0 } } };
+    let mk = |flags: u32| INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx: 0,
+                dy: 0,
+                mouseData: 0,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
     let down = mk(MOUSEEVENTF_LEFTDOWN);
     let up = mk(MOUSEEVENTF_LEFTUP);
     // SAFETY: well-formed INPUT structs, sizes as SendInput expects.
@@ -336,7 +391,10 @@ mod tests {
         let skipped = type_text(&mut r, "Lhs 2ö", Timing::default());
         assert_eq!(skipped, vec!['ö']);
         // 'L' is shifted: shift down, L down/up, shift up.
-        assert_eq!(&r.events[..4], ["down 0x2a", "down 0x26", "up 0x26", "up 0x2a"]);
+        assert_eq!(
+            &r.events[..4],
+            ["down 0x2a", "down 0x26", "up 0x26", "up 0x2a"]
+        );
         // 'h' is not.
         assert_eq!(&r.events[4..6], ["down 0x23", "up 0x23"]);
     }

@@ -90,7 +90,10 @@ mod tests {
     #[test]
     fn plain_symbols_get_their_names() {
         assert_eq!(display_name("eagle"), "Eagle");
-        assert_eq!(display_name("federation_dropship_mkii"), "Federal Assault Ship");
+        assert_eq!(
+            display_name("federation_dropship_mkii"),
+            "Federal Assault Ship"
+        );
         assert_eq!(display_name("smallcombat01_nx"), "Kestrel Mk II");
         assert_eq!(display_name("Anaconda"), "Anaconda");
     }
@@ -98,7 +101,10 @@ mod tests {
     #[test]
     fn unknown_symbols_are_title_cased_not_invented() {
         assert_eq!(display_name("future_ship_mk9"), "Future Ship Mk9");
-        assert_eq!(display_name_or("eagle", Some("Eagle (Pirate)")), "Eagle (Pirate)");
+        assert_eq!(
+            display_name_or("eagle", Some("Eagle (Pirate)")),
+            "Eagle (Pirate)"
+        );
         assert_eq!(display_name_or("eagle", Some("")), "Eagle");
     }
 }

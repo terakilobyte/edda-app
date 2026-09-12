@@ -207,13 +207,24 @@ pub fn is_model_dir(p: &Path) -> bool {
     model_files(p).is_some()
 }
 
-fn model_files(p: &Path) -> Option<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> {
+fn model_files(
+    p: &Path,
+) -> Option<(
+    std::path::PathBuf,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    std::path::PathBuf,
+)> {
     let tokens = p.join("tokens.txt");
     if !tokens.is_file() {
         return None;
     }
     let pick = |stem: &str| {
-        for name in [format!("{stem}.int8.onnx"), format!("{stem}.onnx"), format!("{stem}.fp16.onnx")] {
+        for name in [
+            format!("{stem}.int8.onnx"),
+            format!("{stem}.onnx"),
+            format!("{stem}.fp16.onnx"),
+        ] {
             let f = p.join(&name);
             if f.is_file() {
                 return Some(f);
@@ -226,8 +237,16 @@ fn model_files(p: &Path) -> Option<(std::path::PathBuf, std::path::PathBuf, std:
 
 /// The sherpa-onnx C API DLL if present under `lib_dir` (or its `bin`/`lib`).
 pub fn find_lib(lib_dir: &Path) -> Option<std::path::PathBuf> {
-    let name = if cfg!(windows) { "sherpa-onnx-c-api.dll" } else { "libsherpa-onnx-c-api.so" };
-    for d in [lib_dir.to_path_buf(), lib_dir.join("bin"), lib_dir.join("lib")] {
+    let name = if cfg!(windows) {
+        "sherpa-onnx-c-api.dll"
+    } else {
+        "libsherpa-onnx-c-api.so"
+    };
+    for d in [
+        lib_dir.to_path_buf(),
+        lib_dir.join("bin"),
+        lib_dir.join("lib"),
+    ] {
         if d.join(name).is_file() {
             return Some(d);
         }
@@ -250,15 +269,32 @@ impl Parakeet {
     /// `lib_dir` holds `sherpa-onnx-c-api.dll` + `onnxruntime.dll`;
     /// `model_dir` the unpacked `sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8`.
     pub fn load(lib_dir: &Path, model_dir: &Path, threads: usize) -> Result<Parakeet> {
-        let (encoder, decoder, joiner, tokens) = model_files(model_dir).ok_or_else(|| anyhow!("{} does not look like a Parakeet model", model_dir.display()))?;
-        let dll = lib_dir.join(if cfg!(windows) { "sherpa-onnx-c-api.dll" } else { "libsherpa-onnx-c-api.so" });
+        let (encoder, decoder, joiner, tokens) = model_files(model_dir).ok_or_else(|| {
+            anyhow!(
+                "{} does not look like a Parakeet model",
+                model_dir.display()
+            )
+        })?;
+        let dll = lib_dir.join(if cfg!(windows) {
+            "sherpa-onnx-c-api.dll"
+        } else {
+            "libsherpa-onnx-c-api.so"
+        });
         if !dll.is_file() {
             return Err(anyhow!("{} not found", dll.display()));
         }
         // onnxruntime.dll is loaded first by full path so the C API DLL's
         // import of it resolves to this copy regardless of the search path.
-        let ort_path = lib_dir.join(if cfg!(windows) { "onnxruntime.dll" } else { "libonnxruntime.so" });
-        let ort = if ort_path.is_file() { Some(unsafe { load_lib(&ort_path)? }) } else { None };
+        let ort_path = lib_dir.join(if cfg!(windows) {
+            "onnxruntime.dll"
+        } else {
+            "libonnxruntime.so"
+        });
+        let ort = if ort_path.is_file() {
+            Some(unsafe { load_lib(&ort_path)? })
+        } else {
+            None
+        };
         let lib = unsafe { load_lib(&dll)? };
 
         let c = |s: &str| CString::new(s).unwrap();
@@ -273,12 +309,27 @@ impl Parakeet {
         let e = empty.as_ptr();
         let one = || OneModel { model: e };
         let cfg = OfflineRecognizerConfig {
-            feat_config: FeatureConfig { sample_rate: 16000, feature_dim: 80 },
+            feat_config: FeatureConfig {
+                sample_rate: 16000,
+                feature_dim: 80,
+            },
             model_config: OfflineModelConfig {
-                transducer: TransducerModelConfig { encoder: s_encoder.as_ptr(), decoder: s_decoder.as_ptr(), joiner: s_joiner.as_ptr() },
+                transducer: TransducerModelConfig {
+                    encoder: s_encoder.as_ptr(),
+                    decoder: s_decoder.as_ptr(),
+                    joiner: s_joiner.as_ptr(),
+                },
                 paraformer: one(),
                 nemo_ctc: one(),
-                whisper: WhisperModelConfig { encoder: e, decoder: e, language: e, task: e, tail_paddings: -1, enable_token_timestamps: 0, enable_segment_timestamps: 0 },
+                whisper: WhisperModelConfig {
+                    encoder: e,
+                    decoder: e,
+                    language: e,
+                    task: e,
+                    tail_paddings: -1,
+                    enable_token_timestamps: 0,
+                    enable_segment_timestamps: 0,
+                },
                 tdnn: one(),
                 tokens: s_tokens.as_ptr(),
                 num_threads: threads.clamp(1, 16) as c_int,
@@ -288,21 +339,74 @@ impl Parakeet {
                 modeling_unit: e,
                 bpe_vocab: e,
                 telespeech_ctc: e,
-                sense_voice: SenseVoiceModelConfig { model: e, language: e, use_itn: 0 },
-                moonshine: MoonshineModelConfig { preprocessor: e, encoder: e, uncached_decoder: e, cached_decoder: e, merged_decoder: e },
-                fire_red_asr: FireRedAsrModelConfig { encoder: e, decoder: e },
+                sense_voice: SenseVoiceModelConfig {
+                    model: e,
+                    language: e,
+                    use_itn: 0,
+                },
+                moonshine: MoonshineModelConfig {
+                    preprocessor: e,
+                    encoder: e,
+                    uncached_decoder: e,
+                    cached_decoder: e,
+                    merged_decoder: e,
+                },
+                fire_red_asr: FireRedAsrModelConfig {
+                    encoder: e,
+                    decoder: e,
+                },
                 dolphin: one(),
                 zipformer_ctc: one(),
-                canary: CanaryModelConfig { encoder: e, decoder: e, src_lang: e, tgt_lang: e, use_pnc: 0 },
+                canary: CanaryModelConfig {
+                    encoder: e,
+                    decoder: e,
+                    src_lang: e,
+                    tgt_lang: e,
+                    use_pnc: 0,
+                },
                 wenet_ctc: one(),
                 omnilingual: one(),
                 medasr: one(),
-                funasr_nano: FunAsrNanoModelConfig { encoder_adaptor: e, llm: e, embedding: e, tokenizer: e, system_prompt: e, user_prompt: e, max_new_tokens: 0, temperature: 0.0, top_p: 0.0, seed: 0, language: e, itn: 0, hotwords: e },
+                funasr_nano: FunAsrNanoModelConfig {
+                    encoder_adaptor: e,
+                    llm: e,
+                    embedding: e,
+                    tokenizer: e,
+                    system_prompt: e,
+                    user_prompt: e,
+                    max_new_tokens: 0,
+                    temperature: 0.0,
+                    top_p: 0.0,
+                    seed: 0,
+                    language: e,
+                    itn: 0,
+                    hotwords: e,
+                },
                 fire_red_asr_ctc: one(),
-                qwen3_asr: Qwen3AsrModelConfig { conv_frontend: e, encoder: e, decoder: e, tokenizer: e, max_total_len: 0, max_new_tokens: 0, temperature: 0.0, top_p: 0.0, seed: 0, hotwords: e },
-                cohere_transcribe: CohereTranscribeModelConfig { encoder: e, decoder: e, language: e, use_punct: 0, use_itn: 0 },
+                qwen3_asr: Qwen3AsrModelConfig {
+                    conv_frontend: e,
+                    encoder: e,
+                    decoder: e,
+                    tokenizer: e,
+                    max_total_len: 0,
+                    max_new_tokens: 0,
+                    temperature: 0.0,
+                    top_p: 0.0,
+                    seed: 0,
+                    hotwords: e,
+                },
+                cohere_transcribe: CohereTranscribeModelConfig {
+                    encoder: e,
+                    decoder: e,
+                    language: e,
+                    use_punct: 0,
+                    use_itn: 0,
+                },
             },
-            lm_config: LmConfig { model: e, scale: 1.0 },
+            lm_config: LmConfig {
+                model: e,
+                scale: 1.0,
+            },
             decoding_method: s_greedy.as_ptr(),
             max_active_paths: 4,
             hotwords_file: e,
@@ -310,26 +414,65 @@ impl Parakeet {
             rule_fsts: e,
             rule_fars: e,
             blank_penalty: 0.0,
-            hr: HomophoneReplacerConfig { dict_dir: e, lexicon: e, rule_fsts: e },
+            hr: HomophoneReplacerConfig {
+                dict_dir: e,
+                lexicon: e,
+                rule_fsts: e,
+            },
         };
 
         // SAFETY: symbol names and signatures follow c-api.h for the pinned release.
         unsafe {
             let create_rec: Symbol<CreateRec> = lib.get(b"SherpaOnnxCreateOfflineRecognizer\0")?;
-            let destroy_rec: Symbol<DestroyRec> = lib.get(b"SherpaOnnxDestroyOfflineRecognizer\0")?;
-            let create_stream: Symbol<CreateStream> = lib.get(b"SherpaOnnxCreateOfflineStream\0")?;
-            let destroy_stream: Symbol<DestroyStream> = lib.get(b"SherpaOnnxDestroyOfflineStream\0")?;
+            let destroy_rec: Symbol<DestroyRec> =
+                lib.get(b"SherpaOnnxDestroyOfflineRecognizer\0")?;
+            let create_stream: Symbol<CreateStream> =
+                lib.get(b"SherpaOnnxCreateOfflineStream\0")?;
+            let destroy_stream: Symbol<DestroyStream> =
+                lib.get(b"SherpaOnnxDestroyOfflineStream\0")?;
             let accept: Symbol<Accept> = lib.get(b"SherpaOnnxAcceptWaveformOffline\0")?;
             let decode: Symbol<Decode> = lib.get(b"SherpaOnnxDecodeOfflineStream\0")?;
             let get_result: Symbol<GetResult> = lib.get(b"SherpaOnnxGetOfflineStreamResult\0")?;
-            let destroy_result: Symbol<DestroyResult> = lib.get(b"SherpaOnnxDestroyOfflineRecognizerResult\0")?;
-            let (create_rec, destroy_rec, create_stream, destroy_stream, accept, decode, get_result, destroy_result) =
-                (*create_rec, *destroy_rec, *create_stream, *destroy_stream, *accept, *decode, *get_result, *destroy_result);
+            let destroy_result: Symbol<DestroyResult> =
+                lib.get(b"SherpaOnnxDestroyOfflineRecognizerResult\0")?;
+            let (
+                create_rec,
+                destroy_rec,
+                create_stream,
+                destroy_stream,
+                accept,
+                decode,
+                get_result,
+                destroy_result,
+            ) = (
+                *create_rec,
+                *destroy_rec,
+                *create_stream,
+                *destroy_stream,
+                *accept,
+                *decode,
+                *get_result,
+                *destroy_result,
+            );
             let rec = create_rec(&cfg);
             if rec.is_null() {
-                return Err(anyhow!("sherpa-onnx could not load the Parakeet model at {}", model_dir.display()));
+                return Err(anyhow!(
+                    "sherpa-onnx could not load the Parakeet model at {}",
+                    model_dir.display()
+                ));
             }
-            Ok(Parakeet { _ort: ort, _lib: lib, rec, destroy_rec, create_stream, destroy_stream, accept, decode, get_result, destroy_result })
+            Ok(Parakeet {
+                _ort: ort,
+                _lib: lib,
+                rec,
+                destroy_rec,
+                create_stream,
+                destroy_stream,
+                accept,
+                decode,
+                get_result,
+                destroy_result,
+            })
         }
     }
 
@@ -348,7 +491,14 @@ impl Parakeet {
             (self.accept)(stream, 16000, samples.as_ptr(), samples.len() as c_int);
             (self.decode)(self.rec, stream);
             let r = (self.get_result)(stream);
-            let text = if r.is_null() || (*r).text.is_null() { String::new() } else { CStr::from_ptr((*r).text).to_string_lossy().trim().to_string() };
+            let text = if r.is_null() || (*r).text.is_null() {
+                String::new()
+            } else {
+                CStr::from_ptr((*r).text)
+                    .to_string_lossy()
+                    .trim()
+                    .to_string()
+            };
             if !r.is_null() {
                 (self.destroy_result)(r);
             }
@@ -369,8 +519,16 @@ impl Drop for Parakeet {
 unsafe fn load_lib(path: &Path) -> Result<Library> {
     #[cfg(windows)]
     {
-        use libloading::os::windows::{Library as WinLib, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR};
-        Ok(Library::from(WinLib::load_with_flags(path, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS).with_context(|| format!("loading {}", path.display()))?))
+        use libloading::os::windows::{
+            Library as WinLib, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+        };
+        Ok(Library::from(
+            WinLib::load_with_flags(
+                path,
+                LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+            )
+            .with_context(|| format!("loading {}", path.display()))?,
+        ))
     }
     #[cfg(not(windows))]
     {

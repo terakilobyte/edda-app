@@ -28,7 +28,13 @@ pub struct Callout {
 
 impl Callout {
     pub fn new(kind: &'static str, ts: &str, priority: u8, speak: bool, text: String) -> Self {
-        Callout { kind, text, priority, speak, ts: ts.to_string() }
+        Callout {
+            kind,
+            text,
+            priority,
+            speak,
+            ts: ts.to_string(),
+        }
     }
 }
 
@@ -43,7 +49,9 @@ pub fn merge_follow_into_arrival(
     follow_text: String,
     system: &str,
 ) -> Option<String> {
-    let Some(arrival) = arrival else { return Some(follow_text) };
+    let Some(arrival) = arrival else {
+        return Some(follow_text);
+    };
     let instruction = follow_text
         .strip_prefix(&format!("Arrived at {system}."))
         .map(str::trim_start)
@@ -152,29 +160,57 @@ pub fn spoken_credits(n: i64) -> String {
 /// interrupting a fight for; everything else is noise in a RES.
 const RARE_MATERIALS: &[(&str, u8)] = &[
     // Raw, grade 4
-    ("antimony", 4), ("polonium", 4), ("ruthenium", 4), ("technetium", 4),
-    ("tellurium", 4), ("yttrium", 4),
+    ("antimony", 4),
+    ("polonium", 4),
+    ("ruthenium", 4),
+    ("technetium", 4),
+    ("tellurium", 4),
+    ("yttrium", 4),
     // Manufactured, grade 5
-    ("biotechconductors", 5), ("fedcorecomposites", 5), ("exquisitefocuscrystals", 5),
-    ("imperialshielding", 5), ("improvisedcomponents", 5), ("militarygradealloys", 5),
-    ("militarysupercapacitors", 5), ("pharmaceuticalisolators", 5),
-    ("protoheatradiators", 5), ("protolightalloys", 5), ("protoradiolicalloys", 5),
+    ("biotechconductors", 5),
+    ("fedcorecomposites", 5),
+    ("exquisitefocuscrystals", 5),
+    ("imperialshielding", 5),
+    ("improvisedcomponents", 5),
+    ("militarygradealloys", 5),
+    ("militarysupercapacitors", 5),
+    ("pharmaceuticalisolators", 5),
+    ("protoheatradiators", 5),
+    ("protolightalloys", 5),
+    ("protoradiolicalloys", 5),
     // Manufactured, grade 4
-    ("chemicalmanipulators", 4), ("compoundshielding", 4), ("conductivepolymers", 4),
-    ("configurablecomponents", 4), ("heatvanes", 4), ("polymercapacitors", 4),
-    ("fedproprietarycomposites", 4), ("refinedfocuscrystals", 4), ("thermicalloys", 4),
+    ("chemicalmanipulators", 4),
+    ("compoundshielding", 4),
+    ("conductivepolymers", 4),
+    ("configurablecomponents", 4),
+    ("heatvanes", 4),
+    ("polymercapacitors", 4),
+    ("fedproprietarycomposites", 4),
+    ("refinedfocuscrystals", 4),
+    ("thermicalloys", 4),
     // Encoded, grade 5
-    ("adaptiveencryptors", 5), ("dataminedwake", 5), ("classifiedscandata", 5),
-    ("embeddedfirmware", 5), ("shieldfrequencydata", 5), ("compactemissionsdata", 5),
+    ("adaptiveencryptors", 5),
+    ("dataminedwake", 5),
+    ("classifiedscandata", 5),
+    ("embeddedfirmware", 5),
+    ("shieldfrequencydata", 5),
+    ("compactemissionsdata", 5),
     // Encoded, grade 4
-    ("shieldpatternanalysis", 4), ("encryptionarchives", 4), ("decodedemissiondata", 4),
-    ("encodedscandata", 4), ("hyperspacetrajectories", 4), ("securityfirmware", 4),
+    ("shieldpatternanalysis", 4),
+    ("encryptionarchives", 4),
+    ("decodedemissiondata", 4),
+    ("encodedscandata", 4),
+    ("hyperspacetrajectories", 4),
+    ("securityfirmware", 4),
     ("shieldsoundings", 4),
 ];
 
 pub fn material_grade(symbol: &str) -> Option<u8> {
     let key = symbol.to_ascii_lowercase();
-    RARE_MATERIALS.iter().find(|(s, _)| *s == key).map(|(_, g)| *g)
+    RARE_MATERIALS
+        .iter()
+        .find(|(s, _)| *s == key)
+        .map(|(_, g)| *g)
 }
 
 /// Faction states worth mentioning on arrival, with how to say them.
@@ -209,22 +245,49 @@ pub const SIGNALS: &[(&str, &str, &str)] = &[
     ("encoded", "Encoded emissions", "Encoded emissions"),
     ("degraded", "Degraded emissions", "Degraded emissions"),
     ("weapons_fire", "Weapons fire", "Weapons fire"),
-    ("convoy", "Convoy dispersal pattern", "Convoy dispersal pattern"),
+    (
+        "convoy",
+        "Convoy dispersal pattern",
+        "Convoy dispersal pattern",
+    ),
     ("distress", "Distress call", "Distress call"),
-    ("power_convoy", "Power convoy distress signal", "Power Convoy Distress Signal"),
-    ("power_wreckage", "Power wreckage signature", "Power Wreckage Signature"),
-    ("power_weapons", "Power weapons fire signature", "Power Weapons Fire Signature"),
+    (
+        "power_convoy",
+        "Power convoy distress signal",
+        "Power Convoy Distress Signal",
+    ),
+    (
+        "power_wreckage",
+        "Power wreckage signature",
+        "Power Wreckage Signature",
+    ),
+    (
+        "power_weapons",
+        "Power weapons fire signature",
+        "Power Weapons Fire Signature",
+    ),
     ("power_cz", "Power conflict zone", "Power Conflict Zone"),
-    ("nonhuman", "Non-human signal source", "Nonhuman signal source"),
+    (
+        "nonhuman",
+        "Non-human signal source",
+        "Nonhuman signal source",
+    ),
     ("pirates", "Pirate activity", "Pirate Activity Detected"),
-    ("compromised_beacon", "Compromised nav beacon", "Compromised Navigation Beacon"),
+    (
+        "compromised_beacon",
+        "Compromised nav beacon",
+        "Compromised Navigation Beacon",
+    ),
 ];
 
 static WATCH: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
 pub fn set_signal_watch(ids: Vec<String>) {
     let mut w = WATCH.lock().unwrap_or_else(|e| e.into_inner());
-    *w = ids.into_iter().filter(|i| SIGNALS.iter().any(|(id, _, _)| id == i)).collect();
+    *w = ids
+        .into_iter()
+        .filter(|i| SIGNALS.iter().any(|(id, _, _)| id == i))
+        .collect();
     w.sort();
     w.dedup();
 }
@@ -235,10 +298,14 @@ pub fn signal_watch() -> Vec<String> {
 
 /// The watched signal a `FSSSignalDiscovered` event is, if any.
 fn watched_signal(v: &Value) -> Option<&'static (&'static str, &'static str, &'static str)> {
-    let name = s(v, "USSType_Localised").or_else(|| s(v, "SignalName_Localised")).or_else(|| s(v, "SignalName"))?;
+    let name = s(v, "USSType_Localised")
+        .or_else(|| s(v, "SignalName_Localised"))
+        .or_else(|| s(v, "SignalName"))?;
     let lower = name.to_ascii_lowercase();
     let watch = signal_watch();
-    SIGNALS.iter().find(|(id, _, needle)| watch.iter().any(|w| w == id) && lower.starts_with(&needle.to_ascii_lowercase()))
+    SIGNALS.iter().find(|(id, _, needle)| {
+        watch.iter().any(|w| w == id) && lower.starts_with(&needle.to_ascii_lowercase())
+    })
 }
 
 /// "hge", "high grade", "power convoy"... -> the signal entry.
@@ -248,8 +315,39 @@ pub fn signal_by_words(text: &str) -> Option<&'static (&'static str, &'static st
     if t.is_empty() {
         return None;
     }
-    let aliases: &[(&str, &str)] = &[("hge", "hge"), ("high grade", "hge"), ("high-grade", "hge"), ("encoded", "encoded"), ("degraded", "degraded"), ("weapons fire", "weapons_fire"), ("convoy dispersal", "convoy"), ("dispersal", "convoy"), ("distress call", "distress"), ("power convoy", "power_convoy"), ("convoy distress", "power_convoy"), ("wreckage", "power_wreckage"), ("power weapons", "power_weapons"), ("power conflict", "power_cz"), ("power cz", "power_cz"), ("non-human", "nonhuman"), ("nonhuman", "nonhuman"), ("non human", "nonhuman"), ("thargoid", "nonhuman"), ("pirate", "pirates"), ("compromised", "compromised_beacon")];
-    let id = aliases.iter().find(|(a, _)| t.contains(a)).map(|(_, id)| *id).or_else(|| SIGNALS.iter().find(|(_, label, _)| t.contains(&label.to_ascii_lowercase())).map(|(id, _, _)| *id))?;
+    let aliases: &[(&str, &str)] = &[
+        ("hge", "hge"),
+        ("high grade", "hge"),
+        ("high-grade", "hge"),
+        ("encoded", "encoded"),
+        ("degraded", "degraded"),
+        ("weapons fire", "weapons_fire"),
+        ("convoy dispersal", "convoy"),
+        ("dispersal", "convoy"),
+        ("distress call", "distress"),
+        ("power convoy", "power_convoy"),
+        ("convoy distress", "power_convoy"),
+        ("wreckage", "power_wreckage"),
+        ("power weapons", "power_weapons"),
+        ("power conflict", "power_cz"),
+        ("power cz", "power_cz"),
+        ("non-human", "nonhuman"),
+        ("nonhuman", "nonhuman"),
+        ("non human", "nonhuman"),
+        ("thargoid", "nonhuman"),
+        ("pirate", "pirates"),
+        ("compromised", "compromised_beacon"),
+    ];
+    let id = aliases
+        .iter()
+        .find(|(a, _)| t.contains(a))
+        .map(|(_, id)| *id)
+        .or_else(|| {
+            SIGNALS
+                .iter()
+                .find(|(_, label, _)| t.contains(&label.to_ascii_lowercase()))
+                .map(|(id, _, _)| *id)
+        })?;
     SIGNALS.iter().find(|(i, _, _)| *i == id)
 }
 
@@ -264,13 +362,17 @@ pub fn flush_signals(st: &mut CalloutState) -> Vec<Callout> {
     pending
         .into_iter()
         .map(|(label, (count, threat, ts))| {
-            let threat = if threat > 0 { {
+            let threat = if threat > 0 {
+                {
                     if count == 1 {
                         format!(", threat {threat}")
                     } else {
                         format!(", threat up to {threat}")
                     }
-                } } else { Default::default() };
+                }
+            } else {
+                Default::default()
+            };
             let text = if count == 1 {
                 format!("{label} on sensors{threat}.")
             } else {
@@ -308,7 +410,10 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 );
                 if st.seen_signals.insert(key) {
                     let threat = v.get("ThreatLevel").and_then(Value::as_i64).unwrap_or(0);
-                    let entry = st.pending_signals.entry(label).or_insert((0, 0, String::new()));
+                    let entry = st
+                        .pending_signals
+                        .entry(label)
+                        .or_insert((0, 0, String::new()));
                     entry.0 += 1;
                     entry.1 = entry.1.max(threat);
                     entry.2 = ts.to_string();
@@ -319,7 +424,9 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             st.commander = s(v, "Name").map(str::to_string);
         }
         "LoadGame" => {
-            st.commander = s(v, "Commander").map(str::to_string).or(st.commander.take());
+            st.commander = s(v, "Commander")
+                .map(str::to_string)
+                .or(st.commander.take());
             st.ship = loc(v, "Ship").map(ed_journal::ships::display_name);
             st.ship_id = i(v, "ShipID").or(st.ship_id);
             st.fuel_capacity = f(v, "FuelCapacity");
@@ -345,12 +452,21 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             let id = i(v, "ShipID");
             if let (Some(new), Some(old)) = (id, st.ship_id) {
                 if new != old {
-                    let name = s(v, "ShipName").map(str::trim).filter(|n| !n.is_empty()).map(str::to_string);
+                    let name = s(v, "ShipName")
+                        .map(str::trim)
+                        .filter(|n| !n.is_empty())
+                        .map(str::to_string);
                     let hull = st.ship.clone().unwrap_or_else(|| "a new ship".into());
-                    out.push(Callout::new("ship", ts, 1, true, match name {
-                        Some(n) => format!("Now flying {n}, the {hull}."),
-                        None => format!("Now flying the {hull}."),
-                    }));
+                    out.push(Callout::new(
+                        "ship",
+                        ts,
+                        1,
+                        true,
+                        match name {
+                            Some(n) => format!("Now flying {n}, the {hull}."),
+                            None => format!("Now flying the {hull}."),
+                        },
+                    ));
                 }
             }
             if id.is_some() {
@@ -360,8 +476,17 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         "USSDrop" => {
             // The moment the game is sure to log a signal source: arrival.
             if let Some((_, label, _)) = watched_signal(v) {
-                let threat = i(v, "USSThreat").filter(|&t| t > 0).map(|t| format!(", threat {t}")).unwrap_or_default();
-                out.push(Callout::new("signal", ts, 2, true, format!("Dropped into a {}{threat}.", label.to_ascii_lowercase())));
+                let threat = i(v, "USSThreat")
+                    .filter(|&t| t > 0)
+                    .map(|t| format!(", threat {t}"))
+                    .unwrap_or_default();
+                out.push(Callout::new(
+                    "signal",
+                    ts,
+                    2,
+                    true,
+                    format!("Dropped into a {}{threat}.", label.to_ascii_lowercase()),
+                ));
             }
         }
         "FSDTarget" => {
@@ -385,7 +510,9 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     if let Some(frac) = match (st.fuel_main, st.fuel_capacity) {
                         (Some(main), Some(cap)) if cap > 0.0 => Some(main / cap),
                         _ => None,
-                    }.filter(|x| *x < 0.35) {
+                    }
+                    .filter(|x| *x < 0.35)
+                    {
                         st.target_fuel_warned = true;
                         out.push(Callout::new("fuel", ts, 2, true, format!("Caution: {} is not scoopable and fuel is at {:.0} percent. Check the return jump or choose a fuel stop first.", s(v, "Name").unwrap_or("the targeted system"), frac * 100.0)));
                     }
@@ -433,9 +560,7 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         // Fuel moving from main tank to reservoir: the strand guard's
         // burn-rate signal. No callout of its own.
         "ReservoirReplenished" => {
-            if let (Some(epoch), Some(fuel)) =
-                (crate::trap::epoch_secs(ts), f(v, "FuelMain"))
-            {
+            if let (Some(epoch), Some(fuel)) = (crate::trap::epoch_secs(ts), f(v, "FuelMain")) {
                 st.sco_burn.observe(epoch, fuel);
             }
         }
@@ -447,10 +572,23 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             let mut parts = vec![format!("Arrived in {system}.")];
             if let Some(power) = s(v, "ControllingPower") {
                 let state = s(v, "PowerplayState").unwrap_or("");
-                parts.push(format!("{power}{}.", if state.is_empty() { String::new() } else { format!(", {}", state.to_lowercase()) }));
+                parts.push(format!(
+                    "{power}{}.",
+                    if state.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", {}", state.to_lowercase())
+                    }
+                ));
                 // Pledged to someone else: their security treats you as hostile.
-                if st.pledged.as_deref().is_some_and(|p| !p.eq_ignore_ascii_case(power)) {
-                    parts.push("Opposing power territory: expect their security to be hostile.".into());
+                if st
+                    .pledged
+                    .as_deref()
+                    .is_some_and(|p| !p.eq_ignore_ascii_case(power))
+                {
+                    parts.push(
+                        "Opposing power territory: expect their security to be hostile.".into(),
+                    );
                 }
             }
             let mut states: Vec<&'static str> = Vec::new();
@@ -483,7 +621,13 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 parts.push("Unpopulated.".into());
             }
             let notable = !states.is_empty() || v.get("ControllingPower").is_some();
-            out.push(Callout::new("arrival", ts, if notable { 1 } else { 0 }, true, parts.join(" ")));
+            out.push(Callout::new(
+                "arrival",
+                ts,
+                if notable { 1 } else { 0 },
+                true,
+                parts.join(" "),
+            ));
             if let Some(fuel) = f(v, "FuelLevel") {
                 st.fuel_main = Some(fuel);
             }
@@ -502,7 +646,13 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         "FSSAllBodiesFound" => {
             let address = v.get("SystemAddress").and_then(Value::as_u64).unwrap_or(0);
             if st.all_bodies_said.insert(address) {
-                out.push(Callout::new("scan", ts, 0, false, "All bodies found".into()));
+                out.push(Callout::new(
+                    "scan",
+                    ts,
+                    0,
+                    false,
+                    "All bodies found".into(),
+                ));
             }
         }
         "Scan" => {
@@ -523,8 +673,10 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     .chars()
                     .next()
                     .is_some_and(|c| "aeiou".contains(c.to_ascii_lowercase()));
-                let mut text =
-                    format!("Valuable scan: {body} is a{} {what}", if vowel { "n" } else { "" });
+                let mut text = format!(
+                    "Valuable scan: {body} is a{} {what}",
+                    if vowel { "n" } else { "" }
+                );
                 if terraformable {
                     text.push_str(", terraformable");
                 }
@@ -554,7 +706,9 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         }
         "ShipTargeted" if i(v, "ScanStage") == Some(3) => {
             if let Some(bounty) = i(v, "Bounty").filter(|b| *b > 0) {
-                let ship = loc(v, "Ship").map(ed_journal::ships::display_name).unwrap_or_else(|| "target".to_string());
+                let ship = loc(v, "Ship")
+                    .map(ed_journal::ships::display_name)
+                    .unwrap_or_else(|| "target".to_string());
                 out.push(Callout::new(
                     "target",
                     ts,
@@ -591,7 +745,10 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 ts,
                 1,
                 true,
-                format!("Commander {} destroyed.", s(v, "Victim").unwrap_or("unknown")),
+                format!(
+                    "Commander {} destroyed.",
+                    s(v, "Victim").unwrap_or("unknown")
+                ),
             ));
         }
         "MaterialCollected" => {
@@ -606,7 +763,11 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     true,
                     format!(
                         "Grade {grade} material: {name}{}.",
-                        if count > 1 { format!(", {count}") } else { String::new() }
+                        if count > 1 {
+                            format!(", {count}")
+                        } else {
+                            String::new()
+                        }
                     ),
                 ));
             }
@@ -619,7 +780,10 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 ts,
                 3,
                 true,
-                format!("Interdicted by {who}{}.", if player { ", a player" } else { "" }),
+                format!(
+                    "Interdicted by {who}{}.",
+                    if player { ", a player" } else { "" }
+                ),
             ));
         }
         // Someone scanned us. The journal never says who, only what kind of
@@ -627,11 +791,24 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         "Scanned" => {
             let kind = s(v, "ScanType").unwrap_or("").to_ascii_lowercase();
             let (text, prio) = match kind.as_str() {
-                "cargo" => ("Cargo scan detected. Someone is sizing up your hold.".to_string(), 2),
+                "cargo" => (
+                    "Cargo scan detected. Someone is sizing up your hold.".to_string(),
+                    2,
+                ),
                 "crime" => ("Being scanned for wanted status.".to_string(), 1),
                 "cabin" => ("Cabin scan detected.".to_string(), 1),
                 "data" => ("Data scan detected.".to_string(), 1),
-                other => (format!("Scan detected{}.", if other.is_empty() { String::new() } else { format!(": {other}") }), 1),
+                other => (
+                    format!(
+                        "Scan detected{}.",
+                        if other.is_empty() {
+                            String::new()
+                        } else {
+                            format!(": {other}")
+                        }
+                    ),
+                    1,
+                ),
             };
             out.push(Callout::new("danger", ts, prio, true, text));
         }
@@ -641,9 +818,17 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             }
         }
         "EscapeInterdiction" => {
-            out.push(Callout::new("danger", ts, 1, true, "Interdiction evaded.".into()));
+            out.push(Callout::new(
+                "danger",
+                ts,
+                1,
+                true,
+                "Interdiction evaded.".into(),
+            ));
         }
-        "HullDamage" if b(v, "PlayerPilot").unwrap_or(true) && !b(v, "Fighter").unwrap_or(false) => {
+        "HullDamage"
+            if b(v, "PlayerPilot").unwrap_or(true) && !b(v, "Fighter").unwrap_or(false) =>
+        {
             if let Some(h) = f(v, "Health") {
                 let pct = (h * 100.0).round() as i64;
                 if pct <= 50 {
@@ -666,7 +851,11 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     ts,
                     if up { 1 } else { 2 },
                     true,
-                    if up { "Shields restored.".into() } else { "Shields down.".into() },
+                    if up {
+                        "Shields restored.".into()
+                    } else {
+                        "Shields down.".into()
+                    },
                 ));
             }
         }
@@ -674,7 +863,13 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             out.push(Callout::new("danger", ts, 2, true, "Heat warning.".into()));
         }
         "Died" => {
-            out.push(Callout::new("danger", ts, 3, true, "Ship destroyed.".into()));
+            out.push(Callout::new(
+                "danger",
+                ts,
+                3,
+                true,
+                "Ship destroyed.".into(),
+            ));
         }
         "DockingGranted" => {
             out.push(Callout::new(
@@ -691,14 +886,19 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 ts,
                 2,
                 true,
-                format!("Docking denied: {}.", s(v, "Reason").unwrap_or("unknown reason")),
+                format!(
+                    "Docking denied: {}.",
+                    s(v, "Reason").unwrap_or("unknown reason")
+                ),
             ));
         }
         // Item 52 A: the carrier. A jump is plannable (DepartureTime runs
         // ~30 min ahead, census 2026-09-06), so say the countdown; the
         // location heartbeat speaks only when the carrier actually moved.
         "CarrierJumpRequest" => {
-            let system = s(v, "SystemName").unwrap_or("an unknown system").to_string();
+            let system = s(v, "SystemName")
+                .unwrap_or("an unknown system")
+                .to_string();
             let minutes = s(v, "DepartureTime")
                 .and_then(|d| chrono::DateTime::parse_from_rfc3339(d).ok())
                 .zip(chrono::DateTime::parse_from_rfc3339(ts).ok())
@@ -707,25 +907,56 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 Some(m) => format!("departure in {m} minutes"),
                 None => "departure time unknown".to_string(),
             };
-            out.push(Callout::new("carrier", ts, 1, true, format!("Carrier jump to {system} scheduled, {when}.")));
+            out.push(Callout::new(
+                "carrier",
+                ts,
+                1,
+                true,
+                format!("Carrier jump to {system} scheduled, {when}."),
+            ));
         }
         "CarrierJumpCancelled" => {
-            out.push(Callout::new("carrier", ts, 1, true, "Carrier jump cancelled.".into()));
+            out.push(Callout::new(
+                "carrier",
+                ts,
+                1,
+                true,
+                "Carrier jump cancelled.".into(),
+            ));
         }
         "CarrierJump" => {
-            let system = s(v, "StarSystem").unwrap_or("an unknown system").to_string();
-            let id = v.get("CarrierID").or_else(|| v.get("MarketID")).and_then(serde_json::Value::as_i64).unwrap_or(0);
+            let system = s(v, "StarSystem")
+                .unwrap_or("an unknown system")
+                .to_string();
+            let id = v
+                .get("CarrierID")
+                .or_else(|| v.get("MarketID"))
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
             st.carrier_systems.insert(id, system.clone());
-            out.push(Callout::new("carrier", ts, 1, true, format!("Carrier arrived at {system}.")));
+            out.push(Callout::new(
+                "carrier",
+                ts,
+                1,
+                true,
+                format!("Carrier arrived at {system}."),
+            ));
         }
         "CarrierLocation" => {
             let system = s(v, "StarSystem").map(str::to_string);
-            let id = v.get("CarrierID").and_then(serde_json::Value::as_i64).unwrap_or(0);
+            let id = v
+                .get("CarrierID")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
             let squadron = s(v, "CarrierType") == Some("SquadronCarrier");
             let moved = matches!((st.carrier_systems.get(&id), &system), (Some(prev), Some(now)) if prev != now);
             if moved {
                 let now = system.clone().unwrap_or_default();
-                let line = if squadron { format!("Squadron carrier is at {now}.") } else { format!("Your carrier is at {now}.") };
+                let line = if squadron {
+                    format!("Squadron carrier is at {now}.")
+                } else {
+                    format!("Your carrier is at {now}.")
+                };
                 out.push(Callout::new("carrier", ts, 1, true, line));
             }
             if let Some(system) = system {
@@ -788,7 +1019,9 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             ));
         }
         "MissionAccepted" => {
-            let title = s(v, "LocalisedName").or_else(|| s(v, "Name")).unwrap_or("mission");
+            let title = s(v, "LocalisedName")
+                .or_else(|| s(v, "Name"))
+                .unwrap_or("mission");
             let mut text = format!("Mission accepted: {title}.");
             if let Some(dest) = s(v, "DestinationSystem") {
                 text.push_str(&format!(" Destination {dest}."));
@@ -796,7 +1029,9 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             out.push(Callout::new("mission", ts, 1, true, text));
         }
         "MissionRedirected" => {
-            let title = s(v, "LocalisedName").or_else(|| s(v, "Name")).unwrap_or("mission");
+            let title = s(v, "LocalisedName")
+                .or_else(|| s(v, "Name"))
+                .unwrap_or("mission");
             let station = s(v, "NewDestinationStation").unwrap_or("the hand-in");
             let system = s(v, "NewDestinationSystem").unwrap_or("");
             out.push(Callout::new(
@@ -806,13 +1041,25 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 true,
                 format!(
                     "Objective complete: {title}. Return to {station}{}.",
-                    if system.is_empty() { String::new() } else { format!(" in {system}") }
+                    if system.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" in {system}")
+                    }
                 ),
             ));
         }
         "MissionFailed" => {
-            let title = s(v, "LocalisedName").or_else(|| s(v, "Name")).unwrap_or("mission");
-            out.push(Callout::new("mission", ts, 2, true, format!("Mission failed: {title}.")));
+            let title = s(v, "LocalisedName")
+                .or_else(|| s(v, "Name"))
+                .unwrap_or("mission");
+            out.push(Callout::new(
+                "mission",
+                ts,
+                2,
+                true,
+                format!("Mission failed: {title}."),
+            ));
         }
         "MissionCompleted" => {
             let reward = i(v, "Reward").unwrap_or(0);
@@ -862,7 +1109,13 @@ pub fn from_status(status: &Value, st: &mut CalloutState) -> Vec<Callout> {
 
     let danger = flags & IN_DANGER != 0;
     if danger && !st.in_danger {
-        out.push(Callout::new("danger", ts, 1, false, "Danger flag: hostile contacts nearby".into()));
+        out.push(Callout::new(
+            "danger",
+            ts,
+            1,
+            false,
+            "Danger flag: hostile contacts nearby".into(),
+        ));
     }
     st.in_danger = danger;
 
@@ -881,32 +1134,54 @@ mod tests {
         let out = super::from_event(&req, &mut st);
         assert_eq!(out.len(), 1);
         assert_eq!((out[0].kind, out[0].speak), ("carrier", true));
-        assert!(out[0].text.contains("Beta") && out[0].text.contains("30 minutes"), "{}", out[0].text);
+        assert!(
+            out[0].text.contains("Beta") && out[0].text.contains("30 minutes"),
+            "{}",
+            out[0].text
+        );
 
         let cancel = serde_json::json!({"timestamp":"2026-01-15T22:30:00Z","event":"CarrierJumpCancelled","CarrierType":"FleetCarrier","CarrierID":1});
-        assert_eq!(super::from_event(&cancel, &mut st)[0].text, "Carrier jump cancelled.");
+        assert_eq!(
+            super::from_event(&cancel, &mut st)[0].text,
+            "Carrier jump cancelled."
+        );
 
         // Startup heartbeat: first sighting is silent.
         let loc = |sys: &str| serde_json::json!({"timestamp":"2026-01-16T01:00:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":1,"StarSystem":sys,"SystemAddress":33,"BodyID":0});
         assert!(super::from_event(&loc("Alpha"), &mut st).is_empty());
-        assert!(super::from_event(&loc("Alpha"), &mut st).is_empty(), "same place, nothing to say");
+        assert!(
+            super::from_event(&loc("Alpha"), &mut st).is_empty(),
+            "same place, nothing to say"
+        );
         let moved = super::from_event(&loc("Gamma"), &mut st);
         assert_eq!(moved.len(), 1);
         assert!(moved[0].text.contains("Gamma"));
 
         let jump = serde_json::json!({"timestamp":"2026-01-15T22:58:00Z","event":"CarrierJump","Docked":true,"StationName":"K3X-9ZQ","StationType":"FleetCarrier","MarketID":1,"StarSystem":"Beta","SystemAddress":22,"Body":"Beta 1","BodyID":1});
         let arrived = super::from_event(&jump, &mut st);
-        assert!(arrived.iter().any(|c| c.kind == "carrier" && c.text.contains("arrived at Beta")));
+        assert!(arrived
+            .iter()
+            .any(|c| c.kind == "carrier" && c.text.contains("arrived at Beta")));
         assert_eq!(st.carrier_systems.get(&1).map(String::as_str), Some("Beta"));
         // A squadron carrier's heartbeat is its own: it neither moves
         // "your" carrier nor speaks as it (2026-09-09: "Your carrier is
         // at Outordy" was the squadron's).
         let squad = |sys: &str| serde_json::json!({"timestamp":"2026-01-16T01:05:00Z","event":"CarrierLocation","CarrierType":"SquadronCarrier","CarrierID":2,"StarSystem":sys,"SystemAddress":44,"BodyID":0});
-        assert!(super::from_event(&squad("Outordy"), &mut st).is_empty(), "first sighting of the squadron carrier is silent");
-        assert!(super::from_event(&loc("Beta"), &mut st).is_empty(), "your carrier has not moved");
+        assert!(
+            super::from_event(&squad("Outordy"), &mut st).is_empty(),
+            "first sighting of the squadron carrier is silent"
+        );
+        assert!(
+            super::from_event(&loc("Beta"), &mut st).is_empty(),
+            "your carrier has not moved"
+        );
         let squad_moved = super::from_event(&squad("Elsewhere"), &mut st);
         assert_eq!(squad_moved.len(), 1);
-        assert!(squad_moved[0].text.starts_with("Squadron carrier is at"), "{}", squad_moved[0].text);
+        assert!(
+            squad_moved[0].text.starts_with("Squadron carrier is at"),
+            "{}",
+            squad_moved[0].text
+        );
     }
 
     /// The 2026-09-04 flight transcript: "All bodies found" fired 3-5
@@ -932,7 +1207,10 @@ mod tests {
             })
         };
         for index in 0..30 {
-            assert!(from_event(&event(500, index), &mut st).is_empty(), "instances accumulate silently");
+            assert!(
+                from_event(&event(500, index), &mut st).is_empty(),
+                "instances accumulate silently"
+            );
         }
         let flushed = flush_signals(&mut st);
         assert_eq!(flushed.len(), 1);
@@ -941,7 +1219,10 @@ mod tests {
         for index in 0..30 {
             let _ = from_event(&event(500, index), &mut st);
         }
-        assert!(flush_signals(&mut st).is_empty(), "a re-honk repeats nothing");
+        assert!(
+            flush_signals(&mut st).is_empty(),
+            "a re-honk repeats nothing"
+        );
         // One new instance in another system: the classic single phrasing.
         let _ = from_event(&event(501, 0), &mut st);
         let flushed = flush_signals(&mut st);
@@ -956,7 +1237,10 @@ mod tests {
     /// against the corrected capacity still announces, once.
     #[test]
     fn scooping_past_a_stale_capacity_corrects_it_instead_of_announcing_full() {
-        let mut st = CalloutState { fuel_capacity: Some(32.0), ..CalloutState::default() };
+        let mut st = CalloutState {
+            fuel_capacity: Some(32.0),
+            ..CalloutState::default()
+        };
         let scoop = |total: f64| {
             serde_json::json!({
                 "timestamp": "2026-09-05T14:26:54Z",
@@ -976,29 +1260,49 @@ mod tests {
         let full = from_event(&scoop(127.0), &mut st);
         assert_eq!(full.len(), 1);
         assert_eq!(full[0].text, "Fuel tank full.");
-        assert!(from_event(&scoop(127.5), &mut st).is_empty(), "said once until the next jump");
+        assert!(
+            from_event(&scoop(127.5), &mut st).is_empty(),
+            "said once until the next jump"
+        );
     }
 
     #[test]
     fn all_bodies_found_announces_once_per_system() {
         let mut st = CalloutState::default();
-        let event = |address: u64| serde_json::json!({
-            "timestamp": "2026-09-04T13:39:10Z",
-            "event": "FSSAllBodiesFound",
-            "SystemName": "Wongi",
-            "SystemAddress": address,
-            "Count": 7,
-        });
+        let event = |address: u64| {
+            serde_json::json!({
+                "timestamp": "2026-09-04T13:39:10Z",
+                "event": "FSSAllBodiesFound",
+                "SystemName": "Wongi",
+                "SystemAddress": address,
+                "Count": 7,
+            })
+        };
         let first = from_event(&event(631135993203u64), &mut st);
-        assert_eq!(first.iter().filter(|c| c.text == "All bodies found").count(), 1);
+        assert_eq!(
+            first
+                .iter()
+                .filter(|c| c.text == "All bodies found")
+                .count(),
+            1
+        );
         // The transcript's same-millisecond triple: two more of the same.
         for _ in 0..2 {
             let dup = from_event(&event(631135993203u64), &mut st);
-            assert!(dup.iter().all(|c| c.text != "All bodies found"), "duplicate announced");
+            assert!(
+                dup.iter().all(|c| c.text != "All bodies found"),
+                "duplicate announced"
+            );
         }
         // A different system announces again.
         let other = from_event(&event(999u64), &mut st);
-        assert_eq!(other.iter().filter(|c| c.text == "All bodies found").count(), 1);
+        assert_eq!(
+            other
+                .iter()
+                .filter(|c| c.text == "All bodies found")
+                .count(),
+            1
+        );
     }
 
     use super::*;
@@ -1010,7 +1314,13 @@ mod tests {
     }
 
     fn arrival(text: &str) -> Callout {
-        Callout { kind: "arrival", text: text.into(), priority: 1, speak: true, ts: "t".into() }
+        Callout {
+            kind: "arrival",
+            text: text.into(),
+            priority: 1,
+            speak: true,
+            ts: "t".into(),
+        }
     }
 
     /// One utterance per jump while following: the "what's next" line joins
@@ -1018,9 +1328,13 @@ mod tests {
     #[test]
     fn follow_instruction_joins_the_arrival_callout() {
         let mut a = arrival("Wongi. Fuel stop, scoop here.");
-        let leftover = merge_follow_into_arrival(Some(&mut a), "1 jump left. Next: Diso.".into(), "Wongi");
+        let leftover =
+            merge_follow_into_arrival(Some(&mut a), "1 jump left. Next: Diso.".into(), "Wongi");
         assert_eq!(leftover, None, "merged, so no standalone follow callout");
-        assert_eq!(a.text, "Wongi. Fuel stop, scoop here. 1 jump left. Next: Diso.");
+        assert_eq!(
+            a.text,
+            "Wongi. Fuel stop, scoop here. 1 jump left. Next: Diso."
+        );
     }
 
     /// On the final hop the arrival already named the system; the follow
@@ -1028,7 +1342,11 @@ mod tests {
     #[test]
     fn route_completion_does_not_repeat_the_system_name() {
         let mut a = arrival("Wongi. Fuel stop, scoop here.");
-        let leftover = merge_follow_into_arrival(Some(&mut a), "Arrived at Wongi. Route complete.".into(), "Wongi");
+        let leftover = merge_follow_into_arrival(
+            Some(&mut a),
+            "Arrived at Wongi. Route complete.".into(),
+            "Wongi",
+        );
         assert_eq!(leftover, None);
         assert_eq!(a.text, "Wongi. Fuel stop, scoop here. Route complete.");
     }
@@ -1062,7 +1380,8 @@ mod tests {
 
     #[test]
     fn a_plain_arrival_is_still_announced_but_quietly() {
-        let c = ev(json!({"timestamp":"t","event":"FSDJump","StarSystem":"Nowhere","Population":0}));
+        let c =
+            ev(json!({"timestamp":"t","event":"FSDJump","StarSystem":"Nowhere","Population":0}));
         assert_eq!(c[0].text, "Arrived in Nowhere. Unpopulated.");
         assert_eq!(c[0].priority, 0);
     }
@@ -1073,13 +1392,20 @@ mod tests {
             "timestamp":"t","event":"Scan","BodyName":"Wongi 2","PlanetClass":"Water world",
             "TerraformState":"Terraformable","WasDiscovered":false
         }));
-        assert_eq!(c[0].text, "Valuable scan: Wongi 2 is a water world, terraformable, undiscovered.");
+        assert_eq!(
+            c[0].text,
+            "Valuable scan: Wongi 2 is a water world, terraformable, undiscovered."
+        );
         assert!(c[0].speak);
         assert!(!c[0].text.contains("credits"));
-        let elw = ev(json!({"timestamp":"t","event":"Scan","BodyName":"X","PlanetClass":"Earthlike body"}));
+        let elw = ev(
+            json!({"timestamp":"t","event":"Scan","BodyName":"X","PlanetClass":"Earthlike body"}),
+        );
         assert_eq!(elw[0].text, "Valuable scan: X is an Earth-like world.");
         // A rocky body nobody has seen is noted, not spoken.
-        let rock = ev(json!({"timestamp":"t","event":"Scan","BodyName":"Y","PlanetClass":"Rocky body","WasDiscovered":false}));
+        let rock = ev(
+            json!({"timestamp":"t","event":"Scan","BodyName":"Y","PlanetClass":"Rocky body","WasDiscovered":false}),
+        );
         assert!(!rock[0].speak);
         // A rocky body everyone has seen says nothing.
         assert!(ev(json!({"timestamp":"t","event":"Scan","BodyName":"Z","PlanetClass":"Rocky body","WasDiscovered":true})).is_empty());
@@ -1087,11 +1413,15 @@ mod tests {
 
     #[test]
     fn kills_speak_the_bounty_and_rare_drops_are_flagged_by_grade() {
-        let c = ev(json!({"timestamp":"t","event":"Bounty","Target":"anaconda","Target_Localised":"Anaconda","TotalReward":1_621_122}));
+        let c = ev(
+            json!({"timestamp":"t","event":"Bounty","Target":"anaconda","Target_Localised":"Anaconda","TotalReward":1_621_122}),
+        );
         assert_eq!(c[0].text, "Anaconda destroyed. Bounty 1.6 million credits.");
         assert_eq!(c[0].priority, 1);
 
-        let m = ev(json!({"timestamp":"t","event":"MaterialCollected","Category":"Manufactured","Name":"protolightalloys","Name_Localised":"Proto Light Alloys","Count":3}));
+        let m = ev(
+            json!({"timestamp":"t","event":"MaterialCollected","Category":"Manufactured","Name":"protolightalloys","Name_Localised":"Proto Light Alloys","Count":3}),
+        );
         assert_eq!(m[0].text, "Grade 5 material: Proto Light Alloys, 3.");
         assert!(m[0].speak);
         // Common drops stay silent.
@@ -1100,23 +1430,56 @@ mod tests {
 
     #[test]
     fn unscoopable_star_warns_only_when_fuel_is_actually_low() {
-        let mut st = CalloutState { fuel_capacity: Some(32.0), fuel_main: Some(8.0), ..Default::default() };
-        let c = from_event(&json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}), &mut st);
-        assert_eq!(c[0].text, "Warning: L class star ahead, not scoopable. Fuel at 25 percent.");
+        let mut st = CalloutState {
+            fuel_capacity: Some(32.0),
+            fuel_main: Some(8.0),
+            ..Default::default()
+        };
+        let c = from_event(
+            &json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}),
+            &mut st,
+        );
+        assert_eq!(
+            c[0].text,
+            "Warning: L class star ahead, not scoopable. Fuel at 25 percent."
+        );
         st.fuel_main = Some(30.0);
-        assert!(from_event(&json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}), &mut st).is_empty());
+        assert!(from_event(
+            &json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}),
+            &mut st
+        )
+        .is_empty());
         // Scoopable star, low fuel: no warning either -- you can refuel there.
         st.fuel_main = Some(8.0);
-        assert!(from_event(&json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"K"}), &mut st).is_empty());
+        assert!(from_event(
+            &json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"K"}),
+            &mut st
+        )
+        .is_empty());
     }
 
     #[test]
     fn risky_target_warns_before_jump_and_does_not_repeat() {
-        let mut st = CalloutState { fuel_capacity: Some(32.0), fuel_main: Some(8.0), ..Default::default() };
-        let c = from_event(&json!({"timestamp":"t","event":"FSDTarget","Name":"Dry Rock","StarClass":"L","RemainingJumpsInRoute":1}), &mut st);
-        assert!(c.iter().any(|x| x.speak && x.text.contains("Dry Rock is not scoopable")));
-        let start = from_event(&json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}), &mut st);
-        assert!(!start.iter().any(|x| x.kind == "fuel"), "target warning must not repeat at charge");
+        let mut st = CalloutState {
+            fuel_capacity: Some(32.0),
+            fuel_main: Some(8.0),
+            ..Default::default()
+        };
+        let c = from_event(
+            &json!({"timestamp":"t","event":"FSDTarget","Name":"Dry Rock","StarClass":"L","RemainingJumpsInRoute":1}),
+            &mut st,
+        );
+        assert!(c
+            .iter()
+            .any(|x| x.speak && x.text.contains("Dry Rock is not scoopable")));
+        let start = from_event(
+            &json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"L"}),
+            &mut st,
+        );
+        assert!(
+            !start.iter().any(|x| x.kind == "fuel"),
+            "target warning must not repeat at charge"
+        );
     }
 
     /// "AeBe" and "MS" start with scoopable letters but are a Herbig
@@ -1125,36 +1488,74 @@ mod tests {
     #[test]
     fn aebe_and_ms_are_not_scoopable_anywhere() {
         for class in ["AeBe", "MS", "TTS"] {
-            let mut st = CalloutState { fuel_capacity: Some(32.0), fuel_main: Some(8.0), ..Default::default() };
-            let c = from_event(&json!({"timestamp":"t","event":"FSDTarget","Name":"Dry Rock","StarClass":class,"RemainingJumpsInRoute":1}), &mut st);
-            assert!(c.iter().any(|x| x.text.contains("not scoopable")), "{class}: {c:?}");
-            let mut st = CalloutState { fuel_capacity: Some(32.0), fuel_main: Some(8.0), ..Default::default() };
-            let c = from_event(&json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":class}), &mut st);
+            let mut st = CalloutState {
+                fuel_capacity: Some(32.0),
+                fuel_main: Some(8.0),
+                ..Default::default()
+            };
+            let c = from_event(
+                &json!({"timestamp":"t","event":"FSDTarget","Name":"Dry Rock","StarClass":class,"RemainingJumpsInRoute":1}),
+                &mut st,
+            );
+            assert!(
+                c.iter().any(|x| x.text.contains("not scoopable")),
+                "{class}: {c:?}"
+            );
+            let mut st = CalloutState {
+                fuel_capacity: Some(32.0),
+                fuel_main: Some(8.0),
+                ..Default::default()
+            };
+            let c = from_event(
+                &json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":class}),
+                &mut st,
+            );
             assert!(c.iter().any(|x| x.kind == "fuel"), "{class}: {c:?}");
         }
     }
 
     #[test]
     fn supermassive_black_hole_is_a_hazard_at_jump() {
-        let c = ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"SupermassiveBlackHole"}));
-        assert!(c.iter().any(|x| x.kind == "hazard" && x.text.contains("black hole")), "{c:?}");
+        let c = ev(
+            json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"SupermassiveBlackHole"}),
+        );
+        assert!(
+            c.iter()
+                .any(|x| x.kind == "hazard" && x.text.contains("black hole")),
+            "{c:?}"
+        );
     }
 
     #[test]
     fn hazardous_arrivals_are_called_regardless_of_fuel() {
-        let c = ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"N"}));
-        assert_eq!(c[0].text, "Caution: jumping to a neutron star. Throttle down on arrival.");
-        let d = ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"DA"}));
+        let c = ev(
+            json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"N"}),
+        );
+        assert_eq!(
+            c[0].text,
+            "Caution: jumping to a neutron star. Throttle down on arrival."
+        );
+        let d = ev(
+            json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"DA"}),
+        );
         assert!(d[0].text.contains("white dwarf"));
-        assert!(ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"G"})).is_empty());
+        assert!(ev(
+            json!({"timestamp":"t","event":"StartJump","JumpType":"Hyperspace","StarClass":"G"})
+        )
+        .is_empty());
         // Supercruise "jumps" are not hyperspace jumps.
-        assert!(ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Supercruise"})).is_empty());
+        assert!(
+            ev(json!({"timestamp":"t","event":"StartJump","JumpType":"Supercruise"})).is_empty()
+        );
     }
 
     #[test]
     fn scans_and_attacks_on_us_are_spoken() {
         let c = ev(json!({"timestamp":"t","event":"Scanned","ScanType":"Cargo"}));
-        assert_eq!(c[0].text, "Cargo scan detected. Someone is sizing up your hold.");
+        assert_eq!(
+            c[0].text,
+            "Cargo scan detected. Someone is sizing up your hold."
+        );
         assert!(c[0].speak && c[0].priority == 2);
         let a = ev(json!({"timestamp":"t","event":"UnderAttack","Target":"You"}));
         assert_eq!((a[0].text.as_str(), a[0].priority), ("Under attack.", 3));
@@ -1167,19 +1568,35 @@ mod tests {
         let mut st = CalloutState::default();
         let low = json!({"timestamp":"t","Flags": 1<<19, "Fuel": {"FuelMain": 5.0}});
         assert_eq!(from_status(&low, &mut st).len(), 1);
-        assert!(from_status(&low, &mut st).is_empty(), "same state again must not repeat");
+        assert!(
+            from_status(&low, &mut st).is_empty(),
+            "same state again must not repeat"
+        );
         let ok = json!({"timestamp":"t","Flags": 0});
         assert!(from_status(&ok, &mut st).is_empty());
-        assert_eq!(from_status(&low, &mut st).len(), 1, "fires again after recovering");
+        assert_eq!(
+            from_status(&low, &mut st).len(),
+            1,
+            "fires again after recovering"
+        );
         assert_eq!(st.fuel_main, Some(5.0));
     }
 
     #[test]
     fn greeting_uses_ship_name_over_hull_and_never_says_commander_twice() {
-        let c = ev(json!({"timestamp":"t","event":"LoadGame","Commander":"Jameson","Ship":"Krait_MkII","Ship_Localised":"Krait Mk II","ShipName":"Kestrel","FuelCapacity":32.0,"FuelLevel":20.0}));
-        assert_eq!(c[0].text, "Welcome back, Commander Jameson. Kestrel systems online.");
-        let anon = ev(json!({"timestamp":"t","event":"LoadGame","Ship":"sidewinder","ShipName":""}));
-        assert_eq!(anon[0].text, "Welcome back, Commander. Sidewinder systems online.");
+        let c = ev(
+            json!({"timestamp":"t","event":"LoadGame","Commander":"Jameson","Ship":"Krait_MkII","Ship_Localised":"Krait Mk II","ShipName":"Kestrel","FuelCapacity":32.0,"FuelLevel":20.0}),
+        );
+        assert_eq!(
+            c[0].text,
+            "Welcome back, Commander Jameson. Kestrel systems online."
+        );
+        let anon =
+            ev(json!({"timestamp":"t","event":"LoadGame","Ship":"sidewinder","ShipName":""}));
+        assert_eq!(
+            anon[0].text,
+            "Welcome back, Commander. Sidewinder systems online."
+        );
     }
 
     #[test]

@@ -67,10 +67,16 @@ impl SnapshotWriter {
     pub fn create(path: &Path, header: SnapshotHeader, plan: &[SectionPlan]) -> Result<Self> {
         ensure!(!plan.is_empty(), "EBEX must contain at least one section");
         for pair in plan.windows(2) {
-            ensure!(pair[0].id < pair[1].id, "EBEX sections must be planned in ascending id order");
+            ensure!(
+                pair[0].id < pair[1].id,
+                "EBEX sections must be planned in ascending id order"
+            );
         }
         for section in plan {
-            ensure!(section.id != 0 && section.schema != 0, "invalid EBEX section identity");
+            ensure!(
+                section.id != 0 && section.schema != 0,
+                "invalid EBEX section identity"
+            );
         }
         let directory_bytes = plan
             .len()
@@ -103,10 +109,20 @@ impl SnapshotWriter {
 
     /// Open the next planned section (they must be opened in plan order).
     pub fn begin_section(&mut self, id: u16) -> Result<()> {
-        ensure!(self.current.is_none(), "EBEX section {id} opened while another is open");
+        ensure!(
+            self.current.is_none(),
+            "EBEX section {id} opened while another is open"
+        );
         let index = self.written.len();
-        let planned = self.plan.get(index).context("more EBEX sections than planned")?;
-        ensure!(planned.id == id, "EBEX section {id} opened out of plan order (expected {})", planned.id);
+        let planned = self
+            .plan
+            .get(index)
+            .context("more EBEX sections than planned")?;
+        ensure!(
+            planned.id == id,
+            "EBEX section {id} opened out of plan order (expected {})",
+            planned.id
+        );
         self.written.push(Written {
             record_offset: self.cursor,
             ..Written::default()
@@ -119,7 +135,10 @@ impl SnapshotWriter {
     /// the length; a variable one counts whatever it is given.
     pub fn write_record(&mut self, record: &[u8]) -> Result<()> {
         let (index, phase, crc) = self.current.as_mut().context("no EBEX section is open")?;
-        ensure!(matches!(phase, Phase::Records), "EBEX record written after the auxiliary region");
+        ensure!(
+            matches!(phase, Phase::Records),
+            "EBEX record written after the auxiliary region"
+        );
         let size = self.plan[*index].record_size;
         if size != 0 {
             ensure!(record.len() == size as usize, "EBEX record length mismatch");
@@ -184,7 +203,10 @@ impl SnapshotWriter {
     /// container reader. Returns the validated metadata.
     pub fn finish(mut self) -> Result<SnapshotMetadata> {
         ensure!(self.current.is_none(), "an EBEX section is still open");
-        ensure!(self.written.len() == self.plan.len(), "not every planned EBEX section was written");
+        ensure!(
+            self.written.len() == self.plan.len(),
+            "not every planned EBEX section was written"
+        );
         for (section, w) in self.plan.iter().zip(&self.written) {
             if section.record_size != 0 {
                 let expected = w
@@ -234,7 +256,11 @@ pub fn map_file(path: &Path) -> Result<memmap2::Mmap> {
 pub fn compress_file(source: &Path, target: &Path, level: i32) -> Result<(u64, String)> {
     let input = BufReader::with_capacity(1 << 20, File::open(source)?);
     let output = File::create(target).with_context(|| format!("creating {}", target.display()))?;
-    let mut sink = HashingWriter { inner: BufWriter::with_capacity(1 << 20, output), hash: Sha256::new(), bytes: 0 };
+    let mut sink = HashingWriter {
+        inner: BufWriter::with_capacity(1 << 20, output),
+        hash: Sha256::new(),
+        bytes: 0,
+    };
     {
         let mut encoder = zstd::stream::Encoder::new(&mut sink, level).context("starting zstd")?;
         std::io::copy(&mut { input }, &mut encoder).context("compressing EBEX")?;
@@ -286,14 +312,42 @@ mod tests {
     use crate::{encode_snapshot, Section};
 
     fn header() -> SnapshotHeader {
-        SnapshotHeader { sequence: 7, created_at: 1_700_000_000, watermark: 1_699_999_000 }
+        SnapshotHeader {
+            sequence: 7,
+            created_at: 1_700_000_000,
+            watermark: 1_699_999_000,
+        }
     }
 
     fn sections() -> Vec<Section> {
         vec![
-            Section { id: 1, schema: 1, required: true, record_count: 3, record_size: 4, records: (0u8..12).collect(), auxiliary: b"abc".to_vec() },
-            Section { id: 4, schema: 1, required: false, record_count: 0, record_size: 16, records: vec![], auxiliary: vec![] },
-            Section { id: 5, schema: 2, required: true, record_count: 2, record_size: 0, records: b"hello world".to_vec(), auxiliary: b"1234567890".to_vec() },
+            Section {
+                id: 1,
+                schema: 1,
+                required: true,
+                record_count: 3,
+                record_size: 4,
+                records: (0u8..12).collect(),
+                auxiliary: b"abc".to_vec(),
+            },
+            Section {
+                id: 4,
+                schema: 1,
+                required: false,
+                record_count: 0,
+                record_size: 16,
+                records: vec![],
+                auxiliary: vec![],
+            },
+            Section {
+                id: 5,
+                schema: 2,
+                required: true,
+                record_count: 2,
+                record_size: 0,
+                records: b"hello world".to_vec(),
+                auxiliary: b"1234567890".to_vec(),
+            },
         ]
     }
 
@@ -305,7 +359,15 @@ mod tests {
         let expected = encode_snapshot(header(), sections()).unwrap();
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("snap.ebex");
-        let plan: Vec<SectionPlan> = sections().iter().map(|s| SectionPlan { id: s.id, schema: s.schema, required: s.required, record_size: s.record_size }).collect();
+        let plan: Vec<SectionPlan> = sections()
+            .iter()
+            .map(|s| SectionPlan {
+                id: s.id,
+                schema: s.schema,
+                required: s.required,
+                record_size: s.record_size,
+            })
+            .collect();
         let mut w = SnapshotWriter::create(&path, header(), &plan).unwrap();
         for s in sections() {
             w.begin_section(s.id).unwrap();
@@ -332,16 +394,37 @@ mod tests {
     fn writer_refuses_out_of_order_and_mismatched_sections() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("snap.ebex");
-        let plan = [SectionPlan { id: 2, schema: 1, required: true, record_size: 4 }, SectionPlan { id: 1, schema: 1, required: true, record_size: 4 }];
+        let plan = [
+            SectionPlan {
+                id: 2,
+                schema: 1,
+                required: true,
+                record_size: 4,
+            },
+            SectionPlan {
+                id: 1,
+                schema: 1,
+                required: true,
+                record_size: 4,
+            },
+        ];
         assert!(SnapshotWriter::create(&path, header(), &plan).is_err());
-        let plan = [SectionPlan { id: 1, schema: 1, required: true, record_size: 4 }];
+        let plan = [SectionPlan {
+            id: 1,
+            schema: 1,
+            required: true,
+            record_size: 4,
+        }];
         let mut w = SnapshotWriter::create(&path, header(), &plan).unwrap();
         assert!(w.begin_section(3).is_err(), "not the planned section");
         w.begin_section(1).unwrap();
         assert!(w.write_record(&[0u8; 3]).is_err(), "wrong record size");
         w.write_record(&[0u8; 4]).unwrap();
         w.write_auxiliary(b"x").unwrap();
-        assert!(w.write_record(&[0u8; 4]).is_err(), "records after auxiliary");
+        assert!(
+            w.write_record(&[0u8; 4]).is_err(),
+            "records after auxiliary"
+        );
         w.end_section().unwrap();
         assert!(w.finish().is_ok());
     }
@@ -358,7 +441,10 @@ mod tests {
         assert_eq!(n, compressed.len() as u64);
         let expected: String = {
             use sha2::{Digest as _, Sha256};
-            Sha256::digest(&compressed).iter().map(|b| format!("{b:02x}")).collect()
+            Sha256::digest(&compressed)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect()
         };
         assert_eq!(sha, expected);
         assert_eq!(crate::decompress(&compressed).unwrap(), bytes);

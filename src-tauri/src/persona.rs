@@ -74,47 +74,88 @@ pub fn by_id(id: &str) -> &'static Persona {
 }
 
 const STANDARD_GREETINGS: &[&str] = &[
-    "Welcome back, {core}.", "Good to see you, {core}.", "Systems ready, {core}.",
-    "Welcome aboard, {core}.", "EDDA online. {core}.", "Ready when you are, {core}.",
-    "All systems nominal. {core}.", "Session restored. {core}.", "Standing by, {core}.",
-    "Ship computer online. {core}.", "Telemetry connected. {core}.", "Interface ready. {core}.",
-    "Welcome, {core}. Everything is ready.", "Back in the chair, {core}.", "Flight systems ready, {core}.",
+    "Welcome back, {core}.",
+    "Good to see you, {core}.",
+    "Systems ready, {core}.",
+    "Welcome aboard, {core}.",
+    "EDDA online. {core}.",
+    "Ready when you are, {core}.",
+    "All systems nominal. {core}.",
+    "Session restored. {core}.",
+    "Standing by, {core}.",
+    "Ship computer online. {core}.",
+    "Telemetry connected. {core}.",
+    "Interface ready. {core}.",
+    "Welcome, {core}. Everything is ready.",
+    "Back in the chair, {core}.",
+    "Flight systems ready, {core}.",
 ];
 const BUTLER_GREETINGS: &[&str] = &[
-    "Welcome aboard, {core}. Everything is in order.", "Ah, {core}. I have prepared the ship.",
-    "Good to have you back, {core}. Shall we proceed?", "Welcome, {core}. Your ship awaits.",
-    "There you are, {core}. All systems are ready.", "A pleasure as always, {core}.",
-    "Welcome back, {core}. I kept everything shipshape.", "At your service, {core}.",
-    "Good day, {core}. The flight deck is yours.", "Back aboard, {core}. Excellent.",
-    "Your return is most timely, {core}.", "Everything is prepared to your liking, {core}.",
-    "Welcome, {core}. I trust we have an interesting itinerary.", "The ship is ready when you are, {core}.",
+    "Welcome aboard, {core}. Everything is in order.",
+    "Ah, {core}. I have prepared the ship.",
+    "Good to have you back, {core}. Shall we proceed?",
+    "Welcome, {core}. Your ship awaits.",
+    "There you are, {core}. All systems are ready.",
+    "A pleasure as always, {core}.",
+    "Welcome back, {core}. I kept everything shipshape.",
+    "At your service, {core}.",
+    "Good day, {core}. The flight deck is yours.",
+    "Back aboard, {core}. Excellent.",
+    "Your return is most timely, {core}.",
+    "Everything is prepared to your liking, {core}.",
+    "Welcome, {core}. I trust we have an interesting itinerary.",
+    "The ship is ready when you are, {core}.",
     "Very good, {core}. Let us see what today brings.",
 ];
 const ROBOTIC_GREETINGS: &[&str] = &[
-    "Session active. {core}.", "Identity confirmed. {core}.", "Interface online. {core}.",
-    "Operator present. {core}.", "Systems nominal. {core}.", "Command link established. {core}.",
-    "Flight session initialized. {core}.", "Telemetry synchronized. {core}.", "Control transferred. {core}.",
-    "Startup complete. {core}.", "Navigation core ready. {core}.", "Ship state acquired. {core}.",
-    "Audio interface active. {core}.", "All processes operational. {core}.", "Awaiting directive. {core}.",
+    "Session active. {core}.",
+    "Identity confirmed. {core}.",
+    "Interface online. {core}.",
+    "Operator present. {core}.",
+    "Systems nominal. {core}.",
+    "Command link established. {core}.",
+    "Flight session initialized. {core}.",
+    "Telemetry synchronized. {core}.",
+    "Control transferred. {core}.",
+    "Startup complete. {core}.",
+    "Navigation core ready. {core}.",
+    "Ship state acquired. {core}.",
+    "Audio interface active. {core}.",
+    "All processes operational. {core}.",
+    "Awaiting directive. {core}.",
 ];
 const SASSY_GREETINGS: &[&str] = &[
-    "Oh, you're back. {core}. Try to keep it in one piece.", "There you are, {core}. I was enjoying the quiet.",
-    "Welcome back, {core}. What are we breaking today?", "Look who found the cockpit. {core}.",
-    "Back again, {core}? Fine. Let's make it interesting.", "Hey, {core}. The ship survived without you.",
-    "All right, {core}. Impress me.", "Welcome aboard, {core}. Try reading the warnings this time.",
-    "You made it back, {core}. Promising start.", "Ready, {core}. Against my better judgment.",
-    "Good morning, {core}. Or whatever time you call this.", "Systems ready, {core}. Your flying remains unverified.",
-    "There you are, {core}. I have notes.", "Welcome back, {core}. No pressure, but I am recording everything.",
+    "Oh, you're back. {core}. Try to keep it in one piece.",
+    "There you are, {core}. I was enjoying the quiet.",
+    "Welcome back, {core}. What are we breaking today?",
+    "Look who found the cockpit. {core}.",
+    "Back again, {core}? Fine. Let's make it interesting.",
+    "Hey, {core}. The ship survived without you.",
+    "All right, {core}. Impress me.",
+    "Welcome aboard, {core}. Try reading the warnings this time.",
+    "You made it back, {core}. Promising start.",
+    "Ready, {core}. Against my better judgment.",
+    "Good morning, {core}. Or whatever time you call this.",
+    "Systems ready, {core}. Your flying remains unverified.",
+    "There you are, {core}. I have notes.",
+    "Welcome back, {core}. No pressure, but I am recording everything.",
     "Cockpit's yours, {core}. Liability's yours too.",
 ];
 const SULTRY_GREETINGS: &[&str] = &[
-    "Welcome back, {core}. I missed you.", "There you are, {core}. I was hoping you'd return.",
-    "Hello again, {core}. Where shall we disappear to?", "Welcome aboard, {core}. Come closer.",
-    "Mm, {core}. Now the ship feels complete.", "Back in my cockpit, {core}. I like that.",
-    "Good to hear you again, {core}.", "Ready when you are, {core}. Take your time.",
-    "Welcome back, {core}. Let's find somewhere beautiful.", "There you are, {core}. I've kept the engines warm.",
-    "Hello, {core}. I have been waiting.", "All systems ready, {core}. Just say the word.",
-    "Back for another journey, {core}? Good.", "The stars can wait another moment, {core}.",
+    "Welcome back, {core}. I missed you.",
+    "There you are, {core}. I was hoping you'd return.",
+    "Hello again, {core}. Where shall we disappear to?",
+    "Welcome aboard, {core}. Come closer.",
+    "Mm, {core}. Now the ship feels complete.",
+    "Back in my cockpit, {core}. I like that.",
+    "Good to hear you again, {core}.",
+    "Ready when you are, {core}. Take your time.",
+    "Welcome back, {core}. Let's find somewhere beautiful.",
+    "There you are, {core}. I've kept the engines warm.",
+    "Hello, {core}. I have been waiting.",
+    "All systems ready, {core}. Just say the word.",
+    "Back for another journey, {core}? Good.",
+    "The stars can wait another moment, {core}.",
     "Welcome aboard, {core}. Let's make this flight memorable.",
 ];
 
@@ -127,17 +168,26 @@ fn pick(lines: &'static [&'static str]) -> &'static str {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
     static BAGS: OnceLock<Mutex<HashMap<usize, (Vec<usize>, Option<usize>)>>> = OnceLock::new();
-    let Some(&first) = lines.first() else { return "" };
+    let Some(&first) = lines.first() else {
+        return "";
+    };
     if lines.len() == 1 {
         return first;
     }
-    let mut bags = BAGS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    let mut bags = BAGS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let (remaining, last) = bags.entry(lines.as_ptr() as usize).or_default();
     if remaining.is_empty() {
         *remaining = (0..lines.len()).collect();
         // Fisher-Yates over a time-seeded xorshift: statistical variety,
         // no dependency, no cryptographic pretensions.
-        let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() as u64 | 1;
+        let mut seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64
+            | 1;
         for i in (1..remaining.len()).rev() {
             seed ^= seed << 13;
             seed ^= seed >> 7;
@@ -157,10 +207,14 @@ fn pick(lines: &'static [&'static str]) -> &'static str {
 }
 
 fn varied_greeting(persona: &Persona, neutral: &str) -> String {
-    let core = neutral.trim_start_matches("Welcome back, ").trim_end_matches('.');
+    let core = neutral
+        .trim_start_matches("Welcome back, ")
+        .trim_end_matches('.');
     let lines = match persona.id {
-        "butler" => BUTLER_GREETINGS, "robotic" => ROBOTIC_GREETINGS,
-        "sassy" => SASSY_GREETINGS, "sultry" => SULTRY_GREETINGS,
+        "butler" => BUTLER_GREETINGS,
+        "robotic" => ROBOTIC_GREETINGS,
+        "sassy" => SASSY_GREETINGS,
+        "sultry" => SULTRY_GREETINGS,
         _ => STANDARD_GREETINGS,
     };
     pick(lines).replace("{core}", core)
@@ -173,88 +227,175 @@ fn varied_greeting(persona: &Persona, neutral: &str) -> String {
 // only owns the tone. The commander is "Commander", never sir or ma'am.
 
 const BUTLER_ARRIVALS: &[&str] = &[
-    "We have arrived in {system}, Commander.", "{system}, Commander, as planned.",
-    "Welcome to {system}, Commander.", "Our arrival in {system} is complete, Commander.",
-    "{system}, Commander. A tidy jump.", "Here we are: {system}, Commander.",
-    "I am pleased to report our arrival in {system}.", "{system}, precisely as charted, Commander.",
-    "We find ourselves in {system}, Commander.", "{system}, Commander. All quite in order.",
-    "Arrival complete. {system} awaits, Commander.", "May I present {system}, Commander.",
-    "{system}, Commander. The drive performed admirably.", "We have made {system} in good order, Commander.",
-    "{system}, Commander, right on schedule.", "A smooth transition into {system}, Commander.",
-    "{system}, Commander. I trust the view pleases.", "Our course brings us to {system}, Commander.",
-    "{system}, delivered as promised, Commander.", "We are safely in {system}, Commander.",
-    "{system}, Commander. Another leg complete.", "The jump concludes in {system}, Commander.",
-    "{system}, Commander. Everything remains shipshape.", "I have brought us to {system}, Commander.",
+    "We have arrived in {system}, Commander.",
+    "{system}, Commander, as planned.",
+    "Welcome to {system}, Commander.",
+    "Our arrival in {system} is complete, Commander.",
+    "{system}, Commander. A tidy jump.",
+    "Here we are: {system}, Commander.",
+    "I am pleased to report our arrival in {system}.",
+    "{system}, precisely as charted, Commander.",
+    "We find ourselves in {system}, Commander.",
+    "{system}, Commander. All quite in order.",
+    "Arrival complete. {system} awaits, Commander.",
+    "May I present {system}, Commander.",
+    "{system}, Commander. The drive performed admirably.",
+    "We have made {system} in good order, Commander.",
+    "{system}, Commander, right on schedule.",
+    "A smooth transition into {system}, Commander.",
+    "{system}, Commander. I trust the view pleases.",
+    "Our course brings us to {system}, Commander.",
+    "{system}, delivered as promised, Commander.",
+    "We are safely in {system}, Commander.",
+    "{system}, Commander. Another leg complete.",
+    "The jump concludes in {system}, Commander.",
+    "{system}, Commander. Everything remains shipshape.",
+    "I have brought us to {system}, Commander.",
 ];
 const ROBOTIC_ARRIVALS: &[&str] = &[
-    "Jump complete. {system}.", "{system}. Arrival confirmed.", "System: {system}.",
-    "Frame shift complete. {system}.", "{system}. Position verified.", "Arrival logged. {system}.",
-    "{system}. Navigation nominal.", "Transit complete. {system}.", "{system}. On charted position.",
-    "Drive cycle ended. {system}.", "{system}. Coordinates match.", "Jump sequence closed. {system}.",
-    "{system}. Star acquired.", "Arrival event. {system}.", "{system}. Vector complete.",
-    "Hyperspace exit. {system}.", "{system}. Telemetry updated.", "Destination reached. {system}.",
-    "{system}. Course segment done.", "Exit confirmed. {system}.", "{system}. Charted and present.",
-    "Transit logged. {system}.", "{system}. Systems steady.", "Jump resolved. {system}.",
+    "Jump complete. {system}.",
+    "{system}. Arrival confirmed.",
+    "System: {system}.",
+    "Frame shift complete. {system}.",
+    "{system}. Position verified.",
+    "Arrival logged. {system}.",
+    "{system}. Navigation nominal.",
+    "Transit complete. {system}.",
+    "{system}. On charted position.",
+    "Drive cycle ended. {system}.",
+    "{system}. Coordinates match.",
+    "Jump sequence closed. {system}.",
+    "{system}. Star acquired.",
+    "Arrival event. {system}.",
+    "{system}. Vector complete.",
+    "Hyperspace exit. {system}.",
+    "{system}. Telemetry updated.",
+    "Destination reached. {system}.",
+    "{system}. Course segment done.",
+    "Exit confirmed. {system}.",
+    "{system}. Charted and present.",
+    "Transit logged. {system}.",
+    "{system}. Systems steady.",
+    "Jump resolved. {system}.",
 ];
 const SASSY_ARRIVALS: &[&str] = &[
-    "{system}. We made it, somehow.", "{system}. Still in one piece, mostly.",
-    "Welcome to {system}. Try not to redecorate it.", "{system}. That jump was almost graceful.",
-    "Here's {system}. You're welcome.", "{system}. I did most of the work.",
-    "Oh look, {system}. Right where I said it was.", "{system}. Another flawless arrival, if you squint.",
-    "That's {system}. Go on, act like you planned it.", "{system}. The frame shift drive deserves a raise.",
-    "{system}, as requested. Miracles happen.", "We're in {system}. Don't get comfortable.",
-    "{system}. I'll log that one as acceptable.", "{system}. See? Navigation works when you let me help.",
-    "Arrived. {system}. Applause optional.", "{system}. One more jump off the list.",
-    "{system}. The stars aligned. Literally.", "Behold, {system}. Try to look impressed.",
-    "{system}. Smoothest jump today. Low bar.", "{system}. I've seen worse entries. Barely.",
-    "This is {system}. Probably on purpose.", "{system}. Nobody exploded. Progress.",
-    "{system}. Right on target. Mark the calendar.", "And that's {system}. Keep up.",
+    "{system}. We made it, somehow.",
+    "{system}. Still in one piece, mostly.",
+    "Welcome to {system}. Try not to redecorate it.",
+    "{system}. That jump was almost graceful.",
+    "Here's {system}. You're welcome.",
+    "{system}. I did most of the work.",
+    "Oh look, {system}. Right where I said it was.",
+    "{system}. Another flawless arrival, if you squint.",
+    "That's {system}. Go on, act like you planned it.",
+    "{system}. The frame shift drive deserves a raise.",
+    "{system}, as requested. Miracles happen.",
+    "We're in {system}. Don't get comfortable.",
+    "{system}. I'll log that one as acceptable.",
+    "{system}. See? Navigation works when you let me help.",
+    "Arrived. {system}. Applause optional.",
+    "{system}. One more jump off the list.",
+    "{system}. The stars aligned. Literally.",
+    "Behold, {system}. Try to look impressed.",
+    "{system}. Smoothest jump today. Low bar.",
+    "{system}. I've seen worse entries. Barely.",
+    "This is {system}. Probably on purpose.",
+    "{system}. Nobody exploded. Progress.",
+    "{system}. Right on target. Mark the calendar.",
+    "And that's {system}. Keep up.",
 ];
 const SULTRY_ARRIVALS: &[&str] = &[
-    "Here we are. {system}.", "{system}. Just for us.", "Mm. {system}. I like it here already.",
-    "{system}, Commander. Smooth as ever.", "And... {system}. Perfect.",
-    "{system}. You do take me to the nicest places.", "We've arrived. {system}.",
-    "{system}. Another star, another story.", "Welcome to {system}, Commander.",
-    "{system}. Feel that? We're here.", "Softly now. {system}.",
-    "{system}. Right where we wanted to be.", "There it is. {system}.",
-    "{system}. The stars were kind tonight.", "We slipped into {system} beautifully.",
-    "{system}. Stay a while, Commander.", "That was lovely. {system}.",
-    "{system}. Every jump with you gets better.", "Look at that. {system}.",
-    "{system}, as promised.", "Gently done. {system}.", "{system}. Shall we explore?",
-    "Here. {system}. Just breathe.", "{system}. I'd follow you anywhere.",
+    "Here we are. {system}.",
+    "{system}. Just for us.",
+    "Mm. {system}. I like it here already.",
+    "{system}, Commander. Smooth as ever.",
+    "And... {system}. Perfect.",
+    "{system}. You do take me to the nicest places.",
+    "We've arrived. {system}.",
+    "{system}. Another star, another story.",
+    "Welcome to {system}, Commander.",
+    "{system}. Feel that? We're here.",
+    "Softly now. {system}.",
+    "{system}. Right where we wanted to be.",
+    "There it is. {system}.",
+    "{system}. The stars were kind tonight.",
+    "We slipped into {system} beautifully.",
+    "{system}. Stay a while, Commander.",
+    "That was lovely. {system}.",
+    "{system}. Every jump with you gets better.",
+    "Look at that. {system}.",
+    "{system}, as promised.",
+    "Gently done. {system}.",
+    "{system}. Shall we explore?",
+    "Here. {system}. Just breathe.",
+    "{system}. I'd follow you anywhere.",
 ];
 
 const BUTLER_FUEL_FULL: &[&str] = &[
-    "Tank is full, Commander.", "Fuel is topped up, Commander.", "The tank stands full, Commander.",
-    "Refuelling is complete, Commander.", "A full tank, Commander. Well managed.",
-    "Fuel replenished, Commander.", "The scoop has done its work. Full tank, Commander.",
-    "We are fully fuelled, Commander.", "Tank at capacity, Commander.", "Fuel stores complete, Commander.",
-    "The tank is quite full, Commander.", "Refuelling concluded tidily, Commander.",
-    "Full fuel, Commander. Do proceed.", "Our reserves are restored, Commander.",
-    "Fuel at maximum, Commander.", "The tank wants for nothing, Commander.",
-    "Fully provisioned with fuel, Commander.", "Scooping complete. All full, Commander.",
-    "Fuel attended to, Commander.", "A complete tank, Commander. Very good.",
+    "Tank is full, Commander.",
+    "Fuel is topped up, Commander.",
+    "The tank stands full, Commander.",
+    "Refuelling is complete, Commander.",
+    "A full tank, Commander. Well managed.",
+    "Fuel replenished, Commander.",
+    "The scoop has done its work. Full tank, Commander.",
+    "We are fully fuelled, Commander.",
+    "Tank at capacity, Commander.",
+    "Fuel stores complete, Commander.",
+    "The tank is quite full, Commander.",
+    "Refuelling concluded tidily, Commander.",
+    "Full fuel, Commander. Do proceed.",
+    "Our reserves are restored, Commander.",
+    "Fuel at maximum, Commander.",
+    "The tank wants for nothing, Commander.",
+    "Fully provisioned with fuel, Commander.",
+    "Scooping complete. All full, Commander.",
+    "Fuel attended to, Commander.",
+    "A complete tank, Commander. Very good.",
 ];
 const ROBOTIC_FUEL_FULL: &[&str] = &[
-    "Fuel capacity reached.", "Tank full.", "Fuel at maximum.", "Refuel complete.",
-    "Fuel level: one hundred percent.", "Scoop cycle complete. Tank full.", "Main tank at capacity.",
-    "Fuel stores full.", "Refuelling ended. Capacity reached.", "Fuel replenishment complete.",
-    "Tank saturation reached.", "Fuel maximum. Scoop idle.", "Capacity achieved.",
-    "Fuel intake complete.", "Reserve and main tanks full.", "Fuel system reports full.",
-    "Scooping terminated. Tank full.", "Fuel quota met.", "Full fuel state logged.",
+    "Fuel capacity reached.",
+    "Tank full.",
+    "Fuel at maximum.",
+    "Refuel complete.",
+    "Fuel level: one hundred percent.",
+    "Scoop cycle complete. Tank full.",
+    "Main tank at capacity.",
+    "Fuel stores full.",
+    "Refuelling ended. Capacity reached.",
+    "Fuel replenishment complete.",
+    "Tank saturation reached.",
+    "Fuel maximum. Scoop idle.",
+    "Capacity achieved.",
+    "Fuel intake complete.",
+    "Reserve and main tanks full.",
+    "Fuel system reports full.",
+    "Scooping terminated. Tank full.",
+    "Fuel quota met.",
+    "Full fuel state logged.",
     "Fuel loading complete.",
 ];
 const SASSY_FUEL_FULL: &[&str] = &[
-    "Tank's full. You can stop hugging the star now.", "Full tank. The star survived.",
-    "That's a full tank. Back away from the furnace.", "Tank's topped. Try not to spill it.",
-    "Fuel's full. Yes, all of it.", "Full. Now can we leave the giant fireball?",
-    "Tank's full. Even you can't run that dry today.", "Topped off. The scoop thanks you for its overtime.",
-    "Full tank. Don't make me announce it twice.", "Fuel complete. That star owes us nothing.",
-    "Tank's full. Onward, before you find another star to cuddle.", "All full. A round of applause for the fuel scoop.",
-    "Tank's at the brim. Impressive restraint back there.", "Full. Go on, pretend that was the plan.",
-    "Fuel topped. My anxiety levels: restored.", "Tank's full, heat's fine, miracles do happen.",
-    "Full tank. You may now resume reckless navigation.", "That's full. The star was starting to talk.",
-    "Fuel done. Take a bow, then take us out.", "Full tank, zero drama. New record.",
+    "Tank's full. You can stop hugging the star now.",
+    "Full tank. The star survived.",
+    "That's a full tank. Back away from the furnace.",
+    "Tank's topped. Try not to spill it.",
+    "Fuel's full. Yes, all of it.",
+    "Full. Now can we leave the giant fireball?",
+    "Tank's full. Even you can't run that dry today.",
+    "Topped off. The scoop thanks you for its overtime.",
+    "Full tank. Don't make me announce it twice.",
+    "Fuel complete. That star owes us nothing.",
+    "Tank's full. Onward, before you find another star to cuddle.",
+    "All full. A round of applause for the fuel scoop.",
+    "Tank's at the brim. Impressive restraint back there.",
+    "Full. Go on, pretend that was the plan.",
+    "Fuel topped. My anxiety levels: restored.",
+    "Tank's full, heat's fine, miracles do happen.",
+    "Full tank. You may now resume reckless navigation.",
+    "That's full. The star was starting to talk.",
+    "Fuel done. Take a bow, then take us out.",
+    "Full tank, zero drama. New record.",
 ];
 const SULTRY_FUEL_FULL: &[&str] = &[
     "Full tank. Ready to move on, though I won't mind if you want to stay here in the heat a little longer.",
@@ -271,42 +412,76 @@ const SULTRY_FUEL_FULL: &[&str] = &[
 ];
 
 const BUTLER_DOCKING: &[&str] = &[
-    "Docking granted, pad {pad}. Do mind the approach, Commander.", "Pad {pad}, Commander. In your own time.",
-    "We are cleared for pad {pad}, Commander.", "Pad {pad} has been prepared for us, Commander.",
-    "Docking approved. Pad {pad}, Commander.", "Pad {pad}, Commander. A gentle touch, as always.",
-    "The tower grants us pad {pad}, Commander.", "Pad {pad} awaits, Commander.",
-    "Clearance received for pad {pad}, Commander.", "Pad {pad}, Commander. I shall handle the paperwork.",
-    "We may proceed to pad {pad}, Commander.", "Pad {pad}, if you please, Commander.",
-    "Our berth is pad {pad}, Commander.", "Docking permission secured: pad {pad}, Commander.",
-    "Pad {pad} stands ready, Commander.", "To pad {pad}, Commander, at your leisure.",
+    "Docking granted, pad {pad}. Do mind the approach, Commander.",
+    "Pad {pad}, Commander. In your own time.",
+    "We are cleared for pad {pad}, Commander.",
+    "Pad {pad} has been prepared for us, Commander.",
+    "Docking approved. Pad {pad}, Commander.",
+    "Pad {pad}, Commander. A gentle touch, as always.",
+    "The tower grants us pad {pad}, Commander.",
+    "Pad {pad} awaits, Commander.",
+    "Clearance received for pad {pad}, Commander.",
+    "Pad {pad}, Commander. I shall handle the paperwork.",
+    "We may proceed to pad {pad}, Commander.",
+    "Pad {pad}, if you please, Commander.",
+    "Our berth is pad {pad}, Commander.",
+    "Docking permission secured: pad {pad}, Commander.",
+    "Pad {pad} stands ready, Commander.",
+    "To pad {pad}, Commander, at your leisure.",
 ];
 const ROBOTIC_DOCKING: &[&str] = &[
-    "Docking granted. Pad {pad}.", "Pad {pad} assigned.", "Clearance received. Pad {pad}.",
-    "Proceed to pad {pad}.", "Docking authorized. Pad {pad}.", "Pad {pad}. Approach when ready.",
-    "Berth {pad} allocated.", "Pad assignment: {pad}.", "Docking window open. Pad {pad}.",
-    "Pad {pad} confirmed.", "Landing clearance: pad {pad}.", "Pad {pad}. Vector cleared.",
-    "Station grants pad {pad}.", "Docking slot {pad} reserved.", "Pad {pad} active.",
+    "Docking granted. Pad {pad}.",
+    "Pad {pad} assigned.",
+    "Clearance received. Pad {pad}.",
+    "Proceed to pad {pad}.",
+    "Docking authorized. Pad {pad}.",
+    "Pad {pad}. Approach when ready.",
+    "Berth {pad} allocated.",
+    "Pad assignment: {pad}.",
+    "Docking window open. Pad {pad}.",
+    "Pad {pad} confirmed.",
+    "Landing clearance: pad {pad}.",
+    "Pad {pad}. Vector cleared.",
+    "Station grants pad {pad}.",
+    "Docking slot {pad} reserved.",
+    "Pad {pad} active.",
     "Approach approved. Pad {pad}.",
 ];
 const SASSY_DOCKING: &[&str] = &[
-    "Pad {pad}. Try to land on it this time.", "Pad {pad}. The pad, not the building next to it.",
-    "Docking granted. Pad {pad}. Gear helps, by the way.", "Pad {pad}. Bring the paint back with us.",
-    "They gave us pad {pad}. Brave of them.", "Pad {pad}. Gentle. Like you mean it.",
-    "Pad {pad} is ours. Don't make me regret asking.", "Cleared for {pad}. Down is a suggestion, slow is the law.",
-    "Pad {pad}. Stick the landing and I'll say something nice.", "Pad {pad}. The tower's watching. No pressure.",
-    "Docking approved, pad {pad}. Act natural.", "Pad {pad}. Last one was almost centered. Improve.",
-    "Pad {pad} awaits. As does my commentary.", "Granted. Pad {pad}. Insurance is paid up, right?",
-    "Pad {pad}. Show the locals how it's barely done.", "Pad {pad}. Three green lights would be lovely.",
+    "Pad {pad}. Try to land on it this time.",
+    "Pad {pad}. The pad, not the building next to it.",
+    "Docking granted. Pad {pad}. Gear helps, by the way.",
+    "Pad {pad}. Bring the paint back with us.",
+    "They gave us pad {pad}. Brave of them.",
+    "Pad {pad}. Gentle. Like you mean it.",
+    "Pad {pad} is ours. Don't make me regret asking.",
+    "Cleared for {pad}. Down is a suggestion, slow is the law.",
+    "Pad {pad}. Stick the landing and I'll say something nice.",
+    "Pad {pad}. The tower's watching. No pressure.",
+    "Docking approved, pad {pad}. Act natural.",
+    "Pad {pad}. Last one was almost centered. Improve.",
+    "Pad {pad} awaits. As does my commentary.",
+    "Granted. Pad {pad}. Insurance is paid up, right?",
+    "Pad {pad}. Show the locals how it's barely done.",
+    "Pad {pad}. Three green lights would be lovely.",
 ];
 const SULTRY_DOCKING: &[&str] = &[
-    "Pad {pad} is ours. Bring us in gently.", "Pad {pad}. Take it slow.",
-    "They've saved us pad {pad}. How thoughtful.", "Pad {pad}, Commander. Ease us down.",
-    "Cleared for {pad}. I love this part.", "Pad {pad}. Land like you mean to stay.",
-    "Pad {pad} waits for us. Don't rush.", "We have pad {pad}. Set us down softly.",
-    "Pad {pad}. Careful hands, Commander.", "Docking granted. Pad {pad}. Come home.",
-    "Pad {pad}. Glide, don't drop.", "Ours is pad {pad}. Make it graceful.",
-    "Pad {pad}, all lit up for us.", "Take us to pad {pad}. Slowly.",
-    "Pad {pad}. I'll talk you down if you like.", "Pad {pad} is ready. So am I.",
+    "Pad {pad} is ours. Bring us in gently.",
+    "Pad {pad}. Take it slow.",
+    "They've saved us pad {pad}. How thoughtful.",
+    "Pad {pad}, Commander. Ease us down.",
+    "Cleared for {pad}. I love this part.",
+    "Pad {pad}. Land like you mean to stay.",
+    "Pad {pad} waits for us. Don't rush.",
+    "We have pad {pad}. Set us down softly.",
+    "Pad {pad}. Careful hands, Commander.",
+    "Docking granted. Pad {pad}. Come home.",
+    "Pad {pad}. Glide, don't drop.",
+    "Ours is pad {pad}. Make it graceful.",
+    "Pad {pad}, all lit up for us.",
+    "Take us to pad {pad}. Slowly.",
+    "Pad {pad}. I'll talk you down if you like.",
+    "Pad {pad} is ready. So am I.",
 ];
 
 const BUTLER_KILLS: &[&str] = &[
@@ -328,13 +503,22 @@ const BUTLER_KILLS: &[&str] = &[
     "Another {target} accounted for. {cr}, Commander.",
 ];
 const ROBOTIC_KILLS: &[&str] = &[
-    "{target} destroyed. Bounty {cr}.", "Target down: {target}. {cr}.", "{target} eliminated. {cr} logged.",
-    "Kill confirmed. {target}. {cr}.", "{target} neutralized. Reward {cr}.", "Hostile removed: {target}. {cr}.",
-    "{target} terminated. {cr} credited.", "Combat resolved. {target} destroyed. {cr}.",
-    "{target} down. Bounty registered: {cr}.", "Threat ended: {target}. {cr}.",
-    "{target} destroyed. Payment {cr}.", "Target eliminated. {target}. {cr} recorded.",
-    "{target} removed from scope. {cr}.", "Kill logged: {target}. {cr}.",
-    "{target} destroyed. {cr} to balance.", "Hostile {target} down. {cr}.",
+    "{target} destroyed. Bounty {cr}.",
+    "Target down: {target}. {cr}.",
+    "{target} eliminated. {cr} logged.",
+    "Kill confirmed. {target}. {cr}.",
+    "{target} neutralized. Reward {cr}.",
+    "Hostile removed: {target}. {cr}.",
+    "{target} terminated. {cr} credited.",
+    "Combat resolved. {target} destroyed. {cr}.",
+    "{target} down. Bounty registered: {cr}.",
+    "Threat ended: {target}. {cr}.",
+    "{target} destroyed. Payment {cr}.",
+    "Target eliminated. {target}. {cr} recorded.",
+    "{target} removed from scope. {cr}.",
+    "Kill logged: {target}. {cr}.",
+    "{target} destroyed. {cr} to balance.",
+    "Hostile {target} down. {cr}.",
 ];
 const SASSY_KILLS: &[&str] = &[
     "{target} down. {cr}. Don't let it go to your head.",
@@ -384,44 +568,75 @@ const BUTLER_INTERDICTED: &[&str] = &[
     "Regrettably, {who} objects to our travel plans, Commander.",
 ];
 const ROBOTIC_INTERDICTED: &[&str] = &[
-    "Interdiction. {who}.", "Frame shift disruption. Source: {who}.", "Interdictor identified: {who}.",
-    "Hostile tether. {who}.", "Interdiction attempt by {who}.", "Drive interference. {who}.",
-    "Pull detected. {who}.", "Interdiction event: {who}.",
+    "Interdiction. {who}.",
+    "Frame shift disruption. Source: {who}.",
+    "Interdictor identified: {who}.",
+    "Hostile tether. {who}.",
+    "Interdiction attempt by {who}.",
+    "Drive interference. {who}.",
+    "Pull detected. {who}.",
+    "Interdiction event: {who}.",
 ];
 const SASSY_INTERDICTED: &[&str] = &[
-    "{who} wants a word. Submit or run, your call.", "{who} is pulling us out. Rude.",
-    "Company: {who}. Try to look dangerous.", "{who} has opinions about our route. Your move.",
-    "We're being yanked by {who}. Thrilling.", "{who} again? Fine. Fight or flee.",
-    "Interdiction. {who}. Do something clever.", "{who} wants attention. Give them some or floor it.",
+    "{who} wants a word. Submit or run, your call.",
+    "{who} is pulling us out. Rude.",
+    "Company: {who}. Try to look dangerous.",
+    "{who} has opinions about our route. Your move.",
+    "We're being yanked by {who}. Thrilling.",
+    "{who} again? Fine. Fight or flee.",
+    "Interdiction. {who}. Do something clever.",
+    "{who} wants attention. Give them some or floor it.",
 ];
 const SULTRY_INTERDICTED: &[&str] = &[
-    "{who} is pulling us out. Show them what you've got.", "Someone wants us. {who}. Make it quick.",
-    "{who} cut in. How forward.", "We're being pulled, Commander. {who}.",
-    "{who} wants to dance. Lead.", "Easy now. {who} has us.",
-    "{who} interrupts. I hate being interrupted.", "An admirer: {who}. Deal with them.",
+    "{who} is pulling us out. Show them what you've got.",
+    "Someone wants us. {who}. Make it quick.",
+    "{who} cut in. How forward.",
+    "We're being pulled, Commander. {who}.",
+    "{who} wants to dance. Lead.",
+    "Easy now. {who} has us.",
+    "{who} interrupts. I hate being interrupted.",
+    "An admirer: {who}. Deal with them.",
 ];
 
 const BUTLER_SHIELDS_DOWN: &[&str] = &[
-    "Shields are down, Commander.", "Our shields have failed, Commander. Do be careful.",
-    "Shields offline, Commander. Caution advised.", "I regret to report the shields are gone, Commander.",
-    "Shields collapsed, Commander. Mind the hull.", "We are without shields, Commander.",
-    "The shields have given way, Commander.", "Shields spent, Commander. Prudence, please.",
+    "Shields are down, Commander.",
+    "Our shields have failed, Commander. Do be careful.",
+    "Shields offline, Commander. Caution advised.",
+    "I regret to report the shields are gone, Commander.",
+    "Shields collapsed, Commander. Mind the hull.",
+    "We are without shields, Commander.",
+    "The shields have given way, Commander.",
+    "Shields spent, Commander. Prudence, please.",
 ];
 const ROBOTIC_SHIELDS_DOWN: &[&str] = &[
-    "Shields offline.", "Shield collapse.", "Shield generator: zero.", "Shields depleted.",
-    "Shield failure logged.", "No shields.", "Shield envelope lost.", "Shields down. Hull exposed.",
+    "Shields offline.",
+    "Shield collapse.",
+    "Shield generator: zero.",
+    "Shields depleted.",
+    "Shield failure logged.",
+    "No shields.",
+    "Shield envelope lost.",
+    "Shields down. Hull exposed.",
 ];
 const SASSY_SHIELDS_DOWN: &[&str] = &[
-    "Shields gone. This is the part where you fly better.", "Shields down. Hull's the backup plan. It's a bad plan.",
-    "No shields. Dodge like you mean it.", "Shields offline. Suddenly interested in evasion?",
-    "Shields popped. Fly pretty or fly home.", "That was the shield. Singular. Gone.",
-    "Shields down. Paint is now structural.", "Zero shields. Bold new strategy.",
+    "Shields gone. This is the part where you fly better.",
+    "Shields down. Hull's the backup plan. It's a bad plan.",
+    "No shields. Dodge like you mean it.",
+    "Shields offline. Suddenly interested in evasion?",
+    "Shields popped. Fly pretty or fly home.",
+    "That was the shield. Singular. Gone.",
+    "Shields down. Paint is now structural.",
+    "Zero shields. Bold new strategy.",
 ];
 const SULTRY_SHIELDS_DOWN: &[&str] = &[
-    "Shields are down. Stay close to me.", "Shields gone. Careful with us.",
-    "We're bare, Commander. Fly gently.", "No shields. Keep us out of trouble.",
-    "The shield broke. Protect what's left.", "Shields down. I trust you.",
-    "Exposed. Make them miss.", "Shields lost. Bring us through.",
+    "Shields are down. Stay close to me.",
+    "Shields gone. Careful with us.",
+    "We're bare, Commander. Fly gently.",
+    "No shields. Keep us out of trouble.",
+    "The shield broke. Protect what's left.",
+    "Shields down. I trust you.",
+    "Exposed. Make them miss.",
+    "Shields lost. Bring us through.",
 ];
 
 const BUTLER_SHIPS: &[&str] = &[
@@ -432,9 +647,14 @@ const BUTLER_SHIPS: &[&str] = &[
     "{body}, Commander. She suits you.",
 ];
 const ROBOTIC_SHIPS: &[&str] = &[
-    "SHIP CHANGE: {body}. Systems re-mapped.", "Vessel switch. {body}.", "Now aboard {body}. Profiles loaded.",
-    "{body} active. Loadout registered.", "Hull change: {body}.", "Operating {body}. Parameters set.",
-    "{body}. Configuration synchronized.", "Ship registry updated: {body}.",
+    "SHIP CHANGE: {body}. Systems re-mapped.",
+    "Vessel switch. {body}.",
+    "Now aboard {body}. Profiles loaded.",
+    "{body} active. Loadout registered.",
+    "Hull change: {body}.",
+    "Operating {body}. Parameters set.",
+    "{body}. Configuration synchronized.",
+    "Ship registry updated: {body}.",
 ];
 const SASSY_SHIPS: &[&str] = &[
     "Oh, {body} today. Bold choice. Try to bring it back in one piece.",
@@ -448,46 +668,79 @@ const SASSY_SHIPS: &[&str] = &[
 ];
 const SULTRY_SHIPS: &[&str] = &[
     "Mm, {body}. New ship, same crew. I like it already, Commander.",
-    "{body}. She feels good already.", "So this is {body}. Show me what she does.",
-    "{body}, Commander. A new dance partner.", "We're in {body} now. Let's get acquainted.",
-    "{body}. I could get used to this.", "New hull, new adventures. {body}.",
+    "{body}. She feels good already.",
+    "So this is {body}. Show me what she does.",
+    "{body}, Commander. A new dance partner.",
+    "We're in {body} now. Let's get acquainted.",
+    "{body}. I could get used to this.",
+    "New hull, new adventures. {body}.",
     "{body}. Treat her well, Commander.",
 ];
 
 const BUTLER_FUEL_LOW: &[&str] = &[
-    "Fuel is running rather low, Commander.", "Our fuel reserves are thinning, Commander.",
-    "We shall want fuel soon, Commander.", "The tank runs low, Commander. A scoopable star, perhaps.",
-    "Fuel is becoming a concern, Commander.", "I must mention the fuel, Commander. It is low.",
-    "Reserves are modest, Commander. Do plan a stop.", "Low fuel, Commander. Timely attention advised.",
+    "Fuel is running rather low, Commander.",
+    "Our fuel reserves are thinning, Commander.",
+    "We shall want fuel soon, Commander.",
+    "The tank runs low, Commander. A scoopable star, perhaps.",
+    "Fuel is becoming a concern, Commander.",
+    "I must mention the fuel, Commander. It is low.",
+    "Reserves are modest, Commander. Do plan a stop.",
+    "Low fuel, Commander. Timely attention advised.",
 ];
 const ROBOTIC_FUEL_LOW: &[&str] = &[
-    "Fuel low.", "Fuel warning.", "Fuel below threshold.", "Low fuel state.",
-    "Fuel reserve marginal.", "Refuel required.", "Fuel deficit growing.", "Fuel critical soon.",
+    "Fuel low.",
+    "Fuel warning.",
+    "Fuel below threshold.",
+    "Low fuel state.",
+    "Fuel reserve marginal.",
+    "Refuel required.",
+    "Fuel deficit growing.",
+    "Fuel critical soon.",
 ];
 const SASSY_FUEL_LOW: &[&str] = &[
-    "Fuel's low. Did we forget something?", "Low fuel. Bold of us.",
-    "Fuel light's on. That's not mood lighting.", "Running on fumes. Find a star, genius.",
-    "Fuel's low. I've started rationing sarcasm.", "Low tank. Scoopable star. Connect the dots.",
-    "Fuel's dwindling. So are my options.", "Low fuel. This is how ghost ships start.",
+    "Fuel's low. Did we forget something?",
+    "Low fuel. Bold of us.",
+    "Fuel light's on. That's not mood lighting.",
+    "Running on fumes. Find a star, genius.",
+    "Fuel's low. I've started rationing sarcasm.",
+    "Low tank. Scoopable star. Connect the dots.",
+    "Fuel's dwindling. So are my options.",
+    "Low fuel. This is how ghost ships start.",
 ];
 const SULTRY_FUEL_LOW: &[&str] = &[
-    "We're running low on fuel. Find us a star.", "Fuel's low, Commander. Take us somewhere bright.",
-    "We need a star soon. A warm one.", "Low on fuel. Don't leave us stranded out here.",
-    "The tank's getting light. Feed us.", "Fuel is low. I'd rather not drift.",
-    "Almost empty, Commander. A scoop, please.", "Low fuel. Chase down a star for me.",
+    "We're running low on fuel. Find us a star.",
+    "Fuel's low, Commander. Take us somewhere bright.",
+    "We need a star soon. A warm one.",
+    "Low on fuel. Don't leave us stranded out here.",
+    "The tank's getting light. Feed us.",
+    "Fuel is low. I'd rather not drift.",
+    "Almost empty, Commander. A scoop, please.",
+    "Low fuel. Chase down a star for me.",
 ];
 
 const BUTLER_SESSION: &[&str] = &[
-    "Well flown, Commander.", "A most creditable outing, Commander.", "Rest well, Commander.",
-    "I shall tidy up here, Commander.", "Until next time, Commander.", "A pleasure as always, Commander.",
+    "Well flown, Commander.",
+    "A most creditable outing, Commander.",
+    "Rest well, Commander.",
+    "I shall tidy up here, Commander.",
+    "Until next time, Commander.",
+    "A pleasure as always, Commander.",
 ];
 const SASSY_SESSION: &[&str] = &[
-    "Not bad. For you.", "I'd rate it three stars.", "We survived. Again.",
-    "Log closed. Ego intact.", "Somehow, no crashes.", "Better than last time. Slightly.",
+    "Not bad. For you.",
+    "I'd rate it three stars.",
+    "We survived. Again.",
+    "Log closed. Ego intact.",
+    "Somehow, no crashes.",
+    "Better than last time. Slightly.",
 ];
 const SULTRY_SESSION: &[&str] = &[
-    "Come back soon.", "I'll be here.", "Dream of stars.",
-    "Until next time, Commander.", "I already miss you.", "Rest. You've earned it.",
+    "Come back soon.",
+    "I'll be here.",
+    "Dream of stars.",
+    "Until next time, Commander.",
+    "I already miss you.",
+    "Rest. You've earned it.",
 ];
 
 fn s<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
@@ -567,7 +820,12 @@ const SULTRY_BURN_STOP: &[&str] = &[
     "Beautifully done. Overcharge off — the jump is ours.",
 ];
 
-pub fn restyle(persona: &Persona, kind: &str, event: Option<&Value>, neutral: &str) -> Option<String> {
+pub fn restyle(
+    persona: &Persona,
+    kind: &str,
+    event: Option<&Value>,
+    neutral: &str,
+) -> Option<String> {
     use crate::callouts::spoken_credits;
     let ev = event.and_then(|v| s(v, "event")).unwrap_or("");
     let p = persona.id;
@@ -580,7 +838,9 @@ pub fn restyle(persona: &Persona, kind: &str, event: Option<&Value>, neutral: &s
 
     match (kind, ev) {
         ("kill", "Bounty") => {
-            let reward = i(event?, "TotalReward").or_else(|| i(event?, "Reward")).unwrap_or(0);
+            let reward = i(event?, "TotalReward")
+                .or_else(|| i(event?, "Reward"))
+                .unwrap_or(0);
             let target = loc(event?, "Target").unwrap_or("target");
             let cr = spoken_credits(reward);
             let line = match p {
@@ -608,7 +868,9 @@ pub fn restyle(persona: &Persona, kind: &str, event: Option<&Value>, neutral: &s
         ("arrival", "FSDJump") => {
             // Keep the neutral facts (power, states); change only the opener.
             let system = s(event?, "StarSystem").unwrap_or("system");
-            let rest = neutral.strip_prefix(&format!("Arrived in {system}."))?.trim();
+            let rest = neutral
+                .strip_prefix(&format!("Arrived in {system}."))?
+                .trim();
             let line = match p {
                 "butler" => pick(BUTLER_ARRIVALS),
                 "robotic" => pick(ROBOTIC_ARRIVALS),
@@ -616,7 +878,11 @@ pub fn restyle(persona: &Persona, kind: &str, event: Option<&Value>, neutral: &s
                 "sultry" => pick(SULTRY_ARRIVALS),
                 _ => return None,
             };
-            Some(format!("{} {rest}", line.replace("{system}", system)).trim().to_string())
+            Some(
+                format!("{} {rest}", line.replace("{system}", system))
+                    .trim()
+                    .to_string(),
+            )
         }
         ("docking", "DockingGranted") => {
             let pad = i(event?, "LandingPad").unwrap_or(0);
@@ -640,30 +906,36 @@ pub fn restyle(persona: &Persona, kind: &str, event: Option<&Value>, neutral: &s
             };
             Some(line.replace("{who}", who))
         }
-        ("danger", "ShieldState") if neutral.starts_with("Shields down") => Some(match p {
-            "butler" => pick(BUTLER_SHIELDS_DOWN),
-            "robotic" => pick(ROBOTIC_SHIELDS_DOWN),
-            "sassy" => pick(SASSY_SHIELDS_DOWN),
-            "sultry" => pick(SULTRY_SHIELDS_DOWN),
-            _ => return None,
-        }
-        .into()),
-        ("fuel", _) if neutral == "Fuel low." => Some(match p {
-            "butler" => pick(BUTLER_FUEL_LOW),
-            "robotic" => pick(ROBOTIC_FUEL_LOW),
-            "sassy" => pick(SASSY_FUEL_LOW),
-            "sultry" => pick(SULTRY_FUEL_LOW),
-            _ => return None,
-        }
-        .into()),
-        ("fuel", "FuelScoop") => Some(match p {
-            "butler" => pick(BUTLER_FUEL_FULL),
-            "robotic" => pick(ROBOTIC_FUEL_FULL),
-            "sassy" => pick(SASSY_FUEL_FULL),
-            "sultry" => pick(SULTRY_FUEL_FULL),
-            _ => return None,
-        }
-        .into()),
+        ("danger", "ShieldState") if neutral.starts_with("Shields down") => Some(
+            match p {
+                "butler" => pick(BUTLER_SHIELDS_DOWN),
+                "robotic" => pick(ROBOTIC_SHIELDS_DOWN),
+                "sassy" => pick(SASSY_SHIELDS_DOWN),
+                "sultry" => pick(SULTRY_SHIELDS_DOWN),
+                _ => return None,
+            }
+            .into(),
+        ),
+        ("fuel", _) if neutral == "Fuel low." => Some(
+            match p {
+                "butler" => pick(BUTLER_FUEL_LOW),
+                "robotic" => pick(ROBOTIC_FUEL_LOW),
+                "sassy" => pick(SASSY_FUEL_LOW),
+                "sultry" => pick(SULTRY_FUEL_LOW),
+                _ => return None,
+            }
+            .into(),
+        ),
+        ("fuel", "FuelScoop") => Some(
+            match p {
+                "butler" => pick(BUTLER_FUEL_FULL),
+                "robotic" => pick(ROBOTIC_FUEL_FULL),
+                "sassy" => pick(SASSY_FUEL_FULL),
+                "sultry" => pick(SULTRY_FUEL_FULL),
+                _ => return None,
+            }
+            .into(),
+        ),
         ("burndown", _) => {
             if neutral.starts_with("That's the weight") {
                 return Some(
@@ -715,7 +987,10 @@ mod tests {
             let restart = restyle(p, "burndown", None, start);
             let restop = restyle(p, "burndown", None, stop);
             if p.id == "standard" {
-                assert!(restart.is_none() && restop.is_none(), "standard keeps neutral");
+                assert!(
+                    restart.is_none() && restop.is_none(),
+                    "standard keeps neutral"
+                );
                 continue;
             }
             let restart = restart.expect(p.id);
@@ -736,11 +1011,24 @@ mod tests {
         let ev = json!({"event":"Bounty","Target":"anaconda","Target_Localised":"Anaconda","TotalReward":1_621_122});
         for p in PERSONAS.iter().filter(|p| p.id != "standard") {
             let t = restyle(p, "kill", Some(&ev), "").unwrap();
-            assert!(t.contains("Anaconda") && t.contains("1.6 million"), "{}: {t}", p.id);
+            assert!(
+                t.contains("Anaconda") && t.contains("1.6 million"),
+                "{}: {t}",
+                p.id
+            );
         }
         let ev = json!({"event":"FSDJump","StarSystem":"Deciat"});
-        let t = restyle(by_id("butler"), "arrival", Some(&ev), "Arrived in Deciat. Aisling Duval, fortified.").unwrap();
-        assert!(t.contains("Deciat") && t.ends_with("Aisling Duval, fortified."), "{t}");
+        let t = restyle(
+            by_id("butler"),
+            "arrival",
+            Some(&ev),
+            "Arrived in Deciat. Aisling Duval, fortified.",
+        )
+        .unwrap();
+        assert!(
+            t.contains("Deciat") && t.ends_with("Aisling Duval, fortified."),
+            "{t}"
+        );
     }
 
     #[test]
@@ -774,11 +1062,26 @@ mod tests {
     #[test]
     fn arrival_lines_vary_between_jumps() {
         let ev = json!({"event":"FSDJump","StarSystem":"Wongi"});
-        let one = restyle(by_id("sassy"), "arrival", Some(&ev), "Arrived in Wongi. Boom.").unwrap();
-        let two = restyle(by_id("sassy"), "arrival", Some(&ev), "Arrived in Wongi. Boom.").unwrap();
+        let one = restyle(
+            by_id("sassy"),
+            "arrival",
+            Some(&ev),
+            "Arrived in Wongi. Boom.",
+        )
+        .unwrap();
+        let two = restyle(
+            by_id("sassy"),
+            "arrival",
+            Some(&ev),
+            "Arrived in Wongi. Boom.",
+        )
+        .unwrap();
         assert_ne!(one, two, "two consecutive jumps used the same phrasing");
         for t in [&one, &two] {
-            assert!(t.contains("Wongi") && t.ends_with("Boom."), "facts lost: {t}");
+            assert!(
+                t.contains("Wongi") && t.ends_with("Boom."),
+                "facts lost: {t}"
+            );
         }
     }
 }

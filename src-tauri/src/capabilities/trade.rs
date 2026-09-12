@@ -28,7 +28,10 @@ pub fn ship_for(conn: &Connection, req: &ProfitRequest) -> LoadoutShip {
         if let Some(v) = raw.and_then(|raw| serde_json::from_str::<Value>(&raw).ok()) {
             return LoadoutShip::from_loadout(&v);
         }
-        tracing::warn!(ship_id = id, "trade: no Loadout for that ship id; planning for the live ship");
+        tracing::warn!(
+            ship_id = id,
+            "trade: no Loadout for that ship id; planning for the live ship"
+        );
     }
     live_ship(conn)
 }
@@ -45,12 +48,19 @@ pub fn origin_for(conn: &Connection, req: &ProfitRequest) -> Option<String> {
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         if let Some(system) = ed_store::ship_locations::locations(conn, &now)
             .ok()
-            .and_then(|all| all.into_iter().find(|l| l.ship_id == id).and_then(|l| l.system))
+            .and_then(|all| {
+                all.into_iter()
+                    .find(|l| l.ship_id == id)
+                    .and_then(|l| l.system)
+            })
         {
             return Some(system);
         }
     }
-    query::location(conn).ok().flatten().and_then(|l| l.system_name)
+    query::location(conn)
+        .ok()
+        .flatten()
+        .and_then(|l| l.system_name)
 }
 
 pub fn live_ship(conn: &Connection) -> LoadoutShip {
@@ -66,7 +76,9 @@ pub fn live_ship(conn: &Connection) -> LoadoutShip {
         [],
         |r| {
             Ok(LoadoutShip {
-                hull: r.get::<_, Option<String>>(0)?.map(|s| s.to_ascii_lowercase()),
+                hull: r
+                    .get::<_, Option<String>>(0)?
+                    .map(|s| s.to_ascii_lowercase()),
                 cargo_capacity: r.get(1)?,
                 max_jump_range: r.get(2)?,
                 unladen_mass: r.get(3)?,

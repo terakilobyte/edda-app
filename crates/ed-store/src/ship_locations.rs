@@ -67,11 +67,16 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
     let rows: Vec<(String, String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    let galaxy_attached = conn.query_row("SELECT 1 FROM sys_stations LIMIT 1", [], |_| Ok(())).optional().is_ok();
+    let galaxy_attached = conn
+        .query_row("SELECT 1 FROM sys_stations LIMIT 1", [], |_| Ok(()))
+        .optional()
+        .is_ok();
 
     let mut ships: HashMap<i64, Row> = HashMap::new();
     for (ts, event, raw) in rows {
-        let Ok(v) = serde_json::from_str::<Value>(&raw) else { continue };
+        let Ok(v) = serde_json::from_str::<Value>(&raw) else {
+            continue;
+        };
         match event.as_str() {
             "StoredShips" => {
                 // A full snapshot of every ship except the one being flown.
@@ -79,12 +84,22 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                 let here_station = s(&v, "StationName");
                 let here_market = i(&v, "MarketID");
                 let mut seen = std::collections::HashSet::new();
-                for ship in v.get("ShipsHere").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
-                    let Some(id) = i(ship, "ShipID") else { continue };
+                for ship in v
+                    .get("ShipsHere")
+                    .and_then(Value::as_array)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                {
+                    let Some(id) = i(ship, "ShipID") else {
+                        continue;
+                    };
                     seen.insert(id);
                     let row = ships.entry(id).or_default();
                     row.ship_type = s(ship, "ShipType").or(row.ship_type.take());
-                    row.name = s(ship, "Name").map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).or(row.name.take());
+                    row.name = s(ship, "Name")
+                        .map(|n| n.trim().to_string())
+                        .filter(|n| !n.is_empty())
+                        .or(row.name.take());
                     row.system = here_system.clone();
                     row.station = here_station.clone();
                     row.market_id = here_market;
@@ -92,12 +107,22 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                     row.arrival_ts = None;
                     row.as_of = ts.clone();
                 }
-                for ship in v.get("ShipsRemote").and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[]) {
-                    let Some(id) = i(ship, "ShipID") else { continue };
+                for ship in v
+                    .get("ShipsRemote")
+                    .and_then(Value::as_array)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                {
+                    let Some(id) = i(ship, "ShipID") else {
+                        continue;
+                    };
                     seen.insert(id);
                     let row = ships.entry(id).or_default();
                     row.ship_type = s(ship, "ShipType").or(row.ship_type.take());
-                    row.name = s(ship, "Name").map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).or(row.name.take());
+                    row.name = s(ship, "Name")
+                        .map(|n| n.trim().to_string())
+                        .filter(|n| !n.is_empty())
+                        .or(row.name.take());
                     if ship.get("InTransit").and_then(Value::as_bool) == Some(true) {
                         // No location, no ETA here: keep what ShipyardTransfer said.
                         row.in_transit = true;
@@ -124,7 +149,11 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
                 row.in_transit = true;
                 row.market_id = i(&v, "MarketID");
                 if let Some(dest) = row.market_id {
-                    let (station, system) = if galaxy_attached { station_for(conn, dest) } else { (None, None) };
+                    let (station, system) = if galaxy_attached {
+                        station_for(conn, dest)
+                    } else {
+                        (None, None)
+                    };
                     row.station = station;
                     row.system = system;
                 }
@@ -144,7 +173,17 @@ pub fn rebuild(conn: &Connection) -> Result<usize> {
          VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
     )?;
     for (id, r) in &ships {
-        ins.execute(params![id, r.ship_type, r.name, r.system, r.station, r.market_id, r.in_transit as i64, r.arrival_ts, r.as_of])?;
+        ins.execute(params![
+            id,
+            r.ship_type,
+            r.name,
+            r.system,
+            r.station,
+            r.market_id,
+            r.in_transit as i64,
+            r.arrival_ts,
+            r.as_of
+        ])?;
     }
     Ok(ships.len())
 }
@@ -191,18 +230,29 @@ pub fn locations(conn: &Connection, now: &str) -> Result<Vec<ShipLocation>> {
     })?;
     let mut out = Vec::new();
     for row in rows {
-        let (ship_id, ship_type, name, mut system, mut station, market_id, in_transit, arrival, as_of) = row?;
+        let (
+            ship_id,
+            ship_type,
+            name,
+            mut system,
+            mut station,
+            market_id,
+            in_transit,
+            arrival,
+            as_of,
+        ) = row?;
         // The carrier join: numeric, never by name. A carrier moves, so
         // its CURRENT system wins over where the ship was parked.
-        let carrier: Option<(String, Option<String>)> = market_id
-            .and_then(|m| {
-                conn.query_row("SELECT COALESCE(callsign, ''), system_name FROM carriers WHERE carrier_id = ?1", [m], |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
-                })
-                .optional()
-                .ok()
-                .flatten()
-            });
+        let carrier: Option<(String, Option<String>)> = market_id.and_then(|m| {
+            conn.query_row(
+                "SELECT COALESCE(callsign, ''), system_name FROM carriers WHERE carrier_id = ?1",
+                [m],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+            )
+            .optional()
+            .ok()
+            .flatten()
+        });
         if let Some((callsign, carrier_system)) = &carrier {
             if carrier_system.is_some() {
                 system = carrier_system.clone();
@@ -216,7 +266,11 @@ pub fn locations(conn: &Connection, now: &str) -> Result<Vec<ShipLocation>> {
         let status = if carrier.is_some() {
             "aboard_carrier"
         } else if in_transit {
-            if minutes_to_arrival.is_some_and(|m| m <= 0) { "arrived" } else { "in_transit" }
+            if minutes_to_arrival.is_some_and(|m| m <= 0) {
+                "arrived"
+            } else {
+                "in_transit"
+            }
         } else {
             "stored"
         };
@@ -283,13 +337,26 @@ mod tests {
         let all = locations(&conn, "2026-09-06T12:00:00Z").unwrap();
         let by_id = |id: i64| all.iter().find(|l| l.ship_id == id).unwrap().clone();
         let kestrel = by_id(20);
-        assert_eq!((kestrel.name.as_deref(), kestrel.status.as_str()), (Some("Kestrel"), "stored"));
-        assert_eq!((kestrel.system.as_deref(), kestrel.station.as_deref()), (Some("Shinrarta Dezhra"), Some("Jameson Memorial")));
+        assert_eq!(
+            (kestrel.name.as_deref(), kestrel.status.as_str()),
+            (Some("Kestrel"), "stored")
+        );
+        assert_eq!(
+            (kestrel.system.as_deref(), kestrel.station.as_deref()),
+            (Some("Shinrarta Dezhra"), Some("Jameson Memorial"))
+        );
         assert_eq!(kestrel.age_hours, 2.0);
         let unnamed = by_id(64);
         assert_eq!(unnamed.name, None, "Name \"\" is unnamed, not a name");
         let sparrow = by_id(3);
-        assert_eq!((sparrow.system.as_deref(), sparrow.station.as_deref(), sparrow.market_id), (Some("Deciat"), Some("Garay Terminal"), Some(3228342528)));
+        assert_eq!(
+            (
+                sparrow.system.as_deref(),
+                sparrow.station.as_deref(),
+                sparrow.market_id
+            ),
+            (Some("Deciat"), Some("Garay Terminal"), Some(3228342528))
+        );
     }
 
     #[test]
@@ -301,11 +368,19 @@ mod tests {
         let all = locations(&conn, "2026-09-06T10:10:00Z").unwrap();
         let cobra = all.iter().find(|l| l.ship_id == 9).unwrap();
         assert_eq!(cobra.status, "in_transit");
-        assert_eq!((cobra.system.as_deref(), cobra.station.as_deref()), (Some("Shinrarta Dezhra"), Some("Jameson Memorial")), "destination from the transfer's MarketID");
+        assert_eq!(
+            (cobra.system.as_deref(), cobra.station.as_deref()),
+            (Some("Shinrarta Dezhra"), Some("Jameson Memorial")),
+            "destination from the transfer's MarketID"
+        );
         assert_eq!(cobra.arrival.as_deref(), Some("2026-09-06T10:30:00Z"));
         assert_eq!(cobra.minutes_to_arrival, Some(20));
         let later = locations(&conn, "2026-09-06T11:00:00Z").unwrap();
-        assert_eq!(later.iter().find(|l| l.ship_id == 9).unwrap().status, "arrived", "transfer time elapsed, no snapshot since");
+        assert_eq!(
+            later.iter().find(|l| l.ship_id == 9).unwrap().status,
+            "arrived",
+            "transfer time elapsed, no snapshot since"
+        );
     }
 
     #[test]
@@ -320,7 +395,10 @@ mod tests {
         let all = locations(&conn, "2026-09-06T12:00:00Z").unwrap();
         assert!(all.iter().all(|l| l.ship_id != 64), "sold");
         let cobra = all.iter().find(|l| l.ship_id == 9).unwrap();
-        assert_eq!((cobra.status.as_str(), cobra.station.as_deref()), ("stored", Some("Jameson Memorial")));
+        assert_eq!(
+            (cobra.status.as_str(), cobra.station.as_deref()),
+            ("stored", Some("Jameson Memorial"))
+        );
     }
 
     #[test]
@@ -331,13 +409,24 @@ mod tests {
             [],
         )
         .unwrap();
-        ev(&conn, 1, &SNAPSHOT.replace(r#""StarSystem":"Deciat","ShipMarketID":3228342528"#, r#""StarSystem":"Alpha","ShipMarketID":3700000001"#));
+        ev(
+            &conn,
+            1,
+            &SNAPSHOT.replace(
+                r#""StarSystem":"Deciat","ShipMarketID":3228342528"#,
+                r#""StarSystem":"Alpha","ShipMarketID":3700000001"#,
+            ),
+        );
         rebuild(&conn).unwrap();
         let all = locations(&conn, "2026-09-06T12:00:00Z").unwrap();
         let sparrow = all.iter().find(|l| l.ship_id == 3).unwrap();
         assert_eq!(sparrow.status, "aboard_carrier");
         assert_eq!(sparrow.carrier.as_deref(), Some("K3X-9ZQ"));
-        assert_eq!(sparrow.system.as_deref(), Some("Gamma"), "the carrier moved since the ship was parked");
+        assert_eq!(
+            sparrow.system.as_deref(),
+            Some("Gamma"),
+            "the carrier moved since the ship was parked"
+        );
     }
 
     #[test]

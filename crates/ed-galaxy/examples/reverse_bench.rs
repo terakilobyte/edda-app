@@ -22,24 +22,51 @@ fn main() -> anyhow::Result<()> {
     let dir = Path::new(args.first().map(String::as_str).unwrap_or(".data/galaxy"));
     let from = args.get(1).map(String::as_str).unwrap_or("SynthStart");
     let to = args.get(2).map(String::as_str).unwrap_or("SynthGoal");
-    let ship = args.iter().position(|a| a == "--ship").and_then(|i| args.get(i + 1)).map(String::as_str).unwrap_or("explorer");
+    let ship = args
+        .iter()
+        .position(|a| a == "--ship")
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str)
+        .unwrap_or("explorer");
 
     let g = Galaxy::open(dir)?;
     let ndir = ed_galaxy::long_range::neutron_dir(dir);
     let neutrons = Galaxy::open(&ndir)?;
     let (model, boost) = match ship {
-        "mandalay" => (FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0), BoostProfile::default()),
-        _ => (FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0), BoostProfile::MK2_SCO),
+        "mandalay" => (
+            FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0),
+            BoostProfile::default(),
+        ),
+        _ => (
+            FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0),
+            BoostProfile::MK2_SCO,
+        ),
     };
-    let boost = BoostProfile { white_dwarf: 1.0, ..boost };
-    let a = g.find(from).ok_or_else(|| anyhow::anyhow!("unknown {from}"))?;
+    let boost = BoostProfile {
+        white_dwarf: 1.0,
+        ..boost
+    };
+    let a = g
+        .find(from)
+        .ok_or_else(|| anyhow::anyhow!("unknown {from}"))?;
     let b = g.find(to).ok_or_else(|| anyhow::anyhow!("unknown {to}"))?;
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control {
+        cancelled: &|| false,
+        progress: &|_, _| {},
+        stage: &|_, _, _| {},
+        found: &|_| {},
+        trace: &|_, _, _| {},
+    };
     let req = |from: u32, to: u32| RouteRequest {
-        from, to,
+        from,
+        to,
         range_ly: model.range_at(model.capacity),
-        supercharge: true, boost, fuel: Some(model), start_fuel: model.capacity,
-        thorough: false, grace_ms: 1000,
+        supercharge: true,
+        boost,
+        fuel: Some(model),
+        start_fuel: model.capacity,
+        thorough: false,
+        grace_ms: 1000,
         ..Default::default()
     };
 
@@ -51,8 +78,14 @@ fn main() -> anyhow::Result<()> {
 
     let (hard, hard_ms) = plot(a, b)?;
     let (easy, easy_ms) = plot(b, a)?;
-    println!("direct  {from} -> {to}: {} jumps, {} refuels, {hard_ms} ms", hard.jumps, hard.refuel_stops);
-    println!("easy    {to} -> {from}: {} jumps, {} refuels, {easy_ms} ms", easy.jumps, easy.refuel_stops);
+    println!(
+        "direct  {from} -> {to}: {} jumps, {} refuels, {hard_ms} ms",
+        hard.jumps, hard.refuel_stops
+    );
+    println!(
+        "easy    {to} -> {from}: {} jumps, {} refuels, {easy_ms} ms",
+        easy.jumps, easy.refuel_stops
+    );
 
     // Flip the easy route and simulate it forward with the fuel model.
     // Node facts are direction-independent: a star that can refuel you
@@ -69,7 +102,9 @@ fn main() -> anyhow::Result<()> {
     for w in hops.windows(2) {
         let (from_h, to_h) = (w[0], w[1]);
         let d = ed_galaxy::format::dist(from_h.pos, to_h.pos);
-        let jump_boost = if from_h.class == ed_galaxy::StarClass::Neutron || from_h.class == ed_galaxy::StarClass::WhiteDwarf {
+        let jump_boost = if from_h.class == ed_galaxy::StarClass::Neutron
+            || from_h.class == ed_galaxy::StarClass::WhiteDwarf
+        {
             boost.for_class(from_h.class)
         } else {
             1.0
@@ -101,7 +136,10 @@ fn main() -> anyhow::Result<()> {
     );
     println!(
         "naive : direct {hard_ms} ms / {} j  vs  flipped {} ms / {} j ({} infeasible)",
-        hard.jumps, easy_ms + (sim_us / 1000), hops.len().saturating_sub(1), repairable + broken
+        hard.jumps,
+        easy_ms + (sim_us / 1000),
+        hops.len().saturating_sub(1),
+        repairable + broken
     );
 
     // The real proposal: reverse the CHAIN (nodes are direction-agnostic)
@@ -115,7 +153,12 @@ fn main() -> anyhow::Result<()> {
     // measured +16% jumps: mandated nodes force filler jumps wherever a
     // reversed leg lost its departure boost).
     let mut waypoints: Vec<(u32, f32)> = vec![(a, model.capacity)];
-    let stride: usize = args.iter().position(|x| x == "--stride").and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(1);
+    let stride: usize = args
+        .iter()
+        .position(|x| x == "--stride")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
     for (i, h) in easy.hops.iter().rev().enumerate() {
         if h.idx != a && h.idx != b && (i % stride == 0 || h.refuel) {
             waypoints.push((h.idx, (model.capacity - mfj).max(0.0)));
@@ -125,7 +168,15 @@ fn main() -> anyhow::Result<()> {
     let hard_req = req(a, b);
     let straight = ed_galaxy::format::dist(g.record(a).pos(), g.record(b).pos());
     let refined = ed_galaxy::long_range::refine_waypoints(
-        &g, &hard_req, &ctl, waypoints, model.capacity, Some(model), 0, straight, Instant::now(),
+        &g,
+        &hard_req,
+        &ctl,
+        waypoints,
+        model.capacity,
+        Some(model),
+        0,
+        straight,
+        Instant::now(),
     );
     let refine_ms = t.elapsed().as_millis();
     match refined {

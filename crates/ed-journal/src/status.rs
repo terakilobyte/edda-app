@@ -51,15 +51,22 @@ pub fn scan_for_status(lines: impl Iterator<Item = String>, status: &mut ShipSta
         if line.is_empty() {
             continue;
         }
-        let Ok(ev) = serde_json::from_str::<Value>(line) else { continue };
-        let Some(etype) = ev.get("event").and_then(Value::as_str) else { continue };
+        let Ok(ev) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        let Some(etype) = ev.get("event").and_then(Value::as_str) else {
+            continue;
+        };
 
         match etype {
             "Location" | "FSDJump" | "CarrierJump" => {
                 if let Some(sys) = ev.get("StarSystem").and_then(Value::as_str) {
                     status.current_system = Some(sys.to_string());
                 }
-                status.docked = ev.get("Docked").and_then(Value::as_bool).unwrap_or(status.docked);
+                status.docked = ev
+                    .get("Docked")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(status.docked);
                 status.station_name = ev
                     .get("StationName")
                     .and_then(Value::as_str)
@@ -90,7 +97,10 @@ pub fn scan_for_status(lines: impl Iterator<Item = String>, status: &mut ShipSta
     }
 }
 
-pub fn current_status(journal_dir: &Path, journal_lines: impl Iterator<Item = String>) -> ShipStatus {
+pub fn current_status(
+    journal_dir: &Path,
+    journal_lines: impl Iterator<Item = String>,
+) -> ShipStatus {
     let mut status = ShipStatus::default();
     scan_for_status(journal_lines, &mut status);
 

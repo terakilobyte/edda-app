@@ -127,7 +127,10 @@ pub struct StoreWriter(pub Arc<crate::heatmap::Heatmap>);
 impl BatchWriter<ed_eddn::Operation> for StoreWriter {
     fn apply(&mut self, batch: &[ed_eddn::Operation]) -> anyhow::Result<Applied> {
         self.0.record_ops(batch, crate::heatmap::now_ms());
-        Ok(Applied { rows: batch.len() as u64, ..Applied::default() })
+        Ok(Applied {
+            rows: batch.len() as u64,
+            ..Applied::default()
+        })
     }
 }
 
@@ -175,7 +178,12 @@ pub async fn write_loop<T, W>(
                     counters.add(&counters.batches, 1);
                     counters.add(&counters.rows, applied.rows);
                     counters.add(&counters.market_rows, applied.market_rows);
-                    tracing::debug!(rows = applied.rows, market_rows = applied.market_rows, batch = batch.len(), "eddn: applied batch");
+                    tracing::debug!(
+                        rows = applied.rows,
+                        market_rows = applied.market_rows,
+                        batch = batch.len(),
+                        "eddn: applied batch"
+                    );
                     break;
                 }
                 Err(error) if attempt < policy.max_attempts => {
@@ -198,11 +206,7 @@ pub async fn write_loop<T, W>(
 
 /// The feed job: subscriber, batch writer and a periodic `eddn-stats`
 /// report, all on the shared runtime, all stopping on cancellation.
-pub async fn run(
-    token: CancellationToken,
-    cfg: FeedConfig,
-    heat: Arc<crate::heatmap::Heatmap>,
-) {
+pub async fn run(token: CancellationToken, cfg: FeedConfig, heat: Arc<crate::heatmap::Heatmap>) {
     let (tx, rx) = mpsc::channel::<ed_eddn::Operation>(cfg.queue);
     let counters = Arc::new(Counters::default());
     let feed_stats: Arc<Mutex<ed_eddn::FeedStats>> = Arc::default();
@@ -297,7 +301,10 @@ mod tests {
                 anyhow::bail!("database is locked");
             }
             self.seen.lock().unwrap().push(batch.to_vec());
-            Ok(Applied { rows: batch.len() as u64, market_rows: batch.len() as u64 })
+            Ok(Applied {
+                rows: batch.len() as u64,
+                market_rows: batch.len() as u64,
+            })
         }
     }
 
@@ -313,7 +320,15 @@ mod tests {
 
     fn fake(fail_first: u32, delay: Duration) -> (Fake, Arc<Mutex<Vec<Vec<u32>>>>) {
         let seen = Arc::new(Mutex::new(Vec::new()));
-        (Fake { seen: seen.clone(), fail_first, attempts: 0, delay }, seen)
+        (
+            Fake {
+                seen: seen.clone(),
+                fail_first,
+                attempts: 0,
+                delay,
+            },
+            seen,
+        )
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -322,7 +337,13 @@ mod tests {
         let counters = Arc::new(Counters::default());
         let (writer, seen) = fake(2, Duration::ZERO);
         let token = CancellationToken::new();
-        let loop_task = tokio::spawn(write_loop(token.clone(), rx, writer, fast_policy(), counters.clone()));
+        let loop_task = tokio::spawn(write_loop(
+            token.clone(),
+            rx,
+            writer,
+            fast_policy(),
+            counters.clone(),
+        ));
         tx.send(7).await.unwrap();
         tx.send(8).await.unwrap();
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -342,7 +363,13 @@ mod tests {
         let counters = Arc::new(Counters::default());
         let (writer, seen) = fake(0, Duration::from_millis(5));
         let token = CancellationToken::new();
-        let loop_task = tokio::spawn(write_loop(token.clone(), rx, writer, fast_policy(), counters.clone()));
+        let loop_task = tokio::spawn(write_loop(
+            token.clone(),
+            rx,
+            writer,
+            fast_policy(),
+            counters.clone(),
+        ));
         for i in 0..40u32 {
             tx.send(i).await.unwrap();
         }

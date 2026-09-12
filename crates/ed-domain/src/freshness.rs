@@ -127,17 +127,17 @@ pub fn parse_timestamp(text: &str) -> Option<i64> {
             let body = &s[1..];
             let (h, m) = match body.len() {
                 2 => (body.parse::<i64>().ok()?, 0),
-                4 => (body[..2].parse::<i64>().ok()?, body[2..].parse::<i64>().ok()?),
+                4 => (
+                    body[..2].parse::<i64>().ok()?,
+                    body[2..].parse::<i64>().ok()?,
+                ),
                 5 if body.as_bytes()[2] == b':' => (
                     body[..2].parse::<i64>().ok()?,
                     body[3..].parse::<i64>().ok()?,
                 ),
                 _ => return None,
             };
-            if !body
-                .bytes()
-                .all(|c| c.is_ascii_digit() || c == b':')
-            {
+            if !body.bytes().all(|c| c.is_ascii_digit() || c == b':') {
                 return None;
             }
             sign * (h * 3600 + m * 60)
@@ -145,7 +145,10 @@ pub fn parse_timestamp(text: &str) -> Option<i64> {
         _ => return None,
     };
 
-    Some(days_from_civil(year, month, day) * 86_400 + hour * 3600 + minute * 60 + second - offset_secs)
+    Some(
+        days_from_civil(year, month, day) * 86_400 + hour * 3600 + minute * 60 + second
+            - offset_secs,
+    )
 }
 
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant).
@@ -252,7 +255,12 @@ pub fn format_timestamp(epoch: i64) -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
-    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", secs / 3600, (secs % 3600) / 60, secs % 60)
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        secs / 3600,
+        (secs % 3600) / 60,
+        secs % 60
+    )
 }
 
 #[cfg(test)]
@@ -261,7 +269,12 @@ mod format_tests {
 
     #[test]
     fn format_round_trips_parse() {
-        for text in ["2026-09-06T22:57:10Z", "1970-01-01T00:00:00Z", "2000-02-29T23:59:59Z", "2024-12-31T00:00:00Z"] {
+        for text in [
+            "2026-09-06T22:57:10Z",
+            "1970-01-01T00:00:00Z",
+            "2000-02-29T23:59:59Z",
+            "2024-12-31T00:00:00Z",
+        ] {
             let epoch = parse_timestamp(text).unwrap();
             assert_eq!(format_timestamp(epoch), text);
         }

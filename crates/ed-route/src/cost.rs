@@ -127,7 +127,10 @@ impl Timing {
 
     /// The defaults for a ship of this pad.
     pub fn for_pad(pad: Option<ed_domain::station::PadSize>) -> Self {
-        Timing { undock_seconds: Self::undock_for_pad(pad), ..Timing::default() }
+        Timing {
+            undock_seconds: Self::undock_for_pad(pad),
+            ..Timing::default()
+        }
     }
 
     /// What the pipeline prices with: the commander's own numbers stand
@@ -138,7 +141,10 @@ impl Timing {
         if self.measured {
             self
         } else {
-            Timing { undock_seconds: Self::undock_for_pad(pad), ..self }
+            Timing {
+                undock_seconds: Self::undock_for_pad(pad),
+                ..self
+            }
         }
     }
 
@@ -147,13 +153,24 @@ impl Timing {
     /// to the default term, not to the edge of the range.
     pub fn clamped(self) -> Self {
         let d = Timing::default();
-        let term = |v: f64, default: f64, lo: f64, hi: f64| if v.is_finite() { v.clamp(lo, hi) } else { default };
+        let term = |v: f64, default: f64, lo: f64, hi: f64| {
+            if v.is_finite() {
+                v.clamp(lo, hi)
+            } else {
+                default
+            }
+        };
         Timing {
             jump_seconds: term(self.jump_seconds, d.jump_seconds, 5.0, 120.0),
             undock_seconds: term(self.undock_seconds, d.undock_seconds, 5.0, 600.0),
             docking_seconds: term(self.docking_seconds, d.docking_seconds, 5.0, 600.0),
             market_seconds: term(self.market_seconds, d.market_seconds, 0.0, 600.0),
-            supercruise_base_seconds: term(self.supercruise_base_seconds, d.supercruise_base_seconds, 5.0, 600.0),
+            supercruise_base_seconds: term(
+                self.supercruise_base_seconds,
+                d.supercruise_base_seconds,
+                5.0,
+                600.0,
+            ),
             supercruise_per_kls: term(self.supercruise_per_kls, d.supercruise_per_kls, 0.0, 60.0),
             supercruise_scale: term(self.supercruise_scale, d.supercruise_scale, 0.25, 4.0),
             measured: self.measured,
@@ -170,7 +187,12 @@ impl Timing {
     /// Time to fly `distance_ly` at `range_ly`, supercruise `arrival_ls`
     /// out, dock, and trade. Jump count is `ceil(distance / range)` with a
     /// floor of one for any move at all.
-    pub fn leg_seconds_at_range(&self, distance_ly: f64, arrival_ls: f64, range_ly: f64) -> Duration {
+    pub fn leg_seconds_at_range(
+        &self,
+        distance_ly: f64,
+        arrival_ls: f64,
+        range_ly: f64,
+    ) -> Duration {
         let jumps = if distance_ly <= 0.0 {
             0.0
         } else {
@@ -184,7 +206,11 @@ impl Timing {
         Duration {
             // The commander's own constants make the estimate theirs;
             // the documented defaults stay an estimate.
-            confidence: if self.measured { Confidence::Measured } else { Confidence::Estimated },
+            confidence: if self.measured {
+                Confidence::Measured
+            } else {
+                Confidence::Estimated
+            },
             seconds,
         }
     }
@@ -229,7 +255,12 @@ impl Ship {
     /// Laden range from the Loadout numbers: `max * (unladen + fuel) /
     /// (unladen + fuel + cargo)`. Falls back to the unladen range when the
     /// masses are unknown.
-    pub fn laden_range(max_range: f64, unladen_mass: Option<f64>, fuel_t: Option<f64>, cargo_t: i64) -> f64 {
+    pub fn laden_range(
+        max_range: f64,
+        unladen_mass: Option<f64>,
+        fuel_t: Option<f64>,
+        cargo_t: i64,
+    ) -> f64 {
         match (unladen_mass, fuel_t) {
             (Some(m), Some(f)) if m > 0.0 => max_range * (m + f) / (m + f + cargo_t as f64),
             _ => max_range,
@@ -239,7 +270,11 @@ impl Ship {
 
 impl Default for Ship {
     fn default() -> Self {
-        Ship { cargo_capacity: 0, jump_range_ly: 20.0, laden_range_ly: 20.0 }
+        Ship {
+            cargo_capacity: 0,
+            jump_range_ly: 20.0,
+            laden_range_ly: 20.0,
+        }
     }
 }
 
@@ -278,17 +313,37 @@ mod tests {
     fn timing_is_optional_per_field_and_measured_when_the_commander_says_so() {
         let omitted: Timing = serde_json::from_str("{}").unwrap();
         assert_eq!(omitted, Timing::default());
-        let partial: Timing = serde_json::from_str(r#"{"jump_seconds": 30, "measured": true}"#).unwrap();
+        let partial: Timing =
+            serde_json::from_str(r#"{"jump_seconds": 30, "measured": true}"#).unwrap();
         assert_eq!(partial.jump_seconds, 30.0);
-        assert_eq!(partial.docking_seconds, DOCKING_SECONDS, "an omitted field is its default");
+        assert_eq!(
+            partial.docking_seconds, DOCKING_SECONDS,
+            "an omitted field is its default"
+        );
         let default_leg = Timing::default().leg_seconds_at_range(90.0, 50.0, 30.0);
         let own_leg = partial.leg_seconds_at_range(90.0, 50.0, 30.0);
         assert_eq!(default_leg.confidence, Confidence::Estimated);
         assert_eq!(own_leg.confidence, Confidence::Measured);
-        assert!((own_leg.seconds - default_leg.seconds - 3.0 * 12.0).abs() < 1e-9, "three jumps, twelve seconds slower each");
-        assert_eq!(leg_seconds_at_range(90.0, 50.0, 30.0).seconds, default_leg.seconds, "the free function is the default timing");
-        let wild = Timing { jump_seconds: 0.5, undock_seconds: 9_999.0, market_seconds: f64::NAN, ..Timing::default() }.clamped();
-        assert_eq!((wild.jump_seconds, wild.undock_seconds, wild.market_seconds), (5.0, 600.0, MARKET_SECONDS));
+        assert!(
+            (own_leg.seconds - default_leg.seconds - 3.0 * 12.0).abs() < 1e-9,
+            "three jumps, twelve seconds slower each"
+        );
+        assert_eq!(
+            leg_seconds_at_range(90.0, 50.0, 30.0).seconds,
+            default_leg.seconds,
+            "the free function is the default timing"
+        );
+        let wild = Timing {
+            jump_seconds: 0.5,
+            undock_seconds: 9_999.0,
+            market_seconds: f64::NAN,
+            ..Timing::default()
+        }
+        .clamped();
+        assert_eq!(
+            (wild.jump_seconds, wild.undock_seconds, wild.market_seconds),
+            (5.0, 600.0, MARKET_SECONDS)
+        );
     }
 
     /// Undock is keyed by the ship's pad unless the commander measured
@@ -296,13 +351,43 @@ mod tests {
     #[test]
     fn undock_follows_the_pad_until_it_is_measured() {
         use ed_domain::station::PadSize;
-        assert_eq!(Timing::default().resolve(Some(PadSize::Large)).undock_seconds, 70.0);
-        assert_eq!(Timing::default().resolve(Some(PadSize::Medium)).undock_seconds, 60.0);
-        assert_eq!(Timing::default().resolve(Some(PadSize::Small)).undock_seconds, 50.0);
-        assert_eq!(Timing::default().resolve(None).undock_seconds, UNDOCK_SECONDS);
-        let own = Timing { undock_seconds: 81.0, measured: true, ..Timing::default() };
-        assert_eq!(own.resolve(Some(PadSize::Small)).undock_seconds, 81.0, "measured stands");
-        assert_eq!(Timing::for_pad(Some(PadSize::Large)).jump_seconds, JUMP_SECONDS, "only undock is pad-keyed");
+        assert_eq!(
+            Timing::default()
+                .resolve(Some(PadSize::Large))
+                .undock_seconds,
+            70.0
+        );
+        assert_eq!(
+            Timing::default()
+                .resolve(Some(PadSize::Medium))
+                .undock_seconds,
+            60.0
+        );
+        assert_eq!(
+            Timing::default()
+                .resolve(Some(PadSize::Small))
+                .undock_seconds,
+            50.0
+        );
+        assert_eq!(
+            Timing::default().resolve(None).undock_seconds,
+            UNDOCK_SECONDS
+        );
+        let own = Timing {
+            undock_seconds: 81.0,
+            measured: true,
+            ..Timing::default()
+        };
+        assert_eq!(
+            own.resolve(Some(PadSize::Small)).undock_seconds,
+            81.0,
+            "measured stands"
+        );
+        assert_eq!(
+            Timing::for_pad(Some(PadSize::Large)).jump_seconds,
+            JUMP_SECONDS,
+            "only undock is pad-keyed"
+        );
     }
 
     /// The supercruise scale multiplies the whole estimate, base and
@@ -311,12 +396,22 @@ mod tests {
     /// Mk II, 2026-09-09) is the pin the scale is judged against.
     #[test]
     fn supercruise_scale_multiplies_the_whole_estimate() {
-        let doubled = Timing { supercruise_scale: 2.0, ..Timing::default() };
+        let doubled = Timing {
+            supercruise_scale: 2.0,
+            ..Timing::default()
+        };
         for ls in [0.0, 357.0, 5_392.0] {
-            assert!((doubled.supercruise_seconds(ls) - 2.0 * Timing::default().supercruise_seconds(ls)).abs() < 1e-9);
+            assert!(
+                (doubled.supercruise_seconds(ls) - 2.0 * Timing::default().supercruise_seconds(ls))
+                    .abs()
+                    < 1e-9
+            );
         }
         let far_pilot: Timing = serde_json::from_str(r#"{"supercruise_per_kls": 10}"#).unwrap();
-        assert!((far_pilot.supercruise_seconds(5_000.0) - 200.0).abs() < 1e-9, "the slope is a wire field too");
+        assert!(
+            (far_pilot.supercruise_seconds(5_000.0) - 200.0).abs() < 1e-9,
+            "the slope is a wire field too"
+        );
     }
 
     #[test]
@@ -328,7 +423,10 @@ mod tests {
         assert!(supercruise_seconds(0.0) >= SUPERCRUISE_BASE_SECONDS);
         // A 100x distance increase must not cost 100x the time: the fit
         // is a flat base with a shallow slope.
-        assert!(far < mid * 2.0, "growth is a shallow slope, never proportional");
+        assert!(
+            far < mid * 2.0,
+            "growth is a shallow slope, never proportional"
+        );
         // The fitted shape against the first measured loop (2026-09-09,
         // Panther Mk II): 98 s flown at 357 ls, 139 s at 5,392 ls.
         assert!((supercruise_seconds(357.0) - 150.2).abs() < 0.1);
@@ -347,7 +445,11 @@ mod tests {
 
     #[test]
     fn a_distant_station_can_cost_more_than_extra_jumps() {
-        let ship = Ship { cargo_capacity: 700, jump_range_ly: 30.0, laden_range_ly: 30.0 };
+        let ship = Ship {
+            cargo_capacity: 700,
+            jump_range_ly: 30.0,
+            laden_range_ly: 30.0,
+        };
         // Close station, far away in ly.
         let far_close = leg_seconds(90.0, 50.0, &ship);
         // Near system, but the station is 250,000 ls out.
@@ -365,7 +467,11 @@ mod tests {
         // A 1,000 t hold on a 1,000 t hull with 100 t of fuel: 1100/2100 of the range.
         let r = Ship::laden_range(37.6, Some(1000.0), Some(100.0), 1000);
         assert!((r - 37.6 * 1100.0 / 2100.0).abs() < 1e-9);
-        assert_eq!(Ship::laden_range(37.6, None, None, 1000), 37.6, "unknown masses: no guess");
+        assert_eq!(
+            Ship::laden_range(37.6, None, None, 1000),
+            37.6,
+            "unknown masses: no guess"
+        );
     }
 
     #[test]
@@ -373,6 +479,9 @@ mod tests {
         let ship = Ship::default();
         // The supercruise and market terms are estimated, so no leg
         // estimate may present itself as measured.
-        assert_eq!(leg_seconds(30.0, 100.0, &ship).confidence, Confidence::Estimated);
+        assert_eq!(
+            leg_seconds(30.0, 100.0, &ship).confidence,
+            Confidence::Estimated
+        );
     }
 }

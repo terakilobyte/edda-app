@@ -13,8 +13,8 @@
 //! station id through `/v1/stations`; a server that does not answer
 //! usably is a named, retryable error, never an empty report.
 
-use ed_route::profit::ProfitReport;
 use crate::exchange::SendApi;
+use ed_route::profit::ProfitReport;
 use ed_route::request::{self, ProfitRequest};
 use serde_json::json;
 
@@ -24,10 +24,14 @@ use crate::state::AppState;
 const TOTAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
 
 pub async fn report(state: &AppState, req: &ProfitRequest) -> Result<ProfitReport, CapError> {
-    let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
+    let conn = state
+        .read_conn()
+        .map_err(|e| CapError::unavailable(e, true))?;
     let (system_name, plan, docked) = {
-        let system = crate::capabilities::trade::origin_for(&conn, req)
-            .ok_or_else(|| CapError::invalid("no system given and the current location is unknown").hint("pass system"))?;
+        let system = crate::capabilities::trade::origin_for(&conn, req).ok_or_else(|| {
+            CapError::invalid("no system given and the current location is unknown")
+                .hint("pass system")
+        })?;
         let pledged = crate::capabilities::trade::pledged_power(&conn);
         let ship = crate::capabilities::trade::ship_for(&conn, req);
         let mut plan = request::plan(req, &ship, pledged.as_deref())?;
@@ -48,7 +52,10 @@ pub async fn report(state: &AppState, req: &ProfitRequest) -> Result<ProfitRepor
                 ed_store::query::location(&conn)?
                     .filter(|l| l.docked)
                     .and_then(|l| l.station_name)
-                    .ok_or_else(|| CapError::invalid("not docked, so there is no current station to buy from").hint("drop from_current_station to search every station in range"))?,
+                    .ok_or_else(|| {
+                        CapError::invalid("not docked, so there is no current station to buy from")
+                            .hint("drop from_current_station to search every station in range")
+                    })?,
             )
         } else {
             None
@@ -56,22 +63,38 @@ pub async fn report(state: &AppState, req: &ProfitRequest) -> Result<ProfitRepor
         (system, plan, docked)
     };
     drop(conn);
-    let api = crate::exchange::endpoint(state).ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
+    let api = crate::exchange::endpoint(state)
+        .ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
     // Buying only at the docked station: the journal knows its name, the
     // server knows its id.
     let from_station_id = match (req.from_station_id, docked) {
         (Some(id), _) => Some(id),
         (None, Some(name)) => {
-            let lookup = crate::capabilities::galaxy::StationsInSystemRequest { system: system_name.clone(), include_carriers: true, include_minor: true };
+            let lookup = crate::capabilities::galaxy::StationsInSystemRequest {
+                system: system_name.clone(),
+                include_carriers: true,
+                include_minor: true,
+            };
             let stations = crate::remote_lookup::stations_in_system(state, &lookup)
                 .await
                 .ok_or_else(|| crate::remote_lookup::api_down("stations"))?;
             Some(
                 stations
                     .into_iter()
-                    .find(|s| s.name.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(&name)))
+                    .find(|s| {
+                        s.name
+                            .as_deref()
+                            .is_some_and(|n| n.eq_ignore_ascii_case(&name))
+                    })
                     .map(|s| s.id)
-                    .ok_or_else(|| CapError::not_found(format!("the community API does not list {name:?} in {system_name}")).hint("the station may be newly built; search every station in range instead"))?,
+                    .ok_or_else(|| {
+                        CapError::not_found(format!(
+                            "the community API does not list {name:?} in {system_name}"
+                        ))
+                        .hint(
+                            "the station may be newly built; search every station in range instead",
+                        )
+                    })?,
             )
         }
         (None, None) => None,
@@ -84,13 +107,21 @@ pub async fn report(state: &AppState, req: &ProfitRequest) -> Result<ProfitRepor
         Some(id) => state
             .read_conn()
             .ok()
-            .and_then(|conn| ed_store::session::snapshot_raw(&conn, "Market.json").ok().flatten())
+            .and_then(|conn| {
+                ed_store::session::snapshot_raw(&conn, "Market.json")
+                    .ok()
+                    .flatten()
+            })
             .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
             .and_then(|market| docked_board(&market, id)),
         None => None,
     };
     if let Some(board) = &board {
-        tracing::info!(station_id = from_station_id, rows = board["rows"].as_array().map_or(0, |r| r.len()), "trade search: sending the commander's own board");
+        tracing::info!(
+            station_id = from_station_id,
+            rows = board["rows"].as_array().map_or(0, |r| r.len()),
+            "trade search: sending the commander's own board"
+        );
     }
     let body = json!({
         "system": system_name,
@@ -126,7 +157,10 @@ pub async fn report(state: &AppState, req: &ProfitRequest) -> Result<ProfitRepor
             return Err(crate::remote_lookup::api_down("trade search"));
         }
     };
-    let value: serde_json::Value = response.json().await.map_err(|_| crate::remote_lookup::api_down("trade search answer"))?;
+    let value: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|_| crate::remote_lookup::api_down("trade search answer"))?;
     let mut report = parse_report(&value).ok_or_else(|| {
         tracing::info!(ms, "trade search: server answered in the legacy shape (older server)");
         CapError::unavailable("the community API is older than this EDDA and answered without round trips; it updates shortly", true)
@@ -172,23 +206,34 @@ pub fn docked_board(market: &serde_json::Value, station_id: i64) -> Option<serde
     }
     let observed_at = market.get("timestamp")?.as_str()?;
     let items = market.get("Items")?.as_array()?;
-    let n = |item: &serde_json::Value, key: &str| item.get(key).and_then(serde_json::Value::as_i64).unwrap_or(0);
+    let n = |item: &serde_json::Value, key: &str| {
+        item.get(key)
+            .and_then(serde_json::Value::as_i64)
+            .unwrap_or(0)
+    };
     let mut rows: Vec<(i64, serde_json::Value)> = items
         .iter()
         .filter_map(|item| {
             let symbol = wire_symbol(item.get("Name")?.as_str()?);
             let (buy, sell) = (n(item, "BuyPrice"), n(item, "SellPrice"));
-            Some((buy.max(sell), json!({
-                "symbol": symbol,
-                "buy_price": buy,
-                "sell_price": sell,
-                "demand": n(item, "Demand"),
-                "supply": n(item, "Stock"),
-            })))
+            Some((
+                buy.max(sell),
+                json!({
+                    "symbol": symbol,
+                    "buy_price": buy,
+                    "sell_price": sell,
+                    "demand": n(item, "Demand"),
+                    "supply": n(item, "Stock"),
+                }),
+            ))
         })
         .collect();
     if rows.len() > BOARD_ROWS_MAX {
-        tracing::info!(rows = rows.len(), kept = BOARD_ROWS_MAX, "trade search: own board truncated to the priciest rows");
+        tracing::info!(
+            rows = rows.len(),
+            kept = BOARD_ROWS_MAX,
+            "trade search: own board truncated to the priciest rows"
+        );
         rows.sort_by(|a, b| b.0.cmp(&a.0));
         rows.truncate(BOARD_ROWS_MAX);
     }
@@ -235,44 +280,96 @@ mod board_tests {
         assert_eq!(rows[1]["symbol"], "tritium");
         assert_eq!(rows[1]["supply"], 300);
         assert_eq!(rows[2]["symbol"], "odd");
-        assert!(docked_board(&market, 42).is_none(), "another station's search sends no board");
-        assert!(docked_board(&json!({"MarketID": 1, "Items": []}), 1).is_none(), "no timestamp, no board");
-        let big: Vec<serde_json::Value> = (0..500).map(|i| json!({"Name": format!("$c{i}_name;"), "BuyPrice": i, "SellPrice": 0})).collect();
-        let board = docked_board(&json!({"timestamp": "t", "MarketID": 1, "Items": big}), 1).unwrap();
+        assert!(
+            docked_board(&market, 42).is_none(),
+            "another station's search sends no board"
+        );
+        assert!(
+            docked_board(&json!({"MarketID": 1, "Items": []}), 1).is_none(),
+            "no timestamp, no board"
+        );
+        let big: Vec<serde_json::Value> = (0..500)
+            .map(|i| json!({"Name": format!("$c{i}_name;"), "BuyPrice": i, "SellPrice": 0}))
+            .collect();
+        let board =
+            docked_board(&json!({"timestamp": "t", "MarketID": 1, "Items": big}), 1).unwrap();
         let rows = board["rows"].as_array().unwrap();
         assert_eq!(rows.len(), BOARD_ROWS_MAX);
-        assert_eq!(rows[0]["symbol"], "c499", "the priciest rows survive the cap");
+        assert_eq!(
+            rows[0]["symbol"], "c499",
+            "the priciest rows survive the cap"
+        );
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed_store::lookup::{PadSize, StationClass};
     use ed_route::cost::{Confidence, Ship};
-    use ed_route::profit::{Constraints, Excluded, MarketRow, SearchTiming, ShipSummary, StationRef};
+    use ed_route::profit::{
+        Constraints, Excluded, MarketRow, SearchTiming, ShipSummary, StationRef,
+    };
+    use ed_store::lookup::{PadSize, StationClass};
 
     fn report() -> ProfitReport {
         let station = |id: i64, x: f64| StationRef {
-            station_id: id, station: format!("S{id}"), system: format!("Sys{id}"), system_id64: id * 10,
-            x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
-            class: StationClass::of(Some("Coriolis")), is_carrier: false,
-            controlling_power: None, power_state: None, powers: Vec::new(),
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id * 10,
+            x,
+            y: 0.0,
+            z: 0.0,
+            arrival_ls: Some(100.0),
+            max_pad: Some(PadSize::Large),
+            class: StationClass::of(Some("Coriolis")),
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
         };
-        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
+        let ship = Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
-            station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
-            demand: if sell > 0 { 1000 } else { 0 }, supply: if buy > 0 { 1000 } else { 0 }, age_hours: 1.0,
+            station_id: st,
+            symbol: sym.into(),
+            name: None,
+            buy_price: buy,
+            sell_price: sell,
+            demand: if sell > 0 { 1000 } else { 0 },
+            supply: if buy > 0 { 1000 } else { 0 },
+            age_hours: 1.0,
         };
         let timing = ed_route::cost::Timing::default();
-        let out = ed_route::profit::make_leg(&station(1, 0.0), &station(2, 10.0), &row(1, "gold", 100, 0), &row(2, "gold", 0, 200), &ship, &timing);
-        let back = ed_route::profit::make_leg(&station(2, 10.0), &station(1, 0.0), &row(2, "silver", 50, 0), &row(1, "silver", 0, 150), &ship, &timing);
+        let out = ed_route::profit::make_leg(
+            &station(1, 0.0),
+            &station(2, 10.0),
+            &row(1, "gold", 100, 0),
+            &row(2, "gold", 0, 200),
+            &ship,
+            &timing,
+        );
+        let back = ed_route::profit::make_leg(
+            &station(2, 10.0),
+            &station(1, 0.0),
+            &row(2, "silver", 50, 0),
+            &row(1, "silver", 0, 150),
+            &ship,
+            &timing,
+        );
         let trips = ed_route::profit::round_trips(&[out.clone(), back.clone()], 10);
         ProfitReport {
             origin: "Sys1".into(),
             timing: SearchTiming::default(),
             constraints: Constraints::default(),
-            ship: ShipSummary { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 },
+            ship: ShipSummary {
+                cargo_capacity: 100,
+                jump_range_ly: 30.0,
+                laden_range_ly: 25.0,
+            },
             stations_considered: 2,
             excluded: Excluded::default(),
             legs: vec![out, back],
@@ -283,7 +380,8 @@ mod tests {
             coverage: None,
             offer: None,
             fallback: None,
-            reach_ly: None, board: None,
+            reach_ly: None,
+            board: None,
         }
     }
 
@@ -298,7 +396,10 @@ mod tests {
         let parsed = parse_report(&value).expect("v2 parses");
         assert_eq!(parsed.round_trips.len(), 1);
         assert_eq!(parsed.legs.len(), 2);
-        assert_eq!(parsed.round_trips[0].out.commodity, parsed.legs[0].commodity);
+        assert_eq!(
+            parsed.round_trips[0].out.commodity,
+            parsed.legs[0].commodity
+        );
         let legacy = json!({
             "origin": "Sol", "provenance": "server", "as_of": "2026-09-07T12:00:00Z",
             "legs": [{"symbol": "gold", "commodity": "Gold", "profit_t": 100, "buy": 1, "sell": 101,

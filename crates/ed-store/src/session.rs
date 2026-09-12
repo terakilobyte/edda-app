@@ -44,8 +44,12 @@ pub fn current_ship(conn: &Connection) -> Result<Option<CurrentShip>> {
             |r| {
                 Ok(CurrentShip {
                     symbol: r.get(0)?,
-                    name: r.get::<_, Option<String>>(1)?.filter(|s| !s.trim().is_empty()),
-                    ident: r.get::<_, Option<String>>(2)?.filter(|s| !s.trim().is_empty()),
+                    name: r
+                        .get::<_, Option<String>>(1)?
+                        .filter(|s| !s.trim().is_empty()),
+                    ident: r
+                        .get::<_, Option<String>>(2)?
+                        .filter(|s| !s.trim().is_empty()),
                 })
             },
         )
@@ -533,11 +537,28 @@ mod tests {
         assert_eq!(ship.symbol.as_deref(), Some("panthermkii"));
         assert!(ship.name.is_none(), "blank name is no name");
         assert_eq!(ship.ident.as_deref(), Some("WI-02P"));
-        let hull = |s: &str| if s == "panthermkii" { "Panther Clipper Mk II".to_string() } else { s.to_string() };
+        let hull = |s: &str| {
+            if s == "panthermkii" {
+                "Panther Clipper Mk II".to_string()
+            } else {
+                s.to_string()
+            }
+        };
         assert_eq!(ship.spoken(hull).as_deref(), Some("Panther Clipper Mk II"));
         // Name it, and prose uses the name.
-        conn.execute("UPDATE loadout SET ship_name = 'Murderface' WHERE id = 1", []).unwrap();
-        assert_eq!(current_ship(&conn).unwrap().unwrap().spoken(hull).as_deref(), Some("Murderface"));
+        conn.execute(
+            "UPDATE loadout SET ship_name = 'Murderface' WHERE id = 1",
+            [],
+        )
+        .unwrap();
+        assert_eq!(
+            current_ship(&conn)
+                .unwrap()
+                .unwrap()
+                .spoken(hull)
+                .as_deref(),
+            Some("Murderface")
+        );
     }
 
     #[test]

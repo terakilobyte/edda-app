@@ -39,8 +39,11 @@ pub fn parse_commodity_csv(text: &str) -> Result<Vec<CommodityMeta>> {
             .position(|c| c.eq_ignore_ascii_case(want))
             .with_context(|| format!("FDevIDs commodity header has no {want:?} column: {header}"))
     };
-    let (symbol_at, category_at, name_at) =
-        (index_of("symbol")?, index_of("category")?, index_of("name")?);
+    let (symbol_at, category_at, name_at) = (
+        index_of("symbol")?,
+        index_of("category")?,
+        index_of("name")?,
+    );
     let mut out = Vec::new();
     for line in lines {
         if line.trim().is_empty() {
@@ -49,7 +52,10 @@ pub fn parse_commodity_csv(text: &str) -> Result<Vec<CommodityMeta>> {
         let fields = split_csv_line(line);
         let field = |at: usize| fields.get(at).map(String::as_str).unwrap_or("").trim();
         let symbol = field(symbol_at);
-        ensure!(!symbol.is_empty(), "FDevIDs commodity row without a symbol: {line}");
+        ensure!(
+            !symbol.is_empty(),
+            "FDevIDs commodity row without a symbol: {line}"
+        );
         out.push(CommodityMeta {
             symbol: symbol.to_lowercase(),
             name: field(name_at).to_string(),
@@ -98,8 +104,8 @@ pub async fn hydrate_builtin(pool: &PgPool) -> Result<u64> {
 /// Upsert from a downloaded FDevIDs `commodity.csv` — for picking up new
 /// commodities without a rebuild. Returns rows written.
 pub async fn hydrate_commodities(pool: &PgPool, path: &Path) -> Result<u64> {
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     let rows = parse_commodity_csv(&text)?;
     ensure!(!rows.is_empty(), "no commodity rows in {}", path.display());
     upsert(pool, &rows).await
@@ -146,7 +152,11 @@ mod tests {
         assert_eq!(
             rows,
             vec![
-                CommodityMeta { symbol: "gold".into(), name: "Gold".into(), category: "Metals".into() },
+                CommodityMeta {
+                    symbol: "gold".into(),
+                    name: "Gold".into(),
+                    category: "Metals".into()
+                },
                 CommodityMeta {
                     symbol: "kinago".into(),
                     name: "Kinago Violins, Deluxe".into(),
@@ -166,11 +176,17 @@ mod tests {
     #[test]
     fn baked_table_is_well_formed() {
         let table = crate::fdev_data::COMMODITY_METADATA;
-        assert!(table.len() >= 350, "expected the full catalog, got {}", table.len());
+        assert!(
+            table.len() >= 350,
+            "expected the full catalog, got {}",
+            table.len()
+        );
         for pair in table.windows(2) {
             assert!(
                 pair[0].0.to_ascii_lowercase() < pair[1].0.to_ascii_lowercase(),
-                "sorted and unique: {} vs {}", pair[0].0, pair[1].0
+                "sorted and unique: {} vs {}",
+                pair[0].0,
+                pair[1].0
             );
         }
         assert!(table.iter().all(|(s, _, _)| !s.is_empty()));
@@ -182,14 +198,20 @@ mod tests {
         );
         let gold = table.iter().find(|(s, _, _)| *s == "gold").unwrap();
         assert_eq!((gold.1, gold.2), ("Gold", "Metals"));
-        let ltd = table.iter().find(|(s, _, _)| *s == "lowtemperaturediamond").unwrap();
+        let ltd = table
+            .iter()
+            .find(|(s, _, _)| *s == "lowtemperaturediamond")
+            .unwrap();
         assert_eq!(ltd.1, "Low Temperature Diamonds");
     }
 
     #[test]
     fn rejects_files_that_are_not_the_commodity_table() {
         assert!(parse_commodity_csv("").is_err());
-        assert!(parse_commodity_csv("id,name\n1,Gold\n").is_err(), "no symbol column");
+        assert!(
+            parse_commodity_csv("id,name\n1,Gold\n").is_err(),
+            "no symbol column"
+        );
         assert!(
             parse_commodity_csv("id,symbol,category,name\n1,,Metals,Gold\n").is_err(),
             "empty symbol"

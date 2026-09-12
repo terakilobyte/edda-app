@@ -37,7 +37,9 @@ impl StarClass {
     /// Every variant, in declaration order.
     pub const ALL: [StarClass; 16] = {
         use StarClass::*;
-        [Unknown, O, B, A, F, G, K, M, L, T, Y, Proto, Exotic, WhiteDwarf, Neutron, BlackHole]
+        [
+            Unknown, O, B, A, F, G, K, M, L, T, Y, Proto, Exotic, WhiteDwarf, Neutron, BlackHole,
+        ]
     };
 
     /// From Spansh's `subType`, e.g. "K (Yellow-Orange) Star", "Neutron Star",
@@ -134,7 +136,10 @@ impl StarClass {
     /// stored name -- including "Unknown", which is never worth keeping.
     pub fn from_name(s: &str) -> Option<Self> {
         let s = s.trim();
-        Self::ALL.iter().copied().find(|c| *c != StarClass::Unknown && c.name() == s)
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|c| *c != StarClass::Unknown && c.name() == s)
     }
 
     /// The journal-style letter, for display.
@@ -197,7 +202,6 @@ impl std::fmt::Display for StarClass {
     }
 }
 
-
 /// The 4-bit code each class takes in the EDGX star file and the
 /// service's `stars.class` column (`docs/BINARY-FORMATS.md`). A
 /// file-format contract: never renumber, add new classes at the end.
@@ -212,8 +216,21 @@ impl StarClassCode for StarClass {
     fn from_code(c: u8) -> Self {
         use StarClass::*;
         match c {
-            1 => O, 2 => B, 3 => A, 4 => F, 5 => G, 6 => K, 7 => M, 8 => L, 9 => T, 10 => Y,
-            11 => Proto, 12 => Exotic, 13 => WhiteDwarf, 14 => Neutron, 15 => BlackHole,
+            1 => O,
+            2 => B,
+            3 => A,
+            4 => F,
+            5 => G,
+            6 => K,
+            7 => M,
+            8 => L,
+            9 => T,
+            10 => Y,
+            11 => Proto,
+            12 => Exotic,
+            13 => WhiteDwarf,
+            14 => Neutron,
+            15 => BlackHole,
             _ => Unknown,
         }
     }
@@ -221,8 +238,22 @@ impl StarClassCode for StarClass {
     fn code(self) -> u8 {
         use StarClass::*;
         match self {
-            Unknown => 0, O => 1, B => 2, A => 3, F => 4, G => 5, K => 6, M => 7, L => 8, T => 9, Y => 10,
-            Proto => 11, Exotic => 12, WhiteDwarf => 13, Neutron => 14, BlackHole => 15,
+            Unknown => 0,
+            O => 1,
+            B => 2,
+            A => 3,
+            F => 4,
+            G => 5,
+            K => 6,
+            M => 7,
+            L => 8,
+            T => 9,
+            Y => 10,
+            Proto => 11,
+            Exotic => 12,
+            WhiteDwarf => 13,
+            Neutron => 14,
+            BlackHole => 15,
         }
     }
 }
@@ -233,12 +264,21 @@ mod tests {
 
     #[test]
     fn spansh_subtypes_map_to_classes() {
-        assert_eq!(StarClass::from_subtype("K (Yellow-Orange) Star"), StarClass::K);
+        assert_eq!(
+            StarClass::from_subtype("K (Yellow-Orange) Star"),
+            StarClass::K
+        );
         assert_eq!(StarClass::from_subtype("Neutron Star"), StarClass::Neutron);
-        assert_eq!(StarClass::from_subtype("White Dwarf (DA) Star"), StarClass::WhiteDwarf);
+        assert_eq!(
+            StarClass::from_subtype("White Dwarf (DA) Star"),
+            StarClass::WhiteDwarf
+        );
         assert_eq!(StarClass::from_subtype("Black Hole"), StarClass::BlackHole);
         assert_eq!(StarClass::from_subtype("T Tauri Star"), StarClass::Proto);
-        assert_eq!(StarClass::from_subtype("Wolf-Rayet N Star"), StarClass::Exotic);
+        assert_eq!(
+            StarClass::from_subtype("Wolf-Rayet N Star"),
+            StarClass::Exotic
+        );
         assert_eq!(StarClass::from_subtype("M (Red dwarf) Star"), StarClass::M);
     }
 
@@ -248,7 +288,10 @@ mod tests {
         assert_eq!(StarClass::from_journal("DA"), StarClass::WhiteDwarf);
         assert_eq!(StarClass::from_journal("DC"), StarClass::WhiteDwarf);
         assert_eq!(StarClass::from_journal("H"), StarClass::BlackHole);
-        assert_eq!(StarClass::from_journal("SupermassiveBlackHole"), StarClass::BlackHole);
+        assert_eq!(
+            StarClass::from_journal("SupermassiveBlackHole"),
+            StarClass::BlackHole
+        );
         assert_eq!(StarClass::from_journal("TTS"), StarClass::Proto);
         assert_eq!(StarClass::from_journal("AeBe"), StarClass::Proto);
         assert_eq!(StarClass::from_journal("MS"), StarClass::Exotic);
@@ -268,24 +311,40 @@ mod tests {
         assert_ne!(StarClass::from_journal("TTS"), StarClass::T);
         assert!(!StarClass::from_journal("DA").scoopable());
         assert!(StarClass::from_journal("DA").hazardous());
-        assert_eq!(StarClass::from_journal("DA").hazard_label(), Some("white dwarf"));
+        assert_eq!(
+            StarClass::from_journal("DA").hazard_label(),
+            Some("white dwarf")
+        );
         assert!(StarClass::from_journal("SupermassiveBlackHole").hazardous());
-        assert_eq!(StarClass::from_journal("SupermassiveBlackHole").hazard_label(), Some("black hole"));
+        assert_eq!(
+            StarClass::from_journal("SupermassiveBlackHole").hazard_label(),
+            Some("black hole")
+        );
     }
 
     #[test]
     fn scoopable_covers_kgbfoam_and_nothing_else() {
         for c in ["K", "G", "B", "F", "O", "A", "M"] {
-            assert!(StarClass::from_journal(c).scoopable(), "{c} should be scoopable");
+            assert!(
+                StarClass::from_journal(c).scoopable(),
+                "{c} should be scoopable"
+            );
         }
         for c in ["L", "T", "Y", "D", "N", "H", "TTS", "W", "AeBe", "MS", "DA"] {
-            assert!(!StarClass::from_journal(c).scoopable(), "{c} should not be scoopable");
+            assert!(
+                !StarClass::from_journal(c).scoopable(),
+                "{c} should not be scoopable"
+            );
         }
     }
 
     #[test]
     fn scoop_and_boost_follow_the_class() {
-        assert!(StarClass::K.scoopable() && !StarClass::L.scoopable() && !StarClass::Neutron.scoopable());
+        assert!(
+            StarClass::K.scoopable()
+                && !StarClass::L.scoopable()
+                && !StarClass::Neutron.scoopable()
+        );
         assert_eq!(StarClass::Neutron.boost(), 4.0);
         assert_eq!(StarClass::WhiteDwarf.boost(), 1.5);
         assert_eq!(StarClass::G.boost(), 1.0);
@@ -296,7 +355,11 @@ mod tests {
     #[test]
     fn names_round_trip_and_match_debug() {
         for c in StarClass::ALL {
-            assert_eq!(c.name(), format!("{c:?}"), "stored rows were written with the Debug form");
+            assert_eq!(
+                c.name(),
+                format!("{c:?}"),
+                "stored rows were written with the Debug form"
+            );
             assert_eq!(c.to_string(), c.name());
             if c == StarClass::Unknown {
                 assert_eq!(StarClass::from_name(c.name()), None);

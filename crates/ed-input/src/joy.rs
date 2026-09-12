@@ -12,7 +12,10 @@ pub struct JoyDevice {
 #[cfg(windows)]
 mod imp {
     use super::JoyDevice;
-    use windows_sys::Win32::Media::Multimedia::{joyGetDevCapsW, joyGetNumDevs, joyGetPosEx, JOYCAPSW, JOYERR_NOERROR, JOYINFOEX, JOY_RETURNBUTTONS, JOY_RETURNPOV};
+    use windows_sys::Win32::Media::Multimedia::{
+        joyGetDevCapsW, joyGetNumDevs, joyGetPosEx, JOYCAPSW, JOYERR_NOERROR, JOYINFOEX,
+        JOY_RETURNBUTTONS, JOY_RETURNPOV,
+    };
 
     pub fn devices() -> Vec<JoyDevice> {
         let mut out = Vec::new();
@@ -21,7 +24,12 @@ mod imp {
             let n = joyGetNumDevs();
             for id in 0..n {
                 let mut caps: JOYCAPSW = std::mem::zeroed();
-                if joyGetDevCapsW(id as usize, &mut caps, std::mem::size_of::<JOYCAPSW>() as u32) != JOYERR_NOERROR {
+                if joyGetDevCapsW(
+                    id as usize,
+                    &mut caps,
+                    std::mem::size_of::<JOYCAPSW>() as u32,
+                ) != JOYERR_NOERROR
+                {
                     continue;
                 }
                 let mut info: JOYINFOEX = std::mem::zeroed();
@@ -33,8 +41,18 @@ mod imp {
                 // JOYCAPSW is packed: copy fields out before taking references.
                 let pname = caps.szPname;
                 let nbuttons = caps.wNumButtons;
-                let name = String::from_utf16_lossy(&pname).trim_end_matches('\0').to_string();
-                out.push(JoyDevice { id, name: if name.is_empty() { format!("Joystick {id}") } else { name }, buttons: nbuttons });
+                let name = String::from_utf16_lossy(&pname)
+                    .trim_end_matches('\0')
+                    .to_string();
+                out.push(JoyDevice {
+                    id,
+                    name: if name.is_empty() {
+                        format!("Joystick {id}")
+                    } else {
+                        name
+                    },
+                    buttons: nbuttons,
+                });
             }
         }
         out
@@ -132,7 +150,15 @@ fn watches() -> &'static std::sync::Mutex<Vec<Watch>> {
 /// Run `cb` whenever `button` (1-based) on device `id` goes down. One
 /// polling thread (50 Hz) serves every watch for the life of the process.
 pub fn watch(id: u32, button: u32, cb: Box<dyn Fn() + Send>) {
-    watches().lock().unwrap_or_else(|e| e.into_inner()).push(Watch { id, button, cb, was: is_down(id, button) });
+    watches()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(Watch {
+            id,
+            button,
+            cb,
+            was: is_down(id, button),
+        });
     if POLLING.swap(true, std::sync::atomic::Ordering::SeqCst) {
         return;
     }

@@ -44,11 +44,40 @@ const BOUNDS: [(&str, f64, f64); 5] = [
 /// Events that can sit between two jumps without meaning the pilot did
 /// something other than travel.
 const TRANSIT: &[&str] = &[
-    "FSDJump", "FuelScoop", "StartJump", "FSSSignalDiscovered", "FSSDiscoveryScan", "Scan", "NavRoute",
-    "NavRouteClear", "ReceiveText", "Music", "ShipTargeted", "SupercruiseEntry", "JetConeBoost",
-    "FSSAllBodiesFound", "CodexEntry", "ReservoirReplenished", "Friends", "Shutdown", "Fileheader",
-    "Commander", "LoadGame", "Loadout", "Materials", "Rank", "Progress", "Statistics", "Location",
-    "Powerplay", "Reputation", "EngineerProgress", "SquadronStartup", "Missions", "Cargo", "Status",
+    "FSDJump",
+    "FuelScoop",
+    "StartJump",
+    "FSSSignalDiscovered",
+    "FSSDiscoveryScan",
+    "Scan",
+    "NavRoute",
+    "NavRouteClear",
+    "ReceiveText",
+    "Music",
+    "ShipTargeted",
+    "SupercruiseEntry",
+    "JetConeBoost",
+    "FSSAllBodiesFound",
+    "CodexEntry",
+    "ReservoirReplenished",
+    "Friends",
+    "Shutdown",
+    "Fileheader",
+    "Commander",
+    "LoadGame",
+    "Loadout",
+    "Materials",
+    "Rank",
+    "Progress",
+    "Statistics",
+    "Location",
+    "Powerplay",
+    "Reputation",
+    "EngineerProgress",
+    "SquadronStartup",
+    "Missions",
+    "Cargo",
+    "Status",
 ];
 
 /// A journal row the walk needs: event name, epoch seconds, the ship
@@ -70,14 +99,25 @@ pub struct Profile {
 }
 
 fn bounded(name: &str, xs: &[f64]) -> Vec<f64> {
-    let (_, lo, hi) = BOUNDS.iter().find(|(n, _, _)| *n == name).copied().unwrap_or(("", 0.0, f64::MAX));
-    xs.iter().copied().filter(|x| (lo..=hi).contains(x)).collect()
+    let (_, lo, hi) = BOUNDS
+        .iter()
+        .find(|(n, _, _)| *n == name)
+        .copied()
+        .unwrap_or(("", 0.0, f64::MAX));
+    xs.iter()
+        .copied()
+        .filter(|x| (lo..=hi).contains(x))
+        .collect()
 }
 
 fn median(xs: &mut [f64]) -> f64 {
     xs.sort_by(|a, b| a.total_cmp(b));
     let n = xs.len();
-    if n % 2 == 1 { xs[n / 2] } else { (xs[n / 2 - 1] + xs[n / 2]) / 2.0 }
+    if n % 2 == 1 {
+        xs[n / 2]
+    } else {
+        (xs[n / 2 - 1] + xs[n / 2]) / 2.0
+    }
 }
 
 impl Profile {
@@ -97,7 +137,11 @@ impl Profile {
         take("jump", &self.jump, &mut t.jump_seconds);
         take("undock", &self.undock, &mut t.undock_seconds);
         take("docking", &self.docking, &mut t.docking_seconds);
-        take("supercruise", &self.supercruise, &mut t.supercruise_base_seconds);
+        take(
+            "supercruise",
+            &self.supercruise,
+            &mut t.supercruise_base_seconds,
+        );
         take("market", &self.market, &mut t.market_seconds);
         t.measured = measured;
         t
@@ -106,7 +150,13 @@ impl Profile {
     /// Sample counts per phase (jump, undock, docking, supercruise,
     /// market), for the trace.
     pub fn counts(&self) -> [usize; 5] {
-        [self.jump.len(), self.undock.len(), self.docking.len(), self.supercruise.len(), self.market.len()]
+        [
+            self.jump.len(),
+            self.undock.len(),
+            self.docking.len(),
+            self.supercruise.len(),
+            self.market.len(),
+        ]
     }
 }
 
@@ -140,7 +190,11 @@ pub fn profile(conn: &rusqlite::Connection, ship: Option<&str>) -> Profile {
         return Profile::default();
     };
     let rows: Vec<Row> = match st.query_map([], |r| {
-        Ok(Row { event: r.get(0)?, epoch: r.get(1)?, ship: r.get(2)? })
+        Ok(Row {
+            event: r.get(0)?,
+            epoch: r.get(1)?,
+            ship: r.get(2)?,
+        })
     }) {
         Ok(rows) => rows.flatten().collect(),
         Err(_) => return Profile::default(),
@@ -177,7 +231,11 @@ pub fn profile_from(rows: &[Row], ship: Option<&str>) -> Profile {
                 current_ship = Some(s.clone());
             }
         }
-        let counts = ship.is_none_or(|want| current_ship.as_deref().is_some_and(|have| have.eq_ignore_ascii_case(want)));
+        let counts = ship.is_none_or(|want| {
+            current_ship
+                .as_deref()
+                .is_some_and(|have| have.eq_ignore_ascii_case(want))
+        });
         // jump cadence: reset on anything that is not travel
         if ev == "FSDJump" {
             if let (Some(prev), true) = (last_jump, counts) {
@@ -233,21 +291,34 @@ mod tests {
     use super::*;
 
     fn rows(seq: &[(&str, f64)]) -> Vec<Row> {
-        seq.iter().map(|(e, t)| Row { event: e.to_string(), epoch: *t, ship: None }).collect()
+        seq.iter()
+            .map(|(e, t)| Row {
+                event: e.to_string(),
+                epoch: *t,
+                ship: None,
+            })
+            .collect()
     }
 
     /// One trade cycle, walked: every phase lands one sample with the
     /// right length, and nothing leaks between phases.
     #[test]
     fn one_cycle_yields_one_sample_per_phase() {
-        let p = profile_from(&rows(&[
-            ("Docked", 0.0), ("MarketBuy", 20.0), ("Undocked", 80.0),           // market 80
-            ("FSDJump", 170.0),                                                  // undock 90
-            ("FSDJump", 220.0),                                                  // jump 50
-            ("SupercruiseExit", 350.0),                                          // supercruise 130 (from the arrival jump)
-            ("DockingRequested", 355.0), ("DockingGranted", 356.0), ("Docked", 420.0), // docking 64
-            ("Undocked", 500.0),                                                 // no trade: no market sample
-        ]), None);
+        let p = profile_from(
+            &rows(&[
+                ("Docked", 0.0),
+                ("MarketBuy", 20.0),
+                ("Undocked", 80.0),         // market 80
+                ("FSDJump", 170.0),         // undock 90
+                ("FSDJump", 220.0),         // jump 50
+                ("SupercruiseExit", 350.0), // supercruise 130 (from the arrival jump)
+                ("DockingRequested", 355.0),
+                ("DockingGranted", 356.0),
+                ("Docked", 420.0),   // docking 64
+                ("Undocked", 500.0), // no trade: no market sample
+            ]),
+            None,
+        );
         assert_eq!(p.market, vec![80.0]);
         assert_eq!(p.undock, vec![90.0]);
         assert_eq!(p.jump, vec![50.0]);
@@ -259,16 +330,39 @@ mod tests {
     /// the bounds is not a sample.
     #[test]
     fn non_transit_activity_breaks_the_jump_cadence() {
-        let p = profile_from(&rows(&[("FSDJump", 0.0), ("Docked", 10.0), ("Undocked", 20.0), ("FSDJump", 60.0), ("FSDJump", 1000.0)]), None);
-        assert_eq!(p.jump, vec![940.0], "only the two jumps with nothing but travel between count");
-        assert!(bounded("jump", &p.jump).is_empty(), "and 940 s is a pause, not a jump");
+        let p = profile_from(
+            &rows(&[
+                ("FSDJump", 0.0),
+                ("Docked", 10.0),
+                ("Undocked", 20.0),
+                ("FSDJump", 60.0),
+                ("FSDJump", 1000.0),
+            ]),
+            None,
+        );
+        assert_eq!(
+            p.jump,
+            vec![940.0],
+            "only the two jumps with nothing but travel between count"
+        );
+        assert!(
+            bounded("jump", &p.jump).is_empty(),
+            "and 940 s is a pause, not a jump"
+        );
     }
 
     /// Samples belong to the ship flown; asking for one ship drops the
     /// other's, and a ship change mid-phase drops the phase.
     #[test]
     fn samples_are_per_ship() {
-        let mut r = rows(&[("Loadout", 0.0), ("FSDJump", 10.0), ("FSDJump", 60.0), ("Loadout", 100.0), ("FSDJump", 110.0), ("FSDJump", 170.0)]);
+        let mut r = rows(&[
+            ("Loadout", 0.0),
+            ("FSDJump", 10.0),
+            ("FSDJump", 60.0),
+            ("Loadout", 100.0),
+            ("FSDJump", 110.0),
+            ("FSDJump", 170.0),
+        ]);
         r[0].ship = Some("cutter".into());
         r[3].ship = Some("mandalay".into());
         assert_eq!(profile_from(&r, Some("cutter")).jump, vec![50.0]);
@@ -291,7 +385,11 @@ mod tests {
         assert!(t.measured);
         assert_eq!(t.jump_seconds, 50.0);
         assert_eq!(t.market_seconds, 69.5);
-        assert_eq!(t.undock_seconds, Timing::default().undock_seconds, "unmeasured phases keep the default");
+        assert_eq!(
+            t.undock_seconds,
+            Timing::default().undock_seconds,
+            "unmeasured phases keep the default"
+        );
     }
 
     /// Only journal rows inside a recorded trade-follow window are
@@ -312,12 +410,28 @@ mod tests {
         insert(2, "2026-09-09T10:00:50Z", "FSDJump");
         insert(3, "2026-09-09T12:00:00Z", "FSDJump");
         insert(4, "2026-09-09T12:00:40Z", "FSDJump");
-        assert_eq!(profile(conn, None).jump, Vec::<f64>::new(), "no window, no samples");
+        assert_eq!(
+            profile(conn, None).jump,
+            Vec::<f64>::new(),
+            "no window, no samples"
+        );
         conn.execute("INSERT INTO trade_follow_windows (started, ended) VALUES ('2026-09-09T11:30:00Z', '2026-09-09T12:30:00Z')", []).unwrap();
-        assert_eq!(profile(conn, None).jump, vec![40.0], "only the followed jumps");
-        conn.execute("INSERT INTO trade_follow_windows (started) VALUES ('2026-09-09T09:00:00Z')", []).unwrap();
+        assert_eq!(
+            profile(conn, None).jump,
+            vec![40.0],
+            "only the followed jumps"
+        );
+        conn.execute(
+            "INSERT INTO trade_follow_windows (started) VALUES ('2026-09-09T09:00:00Z')",
+            [],
+        )
+        .unwrap();
         window_close(conn);
         let all = profile(conn, None).jump;
-        assert_eq!(bounded("jump", &all), vec![50.0, 40.0], "a window closed now covers the morning too (the two-hour gap is not a jump)");
+        assert_eq!(
+            bounded("jump", &all),
+            vec![50.0, 40.0],
+            "a window closed now covers the morning too (the two-hour gap is not a jump)"
+        );
     }
 }

@@ -62,7 +62,9 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
         let (mut watermark, mut cstate) = {
             let guard = store.lock().unwrap_or_else(|e| e.into_inner());
             (
-                ed_store::session::last_event_key(guard.conn()).ok().flatten(),
+                ed_store::session::last_event_key(guard.conn())
+                    .ok()
+                    .flatten(),
                 seed_state(guard.conn()),
             )
         };
@@ -98,15 +100,23 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                         Ok(stats) => {
                             // Emit even for a companion-only change (Status.json,
                             // Cargo.json) so panels refresh fuel and cargo.
-                            let _ = app.emit(crate::events::JOURNAL_CHANGED, stats.ingest.events_inserted);
+                            let _ = app
+                                .emit(crate::events::JOURNAL_CHANGED, stats.ingest.events_inserted);
 
                             if last_prune.is_none_or(|t| t.elapsed() >= Duration::from_secs(3600)) {
                                 last_prune = Some(std::time::Instant::now());
-                                let cutoff = (chrono::Utc::now() - chrono::Duration::hours(ed_store::maintenance::NOISE_GRACE_HOURS)).format("%Y-%m-%dT%H:%M:%SZ").to_string();
+                                let cutoff = (chrono::Utc::now()
+                                    - chrono::Duration::hours(
+                                        ed_store::maintenance::NOISE_GRACE_HOURS,
+                                    ))
+                                .format("%Y-%m-%dT%H:%M:%SZ")
+                                .to_string();
                                 let guard = store.lock().unwrap_or_else(|e| e.into_inner());
                                 match ed_store::maintenance::prune_noise(guard.conn(), &cutoff) {
                                     Ok(0) => {}
-                                    Ok(n) => tracing::info!(rows = n, %cutoff, "pruned noise events older than the grace window"),
+                                    Ok(n) => {
+                                        tracing::info!(rows = n, %cutoff, "pruned noise events older than the grace window")
+                                    }
                                     Err(e) => tracing::warn!(error = %e, "noise prune failed"),
                                 }
                             }
@@ -128,8 +138,11 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                             if let Ok(v) = serde_json::from_str::<Value>(&raw) {
                                                 // Item 43: a real supercharge lights the HUD's
                                                 // next-target box; the journal is the truth.
-                                                if v.get("event").and_then(Value::as_str) == Some("JetConeBoost") {
-                                                    let _ = app.emit(crate::events::SUPERCHARGE, ());
+                                                if v.get("event").and_then(Value::as_str)
+                                                    == Some("JetConeBoost")
+                                                {
+                                                    let _ =
+                                                        app.emit(crate::events::SUPERCHARGE, ());
                                                 }
                                                 for mut c in callouts::from_event(&v, &mut cstate) {
                                                     // Catch-up is history, not news: an app booted
@@ -143,14 +156,35 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     }
                                                     // A pickup is only useful with the running total: "3 -- you have 47 of 100".
                                                     if c.kind == "material" {
-                                                        if let Some(symbol) = v.get("Name").and_then(Value::as_str) {
+                                                        if let Some(symbol) =
+                                                            v.get("Name").and_then(Value::as_str)
+                                                        {
                                                             let have: Option<i64> = conn
                                                                 .query_row("SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE", [symbol], |r| r.get(0))
                                                                 .ok();
                                                             if let Some(have) = have {
-                                                                let cap = callouts::material_grade(symbol).map(|g| match g { 1 => 300, 2 => 250, 3 => 200, 4 => 150, _ => 100 }).unwrap_or(0);
-                                                                let text = c.text.trim_end_matches('.').to_string();
-                                                                c.text = if cap > 0 { format!("{text}. You have {have} of {cap}.") } else { format!("{text}. You have {have}.") };
+                                                                let cap = callouts::material_grade(
+                                                                    symbol,
+                                                                )
+                                                                .map(|g| match g {
+                                                                    1 => 300,
+                                                                    2 => 250,
+                                                                    3 => 200,
+                                                                    4 => 150,
+                                                                    _ => 100,
+                                                                })
+                                                                .unwrap_or(0);
+                                                                let text = c
+                                                                    .text
+                                                                    .trim_end_matches('.')
+                                                                    .to_string();
+                                                                c.text = if cap > 0 {
+                                                                    format!("{text}. You have {have} of {cap}.")
+                                                                } else {
+                                                                    format!(
+                                                                        "{text}. You have {have}."
+                                                                    )
+                                                                };
                                                             }
                                                         }
                                                     }
@@ -163,36 +197,57 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     // the briefing and re-targets the next system;
                                                     // departing replans at the true laden mass.
                                                     Some("Docked") => {
-                                                        crate::trade_follow::on_docked(&app, conn, &v, &mut out);
+                                                        crate::trade_follow::on_docked(
+                                                            &app, conn, &v, &mut out,
+                                                        );
                                                     }
                                                     // The carrier layer (Item 52 C): a followed
                                                     // carrier route advances on the journal.
-                                                    Some("CarrierJumpRequest") | Some("CarrierJump") | Some("CarrierLocation") => {
-                                                        crate::carrier_follow::on_event(&app, conn, &v, &mut out);
+                                                    Some("CarrierJumpRequest")
+                                                    | Some("CarrierJump")
+                                                    | Some("CarrierLocation") => {
+                                                        crate::carrier_follow::on_event(
+                                                            &app, conn, &v, &mut out,
+                                                        );
                                                     }
                                                     Some("Undocked") => {
-                                                        crate::trade_follow::on_undocked(&app, conn);
+                                                        crate::trade_follow::on_undocked(
+                                                            &app, conn,
+                                                        );
                                                         // The general mass check (maintainer, 2026-09-05:
                                                         // "auto replan works for all scenarios"): a
                                                         // route made infeasible while DOCKED — cargo
                                                         // bought, modules swapped — produces no jump
                                                         // event, so the departure is the moment to
                                                         // notice. Trade routes replan themselves above.
-                                                        if let Some(ar) = crate::follow::load(conn).filter(|ar| ar.source != "trade") {
-                                                            if let Some((m, b, _, _)) = crate::routing::ship_fuel(conn) {
-                                                                let range = f64::from(m.range_at(m.capacity));
-                                                                if let Some((hop, d)) = crate::follow::infeasible_hop(&ar, range, &b) {
+                                                        if let Some(ar) = crate::follow::load(conn)
+                                                            .filter(|ar| ar.source != "trade")
+                                                        {
+                                                            if let Some((m, b, _, _)) =
+                                                                crate::routing::ship_fuel(conn)
+                                                            {
+                                                                let range = f64::from(
+                                                                    m.range_at(m.capacity),
+                                                                );
+                                                                if let Some((hop, d)) =
+                                                                    crate::follow::infeasible_hop(
+                                                                        &ar, range, &b,
+                                                                    )
+                                                                {
                                                                     tracing::info!(%hop, needed = d, range, "followed route no longer fits the ship; replanning");
-                                                                    let state = app.state::<AppState>();
+                                                                    let state =
+                                                                        app.state::<AppState>();
                                                                     state.voice.say(format!(
                                                                         "This plan doesn't fit the ship any more — {hop} needs {d:.0} light years and you can make {range:.0}. Replotting."
                                                                     ));
                                                                     let app2 = app.clone();
-                                                                    tauri::async_runtime::spawn(async move {
-                                                                        if let Err(error) = crate::follow::replan_now(app2).await {
+                                                                    tauri::async_runtime::spawn(
+                                                                        async move {
+                                                                            if let Err(error) = crate::follow::replan_now(app2).await {
                                                                             tracing::warn!(%error, "mass replan failed");
                                                                         }
-                                                                    });
+                                                                        },
+                                                                    );
                                                                 }
                                                             }
                                                         }
@@ -207,8 +262,18 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     // warning before the commander commits; the
                                                     // threshold-based caution is redundant under it.
                                                     Some("FSDTarget") => {
-                                                        if let Some(c) = crate::trap::on_target(&app, conn, &v, &mut cstate.trap_warned_target) {
-                                                            out.retain(|(c0, _)| !(c0.kind == "fuel" && c0.text.starts_with("Caution:")));
+                                                        if let Some(c) = crate::trap::on_target(
+                                                            &app,
+                                                            conn,
+                                                            &v,
+                                                            &mut cstate.trap_warned_target,
+                                                        ) {
+                                                            out.retain(|(c0, _)| {
+                                                                !(c0.kind == "fuel"
+                                                                    && c0
+                                                                        .text
+                                                                        .starts_with("Caution:"))
+                                                            });
                                                             out.push((c, Some(v.clone())));
                                                         }
                                                         // The other half of the mass check: the game
@@ -219,12 +284,34 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                         // a target beyond even a max-boosted laden
                                                         // full-tank jump triggers, so supercharge plans
                                                         // never false-alarm.
-                                                        crate::follow::on_target_beyond_range(&app, conn, &v, &mut cstate.replanned_target);
+                                                        crate::follow::on_target_beyond_range(
+                                                            &app,
+                                                            conn,
+                                                            &v,
+                                                            &mut cstate.replanned_target,
+                                                        );
                                                         // Off the EDDA plan: say it at TARGETING,
                                                         // while changing your mind is still free.
                                                         // Silent when the game owns the plot.
-                                                        if let Some(text) = crate::follow::on_target_off_route(conn, &v, &mut cstate.off_route_target) {
-                                                            out.push((Callout::new("route", v.get("timestamp").and_then(Value::as_str).unwrap_or(""), 1, true, text), Some(v.clone())));
+                                                        if let Some(text) =
+                                                            crate::follow::on_target_off_route(
+                                                                conn,
+                                                                &v,
+                                                                &mut cstate.off_route_target,
+                                                            )
+                                                        {
+                                                            out.push((
+                                                                Callout::new(
+                                                                    "route",
+                                                                    v.get("timestamp")
+                                                                        .and_then(Value::as_str)
+                                                                        .unwrap_or(""),
+                                                                    1,
+                                                                    true,
+                                                                    text,
+                                                                ),
+                                                                Some(v.clone()),
+                                                            ));
                                                         }
                                                     }
                                                     // Witchspace: the leg is flown, so the cursor
@@ -232,30 +319,78 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     // Cursor and HUD only -- the spoken line stays
                                                     // on arrival, so a jump is one utterance.
                                                     Some("StartJump")
-                                                        if v.get("JumpType").and_then(Value::as_str) == Some("Hyperspace") =>
+                                                        if v.get("JumpType")
+                                                            .and_then(Value::as_str)
+                                                            == Some("Hyperspace") =>
                                                     {
-                                                        if let Some(target) = v.get("StarSystem").and_then(Value::as_str) {
-                                                            crate::follow::on_witchspace(conn, app.state::<AppState>().events.as_ref(), target);
+                                                        if let Some(target) = v
+                                                            .get("StarSystem")
+                                                            .and_then(Value::as_str)
+                                                        {
+                                                            crate::follow::on_witchspace(
+                                                                conn,
+                                                                app.state::<AppState>()
+                                                                    .events
+                                                                    .as_ref(),
+                                                                target,
+                                                            );
                                                         }
                                                     }
                                                     // The tank refilled on a route: say where it goes, not "let's go somewhere".
                                                     Some("FuelScoop") => {
-                                                        if let Some(ar) = crate::follow::load(conn) {
+                                                        if let Some(ar) = crate::follow::load(conn)
+                                                        {
                                                             for (c, _) in out.iter_mut() {
-                                                                if c.kind == "fuel" && c.text.starts_with("Fuel tank full") {
-                                                                    let left = ar.route.hops.len().saturating_sub(ar.next);
-                                                                    let dest = ar.route.hops.last().map(|h| h.name.as_str()).unwrap_or("destination");
+                                                                if c.kind == "fuel"
+                                                                    && c.text.starts_with(
+                                                                        "Fuel tank full",
+                                                                    )
+                                                                {
+                                                                    let left = ar
+                                                                        .route
+                                                                        .hops
+                                                                        .len()
+                                                                        .saturating_sub(ar.next);
+                                                                    let dest = ar
+                                                                        .route
+                                                                        .hops
+                                                                        .last()
+                                                                        .map(|h| h.name.as_str())
+                                                                        .unwrap_or("destination");
                                                                     c.text = format!("Tank full. {} {left} jump{} to {dest}.", crate::follow::advance_text(&ar).trim_end_matches('.'), if left == 1 { "" } else { "s" });
-                                                                    c.text = c.text.replace(&format!("{left} jumps left. "), "");
+                                                                    c.text = c.text.replace(
+                                                                        &format!(
+                                                                            "{left} jumps left. "
+                                                                        ),
+                                                                        "",
+                                                                    );
                                                                 }
                                                             }
                                                         }
                                                     }
                                                     // First-hand star classes: a scanned primary star fills a gap in the index.
                                                     Some("Scan") => {
-                                                        if let (Some(t), Some(name), Some(addr)) = (v.get("StarType").and_then(Value::as_str), v.get("StarSystem").and_then(Value::as_str), v.get("SystemAddress").and_then(Value::as_u64)) {
-                                                            if v.get("DistanceFromArrivalLS").and_then(Value::as_f64).unwrap_or(1e9) < 1.0 {
-                                                                crate::spansh::learn_star_conn(&app.state::<AppState>(), conn, addr, name, t, "journal");
+                                                        if let (Some(t), Some(name), Some(addr)) = (
+                                                            v.get("StarType")
+                                                                .and_then(Value::as_str),
+                                                            v.get("StarSystem")
+                                                                .and_then(Value::as_str),
+                                                            v.get("SystemAddress")
+                                                                .and_then(Value::as_u64),
+                                                        ) {
+                                                            if v.get("DistanceFromArrivalLS")
+                                                                .and_then(Value::as_f64)
+                                                                .unwrap_or(1e9)
+                                                                < 1.0
+                                                            {
+                                                                crate::spansh::learn_star_conn(
+                                                                    &app.state::<AppState>(),
+                                                                    conn,
+                                                                    addr,
+                                                                    name,
+                                                                    t,
+                                                                    "journal",
+                                                                );
                                                             }
                                                         }
                                                     }
@@ -268,30 +403,63 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     }
                                                     // A plotted route gets a briefing; each arrival
                                                     // gets the next star and the one after it.
-                                                    Some("NavRoute") if !crate::follow::map_setup_testing() => {
+                                                    Some("NavRoute")
+                                                        if !crate::follow::map_setup_testing() =>
+                                                    {
                                                         let following = crate::follow::load(conn);
-                                                        let targeting_hop = |b: &ed_store::route::RouteBrief| following.as_ref().is_some_and(|ar| b.hops.last().is_some_and(|l| ar.route.hops.iter().any(|h| h.name.eq_ignore_ascii_case(&l.system))));
-                                                        if let Ok(Some(b)) = ed_store::route::current(conn).map(|o| o.filter(|b| !targeting_hop(b))) {
+                                                        let targeting_hop =
+                                                            |b: &ed_store::route::RouteBrief| {
+                                                                following.as_ref().is_some_and(|ar| b.hops.last().is_some_and(|l| ar.route.hops.iter().any(|h| h.name.eq_ignore_ascii_case(&l.system))))
+                                                            };
+                                                        if let Ok(Some(b)) =
+                                                            ed_store::route::current(conn).map(
+                                                                |o| o.filter(|b| !targeting_hop(b)),
+                                                            )
+                                                        {
                                                             out.push((
                                                                 Callout {
                                                                     kind: "route",
-                                                                    text: ed_store::route::brief_text(&b, narration(conn)),
+                                                                    text:
+                                                                        ed_store::route::brief_text(
+                                                                            &b,
+                                                                            narration(conn),
+                                                                        ),
                                                                     priority: 1,
                                                                     speak: true,
-                                                                    ts: v.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+                                                                    ts: v
+                                                                        .get("timestamp")
+                                                                        .and_then(Value::as_str)
+                                                                        .unwrap_or("")
+                                                                        .to_string(),
                                                                 },
                                                                 None,
                                                             ));
                                                         }
                                                     }
                                                     Some("FSDJump") => {
-                                                        let here = v.get("StarSystem").and_then(Value::as_str).unwrap_or("");
-                                                        let fuel_now = v.get("FuelLevel").and_then(Value::as_f64).map(|f| f as f32);
+                                                        let here = v
+                                                            .get("StarSystem")
+                                                            .and_then(Value::as_str)
+                                                            .unwrap_or("");
+                                                        let fuel_now = v
+                                                            .get("FuelLevel")
+                                                            .and_then(Value::as_f64)
+                                                            .map(|f| f as f32);
                                                         // Arriving on a followed route: say whether this is a fuel stop.
-                                                        if let Some(ar) = crate::follow::load(conn) {
-                                                            if let Some(i) = ar.route.hops.iter().position(|h| h.name.eq_ignore_ascii_case(here)) {
+                                                        if let Some(ar) = crate::follow::load(conn)
+                                                        {
+                                                            if let Some(i) =
+                                                                ar.route.hops.iter().position(|h| {
+                                                                    h.name
+                                                                        .eq_ignore_ascii_case(here)
+                                                                })
+                                                            {
                                                                 let h = &ar.route.hops[i];
-                                                                let boost_here = ar.route.hops.get(i + 1).is_some_and(|n| n.boosted);
+                                                                let boost_here = ar
+                                                                    .route
+                                                                    .hops
+                                                                    .get(i + 1)
+                                                                    .is_some_and(|n| n.boosted);
                                                                 if h.fuel_after.is_some() {
                                                                     for (c, _) in out.iter_mut() {
                                                                         if c.kind == "arrival" {
@@ -316,39 +484,71 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                         // A route we are following: move the cursor and say what's
                                                         // next -- inside the arrival callout, so a jump is one
                                                         // utterance, not two.
-                                                        let follow_line = crate::follow::on_jump(&app, conn, here, fuel_now)
-                                                            // The game-plotter trade path has no EDDA route to
-                                                            // complete: arriving at the stop's system gets the
-                                                            // same terminal-guidance line either way — one
-                                                            // behaviour for the commander, whichever router
-                                                            // flew the leg (maintainer, 2026-09-05).
-                                                            .or_else(|| crate::trade_follow::arrival_guidance(conn, here));
+                                                        let follow_line = crate::follow::on_jump(
+                                                            &app, conn, here, fuel_now,
+                                                        )
+                                                        // The game-plotter trade path has no EDDA route to
+                                                        // complete: arriving at the stop's system gets the
+                                                        // same terminal-guidance line either way — one
+                                                        // behaviour for the commander, whichever router
+                                                        // flew the leg (maintainer, 2026-09-05).
+                                                        .or_else(|| {
+                                                            crate::trade_follow::arrival_guidance(
+                                                                conn, here,
+                                                            )
+                                                        });
                                                         if let Some(text) = follow_line {
-                                                            let arrival = out.iter_mut().rev().map(|(c, _)| c).find(|c| c.kind == "arrival");
-                                                            if let Some(text) = callouts::merge_follow_into_arrival(arrival, text, here) {
+                                                            let arrival = out
+                                                                .iter_mut()
+                                                                .rev()
+                                                                .map(|(c, _)| c)
+                                                                .find(|c| c.kind == "arrival");
+                                                            if let Some(text) =
+                                                                callouts::merge_follow_into_arrival(
+                                                                    arrival, text, here,
+                                                                )
+                                                            {
                                                                 out.push((
                                                                     Callout {
                                                                         kind: "follow",
                                                                         text,
                                                                         priority: 1,
                                                                         speak: true,
-                                                                        ts: v.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+                                                                        ts: v
+                                                                            .get("timestamp")
+                                                                            .and_then(Value::as_str)
+                                                                            .unwrap_or("")
+                                                                            .to_string(),
                                                                     },
                                                                     None,
                                                                 ));
                                                             }
                                                         }
                                                         // While following an app route the follow callout already said what's next.
-                                                        let following = crate::follow::load(conn).is_some();
-                                                        if let Ok(Some(b)) = ed_store::route::current(conn).map(|o| o.filter(|_| !following)) {
-                                                            if let Some(t) = ed_store::route::next_hop_text(&b, here, narration(conn)) {
+                                                        let following =
+                                                            crate::follow::load(conn).is_some();
+                                                        if let Ok(Some(b)) =
+                                                            ed_store::route::current(conn)
+                                                                .map(|o| o.filter(|_| !following))
+                                                        {
+                                                            if let Some(t) =
+                                                                ed_store::route::next_hop_text(
+                                                                    &b,
+                                                                    here,
+                                                                    narration(conn),
+                                                                )
+                                                            {
                                                                 out.push((
                                                                     Callout {
                                                                         kind: "route",
                                                                         text: t,
                                                                         priority: 0,
                                                                         speak: true,
-                                                                        ts: v.get("timestamp").and_then(Value::as_str).unwrap_or("").to_string(),
+                                                                        ts: v
+                                                                            .get("timestamp")
+                                                                            .and_then(Value::as_str)
+                                                                            .unwrap_or("")
+                                                                            .to_string(),
                                                                     },
                                                                     None,
                                                                 ));
@@ -378,20 +578,27 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                         ed_store::session::snapshot_raw(conn, "Status.json")
                                     {
                                         if let Ok(v) = serde_json::from_str::<Value>(&raw) {
-                                            let mut fuel_calls = callouts::from_status(&v, &mut cstate);
+                                            let mut fuel_calls =
+                                                callouts::from_status(&v, &mut cstate);
                                             // "Fuel low" on a followed route only when the plan does not cover it.
                                             if let Some(ar) = crate::follow::load(conn) {
-                                                let fuel_now = v.pointer("/Fuel/FuelMain").and_then(Value::as_f64).map(|f| f as f32);
+                                                let fuel_now = v
+                                                    .pointer("/Fuel/FuelMain")
+                                                    .and_then(Value::as_f64)
+                                                    .map(|f| f as f32);
                                                 if let Some(f) = fuel_now {
                                                     let at = ar.next.saturating_sub(1);
-                                                    let check = crate::follow::check_plan(conn, &ar, at, f);
+                                                    let check =
+                                                        crate::follow::check_plan(conn, &ar, at, f);
                                                     // Item 46 owns fuel-chatter suppression in
                                                     // follow::filter_callouts now; this block only
                                                     // drives the burn-down coach.
                                                     // Item 32: the SCO burn-down coach — "burn N
                                                     // tonnes, then jump", and the stop cue when
                                                     // the plan reads Fine again.
-                                                    if let Some(c) = crate::follow::burndown_tick(ar.next, &check) {
+                                                    if let Some(c) = crate::follow::burndown_tick(
+                                                        ar.next, &check,
+                                                    ) {
                                                         fuel_calls.push(c);
                                                     }
                                                 }
@@ -399,13 +606,19 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                             out.extend(fuel_calls.into_iter().map(|c| (c, None)));
                                             // Overcharge burning toward a strand: warn while
                                             // aborting still leaves the fuel to escape.
-                                            if let Some(c) = crate::trap::on_status(&app, conn, &v, &mut cstate) {
+                                            if let Some(c) =
+                                                crate::trap::on_status(&app, conn, &v, &mut cstate)
+                                            {
                                                 out.push((c, None));
                                             }
                                         }
                                     }
                                 }
-                                crate::follow::filter_callouts(conn, &mut out, cstate.fuel_main.map(|f| f as f32));
+                                crate::follow::filter_callouts(
+                                    conn,
+                                    &mut out,
+                                    cstate.fuel_main.map(|f| f as f32),
+                                );
                             }
                             deliver(&app, out);
                         }
@@ -476,7 +689,10 @@ impl Announcer {
         }
         let (persona, muted) = {
             let cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
-            (crate::persona::by_id(cfg.persona.as_deref().unwrap_or("standard")), cfg.callouts_off.clone())
+            (
+                crate::persona::by_id(cfg.persona.as_deref().unwrap_or("standard")),
+                cfg.callouts_off.clone(),
+            )
         };
         for (mut c, event) in callouts {
             if muted.iter().any(|k| k == c.kind) {
@@ -515,7 +731,11 @@ fn session_summary(conn: &rusqlite::Connection) -> Option<Callout> {
         parts.push(format!("{merits} merits"));
     }
     if combat.deaths > 0 {
-        parts.push(format!("{} death{}", combat.deaths, if combat.deaths == 1 { "" } else { "s" }));
+        parts.push(format!(
+            "{} death{}",
+            combat.deaths,
+            if combat.deaths == 1 { "" } else { "s" }
+        ));
     }
     Some(Callout {
         kind: "session",
@@ -537,7 +757,9 @@ fn mission_progress(conn: &rusqlite::Connection, kill: &Value) -> Vec<Callout> {
         .or_else(|| kill.get("PilotName"))
         .and_then(Value::as_str);
     let now = crate::commands::now_iso();
-    let Ok(active) = ed_store::missions::active(conn, &now) else { return Vec::new() };
+    let Ok(active) = ed_store::missions::active(conn, &now) else {
+        return Vec::new();
+    };
 
     let mut out = Vec::new();
     let mut seen_faction = false;
@@ -545,7 +767,10 @@ fn mission_progress(conn: &rusqlite::Connection, kill: &Value) -> Vec<Callout> {
         let counts =
             m.kill_count.is_some() && victim.is_some() && m.target_faction.as_deref() == victim;
         let is_target = m.kind == "assassinate"
-            && m.target.as_deref().zip(pilot).is_some_and(|(t, p)| t.eq_ignore_ascii_case(p));
+            && m.target
+                .as_deref()
+                .zip(pilot)
+                .is_some_and(|(t, p)| t.eq_ignore_ascii_case(p));
         if is_target {
             out.push(Callout {
                 kind: "mission",
@@ -627,9 +852,21 @@ mod tests {
     /// never spoken; live and synthetic callouts keep their voice.
     #[test]
     fn only_fresh_events_are_spoken() {
-        assert!(stale_for_speech("2020-01-01T00:00:00Z"), "hours-old history is silent");
-        assert!(!stale_for_speech("2999-01-01T00:00:00Z"), "a clock skewed forward still speaks");
-        assert!(!stale_for_speech(""), "synthetic callouts carry no ts and must speak");
-        assert!(!stale_for_speech("not a timestamp"), "unparseable means fresh, never mute");
+        assert!(
+            stale_for_speech("2020-01-01T00:00:00Z"),
+            "hours-old history is silent"
+        );
+        assert!(
+            !stale_for_speech("2999-01-01T00:00:00Z"),
+            "a clock skewed forward still speaks"
+        );
+        assert!(
+            !stale_for_speech(""),
+            "synthetic callouts carry no ts and must speak"
+        );
+        assert!(
+            !stale_for_speech("not a timestamp"),
+            "unparseable means fresh, never mute"
+        );
     }
 }

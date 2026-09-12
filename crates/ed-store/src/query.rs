@@ -151,7 +151,9 @@ pub fn nav_target(conn: &Connection) -> Result<Option<NavTarget>> {
                 r.get::<_, Option<String>>(0)?,
                 NavTarget {
                     target_system: r.get(1)?,
-                    scoopable: star_class.as_deref().map(|c| StarClass::from_journal(c).scoopable()),
+                    scoopable: star_class
+                        .as_deref()
+                        .map(|c| StarClass::from_journal(c).scoopable()),
                     star_class,
                     remaining_jumps: r.get(3)?,
                 },
@@ -418,7 +420,10 @@ mod tests {
                ('Journal.1.log', 3, '2026-09-05T05:24:28Z', 'FSDTarget', '{\"Name\":\"Dyavata\"}');",
         )
         .unwrap();
-        assert_eq!(latest_fsd_target_name(&conn).unwrap().as_deref(), Some("Dyavata"));
+        assert_eq!(
+            latest_fsd_target_name(&conn).unwrap().as_deref(),
+            Some("Dyavata")
+        );
     }
 
     #[test]

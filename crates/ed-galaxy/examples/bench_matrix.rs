@@ -25,16 +25,32 @@ const PAIRS: &[(&str, &str)] = &[
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
-    let dir = std::path::PathBuf::from(args.next().expect("usage: bench_matrix <index_dir> [budget_s]"));
+    let dir = std::path::PathBuf::from(
+        args.next()
+            .expect("usage: bench_matrix <index_dir> [budget_s]"),
+    );
     let budget_s: u64 = args.next().and_then(|v| v.parse().ok()).unwrap_or(20);
     let g = Galaxy::open(&dir)?;
     let neutrons = Galaxy::open(&ed_galaxy::long_range::neutron_dir(&dir))?;
-    eprintln!("{} systems, {} highway; budget {budget_s}s per run", g.count, neutrons.count);
-    println!("from,to,ship,fuel,cgraph,jumps,total_ly,boosted,refuels,expansions,ms,variants,status");
+    eprintln!(
+        "{} systems, {} highway; budget {budget_s}s per run",
+        g.count, neutrons.count
+    );
+    println!(
+        "from,to,ship,fuel,cgraph,jumps,total_ly,boosted,refuels,expansions,ms,variants,status"
+    );
 
     let ships: [(&str, FuelModel, BoostProfile); 2] = [
-        ("explorer", FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0), BoostProfile::MK2_SCO),
-        ("mandalay", FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0), BoostProfile::default()),
+        (
+            "explorer",
+            FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0),
+            BoostProfile::MK2_SCO,
+        ),
+        (
+            "mandalay",
+            FuelModel::from_loadout(319.2, 32.0, 5.0, 5, true, false, 77.86, 10.5, 0.0),
+            BoostProfile::default(),
+        ),
     ];
     for &(a, b) in PAIRS {
         for (from_name, to_name) in [(a, b), (b, a)] {
@@ -45,7 +61,15 @@ fn main() -> anyhow::Result<()> {
             for (ship, model, boost) in &ships {
                 for fuel_on in [true, false] {
                     // Fuel-off is a niche view; keep the grid affordable.
-                    if !fuel_on && !matches!((from_name, to_name), ("Wongi", "Colonia") | ("Colonia", "Wongi") | ("Colonia", "Spase AA-A a108-0") | ("Spase AA-A a108-0", "Colonia")) {
+                    if !fuel_on
+                        && !matches!(
+                            (from_name, to_name),
+                            ("Wongi", "Colonia")
+                                | ("Colonia", "Wongi")
+                                | ("Colonia", "Spase AA-A a108-0")
+                                | ("Spase AA-A a108-0", "Colonia")
+                        )
+                    {
                         continue;
                     }
                     for cgraph in [true, false] {
@@ -55,7 +79,10 @@ fn main() -> anyhow::Result<()> {
                             std::env::set_var("ED_NO_CGRAPH", "1");
                         }
                         // White dwarfs stay at the app default (off).
-                        let boost = BoostProfile { white_dwarf: 1.0, ..*boost };
+                        let boost = BoostProfile {
+                            white_dwarf: 1.0,
+                            ..*boost
+                        };
                         let req = RouteRequest {
                             from,
                             to,
@@ -72,13 +99,29 @@ fn main() -> anyhow::Result<()> {
                         let line = match plan_best(&g, Some(&neutrons), &req, &Control::none()) {
                             Ok(r) => format!(
                                 "{},{},{},{},{},{},{:.0},{},{},{},{},{}/{},ok",
-                                from_name, to_name, ship, fuel_on, cgraph,
-                                r.jumps, r.total_ly, r.boosted_jumps, r.refuel_stops,
-                                r.expansions, t.elapsed().as_millis(), r.variants_finished, r.variants_run
+                                from_name,
+                                to_name,
+                                ship,
+                                fuel_on,
+                                cgraph,
+                                r.jumps,
+                                r.total_ly,
+                                r.boosted_jumps,
+                                r.refuel_stops,
+                                r.expansions,
+                                t.elapsed().as_millis(),
+                                r.variants_finished,
+                                r.variants_run
                             ),
                             Err(e) => format!(
                                 "{},{},{},{},{},,,,,,{},,{:?}",
-                                from_name, to_name, ship, fuel_on, cgraph, t.elapsed().as_millis(), e
+                                from_name,
+                                to_name,
+                                ship,
+                                fuel_on,
+                                cgraph,
+                                t.elapsed().as_millis(),
+                                e
                             ),
                         };
                         println!("{line}");

@@ -25,7 +25,11 @@ impl Chord {
     /// Scan codes for the modifiers then the key. `None` if any name is
     /// unknown -- an action we cannot press is reported, never approximated.
     pub fn scan_codes(&self) -> Option<(Vec<ScanCode>, ScanCode)> {
-        let mods = self.modifiers.iter().map(|m| scan_code(m)).collect::<Option<Vec<_>>>()?;
+        let mods = self
+            .modifiers
+            .iter()
+            .map(|m| scan_code(m))
+            .collect::<Option<Vec<_>>>()?;
         Some((mods, scan_code(&self.key)?))
     }
 
@@ -37,7 +41,11 @@ impl Chord {
 }
 
 fn pretty(k: &str) -> String {
-    k.strip_prefix("Key_").unwrap_or(k).replace("Left", "L").replace("Right", "R").replace("Numpad_", "Num")
+    k.strip_prefix("Key_")
+        .unwrap_or(k)
+        .replace("Left", "L")
+        .replace("Right", "R")
+        .replace("Numpad_", "Num")
 }
 
 /// A binding on a device other than the keyboard (HOTAS, gamepad): the
@@ -72,8 +80,13 @@ pub struct Binds {
 impl Binds {
     /// The game's bindings folder.
     pub fn default_dir() -> Option<PathBuf> {
-        std::env::var_os("LOCALAPPDATA")
-            .map(|l| PathBuf::from(l).join("Frontier Developments").join("Elite Dangerous").join("Options").join("Bindings"))
+        std::env::var_os("LOCALAPPDATA").map(|l| {
+            PathBuf::from(l)
+                .join("Frontier Developments")
+                .join("Elite Dangerous")
+                .join("Options")
+                .join("Bindings")
+        })
     }
 
     /// The most recently written `*.binds` in the folder.
@@ -92,7 +105,8 @@ impl Binds {
     }
 
     pub fn load(path: &Path) -> Result<Self> {
-        let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let text =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let mut b = Self::parse(&text)?;
         b.path = path.to_path_buf();
         Ok(b)
@@ -115,7 +129,10 @@ impl Binds {
             }
             let slots: Vec<_> = node
                 .children()
-                .filter(|c| c.is_element() && (c.tag_name().name() == "Primary" || c.tag_name().name() == "Secondary"))
+                .filter(|c| {
+                    c.is_element()
+                        && (c.tag_name().name() == "Primary" || c.tag_name().name() == "Secondary")
+                })
                 .collect();
             if slots.is_empty() {
                 continue; // a setting (MouseSensitivity etc.), not an action
@@ -126,7 +143,18 @@ impl Binds {
                     let device = s.attribute("Device").unwrap_or("");
                     let key = s.attribute("Key").unwrap_or("");
                     if !device.is_empty() && device != "{NoDevice}" && !key.is_empty() {
-                        device_binds.entry(name.to_string()).or_default().push(DeviceBind { device: device.to_string(), key: key.to_string(), slot: if s.tag_name().name() == "Primary" { "primary" } else { "secondary" } });
+                        device_binds
+                            .entry(name.to_string())
+                            .or_default()
+                            .push(DeviceBind {
+                                device: device.to_string(),
+                                key: key.to_string(),
+                                slot: if s.tag_name().name() == "Primary" {
+                                    "primary"
+                                } else {
+                                    "secondary"
+                                },
+                            });
                     }
                     continue;
                 }
@@ -136,13 +164,21 @@ impl Binds {
                 }
                 let modifiers = s
                     .children()
-                    .filter(|m| m.is_element() && m.tag_name().name() == "Modifier" && m.attribute("Device") == Some("Keyboard"))
+                    .filter(|m| {
+                        m.is_element()
+                            && m.tag_name().name() == "Modifier"
+                            && m.attribute("Device") == Some("Keyboard")
+                    })
                     .filter_map(|m| m.attribute("Key").map(str::to_string))
                     .collect();
                 chords.push(Chord {
                     key,
                     modifiers,
-                    slot: if s.tag_name().name() == "Primary" { "primary" } else { "secondary" },
+                    slot: if s.tag_name().name() == "Primary" {
+                        "primary"
+                    } else {
+                        "secondary"
+                    },
                 });
             }
             if chords.is_empty() {
@@ -151,7 +187,14 @@ impl Binds {
                 actions.insert(name.to_string(), chords);
             }
         }
-        Ok(Binds { path: PathBuf::new(), preset, layout, actions, unbound, device_binds })
+        Ok(Binds {
+            path: PathBuf::new(),
+            preset,
+            layout,
+            actions,
+            unbound,
+            device_binds,
+        })
     }
 
     /// The first keyboard chord for an action.
@@ -161,7 +204,10 @@ impl Binds {
 
     /// Every non-keyboard binding of an action.
     pub fn device_binds(&self, action: &str) -> &[DeviceBind] {
-        self.device_binds.get(action).map(Vec::as_slice).unwrap_or(&[])
+        self.device_binds
+            .get(action)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 }
 
@@ -216,20 +262,38 @@ mod tests {
         let b = Binds::parse(SAMPLE).unwrap();
         let d = b.device_binds("IncreaseSystemsPower");
         assert_eq!(d.len(), 1);
-        assert_eq!((d[0].device.as_str(), d[0].key.as_str(), d[0].button()), ("231D3201", "Joy_9", Some(9)));
+        assert_eq!(
+            (d[0].device.as_str(), d[0].key.as_str(), d[0].button()),
+            ("231D3201", "Joy_9", Some(9))
+        );
         assert_eq!(b.device_binds("OnlyOnStick")[0].button(), Some(1));
-        assert!(b.device_binds("UI_Select").is_empty(), "{{NoDevice}} is not a binding");
+        assert!(
+            b.device_binds("UI_Select").is_empty(),
+            "{{NoDevice}} is not a binding"
+        );
     }
 
     #[test]
     fn the_commanders_real_file_parses_when_present() {
-        let Some(dir) = Binds::default_dir() else { return };
-        let Some(path) = Binds::find_latest(&dir) else { return };
+        let Some(dir) = Binds::default_dir() else {
+            return;
+        };
+        let Some(path) = Binds::find_latest(&dir) else {
+            return;
+        };
         let b = Binds::load(&path).unwrap();
         assert!(b.actions.len() > 100, "{} actions", b.actions.len());
-        for a in ["GalaxyMapOpen", "IncreaseSystemsPower", "UI_Up", "UI_Select"] {
+        for a in [
+            "GalaxyMapOpen",
+            "IncreaseSystemsPower",
+            "UI_Up",
+            "UI_Select",
+        ] {
             assert!(b.chord(a).is_some(), "{a} should have a keyboard chord");
-            assert!(b.chord(a).unwrap().scan_codes().is_some(), "{a} chord must be pressable");
+            assert!(
+                b.chord(a).unwrap().scan_codes().is_some(),
+                "{a} chord must be pressable"
+            );
         }
     }
 }

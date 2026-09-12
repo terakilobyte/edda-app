@@ -2,8 +2,9 @@
 mod ai;
 mod app_update;
 mod callouts;
-mod carrier_follow;
 mod capabilities;
+mod capi_spike;
+mod carrier_follow;
 mod commands;
 mod contracts;
 mod control;
@@ -12,40 +13,39 @@ mod events;
 mod exchange;
 mod feed;
 mod follow;
-mod heatmap;
-mod telemetry;
-mod mission_route;
-mod capi_spike;
-mod hold_sale;
-mod phonetics;
-mod remote_search;
-mod remote_lookup;
-mod remote_trade;
-mod trap;
 mod game;
+mod heatmap;
 mod helpers;
+mod hold_sale;
 mod jobs;
-mod speech_engines;
 mod knowledge;
 mod listen;
 mod metrics;
+mod mission_route;
+mod overlay;
+mod persona;
+mod phonetics;
+mod platform;
+mod remote_lookup;
+mod remote_search;
+mod remote_trade;
+mod routing;
+mod spansh;
+mod speech_engines;
+mod state;
+mod status_flags;
+mod telemetry;
 mod time_fit;
 mod trade_follow;
 mod trade_timing;
-mod overlay;
-mod persona;
-mod platform;
-mod routing;
-mod spansh;
-mod status_flags;
-mod state;
+mod trap;
 mod voice;
 mod watcher;
 
 use ed_store::Store;
+use events::EmitExt as _;
 use state::AppState;
 use std::path::PathBuf;
-use events::EmitExt as _;
 use tauri::Manager;
 
 fn data_root_under(parent: PathBuf) -> PathBuf {
@@ -109,11 +109,19 @@ async fn data_location_get(state: tauri::State<'_, AppState>) -> Result<String, 
 
 #[tauri::command]
 async fn data_location_choose(app: tauri::AppHandle) -> Result<(), String> {
-    let Some(folder) = rfd::AsyncFileDialog::new().set_title("Choose the parent folder for EDDA data").set_directory(platform::default_data_parent()).pick_folder().await else { return Ok(()) };
+    let Some(folder) = rfd::AsyncFileDialog::new()
+        .set_title("Choose the parent folder for EDDA data")
+        .set_directory(platform::default_data_parent())
+        .pick_folder()
+        .await
+    else {
+        return Ok(());
+    };
     let root = data_root_under(folder.path().to_path_buf());
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     std::fs::create_dir_all(platform::default_data_dir()).map_err(|e| e.to_string())?;
-    std::fs::write(platform::pointer_file(), root.to_string_lossy().as_bytes()).map_err(|e| e.to_string())?;
+    std::fs::write(platform::pointer_file(), root.to_string_lossy().as_bytes())
+        .map_err(|e| e.to_string())?;
     app.restart();
 }
 
@@ -132,20 +140,35 @@ struct JournalLocation {
 /// watches an empty folder under its own data dir (so sync and the file
 /// watcher have a real directory) and says so, once, instead of scanning
 /// whatever the working directory happens to be.
-fn journal_location(explicit: Option<&std::path::Path>, candidates: &[PathBuf], data_dir: &std::path::Path) -> JournalLocation {
+fn journal_location(
+    explicit: Option<&std::path::Path>,
+    candidates: &[PathBuf],
+    data_dir: &std::path::Path,
+) -> JournalLocation {
     if let Some(p) = explicit {
         if p.is_dir() {
-            return JournalLocation { dir: p.to_path_buf(), found: true, note: None };
+            return JournalLocation {
+                dir: p.to_path_buf(),
+                found: true,
+                note: None,
+            };
         }
         let dir = empty_journal_stand_in(data_dir);
         return JournalLocation {
             dir,
             found: false,
-            note: Some(format!("ED_JOURNAL_DIR points at {}, which is not a folder; no journal is being read.", p.display())),
+            note: Some(format!(
+                "ED_JOURNAL_DIR points at {}, which is not a folder; no journal is being read.",
+                p.display()
+            )),
         };
     }
     if let Some(dir) = candidates.iter().find(|p| p.is_dir()) {
-        return JournalLocation { dir: dir.clone(), found: true, note: None };
+        return JournalLocation {
+            dir: dir.clone(),
+            found: true,
+            note: None,
+        };
     }
     let dir = empty_journal_stand_in(data_dir);
     let hint = match platform::name() {
@@ -153,7 +176,11 @@ fn journal_location(explicit: Option<&std::path::Path>, candidates: &[PathBuf], 
         "linux" => "Looked in the Steam/Proton prefix (compatdata/359320). Set ED_JOURNAL_DIR if the game lives elsewhere.",
         _ => "Set ED_JOURNAL_DIR to the folder holding Journal.*.log if it is not under Saved Games.",
     };
-    JournalLocation { dir, found: false, note: Some(format!("Elite Dangerous journal folder not found. {hint}")) }
+    JournalLocation {
+        dir,
+        found: false,
+        note: Some(format!("Elite Dangerous journal folder not found. {hint}")),
+    }
 }
 
 fn empty_journal_stand_in(data_dir: &std::path::Path) -> PathBuf {
@@ -192,7 +219,11 @@ pub fn run() {
         .unwrap_or_else(|| PathBuf::from(".data"));
 
     let journal_override = std::env::var_os("ED_JOURNAL_DIR").map(PathBuf::from);
-    let journal = journal_location(journal_override.as_deref(), &platform::journal_dir_candidates(), &data_dir);
+    let journal = journal_location(
+        journal_override.as_deref(),
+        &platform::journal_dir_candidates(),
+        &data_dir,
+    );
     let journal_dir = journal.dir.clone();
     if let Some(note) = &journal.note {
         eprintln!("[edda] {note}");
@@ -241,8 +272,8 @@ pub fn run() {
     // The maintainer's ruling that day was "we need *one* writer". This is
     // that ruling at the process level, and it comes first: the plugin
     // must be registered before any other (Tauri's own requirement).
-    let builder = tauri::Builder::default().plugin(tauri_plugin_single_instance::init(
-        |app, _argv, _cwd| {
+    let builder =
+        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             use tauri::Manager as _;
             // The second launch is the commander asking to SEE EDDA --
             // it may be minimized, so focus alone is not enough.
@@ -251,8 +282,7 @@ pub fn run() {
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
-        },
-    ));
+        }));
     // CAPI deep-link spike (dev builds only): a second launch via
     // edda:// must reach THIS instance, and the plugin delivers the URL.
     #[cfg(debug_assertions)]
@@ -683,13 +713,20 @@ fn initial_sync(
         let guard = store.lock().unwrap_or_else(|e| e.into_inner());
         guard.sync_with_progress(|name, i, total| {
             if i % 10 == 0 || i == total {
-                events.emit(events::SYNC_PROGRESS, serde_json::json!({ "file": name, "done": i, "total": total }));
+                events.emit(
+                    events::SYNC_PROGRESS,
+                    serde_json::json!({ "file": name, "done": i, "total": total }),
+                );
             }
         })
     };
     match result {
         Ok(stats) => {
-            tracing::info!(events = stats.ingest.events_inserted, ms = stats.elapsed_ms, "initial sync complete");
+            tracing::info!(
+                events = stats.ingest.events_inserted,
+                ms = stats.elapsed_ms,
+                "initial sync complete"
+            );
             events.emit(events::SYNC_COMPLETE, stats.ingest.events_inserted);
             // Jumps flown while the app was down reached the store but
             // never the watcher: align the followed route's cursor with
@@ -763,7 +800,11 @@ mod data_location_tests {
     fn custom_parent_gets_one_edda_directory() {
         // Built with the host's separator: `D:\` is one opaque file name
         // on a POSIX host, so a literal Windows path proves nothing there.
-        let parent = if cfg!(windows) { PathBuf::from(r"D:\") } else { PathBuf::from("/Volumes/Data") };
+        let parent = if cfg!(windows) {
+            PathBuf::from(r"D:\")
+        } else {
+            PathBuf::from("/Volumes/Data")
+        };
         assert_eq!(data_root_under(parent.clone()), parent.join("edda"));
         assert_eq!(data_root_under(parent.join("edda")), parent.join("edda"));
         assert_eq!(data_root_under(parent.join("EDDA")), parent.join("EDDA"));
@@ -777,12 +818,20 @@ mod data_location_tests {
         assert!(!found.found, "{found:?}");
         assert_ne!(found.dir, std::env::current_dir().unwrap());
         assert!(found.dir.starts_with(data.path()), "{found:?}");
-        assert!(found.dir.is_dir(), "an empty stand-in folder so the watcher and sync have something to watch");
-        assert!(found.note.as_deref().is_some_and(|n| n.contains("journal")), "{found:?}");
+        assert!(
+            found.dir.is_dir(),
+            "an empty stand-in folder so the watcher and sync have something to watch"
+        );
+        assert!(
+            found.note.as_deref().is_some_and(|n| n.contains("journal")),
+            "{found:?}"
+        );
 
         let real = tempfile::tempdir().unwrap();
         let found = journal_location(None, &[real.path().to_path_buf()], data.path());
-        assert!(found.found && found.dir == real.path() && found.note.is_none(), "{found:?}");
+        assert!(
+            found.found && found.dir == real.path() && found.note.is_none(),
+            "{found:?}"
+        );
     }
-
 }

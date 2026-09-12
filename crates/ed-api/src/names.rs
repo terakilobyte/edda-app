@@ -50,7 +50,10 @@ pub fn complete_systems(galaxy: &ed_galaxy::Galaxy, prefix: &str, limit: usize) 
         .into_iter()
         .map(|idx| {
             let r = galaxy.record(idx);
-            NameHit { name: galaxy.name(&r).to_string(), detail: None }
+            NameHit {
+                name: galaxy.name(&r).to_string(),
+                detail: None,
+            }
         })
         .collect()
 }
@@ -62,7 +65,13 @@ pub async fn complete_stations(pool: &PgPool, prefix: &str, limit: usize) -> Res
     // `lower(name) LIKE lower($1) || '%'` is what the text_pattern_ops
     // index in migration 0014 serves; `%` and `_` in the prefix would be
     // wildcards, so they are escaped to stay literal.
-    let pattern = format!("{}%", prefix.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
+    let pattern = format!(
+        "{}%",
+        prefix
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    );
     let rows: Vec<(String, Option<String>)> = sqlx::query_as(
         "SELECT st.name, s.name \
          FROM stations st LEFT JOIN systems s ON s.address = st.system_address \
@@ -74,7 +83,13 @@ pub async fn complete_stations(pool: &PgPool, prefix: &str, limit: usize) -> Res
     .bind(limit as i64)
     .fetch_all(pool)
     .await?;
-    Ok(rows.into_iter().map(|(name, system)| NameHit { name, detail: system }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|(name, system)| NameHit {
+            name,
+            detail: system,
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -98,9 +113,15 @@ mod tests {
     #[test]
     fn systems_complete_case_insensitively_and_in_name_order() {
         let (_dir, g) = tiny_galaxy();
-        let names: Vec<String> = complete_systems(&g, "so", 10).into_iter().map(|h| h.name).collect();
+        let names: Vec<String> = complete_systems(&g, "so", 10)
+            .into_iter()
+            .map(|h| h.name)
+            .collect();
         assert_eq!(names, vec!["Sol", "Solati", "Sothis"]);
-        let names: Vec<String> = complete_systems(&g, "SOL", 10).into_iter().map(|h| h.name).collect();
+        let names: Vec<String> = complete_systems(&g, "SOL", 10)
+            .into_iter()
+            .map(|h| h.name)
+            .collect();
         assert_eq!(names, vec!["Sol", "Solati"]);
         assert!(complete_systems(&g, "zz", 10).is_empty());
     }
@@ -114,7 +135,11 @@ mod tests {
     #[test]
     fn prefix_and_limit_rules() {
         assert_eq!(usable_prefix("  so "), Some("so"));
-        assert_eq!(usable_prefix("s"), None, "one letter is every system starting with it");
+        assert_eq!(
+            usable_prefix("s"),
+            None,
+            "one letter is every system starting with it"
+        );
         assert_eq!(usable_prefix(&"x".repeat(65)), None);
         assert_eq!(clamp_limit(None), DEFAULT_LIMIT);
         assert_eq!(clamp_limit(Some(0)), 1);
@@ -123,12 +148,18 @@ mod tests {
 
     #[test]
     fn hits_serialise_in_the_clients_shape() {
-        let hit = NameHit { name: "Jameson Memorial".into(), detail: Some("Shinrarta Dezhra".into()) };
+        let hit = NameHit {
+            name: "Jameson Memorial".into(),
+            detail: Some("Shinrarta Dezhra".into()),
+        };
         assert_eq!(
             serde_json::to_string(&hit).unwrap(),
             r#"{"name":"Jameson Memorial","detail":"Shinrarta Dezhra"}"#
         );
-        let bare = NameHit { name: "Sol".into(), detail: None };
+        let bare = NameHit {
+            name: "Sol".into(),
+            detail: None,
+        };
         assert_eq!(serde_json::to_string(&bare).unwrap(), r#"{"name":"Sol"}"#);
     }
 }

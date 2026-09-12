@@ -29,13 +29,22 @@ pub const NOISE_GRACE_HOURS: i64 = 24;
 /// journal writes it). Returns the number of rows removed. Freed pages are
 /// reused by SQLite; `VACUUM` (the app's command) shrinks the file.
 pub fn prune_noise(conn: &Connection, cutoff_ts: &str) -> Result<u64> {
-    let placeholders = NOISE_EVENTS.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("DELETE FROM events WHERE event IN ({placeholders}) AND ts < ?{}", NOISE_EVENTS.len() + 1);
-    let mut params: Vec<&dyn rusqlite::ToSql> = NOISE_EVENTS.iter().map(|e| e as &dyn rusqlite::ToSql).collect();
+    let placeholders = NOISE_EVENTS
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "DELETE FROM events WHERE event IN ({placeholders}) AND ts < ?{}",
+        NOISE_EVENTS.len() + 1
+    );
+    let mut params: Vec<&dyn rusqlite::ToSql> = NOISE_EVENTS
+        .iter()
+        .map(|e| e as &dyn rusqlite::ToSql)
+        .collect();
     params.push(&cutoff_ts);
     Ok(conn.execute(&sql, params.as_slice())? as u64)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -73,13 +82,20 @@ mod tests {
             .collect::<rusqlite::Result<_>>()
             .unwrap();
         assert_eq!(left, ["FSDJump", "FSSSignalDiscovered", "ShipTargeted"]);
-        assert_eq!(prune_noise(&conn, "2026-08-29T10:00:00Z").unwrap(), 0, "idempotent");
+        assert_eq!(
+            prune_noise(&conn, "2026-08-29T10:00:00Z").unwrap(),
+            0,
+            "idempotent"
+        );
     }
 
     #[test]
     fn noise_is_never_something_a_derived_table_needs() {
         for e in NOISE_EVENTS {
-            assert!(!crate::derive::DERIVED_FROM.contains(e), "{e} feeds a derived table; it cannot be pruned");
+            assert!(
+                !crate::derive::DERIVED_FROM.contains(e),
+                "{e} feeds a derived table; it cannot be pruned"
+            );
         }
     }
 }

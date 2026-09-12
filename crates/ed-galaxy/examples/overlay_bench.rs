@@ -94,7 +94,11 @@ fn synth_dump(count: usize) -> Vec<u8> {
         let radius = 5_000.0 * ((i % 10_000) as f64 / 10_000.0).sqrt();
         let (x, z) = (radius * angle.cos(), radius * angle.sin());
         let y = ((i * 37) % 700) as f64 - 350.0;
-        let class = if i % 50 == 0 { "Neutron Star" } else { "G (White-Yellow) Star" };
+        let class = if i % 50 == 0 {
+            "Neutron Star"
+        } else {
+            "G (White-Yellow) Star"
+        };
         writeln!(
             out,
             r#"{{"id64":{},"name":"Bench Sector {:05} AA-A d{}","coords":{{"x":{x:.3},"y":{y:.1},"z":{z:.3}}},"bodies":[{{"type":"Star","subType":"{class}","mainStar":true,"distanceToArrival":0}}]}}{comma}"#,
@@ -135,12 +139,20 @@ fn synth_week(base: &Galaxy, adds: usize, updates: usize, seed: u64) -> Overlay 
         let anchor = base.pos_of((next() % count) as u32);
         // A neighbour within ~20 ly of a charted star: same or adjacent cell.
         let jitter = |v: f32, r: u64| v + ((r % 4_000) as f32 / 100.0) - 20.0;
-        let pos = [jitter(anchor[0], next()), jitter(anchor[1], next()), jitter(anchor[2], next())];
+        let pos = [
+            jitter(anchor[0], next()),
+            jitter(anchor[1], next()),
+            jitter(anchor[2], next()),
+        ];
         records.push(add_at(
             pos,
             AddRecord {
                 id64: 30_000_000_000 + k as u64,
-                class: if k % 8 == 0 { StarClass::Unknown.code() } else { StarClass::K.code() },
+                class: if k % 8 == 0 {
+                    StarClass::Unknown.code()
+                } else {
+                    StarClass::K.code()
+                },
                 flags: 1,
                 companion: 0,
                 name: format!("Frontier {k:06} ZZ-Z d0"),
@@ -149,7 +161,8 @@ fn synth_week(base: &Galaxy, adds: usize, updates: usize, seed: u64) -> Overlay 
     }
     // The writer refuses duplicate identities; drop any collision the
     // jitter produced (vanishingly rare, but the bench must not flake).
-    records.sort_by(|a, b| (a.cell, a.pos.map(f32::to_bits)).cmp(&(b.cell, b.pos.map(f32::to_bits))));
+    records
+        .sort_by(|a, b| (a.cell, a.pos.map(f32::to_bits)).cmp(&(b.cell, b.pos.map(f32::to_bits))));
     records.dedup_by_key(|r| (r.cell, r.pos.map(f32::to_bits)));
     Overlay {
         base_stars_sha256: ed_galaxy::overlay::stars_sha256(&base.dir).unwrap(),
@@ -171,7 +184,8 @@ fn main() {
         let staging = PathBuf::from(arg("--staging").expect("--staging"));
         let edgo = PathBuf::from(arg("--edgo").expect("--edgo"));
         let chain = vec![Overlay::read(&edgo).expect("overlay reads")];
-        ed_galaxy::overlay::apply_overlays(Path::new(&base), &chain, &staging).expect("child apply");
+        ed_galaxy::overlay::apply_overlays(Path::new(&base), &chain, &staging)
+            .expect("child apply");
         return;
     }
 
@@ -179,13 +193,19 @@ fn main() {
     let base_dir = match arg("--base") {
         Some(dir) => PathBuf::from(shellexpand_home(&dir)),
         None => {
-            let systems: usize = arg("--synth").and_then(|v| v.parse().ok()).unwrap_or(2_500_000);
+            let systems: usize = arg("--synth")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2_500_000);
             eprintln!("building a {systems}-system synthetic base…");
             let dir = scratch.path().join("base");
             let dump = synth_dump(systems);
             let started = Instant::now();
-            ed_galaxy::import::import_reader(Box::new(std::io::Cursor::new(dump)), &dir, &mut |_| {})
-                .expect("synthetic import");
+            ed_galaxy::import::import_reader(
+                Box::new(std::io::Cursor::new(dump)),
+                &dir,
+                &mut |_| {},
+            )
+            .expect("synthetic import");
             eprintln!("  built in {:.1}s", started.elapsed().as_secs_f64());
             dir
         }
@@ -201,7 +221,9 @@ fn main() {
         }
         None => {
             let adds: usize = arg("--adds").and_then(|v| v.parse().ok()).unwrap_or(60_000);
-            let updates: usize = arg("--updates").and_then(|v| v.parse().ok()).unwrap_or(15_000);
+            let updates: usize = arg("--updates")
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(15_000);
             let seed: u64 = arg("--seed").and_then(|v| v.parse().ok()).unwrap_or(47);
             eprintln!("synthesizing a churn week: {adds} adds + {updates} updates…");
             let overlay = synth_week(&base, adds, updates, seed);
@@ -210,13 +232,17 @@ fn main() {
         }
     }
     let overlay = Overlay::read(&edgo_path).expect("overlay round-trip");
-    println!("overlay,wire_bytes,{}", std::fs::metadata(&edgo_path).unwrap().len());
+    println!(
+        "overlay,wire_bytes,{}",
+        std::fs::metadata(&edgo_path).unwrap().len()
+    );
 
     // ---- the timed apply ----
     let staging = scratch.path().join("staging");
     let started = Instant::now();
-    let stats = ed_galaxy::overlay::apply_overlays(&base_dir, std::slice::from_ref(&overlay), &staging)
-        .expect("the apply");
+    let stats =
+        ed_galaxy::overlay::apply_overlays(&base_dir, std::slice::from_ref(&overlay), &staging)
+            .expect("the apply");
     let wall = started.elapsed().as_secs_f64();
     println!("apply,wall_s,{wall:.3}");
     println!("apply,peak_rss_mb,{:.0}", peak_rss_mb());
@@ -286,7 +312,10 @@ fn main() {
         base_hash_before,
         "kill -9 mid-apply must leave the base index untouched"
     );
-    Galaxy::open(&base_dir).expect("the base still opens").validate().expect("and validates");
+    Galaxy::open(&base_dir)
+        .expect("the base still opens")
+        .validate()
+        .expect("and validates");
     println!("crash,base_untouched,1");
     // Resume semantics: redo. The retried apply clears the partial
     // staging itself (apply_overlay_chain does the same in the app).

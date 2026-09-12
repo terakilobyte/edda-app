@@ -201,7 +201,8 @@ pub async fn search_blueprints(
             .engineering
             .search(&text)
             .into_iter()
-            .take(50).cloned()
+            .take(50)
+            .cloned()
             .collect()
     })
 }
@@ -366,7 +367,9 @@ pub fn shopping_for(
         .ok()
         .flatten()
         .and_then(|l| l.system_name);
-    let origin = origin_system.as_deref().and_then(|n| galaxy::coords_hint(conn, galaxy, n));
+    let origin = origin_system
+        .as_deref()
+        .and_then(|n| galaxy::coords_hint(conn, galaxy, n));
     let dist = |name: &str| -> Option<f64> {
         let o = origin?;
         let c = galaxy::coords_hint(conn, galaxy, name)?;
@@ -427,7 +430,13 @@ pub fn shopping_for(
         }
     }
     // The nearest traders come from the API; `fill_traders` adds them.
-    let traders = trader_kinds.iter().map(|k| TraderStop { kind: *k, nearest: Vec::new() }).collect();
+    let traders = trader_kinds
+        .iter()
+        .map(|k| TraderStop {
+            kind: *k,
+            nearest: Vec::new(),
+        })
+        .collect();
     Ok(ShoppingReport {
         short,
         list,
@@ -475,12 +484,18 @@ pub struct WitnessedAt {
     pub distance_ly: Option<f64>,
 }
 
-pub fn sources_for(conn: &rusqlite::Connection, galaxy: Option<&ed_galaxy::Galaxy>, material: &str) -> Result<MaterialSources, String> {
+pub fn sources_for(
+    conn: &rusqlite::Connection,
+    galaxy: Option<&ed_galaxy::Galaxy>,
+    material: &str,
+) -> Result<MaterialSources, String> {
     let origin_system = query::location(conn)
         .ok()
         .flatten()
         .and_then(|l| l.system_name);
-    let origin = origin_system.as_deref().and_then(|n| galaxy::coords_hint(conn, galaxy, n));
+    let origin = origin_system
+        .as_deref()
+        .and_then(|n| galaxy::coords_hint(conn, galaxy, n));
     let dist = |name: &str| -> Option<f64> {
         let o = origin?;
         let c = galaxy::coords_hint(conn, galaxy, name)?;
@@ -528,12 +543,15 @@ pub async fn material_sources(
 /// The nearest trader of each kind the plan needs, from the community
 /// API, around the commander's system (150 ly, five each).
 pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) {
-    let Some(system) = report.origin_system.clone() else { return };
+    let Some(system) = report.origin_system.clone() else {
+        return;
+    };
     for stop in &mut report.traders {
         let kind = format!("{:?}", stop.kind).to_lowercase();
-        stop.nearest = crate::remote_lookup::nearest_material_traders(state, &system, &kind, 150.0, 5)
-            .await
-            .unwrap_or_default();
+        stop.nearest =
+            crate::remote_lookup::nearest_material_traders(state, &system, &kind, 150.0, 5)
+                .await
+                .unwrap_or_default();
     }
 }
 
@@ -695,8 +713,16 @@ pub async fn carrier_status(state: State<'_, AppState>) -> Result<serde_json::Va
 }
 
 #[tauri::command]
-pub async fn ships_list(state: State<'_, AppState>, include_historical: Option<bool>) -> Result<Vec<commander::ShipSummary>, CapError> {
-    commander::ships_list(&state, &commander::ShipsListRequest { include_historical: include_historical.unwrap_or(false) })
+pub async fn ships_list(
+    state: State<'_, AppState>,
+    include_historical: Option<bool>,
+) -> Result<Vec<commander::ShipSummary>, CapError> {
+    commander::ships_list(
+        &state,
+        &commander::ShipsListRequest {
+            include_historical: include_historical.unwrap_or(false),
+        },
+    )
 }
 
 /// A theorycrafted modification for one slot of an exported build.
@@ -714,9 +740,18 @@ pub struct ProposedEngineering {
 /// Replace one module's `Engineering` block with a proposed blueprint at
 /// full grade. Modifiers are dropped: EDSY and Coriolis recompute the
 /// grade's nominal values, which is what a plan (not yet rolled) means.
-fn apply_proposed_engineering(data: &mut serde_json::Value, proposed: &ProposedEngineering) -> Result<(), String> {
-    let symbol = ed_engineering::journal::symbol_for_blueprint(&proposed.blueprint, &proposed.module_type)
-        .ok_or_else(|| format!("no journal symbol for {} / {}", proposed.module_type, proposed.blueprint))?;
+fn apply_proposed_engineering(
+    data: &mut serde_json::Value,
+    proposed: &ProposedEngineering,
+) -> Result<(), String> {
+    let symbol =
+        ed_engineering::journal::symbol_for_blueprint(&proposed.blueprint, &proposed.module_type)
+            .ok_or_else(|| {
+            format!(
+                "no journal symbol for {} / {}",
+                proposed.module_type, proposed.blueprint
+            )
+        })?;
     let modules = data
         .get_mut("Modules")
         .and_then(serde_json::Value::as_array_mut)
@@ -747,7 +782,11 @@ fn apply_proposed_engineering(data: &mut serde_json::Value, proposed: &ProposedE
 /// replaced by the plan (at nominal full-grade values) so the build can be
 /// theorycrafted before any materials are spent.
 #[tauri::command]
-pub async fn ship_slef(state: State<'_, AppState>, ship_id: Option<i64>, proposed: Option<ProposedEngineering>) -> Result<String, String> {
+pub async fn ship_slef(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+    proposed: Option<ProposedEngineering>,
+) -> Result<String, String> {
     let raw = loadout_raw(&state, ship_id)?;
     let mut data: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     if let Some(proposed) = &proposed {
@@ -961,9 +1000,14 @@ pub async fn list_engineers(state: State<'_, AppState>) -> Result<Vec<Engineer>,
 // struct, the response goes back as-is. Defaults live in the request.
 
 #[tauri::command]
-pub async fn find_system(state: State<'_, AppState>, name: String) -> Result<Option<SystemInfo>, CapError> {
+pub async fn find_system(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<Option<SystemInfo>, CapError> {
     let req = galaxy::FindSystemRequest { name };
-    crate::remote_lookup::find_system(&state, &req).await.ok_or_else(|| crate::remote_lookup::api_down("system"))
+    crate::remote_lookup::find_system(&state, &req)
+        .await
+        .ok_or_else(|| crate::remote_lookup::api_down("system"))
 }
 
 #[tauri::command]
@@ -979,13 +1023,20 @@ pub async fn stations_in_system(
         include_carriers: include_carriers.unwrap_or(d.include_carriers),
         include_minor: include_minor.unwrap_or(d.include_minor),
     };
-    crate::remote_lookup::stations_in_system(&state, &req).await.ok_or_else(|| crate::remote_lookup::api_down("stations"))
+    crate::remote_lookup::stations_in_system(&state, &req)
+        .await
+        .ok_or_else(|| crate::remote_lookup::api_down("stations"))
 }
 
 #[tauri::command]
-pub async fn find_station(state: State<'_, AppState>, name: String) -> Result<Vec<StationInfo>, CapError> {
+pub async fn find_station(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<Vec<StationInfo>, CapError> {
     let req = galaxy::FindStationRequest { name };
-    crate::remote_lookup::find_station(&state, &req).await.ok_or_else(|| crate::remote_lookup::api_down("stations"))
+    crate::remote_lookup::find_station(&state, &req)
+        .await
+        .ok_or_else(|| crate::remote_lookup::api_down("stations"))
 }
 
 #[tauri::command]
@@ -1014,12 +1065,16 @@ pub async fn nearest_service(
 // ── Powerplay & merits ───────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn merit_model(state: State<'_, AppState>) -> Result<ed_store::merits::MeritModel, CapError> {
+pub async fn merit_model(
+    state: State<'_, AppState>,
+) -> Result<ed_store::merits::MeritModel, CapError> {
     commander::merit_model(&state)
 }
 
 #[tauri::command]
-pub async fn powerplay_seen(state: State<'_, AppState>) -> Result<Vec<ed_store::query::PowerplayState>, CapError> {
+pub async fn powerplay_seen(
+    state: State<'_, AppState>,
+) -> Result<Vec<ed_store::query::PowerplayState>, CapError> {
     commander::powerplay_seen(&state)
 }
 
@@ -1054,11 +1109,17 @@ pub async fn ai_reset(state: State<'_, AppState>) -> Result<(), String> {
 
 fn combat_request(since: Option<String>, bucket: Option<String>) -> commander::CombatRequest {
     let d = commander::CombatRequest::default();
-    commander::CombatRequest { since, bucket: bucket.unwrap_or(d.bucket) }
+    commander::CombatRequest {
+        since,
+        bucket: bucket.unwrap_or(d.bucket),
+    }
 }
 
 #[tauri::command]
-pub async fn combat_summary(state: State<'_, AppState>, since: Option<String>) -> Result<query::CombatSummary, CapError> {
+pub async fn combat_summary(
+    state: State<'_, AppState>,
+    since: Option<String>,
+) -> Result<query::CombatSummary, CapError> {
     commander::combat_summary(&state, &combat_request(since, None))
 }
 
@@ -1072,9 +1133,17 @@ pub async fn combat_timeline(
 }
 
 #[tauri::command]
-pub async fn recent_kills(state: State<'_, AppState>, limit: Option<usize>) -> Result<Vec<ed_store::session::KillRow>, CapError> {
+pub async fn recent_kills(
+    state: State<'_, AppState>,
+    limit: Option<usize>,
+) -> Result<Vec<ed_store::session::KillRow>, CapError> {
     let d = commander::RecentKillsRequest::default();
-    commander::recent_kills(&state, &commander::RecentKillsRequest { limit: limit.unwrap_or(d.limit) })
+    commander::recent_kills(
+        &state,
+        &commander::RecentKillsRequest {
+            limit: limit.unwrap_or(d.limit),
+        },
+    )
 }
 
 #[tauri::command]
@@ -1091,23 +1160,36 @@ pub async fn merit_timeline(
 /// One market search of a fixed kind, on the community API - the only
 /// market there is (B.4, 2026-09-09). Every search logs its shape, row
 /// count and elapsed ms in `remote_search` (doctrine rule 2).
-pub(crate) async fn market_search_of(state: &AppState, kind: &str, mut query: galaxy::MarketSearchRequest) -> Result<serde_json::Value, CapError> {
+pub(crate) async fn market_search_of(
+    state: &AppState,
+    kind: &str,
+    mut query: galaxy::MarketSearchRequest,
+) -> Result<serde_json::Value, CapError> {
     query.kind = kind.to_string();
     crate::remote_search::search(state, &query).await
 }
 
 #[tauri::command]
-pub async fn commodity_search(state: State<'_, AppState>, query: galaxy::MarketSearchRequest) -> Result<serde_json::Value, CapError> {
+pub async fn commodity_search(
+    state: State<'_, AppState>,
+    query: galaxy::MarketSearchRequest,
+) -> Result<serde_json::Value, CapError> {
     market_search_of(&state, "commodity", query).await
 }
 
 #[tauri::command]
-pub async fn outfitting_search(state: State<'_, AppState>, query: galaxy::MarketSearchRequest) -> Result<serde_json::Value, CapError> {
+pub async fn outfitting_search(
+    state: State<'_, AppState>,
+    query: galaxy::MarketSearchRequest,
+) -> Result<serde_json::Value, CapError> {
     market_search_of(&state, "module", query).await
 }
 
 #[tauri::command]
-pub async fn shipyard_search(state: State<'_, AppState>, query: galaxy::MarketSearchRequest) -> Result<serde_json::Value, CapError> {
+pub async fn shipyard_search(
+    state: State<'_, AppState>,
+    query: galaxy::MarketSearchRequest,
+) -> Result<serde_json::Value, CapError> {
     market_search_of(&state, "ship", query).await
 }
 
@@ -1124,7 +1206,9 @@ pub async fn mining_search(
     text: String,
     radius_ly: Option<f64>,
 ) -> Result<serde_json::Value, CapError> {
-    let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
+    let conn = state
+        .read_conn()
+        .map_err(|e| CapError::unavailable(e, true))?;
     let started = std::time::Instant::now();
     let text = text.trim().to_string();
     let radius = radius_ly.unwrap_or(100.0).clamp(1.0, 500.0);
@@ -1140,18 +1224,25 @@ pub async fn mining_search(
         .await
         .map_err(|e| CapError::internal(e.to_string()))??
     };
-    let remote = if text.is_empty() { None } else { crate::remote_lookup::mining_search(&state, &text, &system, origin, radius).await };
-    let ring_hint = ed_store::mining::ring_type_for(&text).map(|(t, why)| serde_json::json!({"type": t, "why": why}));
-    let mut out = remote.unwrap_or_else(|| serde_json::json!({
-        "origin": system,
-        "hotspots": [],
-        "bodies": [],
-        "rings": [],
-        "known_hotspot": false,
-        "known_surface": false,
-        "ring_hint": ring_hint,
-        "data_installed": false,
-    }));
+    let remote = if text.is_empty() {
+        None
+    } else {
+        crate::remote_lookup::mining_search(&state, &text, &system, origin, radius).await
+    };
+    let ring_hint = ed_store::mining::ring_type_for(&text)
+        .map(|(t, why)| serde_json::json!({"type": t, "why": why}));
+    let mut out = remote.unwrap_or_else(|| {
+        serde_json::json!({
+            "origin": system,
+            "hotspots": [],
+            "bodies": [],
+            "rings": [],
+            "known_hotspot": false,
+            "known_surface": false,
+            "ring_hint": ring_hint,
+            "data_installed": false,
+        })
+    });
     tracing::info!(%text, radius, marks = marks.len(), served = out["data_installed"].as_bool().unwrap_or(false), ms = started.elapsed().as_millis() as u64, "mining search");
     out["marks"] = serde_json::to_value(marks).map_err(|e| CapError::internal(e.to_string()))?;
     Ok(out)
@@ -1163,13 +1254,25 @@ pub async fn mining_search(
 #[tauri::command]
 pub async fn mining_materials(state: State<'_, AppState>) -> Result<serde_json::Value, CapError> {
     let lasers = [
-        "Gold", "Silver", "Palladium", "Osmium", "Bertrandite", "Indite", "Gallite",
-        "Praseodymium", "Samarium", "Bauxite", "Cobalt", "Rutile", "Water",
-        "Liquid Oxygen", "Lithium Hydroxide",
+        "Gold",
+        "Silver",
+        "Palladium",
+        "Osmium",
+        "Bertrandite",
+        "Indite",
+        "Gallite",
+        "Praseodymium",
+        "Samarium",
+        "Bauxite",
+        "Cobalt",
+        "Rutile",
+        "Water",
+        "Liquid Oxygen",
+        "Lithium Hydroxide",
     ];
-    Ok(crate::remote_lookup::mining_materials(&state).await.unwrap_or_else(|| {
-        serde_json::json!({ "entries": [], "laser": lasers })
-    }))
+    Ok(crate::remote_lookup::mining_materials(&state)
+        .await
+        .unwrap_or_else(|| serde_json::json!({ "entries": [], "laser": lasers })))
 }
 
 /// "Mark iridium here": a private breadcrumb at the CURRENT system.
@@ -1181,44 +1284,47 @@ pub async fn mark_add(
     note: Option<String>,
 ) -> Result<serde_json::Value, CapError> {
     if label.trim().is_empty() {
-        return Err(CapError::invalid("a mark needs a label").hint("what is here — Iridium, Gold hotspot…"));
+        return Err(
+            CapError::invalid("a mark needs a label").hint("what is here — Iridium, Gold hotspot…")
+        );
     }
-    state.with_store(|s| -> Result<serde_json::Value, String> {
-        // One resolver for where the commander is, at the finest grain
-        // the game is currently publishing.
-        let fix = ed_store::mining::here(s.conn()).map_err(|e| e.to_string())?;
-        if fix.system.trim().is_empty() {
-            return Err("no current system yet — EDDA needs one journal event first".into());
-        }
-        let id = ed_store::mining::mark_add(
-            s.conn(),
-            &label,
-            &fix,
-            body.as_deref(),
-            note.as_deref().filter(|n| !n.trim().is_empty()),
-        )
-        .map_err(|e| e.to_string())?;
-        // The grain is worth a log line: it is the difference between a
-        // bookmark you can fly back to and one you have to hunt for.
-        tracing::info!(%label, system = %fix.system, grain = fix.grain(), "bookmark added");
-        let grain = fix.grain();
-        let saved_body = body
-            .as_deref()
-            .map(str::trim)
-            .filter(|b| !b.is_empty())
-            .map(str::to_string)
-            .or_else(|| fix.body.clone());
-        Ok(serde_json::json!({
-            "id": id,
-            "system": fix.system,
-            "station": fix.station,
-            "body": saved_body,
-            "latitude": fix.latitude,
-            "longitude": fix.longitude,
-            "grain": grain,
-        }))
-    })
-    .map_err(|e| CapError::internal(e))
+    state
+        .with_store(|s| -> Result<serde_json::Value, String> {
+            // One resolver for where the commander is, at the finest grain
+            // the game is currently publishing.
+            let fix = ed_store::mining::here(s.conn()).map_err(|e| e.to_string())?;
+            if fix.system.trim().is_empty() {
+                return Err("no current system yet — EDDA needs one journal event first".into());
+            }
+            let id = ed_store::mining::mark_add(
+                s.conn(),
+                &label,
+                &fix,
+                body.as_deref(),
+                note.as_deref().filter(|n| !n.trim().is_empty()),
+            )
+            .map_err(|e| e.to_string())?;
+            // The grain is worth a log line: it is the difference between a
+            // bookmark you can fly back to and one you have to hunt for.
+            tracing::info!(%label, system = %fix.system, grain = fix.grain(), "bookmark added");
+            let grain = fix.grain();
+            let saved_body = body
+                .as_deref()
+                .map(str::trim)
+                .filter(|b| !b.is_empty())
+                .map(str::to_string)
+                .or_else(|| fix.body.clone());
+            Ok(serde_json::json!({
+                "id": id,
+                "system": fix.system,
+                "station": fix.station,
+                "body": saved_body,
+                "latitude": fix.latitude,
+                "longitude": fix.longitude,
+                "grain": grain,
+            }))
+        })
+        .map_err(|e| CapError::internal(e))
 }
 
 /// Where a bookmark saved right now would land, so the UI can say so
@@ -1238,18 +1344,26 @@ pub async fn mark_here(state: State<'_, AppState>) -> Result<serde_json::Value, 
 #[tauri::command]
 pub async fn mark_remove(state: State<'_, AppState>, id: i64) -> Result<bool, CapError> {
     state
-        .with_store(|s| -> Result<bool, String> { ed_store::mining::mark_remove(s.conn(), id).map_err(|e| e.to_string()) })
+        .with_store(|s| -> Result<bool, String> {
+            ed_store::mining::mark_remove(s.conn(), id).map_err(|e| e.to_string())
+        })
         .map_err(CapError::internal)
 }
 
 /// A station's board from the community API: `{station_id, entries,
 /// provenance}` — the same shape the model's tool returns.
 #[tauri::command]
-pub async fn station_market(state: State<'_, AppState>, station_id: i64) -> Result<serde_json::Value, CapError> {
+pub async fn station_market(
+    state: State<'_, AppState>,
+    station_id: i64,
+) -> Result<serde_json::Value, CapError> {
     station_board(&state, station_id).await
 }
 
-pub(crate) async fn station_board(state: &AppState, station_id: i64) -> Result<serde_json::Value, CapError> {
+pub(crate) async fn station_board(
+    state: &AppState,
+    station_id: i64,
+) -> Result<serde_json::Value, CapError> {
     let entries = crate::remote_lookup::station_board(state, station_id)
         .await
         .ok_or_else(|| crate::remote_lookup::api_down("station board"))?;
@@ -1257,10 +1371,19 @@ pub(crate) async fn station_board(state: &AppState, station_id: i64) -> Result<s
 }
 
 #[tauri::command]
-pub async fn systems_near(state: State<'_, AppState>, system: String, radius_ly: Option<f64>) -> Result<Vec<lookup::NearbySystem>, CapError> {
+pub async fn systems_near(
+    state: State<'_, AppState>,
+    system: String,
+    radius_ly: Option<f64>,
+) -> Result<Vec<lookup::NearbySystem>, CapError> {
     let d = galaxy::SystemsNearRequest::default();
-    let req = galaxy::SystemsNearRequest { system, radius_ly: radius_ly.unwrap_or(d.radius_ly) };
-    crate::remote_lookup::systems_near(&state, &req).await.ok_or_else(|| crate::remote_lookup::api_down("systems near"))
+    let req = galaxy::SystemsNearRequest {
+        system,
+        radius_ly: radius_ly.unwrap_or(d.radius_ly),
+    };
+    crate::remote_lookup::systems_near(&state, &req)
+        .await
+        .ok_or_else(|| crate::remote_lookup::api_down("systems near"))
 }
 
 /// The profit finder, on the community API (B.4, 2026-09-09). `query`
@@ -1279,7 +1402,10 @@ pub async fn profit_routes(
     let result = crate::remote_trade::report(&state, &query).await;
     crate::telemetry::record_timing("trade", started.elapsed().as_millis(), result.is_ok());
     if let Some(h) = max_age {
-        crate::telemetry::record_search("trade_max_age_hours", h.max(0.0).round().min(f64::from(u32::MAX)) as u32);
+        crate::telemetry::record_search(
+            "trade_max_age_hours",
+            h.max(0.0).round().min(f64::from(u32::MAX)) as u32,
+        );
     }
     result
 }
@@ -1317,12 +1443,16 @@ pub async fn current_route(state: State<'_, AppState>) -> Result<RouteView, Stri
         // The Route tab is a read, not the voice: it shows the whole
         // briefing whatever else is running.
         use ed_store::route::Narration;
-        let brief = route.as_ref().map(|r| ed_store::route::brief_text(r, Narration::Full));
+        let brief = route
+            .as_ref()
+            .map(|r| ed_store::route::brief_text(r, Narration::Full));
         let next = match (&route, &here) {
             (Some(r), Some(h)) => ed_store::route::next_hop_text(r, h, Narration::Full),
             _ => None,
         };
-        let dock_query = route.as_ref().and_then(|r| crate::routing::game_route_dock_query(conn, r));
+        let dock_query = route
+            .as_ref()
+            .and_then(|r| crate::routing::game_route_dock_query(conn, r));
         Ok::<_, String>((route, brief, next, dock_query))
     })?;
     // Item 39: fuel icons on the game route mean "you will need fuel by
@@ -1331,15 +1461,24 @@ pub async fn current_route(state: State<'_, AppState>) -> Result<RouteView, Stri
     // call (B.4 gap 3); unanswered means no dock known.
     let docks = match &dock_query {
         Some((systems, pad)) if !systems.is_empty() => {
-            crate::remote_lookup::docks_by_systems(&state, systems, *pad).await.unwrap_or_default()
+            crate::remote_lookup::docks_by_systems(&state, systems, *pad)
+                .await
+                .unwrap_or_default()
         }
         _ => Default::default(),
     };
     let fuel_marks = match &route {
-        Some(r) => state.with_read(|s| crate::routing::game_route_fuel_marks_for(s.conn(), r, &docks)),
+        Some(r) => {
+            state.with_read(|s| crate::routing::game_route_fuel_marks_for(s.conn(), r, &docks))
+        }
         None => Vec::new(),
     };
-    Ok(RouteView { route, brief, next, fuel_marks })
+    Ok(RouteView {
+        route,
+        brief,
+        next,
+        fuel_marks,
+    })
 }
 
 /// Distinct powers and Powerplay states in the galaxy tables, for filters.
@@ -1358,7 +1497,11 @@ pub async fn powerplay_options(state: State<'_, AppState>) -> Result<PowerplayOp
             .ok()
             .flatten()
             .and_then(|r| serde_json::from_str::<serde_json::Value>(&r).ok())
-            .and_then(|v| v.get("Power").and_then(serde_json::Value::as_str).map(str::to_string));
+            .and_then(|v| {
+                v.get("Power")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string)
+            });
         let (powers, states) = powerplay_vocabulary(Vec::new(), Vec::new());
         Ok(PowerplayOptions {
             powers,
@@ -1385,9 +1528,18 @@ pub const POWERS: &[&str] = &[
     "Yuri Grom",
     "Zemina Torval",
 ];
-pub const POWER_STATES: &[&str] = &["Stronghold", "Fortified", "Exploited", "Contested", "Unoccupied"];
+pub const POWER_STATES: &[&str] = &[
+    "Stronghold",
+    "Fortified",
+    "Exploited",
+    "Contested",
+    "Unoccupied",
+];
 
-pub(crate) fn powerplay_vocabulary(mut powers: Vec<String>, mut states: Vec<String>) -> (Vec<String>, Vec<String>) {
+pub(crate) fn powerplay_vocabulary(
+    mut powers: Vec<String>,
+    mut states: Vec<String>,
+) -> (Vec<String>, Vec<String>) {
     for p in POWERS {
         if !powers.iter().any(|x| x.eq_ignore_ascii_case(p)) {
             powers.push((*p).to_string());
@@ -1399,7 +1551,12 @@ pub(crate) fn powerplay_vocabulary(mut powers: Vec<String>, mut states: Vec<Stri
         }
     }
     powers.sort_by_key(|p| p.to_ascii_lowercase());
-    states.sort_by_key(|st| POWER_STATES.iter().position(|k| k.eq_ignore_ascii_case(st)).unwrap_or(usize::MAX));
+    states.sort_by_key(|st| {
+        POWER_STATES
+            .iter()
+            .position(|k| k.eq_ignore_ascii_case(st))
+            .unwrap_or(usize::MAX)
+    });
     (powers, states)
 }
 
@@ -1488,28 +1645,68 @@ pub async fn voice_use_windows(state: State<'_, AppState>) -> Result<VoiceStatus
 }
 
 #[derive(Clone, Copy)]
-struct VoiceSpec { model: &'static str, path: &'static str, label: &'static str, size_mb: u32 }
+struct VoiceSpec {
+    model: &'static str,
+    path: &'static str,
+    label: &'static str,
+    size_mb: u32,
+}
 const VOICE_CATALOG: &[VoiceSpec] = &[
-    VoiceSpec { model: "en_US-lessac-high.onnx", path: "en/en_US/lessac/high", label: "Elise · American", size_mb: 122 },
-    VoiceSpec { model: "en_GB-alan-medium.onnx", path: "en/en_GB/alan/medium", label: "Alan · British", size_mb: 64 },
-    VoiceSpec { model: "en_US-amy-medium.onnx", path: "en/en_US/amy/medium", label: "Amy · American", size_mb: 64 },
-    VoiceSpec { model: "en_US-ryan-high.onnx", path: "en/en_US/ryan/high", label: "Ryan · American", size_mb: 122 },
+    VoiceSpec {
+        model: "en_US-lessac-high.onnx",
+        path: "en/en_US/lessac/high",
+        label: "Elise · American",
+        size_mb: 122,
+    },
+    VoiceSpec {
+        model: "en_GB-alan-medium.onnx",
+        path: "en/en_GB/alan/medium",
+        label: "Alan · British",
+        size_mb: 64,
+    },
+    VoiceSpec {
+        model: "en_US-amy-medium.onnx",
+        path: "en/en_US/amy/medium",
+        label: "Amy · American",
+        size_mb: 64,
+    },
+    VoiceSpec {
+        model: "en_US-ryan-high.onnx",
+        path: "en/en_US/ryan/high",
+        label: "Ryan · American",
+        size_mb: 122,
+    },
 ];
 
 #[derive(Debug, Serialize)]
-pub struct VoiceCatalogEntry { pub model: String, pub label: String, pub size_mb: u32, pub installed: bool }
+pub struct VoiceCatalogEntry {
+    pub model: String,
+    pub label: String,
+    pub size_mb: u32,
+    pub installed: bool,
+}
 
 #[tauri::command]
 pub async fn voice_catalog(state: State<'_, AppState>) -> Result<Vec<VoiceCatalogEntry>, String> {
     let voices = state.data_dir.join("voices");
-    Ok(VOICE_CATALOG.iter().map(|v| VoiceCatalogEntry {
-        model: v.model.into(), label: v.label.into(), size_mb: v.size_mb,
-        installed: voices.join(v.model).is_file() && voices.join(format!("{}.json", v.model)).is_file(),
-    }).collect())
+    Ok(VOICE_CATALOG
+        .iter()
+        .map(|v| VoiceCatalogEntry {
+            model: v.model.into(),
+            label: v.label.into(),
+            size_mb: v.size_mb,
+            installed: voices.join(v.model).is_file()
+                && voices.join(format!("{}.json", v.model)).is_file(),
+        })
+        .collect())
 }
 
 async fn install_curated_voice(state: &AppState, model: &str) -> Result<String, String> {
-    let spec = VOICE_CATALOG.iter().find(|v| v.model == model).copied().ok_or_else(|| "unknown curated voice".to_string())?;
+    let spec = VOICE_CATALOG
+        .iter()
+        .find(|v| v.model == model)
+        .copied()
+        .ok_or_else(|| "unknown curated voice".to_string())?;
     let data_dir = state.data_dir.clone();
     let install_dir = data_dir.clone();
     let client = state.http_blocking.clone();
@@ -1520,17 +1717,29 @@ async fn install_curated_voice(state: &AppState, model: &str) -> Result<String, 
         if !crate::platform::piper_installed(&piper) {
             // Every release archive unpacks to a `piper/` folder, whatever
             // the host: zip on Windows, tar.gz elsewhere.
-            let url = crate::platform::piper_download_url()
-                .ok_or_else(|| anyhow::anyhow!("no Piper build is published for {}/{}", std::env::consts::OS, std::env::consts::ARCH))?;
+            let url = crate::platform::piper_download_url().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no Piper build is published for {}/{}",
+                    std::env::consts::OS,
+                    std::env::consts::ARCH
+                )
+            })?;
             let bytes = client.get(&url).send()?.error_for_status()?.bytes()?;
             if url.ends_with(".zip") {
                 let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes))?;
                 for i in 0..zip.len() {
                     let mut entry = zip.by_index(i)?;
-                    let Some(relative) = entry.enclosed_name() else { continue };
+                    let Some(relative) = entry.enclosed_name() else {
+                        continue;
+                    };
                     let out = voices.join(relative);
-                    if entry.is_dir() { std::fs::create_dir_all(&out)?; continue; }
-                    if let Some(parent) = out.parent() { std::fs::create_dir_all(parent)?; }
+                    if entry.is_dir() {
+                        std::fs::create_dir_all(&out)?;
+                        continue;
+                    }
+                    if let Some(parent) = out.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
                     let mut file = std::fs::File::create(out)?;
                     std::io::copy(&mut entry, &mut file)?;
                 }
@@ -1540,21 +1749,34 @@ async fn install_curated_voice(state: &AppState, model: &str) -> Result<String, 
                 tar::Archive::new(gz).unpack(&voices)?;
             }
         }
-        let base = format!("https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{}", spec.path);
+        let base = format!(
+            "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{}",
+            spec.path
+        );
         for name in [spec.model.to_string(), format!("{}.json", spec.model)] {
             let out = voices.join(&name);
-            if out.is_file() { continue; }
+            if out.is_file() {
+                continue;
+            }
             let partial = voices.join(format!("{name}.partial"));
-            let mut response = client.get(format!("{base}/{name}?download=true")).send()?.error_for_status()?;
+            let mut response = client
+                .get(format!("{base}/{name}?download=true"))
+                .send()?
+                .error_for_status()?;
             let mut file = std::fs::File::create(&partial)?;
             std::io::copy(&mut response, &mut file)?;
             std::fs::rename(partial, out)?;
         }
         Ok(())
-    }).await.map_err(err)?.map_err(err)?;
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)?;
     state.voice.reload(&data_dir);
     state.voice.set_model(spec.model);
-    state.voice.say(format!("{} installed and ready.", spec.label));
+    state
+        .voice
+        .say(format!("{} installed and ready.", spec.label));
     Ok(spec.model.into())
 }
 
@@ -1564,7 +1786,10 @@ pub async fn voice_install(state: State<'_, AppState>, model: String) -> Result<
 }
 
 #[tauri::command]
-pub async fn voice_remove(state: State<'_, AppState>, model: String) -> Result<Vec<String>, String> {
+pub async fn voice_remove(
+    state: State<'_, AppState>,
+    model: String,
+) -> Result<Vec<String>, String> {
     if model.contains('/') || model.contains('\\') || !model.ends_with(".onnx") {
         return Err("invalid voice model name".into());
     }
@@ -1575,10 +1800,17 @@ pub async fn voice_remove(state: State<'_, AppState>, model: String) -> Result<V
     let model_path = voices.join(&model);
     let config_path = voices.join(format!("{model}.json"));
     tauri::async_runtime::spawn_blocking(move || -> std::io::Result<()> {
-        if model_path.is_file() { std::fs::remove_file(model_path)?; }
-        if config_path.is_file() { std::fs::remove_file(config_path)?; }
+        if model_path.is_file() {
+            std::fs::remove_file(model_path)?;
+        }
+        if config_path.is_file() {
+            std::fs::remove_file(config_path)?;
+        }
         Ok(())
-    }).await.map_err(err)?.map_err(err)?;
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)?;
     Ok(ed_voice::list_models(&state.data_dir))
 }
 
@@ -1638,7 +1870,10 @@ pub async fn voice_server_probe(
         let v = audio.server_voices(&c);
         if v.is_empty() {
             // No listing endpoint: check the server is at least there.
-            return audio.server_reachable(&c).map(|_| Vec::new()).map_err(|e| format!("{e:#}"));
+            return audio
+                .server_reachable(&c)
+                .map(|_| Vec::new())
+                .map_err(|e| format!("{e:#}"));
         }
         Ok(v)
     })
@@ -1656,9 +1891,11 @@ pub async fn voice_server_get(state: State<'_, AppState>) -> Result<VoiceServerV
         )
     };
     let audio = state.voice.audio().clone();
-    tauri::async_runtime::spawn_blocking(move || voice_server_view(&audio, enabled, config, enabled))
-            .await
-            .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        voice_server_view(&audio, enabled, config, enabled)
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Save the speech server and switch to it (or back to the built-in voice).
@@ -1678,14 +1915,17 @@ pub async fn voice_server_set(
         cfg.voice_server = Some(c.clone());
         cfg.voice_server_enabled = enabled;
         cfg.save(&state.data_dir).map_err(err)?;
-        state.voice.audio().set_server(if enabled { Some(c.clone()) } else { None });
+        state
+            .voice
+            .audio()
+            .set_server(if enabled { Some(c.clone()) } else { None });
         c
     };
     state.voice.say("Hello, Commander. All systems online.");
     let audio = state.voice.audio().clone();
     tauri::async_runtime::spawn_blocking(move || voice_server_view(&audio, enabled, saved, enabled))
-            .await
-            .map_err(|e| e.to_string())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Serialize)]
@@ -1789,8 +2029,7 @@ pub fn set_signal_watch(state: &AppState, ids: Vec<String>) -> Result<(), String
 /// Switch voice; the choice is remembered for the next launch.
 #[tauri::command]
 pub async fn set_voice(state: State<'_, AppState>, model: String) -> Result<String, String> {
-    if !ed_voice::list_models(&state.data_dir).contains(&model)
-    {
+    if !ed_voice::list_models(&state.data_dir).contains(&model) {
         return Err(format!("no such voice model: {model}"));
     }
     state.voice.set_model(&model);
@@ -1811,9 +2050,7 @@ pub fn speakable(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for line in text.lines() {
         let l = line.trim_start();
-        let l = l
-            .trim_start_matches(['#', '>'])
-            .trim_start();
+        let l = l.trim_start_matches(['#', '>']).trim_start();
         let l = l
             .strip_prefix("- ")
             .or_else(|| l.strip_prefix("* "))
@@ -1836,7 +2073,10 @@ mod speakable_phonetics_tests {
     #[test]
     fn procgen_system_names_reach_the_voice_as_nato() {
         let said = super::speakable("Warning: Wredguia WD-K d8-1 would be a fuel trap.");
-        assert!(said.contains("Whiskey Delta dash Kilo Delta 8 dash 1"), "{said}");
+        assert!(
+            said.contains("Whiskey Delta dash Kilo Delta 8 dash 1"),
+            "{said}"
+        );
         assert!(!said.contains("WD-K"), "{said}");
     }
 }
@@ -1868,8 +2108,7 @@ pub fn pronounce(text: &str) -> String {
         if bare.eq_ignore_ascii_case("mk") {
             words.push("Mark".into());
             if let Some(next) = toks.get(i + 1) {
-                let nb =
-                    next.trim_end_matches(['.', ',', ';', ':']);
+                let nb = next.trim_end_matches(['.', ',', ';', ':']);
                 if let Some((_, n)) = roman.iter().find(|(r, _)| nb.eq_ignore_ascii_case(r)) {
                     words.push(format!("{n}{}", &next[nb.len()..]));
                     i += 2;
@@ -2007,7 +2246,19 @@ pub async fn set_overlay_interactive(
 ) -> Result<bool, String> {
     let result = crate::overlay::set_interactive(&app, &state, interactive).map_err(err)?;
     if !interactive {
-        crate::watcher::deliver(&app, vec![(crate::callouts::Callout::new("session", "", 1, true, "Overlay locked. Open EDDA Settings to unlock and reposition it.".into()), None)]);
+        crate::watcher::deliver(
+            &app,
+            vec![(
+                crate::callouts::Callout::new(
+                    "session",
+                    "",
+                    1,
+                    true,
+                    "Overlay locked. Open EDDA Settings to unlock and reposition it.".into(),
+                ),
+                None,
+            )],
+        );
     }
     Ok(result)
 }
@@ -2274,22 +2525,51 @@ mod slef_tests {
                 { "Slot": "PowerPlant", "Item": "int_powerplant_size4_class5" }
             ]
         });
-        let proposed = ProposedEngineering { slot: "FrameShiftDrive".into(), module_type: "Frame Shift Drive".into(), blueprint: "Increased FSD Range".into(), grade: 5 };
+        let proposed = ProposedEngineering {
+            slot: "FrameShiftDrive".into(),
+            module_type: "Frame Shift Drive".into(),
+            blueprint: "Increased FSD Range".into(),
+            grade: 5,
+        };
         apply_proposed_engineering(&mut data, &proposed).unwrap();
         let eng = &data["Modules"][0]["Engineering"];
         assert_eq!(eng["BlueprintName"], "FSD_LongRange");
         assert_eq!(eng["Level"], 5);
         assert_eq!(eng["Quality"], 1.0);
-        assert_eq!(eng["ExperimentalEffect"], "special_fsd_heavy", "an applied experimental survives the plan");
-        assert!(eng.get("Modifiers").is_none(), "rolled modifiers do not describe a plan");
+        assert_eq!(
+            eng["ExperimentalEffect"], "special_fsd_heavy",
+            "an applied experimental survives the plan"
+        );
+        assert!(
+            eng.get("Modifiers").is_none(),
+            "rolled modifiers do not describe a plan"
+        );
         // An unengineered slot gains a block.
-        let proposed = ProposedEngineering { slot: "PowerPlant".into(), module_type: "Power Plant".into(), blueprint: "Armoured".into(), grade: 4 };
+        let proposed = ProposedEngineering {
+            slot: "PowerPlant".into(),
+            module_type: "Power Plant".into(),
+            blueprint: "Armoured".into(),
+            grade: 4,
+        };
         apply_proposed_engineering(&mut data, &proposed).unwrap();
-        assert_eq!(data["Modules"][1]["Engineering"]["BlueprintName"], "PowerPlant_Armoured");
+        assert_eq!(
+            data["Modules"][1]["Engineering"]["BlueprintName"],
+            "PowerPlant_Armoured"
+        );
         // Refusals: wrong slot, unmappable name.
-        let missing = ProposedEngineering { slot: "Slot99".into(), module_type: "Power Plant".into(), blueprint: "Armoured".into(), grade: 4 };
+        let missing = ProposedEngineering {
+            slot: "Slot99".into(),
+            module_type: "Power Plant".into(),
+            blueprint: "Armoured".into(),
+            grade: 4,
+        };
         assert!(apply_proposed_engineering(&mut data, &missing).is_err());
-        let synth = ProposedEngineering { slot: "PowerPlant".into(), module_type: "AFM Refill".into(), blueprint: "AFM Refill".into(), grade: 1 };
+        let synth = ProposedEngineering {
+            slot: "PowerPlant".into(),
+            module_type: "AFM Refill".into(),
+            blueprint: "AFM Refill".into(),
+            grade: 1,
+        };
         assert!(apply_proposed_engineering(&mut data, &synth).is_err());
     }
 }
@@ -2317,13 +2597,21 @@ pub struct FeedbackPayload {
     pub created_at: String,
 }
 
-pub fn feedback_payload(text: &str, log_tail: Option<String>, created_at: String) -> FeedbackPayload {
+pub fn feedback_payload(
+    text: &str,
+    log_tail: Option<String>,
+    created_at: String,
+) -> FeedbackPayload {
     // Server truncates too (the contract), but a polite client does not
     // ship 4 MB of enthusiasm in the first place.
     let clip = |s: &str, cap: usize| -> String {
-        if s.len() <= cap { s.to_owned() } else {
+        if s.len() <= cap {
+            s.to_owned()
+        } else {
             let mut at = cap;
-            while at > 0 && !s.is_char_boundary(at) { at -= 1; }
+            while at > 0 && !s.is_char_boundary(at) {
+                at -= 1;
+            }
             s[..at].to_owned()
         }
     };
@@ -2334,9 +2622,13 @@ pub fn feedback_payload(text: &str, log_tail: Option<String>, created_at: String
         log_tail: log_tail.map(|l| {
             // The tail is what matters: keep the LAST 32 KB.
             let bytes = l.as_bytes();
-            if bytes.len() <= 32_768 { l } else {
+            if bytes.len() <= 32_768 {
+                l
+            } else {
                 let mut from = bytes.len() - 32_768;
-                while from < bytes.len() && !l.is_char_boundary(from) { from += 1; }
+                while from < bytes.len() && !l.is_char_boundary(from) {
+                    from += 1;
+                }
                 l[from..].to_owned()
             }
         }),
@@ -2348,10 +2640,14 @@ pub fn feedback_payload(text: &str, log_tail: Option<String>, created_at: String
 /// daily-rolled — newest by name sorts last).
 fn latest_log(data_dir: &std::path::Path) -> Option<String> {
     let dir = data_dir.join("logs");
-    let mut logs: Vec<_> = std::fs::read_dir(&dir).ok()?
+    let mut logs: Vec<_> = std::fs::read_dir(&dir)
+        .ok()?
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("edda.log")))
+        .filter(|p| {
+            p.file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with("edda.log"))
+        })
         .collect();
     logs.sort();
     std::fs::read_to_string(logs.last()?).ok()
@@ -2372,7 +2668,11 @@ pub async fn feedback_send(
     let Some(api) = crate::exchange::endpoint(&state) else {
         return Err("no community server is configured".into());
     };
-    let log_tail = if include_log { latest_log(&state.data_dir) } else { None };
+    let log_tail = if include_log {
+        latest_log(&state.data_dir)
+    } else {
+        None
+    };
     let payload = feedback_payload(&text, log_tail, chrono::Utc::now().to_rfc3339());
     let response = state
         .http
@@ -2385,7 +2685,11 @@ pub async fn feedback_send(
     if !response.status().is_success() {
         return Err(format!("server said {}", response.status()));
     }
-    tracing::info!(chars = payload.text.len(), with_log = payload.log_tail.is_some(), "feedback sent");
+    tracing::info!(
+        chars = payload.text.len(),
+        with_log = payload.log_tail.is_some(),
+        "feedback sent"
+    );
     Ok("Sent. Thank you, commander.".into())
 }
 
@@ -2409,7 +2713,10 @@ mod feedback_tests {
         assert!(p.os.contains(' '));
         let json = serde_json::to_string(&feedback_payload("hi", None, "t".into())).unwrap();
         for forbidden in ["commander", "name", "cmdr", "email", "id64"] {
-            assert!(!json.contains(forbidden), "{forbidden} must not ride: {json}");
+            assert!(
+                !json.contains(forbidden),
+                "{forbidden} must not ride: {json}"
+            );
         }
         assert!(!json.contains("log_tail"), "absent consent, absent field");
         // Multibyte text at the cap must not panic.
@@ -2421,7 +2728,9 @@ mod feedback_tests {
 
 /// The telemetry consent state (opt-out: absent choice reads as on).
 #[tauri::command]
-pub async fn telemetry_prefs(state: tauri::State<'_, crate::state::AppState>) -> Result<bool, String> {
+pub async fn telemetry_prefs(
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<bool, String> {
     Ok(crate::telemetry::consented(&state.config))
 }
 
@@ -2446,11 +2755,35 @@ mod powerplay_vocabulary_tests {
     fn the_dropdowns_are_never_empty_and_never_doubled() {
         let (powers, states) = powerplay_vocabulary(Vec::new(), Vec::new());
         assert_eq!(powers.len(), POWERS.len());
-        assert_eq!(states, ["Stronghold", "Fortified", "Exploited", "Contested", "Unoccupied"]);
-        let (powers, states) = powerplay_vocabulary(vec!["Li Yong-Rui".into(), "Some New Power".into()], vec!["stronghold".into()]);
-        assert_eq!(powers.iter().filter(|p| p.eq_ignore_ascii_case("Li Yong-Rui")).count(), 1);
+        assert_eq!(
+            states,
+            [
+                "Stronghold",
+                "Fortified",
+                "Exploited",
+                "Contested",
+                "Unoccupied"
+            ]
+        );
+        let (powers, states) = powerplay_vocabulary(
+            vec!["Li Yong-Rui".into(), "Some New Power".into()],
+            vec!["stronghold".into()],
+        );
+        assert_eq!(
+            powers
+                .iter()
+                .filter(|p| p.eq_ignore_ascii_case("Li Yong-Rui"))
+                .count(),
+            1
+        );
         assert!(powers.iter().any(|p| p == "Some New Power"));
-        assert_eq!(states.iter().filter(|s| s.eq_ignore_ascii_case("stronghold")).count(), 1);
+        assert_eq!(
+            states
+                .iter()
+                .filter(|s| s.eq_ignore_ascii_case("stronghold"))
+                .count(),
+            1
+        );
         assert_eq!(states[0], "stronghold", "the table's own spelling is kept");
     }
 }

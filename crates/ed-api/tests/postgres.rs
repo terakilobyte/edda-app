@@ -31,7 +31,9 @@ async fn postgres_hydration_and_readiness_contract() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
 
     let pool = database_pool(&config).await.unwrap();
@@ -104,7 +106,9 @@ async fn stations_of_several_systems_come_back_in_route_order() {
         database_url,
         artifact_dir: std::env::temp_dir(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -127,13 +131,30 @@ async fn stations_of_several_systems_come_back_in_route_order() {
     hydrate_spansh(&pool, &dump).await.unwrap();
 
     let q = serde_urlencoded::from_str::<StationsQuery>("systems=beta,Nowhere,ALPHA").unwrap();
-    let ed_api::stations::Mode::InSystems(names) = q.mode().unwrap() else { panic!("list mode") };
+    let ed_api::stations::Mode::InSystems(names) = q.mode().unwrap() else {
+        panic!("list mode")
+    };
     let rows = in_systems(&pool, &names, &q).await.unwrap();
-    let got: Vec<(&str, &str)> = rows.iter().map(|v| (v["system_name"].as_str().unwrap(), v["name"].as_str().unwrap())).collect();
-    assert_eq!(got, vec![("Beta", "Port B"), ("Alpha", "Port A"), ("Alpha", "Camp A")], "route order, then class rank; Nowhere contributes nothing");
+    let got: Vec<(&str, &str)> = rows
+        .iter()
+        .map(|v| {
+            (
+                v["system_name"].as_str().unwrap(),
+                v["name"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        got,
+        vec![("Beta", "Port B"), ("Alpha", "Port A"), ("Alpha", "Camp A")],
+        "route order, then class rank; Nowhere contributes nothing"
+    );
 
-    let q = serde_urlencoded::from_str::<StationsQuery>("systems=Alpha&include_minor=false").unwrap();
-    let ed_api::stations::Mode::InSystems(names) = q.mode().unwrap() else { panic!("list mode") };
+    let q =
+        serde_urlencoded::from_str::<StationsQuery>("systems=Alpha&include_minor=false").unwrap();
+    let ed_api::stations::Mode::InSystems(names) = q.mode().unwrap() else {
+        panic!("list mode")
+    };
     let rows = in_systems(&pool, &names, &q).await.unwrap();
     assert_eq!(rows.len(), 1, "the settlement is minor");
     reset_database(&pool).await;
@@ -148,7 +169,10 @@ async fn stations_of_several_systems_come_back_in_route_order() {
 #[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
 async fn feed_scans_teach_stars_bodies_and_hotspots() {
     use ed_api::mining::{search, MiningSearchRequest};
-    use ed_domain::{body_id64, BodySignals, BodyTeaching, ObservedAt, Operation, RingHotspots, RingTeaching, StarTeaching, SystemObservation};
+    use ed_domain::{
+        body_id64, BodySignals, BodyTeaching, ObservedAt, Operation, RingHotspots, RingTeaching,
+        StarTeaching, SystemObservation,
+    };
 
     let _serial = DATABASE.lock().await;
     let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
@@ -165,48 +189,166 @@ async fn feed_scans_teach_stars_bodies_and_hotspots() {
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
 
-    let at = |secs: i64| ObservedAt { timestamp: "2026-09-09T10:00:00Z".into(), epoch_seconds: 1_788_000_000 + secs };
+    let at = |secs: i64| ObservedAt {
+        timestamp: "2026-09-09T10:00:00Z".into(),
+        epoch_seconds: 1_788_000_000 + secs,
+    };
     let address = 6_681_123_623_626i64;
     let ops = vec![
         Operation::System(SystemObservation {
-            system_name: "Deciat".into(), system_address: Some(address), position: Some([0.0, 0.0, 0.0]),
-            observed_at: at(0), controlling_power: None, powerplay_state: None, powers: None, population: None, security: None, allegiance: None,
+            system_name: "Deciat".into(),
+            system_address: Some(address),
+            position: Some([0.0, 0.0, 0.0]),
+            observed_at: at(0),
+            controlling_power: None,
+            powerplay_state: None,
+            powers: None,
+            population: None,
+            security: None,
+            allegiance: None,
         }),
-        Operation::Star(StarTeaching { system_address: address, system_name: Some("Deciat".into()), position: Some([0.0, 0.0, 0.0]), star_type: "K".into(), observed_at: at(1), source: "eddn:scan".into() }),
+        Operation::Star(StarTeaching {
+            system_address: address,
+            system_name: Some("Deciat".into()),
+            position: Some([0.0, 0.0, 0.0]),
+            star_type: "K".into(),
+            observed_at: at(1),
+            source: "eddn:scan".into(),
+        }),
         // A ring's hotspots BEFORE its parent body exists: skipped, not an error.
-        Operation::RingHotspots(RingHotspots { system_address: address, ring_name: "Deciat 6 a A Ring".into(), signals: vec![("Painite".into(), 2)], observed_at: at(2) }),
-        Operation::Body(BodyTeaching {
-            id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), kind: Some("Planet".into()),
-            sub_type: Some("Rocky body".into()), is_landable: true, distance_to_arrival: Some(1510.0), gravity: Some(0.12), atmosphere: None, volcanism: None,
-            bio_signals: None, geo_signals: None, observed_at: at(3), provenance: "eddn:scan".into(),
-            materials: vec![("Iron".into(), 21.3)], rings: vec![RingTeaching { name: "Deciat 6 a A Ring".into(), kind: Some("Metallic".into()), mass: None, inner_radius: None, outer_radius: None }], hotspots: Vec::new(),
+        Operation::RingHotspots(RingHotspots {
+            system_address: address,
+            ring_name: "Deciat 6 a A Ring".into(),
+            signals: vec![("Painite".into(), 2)],
+            observed_at: at(2),
         }),
-        Operation::RingHotspots(RingHotspots { system_address: address, ring_name: "Deciat 6 a A Ring".into(), signals: vec![("Painite".into(), 2), ("Platinum".into(), 1)], observed_at: at(4) }),
-        Operation::BodySignals(BodySignals { id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), bio_signals: Some(3), geo_signals: None, observed_at: at(5) }),
+        Operation::Body(BodyTeaching {
+            id64: body_id64(address, 7),
+            system_address: address,
+            body_id: Some(7),
+            name: Some("Deciat 6 a".into()),
+            kind: Some("Planet".into()),
+            sub_type: Some("Rocky body".into()),
+            is_landable: true,
+            distance_to_arrival: Some(1510.0),
+            gravity: Some(0.12),
+            atmosphere: None,
+            volcanism: None,
+            bio_signals: None,
+            geo_signals: None,
+            observed_at: at(3),
+            provenance: "eddn:scan".into(),
+            materials: vec![("Iron".into(), 21.3)],
+            rings: vec![RingTeaching {
+                name: "Deciat 6 a A Ring".into(),
+                kind: Some("Metallic".into()),
+                mass: None,
+                inner_radius: None,
+                outer_radius: None,
+            }],
+            hotspots: Vec::new(),
+        }),
+        Operation::RingHotspots(RingHotspots {
+            system_address: address,
+            ring_name: "Deciat 6 a A Ring".into(),
+            signals: vec![("Painite".into(), 2), ("Platinum".into(), 1)],
+            observed_at: at(4),
+        }),
+        Operation::BodySignals(BodySignals {
+            id64: body_id64(address, 7),
+            system_address: address,
+            body_id: Some(7),
+            name: Some("Deciat 6 a".into()),
+            bio_signals: Some(3),
+            geo_signals: None,
+            observed_at: at(5),
+        }),
         // Signals for a body no Scan has described yet: a stub row.
-        Operation::BodySignals(BodySignals { id64: body_id64(address, 9), system_address: address, body_id: Some(9), name: Some("Deciat 6 b".into()), bio_signals: Some(1), geo_signals: None, observed_at: at(6) }),
+        Operation::BodySignals(BodySignals {
+            id64: body_id64(address, 9),
+            system_address: address,
+            body_id: Some(9),
+            name: Some("Deciat 6 b".into()),
+            bio_signals: Some(1),
+            geo_signals: None,
+            observed_at: at(6),
+        }),
     ];
     let stats = ed_api::eddn::apply_operations(&pool, &ops).await.unwrap();
-    assert_eq!((stats.stars, stats.bodies, stats.hotspots, stats.body_signals, stats.skipped), (1, 1, 2, 2, 1), "{stats:?}");
+    assert_eq!(
+        (
+            stats.stars,
+            stats.bodies,
+            stats.hotspots,
+            stats.body_signals,
+            stats.skipped
+        ),
+        (1, 1, 2, 2, 1),
+        "{stats:?}"
+    );
 
-    let star: (i16, bool, String) = sqlx::query_as("SELECT class, scoopable, source FROM stars WHERE address = $1").bind(address).fetch_one(&pool).await.unwrap();
-    assert_eq!(star, (6, true, "eddn:scan".to_string()), "K is code 6, scoopable");
-    let hotspots: Vec<(String, i32)> = sqlx::query_as("SELECT material, count FROM ring_hotspots WHERE body_id64 = $1 ORDER BY material").bind(body_id64(address, 7)).fetch_all(&pool).await.unwrap();
-    assert_eq!(hotspots, vec![("Painite".to_string(), 2), ("Platinum".to_string(), 1)]);
-    let signals: (Option<i32>, Option<i32>) = sqlx::query_as("SELECT bio_signals, geo_signals FROM bodies WHERE id64 = $1").bind(body_id64(address, 7)).fetch_one(&pool).await.unwrap();
+    let star: (i16, bool, String) =
+        sqlx::query_as("SELECT class, scoopable, source FROM stars WHERE address = $1")
+            .bind(address)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        star,
+        (6, true, "eddn:scan".to_string()),
+        "K is code 6, scoopable"
+    );
+    let hotspots: Vec<(String, i32)> = sqlx::query_as(
+        "SELECT material, count FROM ring_hotspots WHERE body_id64 = $1 ORDER BY material",
+    )
+    .bind(body_id64(address, 7))
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        hotspots,
+        vec![("Painite".to_string(), 2), ("Platinum".to_string(), 1)]
+    );
+    let signals: (Option<i32>, Option<i32>) =
+        sqlx::query_as("SELECT bio_signals, geo_signals FROM bodies WHERE id64 = $1")
+            .bind(body_id64(address, 7))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(signals, (Some(3), None));
-    let stub: (Option<String>, Option<i32>) = sqlx::query_as("SELECT name, bio_signals FROM bodies WHERE id64 = $1").bind(body_id64(address, 9)).fetch_one(&pool).await.unwrap();
+    let stub: (Option<String>, Option<i32>) =
+        sqlx::query_as("SELECT name, bio_signals FROM bodies WHERE id64 = $1")
+            .bind(body_id64(address, 9))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(stub, (Some("Deciat 6 b".to_string()), Some(1)));
 
     // An older star observation cannot regress the class.
-    let older = vec![Operation::Star(StarTeaching { system_address: address, system_name: None, position: None, star_type: "M".into(), observed_at: at(-100), source: "eddn:navroute".into() })];
+    let older = vec![Operation::Star(StarTeaching {
+        system_address: address,
+        system_name: None,
+        position: None,
+        star_type: "M".into(),
+        observed_at: at(-100),
+        source: "eddn:navroute".into(),
+    })];
     let stats = ed_api::eddn::apply_operations(&pool, &older).await.unwrap();
     assert_eq!((stats.stars, stats.skipped), (0, 1));
 
     // And the mining search sees what the feed taught.
-    let req = MiningSearchRequest { text: "painite".into(), system: Some("Deciat".into()), coords: None, radius_ly: Some(10.0), limit: None };
+    let req = MiningSearchRequest {
+        text: "painite".into(),
+        system: Some("Deciat".into()),
+        coords: None,
+        radius_ly: Some(10.0),
+        limit: None,
+    };
     let answer = search(&pool, &req).await.unwrap();
-    assert_eq!(answer["hotspots"][0]["ring"], "Deciat 6 a A Ring", "{answer}");
+    assert_eq!(
+        answer["hotspots"][0]["ring"], "Deciat 6 a A Ring",
+        "{answer}"
+    );
     assert_eq!(answer["hotspots"][0]["ring_type"], "Metallic");
     reset_database(&pool).await;
 }
@@ -230,7 +372,9 @@ async fn mining_search_answers_from_hydrated_bodies() {
         database_url,
         artifact_dir: std::env::temp_dir(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -254,14 +398,28 @@ async fn mining_search_answers_from_hydrated_bodies() {
         r#"{"id64":6,"name":"Far","coords":{"x":400,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[],"bodies":[{"id64":600,"bodyId":1,"name":"Far 1","type":"Planet","subType":"Class I gas giant","rings":[{"name":"Far 1 A Ring","type":"Metallic","signals":{"signals":{"Platinum":3}}}]}]}"#,
         "\n]\n",
     );
-    let result = hydrate_spansh(&pool, &write_dump("galaxy_1day.json.gz", DUMP)).await.unwrap();
+    let result = hydrate_spansh(&pool, &write_dump("galaxy_1day.json.gz", DUMP))
+        .await
+        .unwrap();
     assert_eq!(result.systems_applied, 2);
-    assert_eq!(result.bodies_applied, 3, "the two giants and the rock; the bare star is the stars table's");
+    assert_eq!(
+        result.bodies_applied, 3,
+        "the two giants and the rock; the bare star is the stars table's"
+    );
     assert_eq!(result.hotspots_applied, 3);
-    assert_eq!(result.stars_taught, 1, "the main star still reaches the routing teacher");
+    assert_eq!(
+        result.stars_taught, 1,
+        "the main star still reaches the routing teacher"
+    );
 
     // A hotspot material by system name, 100 ly: Deciat's ring, not Far's at 400 ly.
-    let req = MiningSearchRequest { text: "platinum".into(), system: Some("deciat".into()), coords: None, radius_ly: Some(100.0), limit: None };
+    let req = MiningSearchRequest {
+        text: "platinum".into(),
+        system: Some("deciat".into()),
+        coords: None,
+        radius_ly: Some(100.0),
+        limit: None,
+    };
     let answer = search(&pool, &req).await.unwrap();
     assert_eq!(answer["origin"], "deciat");
     assert_eq!(answer["known_hotspot"], true);
@@ -270,12 +428,22 @@ async fn mining_search_answers_from_hydrated_bodies() {
     assert_eq!(answer["hotspots"][0]["ring_type"], "Metallic");
     assert_eq!(answer["hotspots"][0]["count"], 2);
     assert_eq!(answer["hotspots"][0]["distance_to_arrival"], 1500.0);
-    assert_eq!(answer["rings"].as_array().unwrap().len(), 0, "a hotspot material lists hotspots, not rings");
+    assert_eq!(
+        answer["rings"].as_array().unwrap().len(),
+        0,
+        "a hotspot material lists hotspots, not rings"
+    );
     assert_eq!(answer["data_installed"], true);
 
     // A laser-mined good by the commander's own coordinates, 500 ly:
     // rings of the type, nearest first.
-    let req = MiningSearchRequest { text: "Gold".into(), system: None, coords: Some([0.0, 0.0, 0.0]), radius_ly: Some(500.0), limit: None };
+    let req = MiningSearchRequest {
+        text: "Gold".into(),
+        system: None,
+        coords: Some([0.0, 0.0, 0.0]),
+        radius_ly: Some(500.0),
+        limit: None,
+    };
     let answer = search(&pool, &req).await.unwrap();
     assert_eq!(answer["known_hotspot"], false);
     assert_eq!(answer["ring_hint"]["type"], "Metallic");
@@ -286,7 +454,13 @@ async fn mining_search_answers_from_hydrated_bodies() {
     assert_eq!(rings[1]["distance_ly"], 400.0);
 
     // A surface material: the landable rock, richest first.
-    let req = MiningSearchRequest { text: "iron".into(), system: Some("Deciat".into()), coords: None, radius_ly: None, limit: None };
+    let req = MiningSearchRequest {
+        text: "iron".into(),
+        system: Some("Deciat".into()),
+        coords: None,
+        radius_ly: None,
+        limit: None,
+    };
     let answer = search(&pool, &req).await.unwrap();
     assert_eq!(answer["known_surface"], true);
     assert_eq!(answer["bodies"][0]["body"], "Deciat 6 a");
@@ -294,8 +468,17 @@ async fn mining_search_answers_from_hydrated_bodies() {
     assert_eq!(answer["bodies"][0]["gravity"], 0.1);
 
     // An unknown system is the same refusal the market search gives.
-    let req = MiningSearchRequest { text: "iron".into(), system: Some("Nowhere".into()), coords: None, radius_ly: None, limit: None };
-    assert!(matches!(search(&pool, &req).await, Err(ed_api::market_search::Refusal::UnknownSystem(_))));
+    let req = MiningSearchRequest {
+        text: "iron".into(),
+        system: Some("Nowhere".into()),
+        coords: None,
+        radius_ly: None,
+        limit: None,
+    };
+    assert!(matches!(
+        search(&pool, &req).await,
+        Err(ed_api::market_search::Refusal::UnknownSystem(_))
+    ));
 
     // An older dump of the giant, with a different hotspot count, cannot
     // regress the newer row; a newer one rewrites the children with it.
@@ -304,24 +487,43 @@ async fn mining_search_answers_from_hydrated_bodies() {
         r#"{"id64":5,"name":"Deciat","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[],"bodies":[{"id64":506,"bodyId":6,"name":"Deciat 6","type":"Planet","subType":"Class II gas giant","updateTime":"2026-08-20 00:00:00+00","rings":[{"name":"Deciat 6 A Ring","type":"Metallic","signals":{"signals":{"Platinum":9}}}]}]}"#,
         "\n]\n",
     );
-    let older = hydrate_spansh(&pool, &write_dump("older.json.gz", OLDER)).await.unwrap();
+    let older = hydrate_spansh(&pool, &write_dump("older.json.gz", OLDER))
+        .await
+        .unwrap();
     assert_eq!(older.bodies_applied, 0, "older than the stored body");
-    let count: (i32,) = sqlx::query_as("SELECT count FROM ring_hotspots WHERE body_id64 = 506 AND material = 'Platinum'")
-        .fetch_one(&pool).await.unwrap();
+    let count: (i32,) = sqlx::query_as(
+        "SELECT count FROM ring_hotspots WHERE body_id64 = 506 AND material = 'Platinum'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(count.0, 2);
     const NEWER: &str = concat!(
         "[\n",
         r#"{"id64":5,"name":"Deciat","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[],"bodies":[{"id64":506,"bodyId":6,"name":"Deciat 6","type":"Planet","subType":"Class II gas giant","updateTime":"2026-08-30 00:00:00+00","rings":[{"name":"Deciat 6 A Ring","type":"Metallic","signals":{"signals":{"Platinum":4}}}]}]}"#,
         "\n]\n",
     );
-    let newer = hydrate_spansh(&pool, &write_dump("newer.json.gz", NEWER)).await.unwrap();
+    let newer = hydrate_spansh(&pool, &write_dump("newer.json.gz", NEWER))
+        .await
+        .unwrap();
     assert_eq!(newer.bodies_applied, 1);
-    let rows: Vec<(String, i32)> = sqlx::query_as("SELECT material, count FROM ring_hotspots WHERE body_id64 = 506 ORDER BY material")
-        .fetch_all(&pool).await.unwrap();
-    assert_eq!(rows, vec![("Platinum".to_string(), 4)], "Painite is gone with the rewrite; Platinum carries the new count");
+    let rows: Vec<(String, i32)> = sqlx::query_as(
+        "SELECT material, count FROM ring_hotspots WHERE body_id64 = 506 ORDER BY material",
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        rows,
+        vec![("Platinum".to_string(), 4)],
+        "Painite is gone with the rewrite; Platinum carries the new count"
+    );
 
     let vocab = vocabulary(&pool).await.unwrap();
-    let names: Vec<(&str, &str)> = vocab.iter().map(|e| (e.stored.as_str(), e.kind.as_str())).collect();
+    let names: Vec<(&str, &str)> = vocab
+        .iter()
+        .map(|e| (e.stored.as_str(), e.kind.as_str()))
+        .collect();
     assert_eq!(names, vec![("Platinum", "hotspot"), ("Iron", "surface")]);
     reset_database(&pool).await;
 }
@@ -443,7 +645,12 @@ async fn verify_market_publication(pool: &PgPool) {
     let fdev = TempDir::new().unwrap();
     let csv = fdev.path().join("commodity.csv");
     std::fs::write(&csv, "id,symbol,category,name\n1,Gold,Metals,Gold\n").unwrap();
-    assert_eq!(ed_api::fdev_ids::hydrate_commodities(pool, &csv).await.unwrap(), 1);
+    assert_eq!(
+        ed_api::fdev_ids::hydrate_commodities(pool, &csv)
+            .await
+            .unwrap(),
+        1
+    );
 
     let artifacts = TempDir::new().unwrap();
     let publication = ed_api::snapshot::publish_market(pool, artifacts.path())
@@ -497,7 +704,11 @@ async fn verify_market_publication(pool: &PgPool) {
         .unwrap()
         .map(|r| {
             let resolve = |id: u32| commodity_strings.get(&id).cloned().unwrap_or_default();
-            (resolve(r.symbol_id), resolve(r.name_id), resolve(r.category_id))
+            (
+                resolve(r.symbol_id),
+                resolve(r.name_id),
+                resolve(r.category_id),
+            )
         })
         .collect();
     assert_eq!(
@@ -509,7 +720,9 @@ async fn verify_market_publication(pool: &PgPool) {
         "hydrated metadata reaches section 4; unhydrated symbols stay absent"
     );
     let dictionary = ed_ebex::market_auxiliary(
-        ed_ebex::section(&decoded, ed_ebex::SECTION_MARKETS).unwrap().unwrap(),
+        ed_ebex::section(&decoded, ed_ebex::SECTION_MARKETS)
+            .unwrap()
+            .unwrap(),
     )
     .unwrap();
     assert_eq!(
@@ -552,7 +765,11 @@ async fn verify_market_publication(pool: &PgPool) {
     assert_eq!(ed_ebex::shipyard_records(shipyard).unwrap().count(), 1);
     assert_eq!(ed_ebex::station_snapshots(shipyard).unwrap().len(), 1);
 
-    let app = http::router(AppState::new(pool.clone(), artifacts.path().to_owned(), test_metrics()));
+    let app = http::router(AppState::new(
+        pool.clone(),
+        artifacts.path().to_owned(),
+        test_metrics(),
+    ));
     let manifest = app
         .clone()
         .oneshot(Request::get("/v1/manifest").body(Body::empty()).unwrap())
@@ -650,10 +867,14 @@ async fn write_manifest(artifact_dir: &Path, protocol: u32) {
 }
 
 async fn readiness(pool: &PgPool, artifact_dir: &Path) -> axum::response::Response {
-    http::router(AppState::new(pool.clone(), artifact_dir.to_owned(), test_metrics()))
-        .oneshot(Request::get("/readyz").body(Body::empty()).unwrap())
-        .await
-        .unwrap()
+    http::router(AppState::new(
+        pool.clone(),
+        artifact_dir.to_owned(),
+        test_metrics(),
+    ))
+    .oneshot(Request::get("/readyz").body(Body::empty()).unwrap())
+    .await
+    .unwrap()
 }
 
 /// Finding: a board listing one symbol twice violated the relation's
@@ -674,7 +895,9 @@ async fn a_board_listing_a_symbol_twice_is_applied_once() {
         database_url,
         artifact_dir: std::env::temp_dir(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -705,7 +928,10 @@ async fn a_board_listing_a_symbol_twice_is_applied_once() {
             "int_hyperdrive_size2_class1".to_owned(),
             "int_fueltank_size2".to_owned(),
         ])),
-        Operation::Shipyard(board(vec!["cobramkiii".to_owned(), "cobramkiii".to_owned()])),
+        Operation::Shipyard(board(vec![
+            "cobramkiii".to_owned(),
+            "cobramkiii".to_owned(),
+        ])),
         Operation::Market(board(vec![gold(1), gold(2)])),
     ];
     let stats = ed_api::eddn::apply_operations(&pool, &operations)
@@ -743,7 +969,9 @@ async fn a_system_whose_name_another_address_holds_is_left_out_with_its_stations
         database_url,
         artifact_dir: std::env::temp_dir(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -814,7 +1042,11 @@ async fn a_system_whose_name_another_address_holds_is_left_out_with_its_stations
         .fetch_all(&pool)
         .await
         .unwrap();
-    assert_eq!(stations, vec![30], "Port C arrived in a later batch and must still be dropped");
+    assert_eq!(
+        stations,
+        vec![30],
+        "Port C arrived in a later batch and must still be dropped"
+    );
     reset_database(&pool).await;
     {
         let f = std::fs::File::create(&dump).unwrap();
@@ -835,7 +1067,11 @@ async fn a_system_whose_name_another_address_holds_is_left_out_with_its_stations
             .fetch_all(&pool)
             .await
             .unwrap();
-    assert_eq!(stations, vec![(30, 5)], "Port B must not land on the namesake");
+    assert_eq!(
+        stations,
+        vec![(30, 5)],
+        "Port B must not land on the namesake"
+    );
     let boards: Vec<i64> = sqlx::query_scalar("SELECT DISTINCT station_id FROM market ORDER BY 1")
         .fetch_all(&pool)
         .await
@@ -857,7 +1093,9 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
         database_url,
         artifact_dir: std::env::temp_dir(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -898,21 +1136,36 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     }
 
     let result = hydrate_spansh(&pool, &dump).await.unwrap();
-    assert_eq!(result.source, "spansh:galaxy_populated:galaxy_populated.json.gz");
+    assert_eq!(
+        result.source,
+        "spansh:galaxy_populated:galaxy_populated.json.gz"
+    );
     assert_eq!(result.systems_seen, 2);
     assert_eq!(result.systems_applied, 2);
     assert_eq!(result.stations_seen, 3);
-    assert_eq!(result.snapshots_applied, 3, "Daedalus market+shipyard, Port A market");
+    assert_eq!(
+        result.snapshots_applied, 3,
+        "Daedalus market+shipyard, Port A market"
+    );
     assert_eq!(result.snapshots_skipped, 1, "Galileo's older dump board");
     assert_eq!(result.parse_errors, 0);
-    assert_eq!(result.identities_applied, 3, "every dump station carries its type, pads or services");
+    assert_eq!(
+        result.identities_applied, 3,
+        "every dump station carries its type, pads or services"
+    );
     // The identity landed: Daedalus knows its type and services in the
     // journal's vocabulary (API-only spec: the server knows what the dump knows).
     let daedalus_type: Option<String> =
-        sqlx::query_scalar("SELECT station_type FROM stations WHERE id = 12").fetch_one(&pool).await.unwrap();
+        sqlx::query_scalar("SELECT station_type FROM stations WHERE id = 12")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(daedalus_type.as_deref(), Some("Orbis Starport"));
     let mut daedalus_services: Vec<String> =
-        sqlx::query_scalar("SELECT service FROM station_services WHERE station_id = 12").fetch_all(&pool).await.unwrap();
+        sqlx::query_scalar("SELECT service FROM station_services WHERE station_id = 12")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
     daedalus_services.sort();
     assert_eq!(daedalus_services, vec!["commodities", "dock", "shipyard"]);
 
@@ -929,13 +1182,19 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     .fetch_all(&pool)
     .await
     .unwrap();
-    assert_eq!(daedalus, vec![("gold".to_owned(), 700), ("silver".to_owned(), 300)]);
+    assert_eq!(
+        daedalus,
+        vec![("gold".to_owned(), 700), ("silver".to_owned(), 300)]
+    );
     let (alpha_address, alpha_provenance): (i64, String) =
         sqlx::query_as("SELECT address, provenance FROM systems WHERE name = 'Alpha'")
             .fetch_one(&pool)
             .await
             .unwrap();
-    assert_eq!(alpha_address, 5, "provisional system promoted to its real address");
+    assert_eq!(
+        alpha_address, 5,
+        "provisional system promoted to its real address"
+    );
     assert!(alpha_provenance.starts_with("spansh:"));
     let port_a: (i64, i64) = sqlx::query_as(
         "SELECT system_address, sell_price FROM stations JOIN market ON market.station_id = stations.id WHERE stations.id = 30",
@@ -943,7 +1202,11 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(port_a, (5, 9), "stations follow the promoted system; newer dump board applied");
+    assert_eq!(
+        port_a,
+        (5, 9),
+        "stations follow the promoted system; newer dump board applied"
+    );
     assert_eq!(sol_population(&pool).await, 22_781_091_954);
 
     let job: (String, String, i64, i64, i64) = sqlx::query_as(
@@ -957,7 +1220,10 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     assert_eq!(job.1, "complete");
     assert!(job.2 > 0, "byte count recorded");
     assert_eq!(job.3, 2);
-    assert_eq!(job.4, 1_787_616_000, "watermark is the newest system date in the dump");
+    assert_eq!(
+        job.4, 1_787_616_000,
+        "watermark is the newest system date in the dump"
+    );
 
     // Re-hydrating the same dump changes nothing: equal is not newer.
     let again = hydrate_spansh(&pool, &dump).await.unwrap();
@@ -967,23 +1233,31 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
 
     // Both products publish from what was hydrated, and each keeps the other.
     let artifacts = TempDir::new().unwrap();
-    let community = snapshot::publish_community(&pool, artifacts.path()).await.unwrap();
+    let community = snapshot::publish_community(&pool, artifacts.path())
+        .await
+        .unwrap();
     assert!(community.rows >= 4);
-    let routing = routing::publish_routing(&pool, artifacts.path(), &dump).await.unwrap();
+    let routing = routing::publish_routing(&pool, artifacts.path(), &dump)
+        .await
+        .unwrap();
     assert_eq!(routing.stats.systems, 2);
     let manifest: Manifest = serde_json::from_slice(
-        &tokio::fs::read(artifacts.path().join("current.json")).await.unwrap(),
+        &tokio::fs::read(artifacts.path().join("current.json"))
+            .await
+            .unwrap(),
     )
     .unwrap();
     manifest.validate().unwrap();
     assert!(manifest.products.contains_key(&ProductKey::Community));
-    assert_eq!(manifest.products[&ProductKey::Routing].version, routing.version);
-    let publications: Vec<(String, String)> = sqlx::query_as(
-        "SELECT product, status FROM artifact_publications ORDER BY id",
-    )
-    .fetch_all(&pool)
-    .await
-    .unwrap();
+    assert_eq!(
+        manifest.products[&ProductKey::Routing].version,
+        routing.version
+    );
+    let publications: Vec<(String, String)> =
+        sqlx::query_as("SELECT product, status FROM artifact_publications ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
     assert!(publications.contains(&("routing".to_owned(), "complete".to_owned())));
     let response = readiness(&pool, artifacts.path()).await;
     assert_eq!(response.status(), 200);
@@ -1010,19 +1284,28 @@ async fn stars_are_learned_published_and_answered() {
         database_url,
         artifact_dir: dir.path().to_path_buf(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
-    sqlx::query("TRUNCATE stars, star_lookups").execute(&pool).await.unwrap();
+    sqlx::query("TRUNCATE stars, star_lookups")
+        .execute(&pool)
+        .await
+        .unwrap();
 
     let dump = dir.path().join("bodies7days.json.gz");
     const BODIES: &str = concat!(
         "[\n",
-        r#"{"type":"Star","subType":"Neutron Star","isMainStar":true,"isScoopable":false,"updateTime":"2026-08-23 06:53:55","systemId64":100,"systemName":"A"},"#, "\n",
-        r#"{"type":"Star","subType":"K (Yellow-Orange) Star","isMainStar":true,"isScoopable":true,"updateTime":"2026-08-24 00:00:00","systemId64":200,"systemName":"B"},"#, "\n",
-        r#"{"type":"Star","subType":"M (Red dwarf) Star","isMainStar":false,"updateTime":"2026-08-24 00:00:00","systemId64":200,"systemName":"B"},"#, "\n",
-        r#"{"type":"Planet","subType":"Rocky body","isMainStar":false,"systemId64":200,"systemName":"B"}"#, "\n",
+        r#"{"type":"Star","subType":"Neutron Star","isMainStar":true,"isScoopable":false,"updateTime":"2026-08-23 06:53:55","systemId64":100,"systemName":"A"},"#,
+        "\n",
+        r#"{"type":"Star","subType":"K (Yellow-Orange) Star","isMainStar":true,"isScoopable":true,"updateTime":"2026-08-24 00:00:00","systemId64":200,"systemName":"B"},"#,
+        "\n",
+        r#"{"type":"Star","subType":"M (Red dwarf) Star","isMainStar":false,"updateTime":"2026-08-24 00:00:00","systemId64":200,"systemName":"B"},"#,
+        "\n",
+        r#"{"type":"Planet","subType":"Rocky body","isMainStar":false,"systemId64":200,"systemName":"B"}"#,
+        "\n",
         "]\n",
     );
     {
@@ -1032,20 +1315,49 @@ async fn stars_are_learned_published_and_answered() {
         enc.finish().unwrap();
     }
     let result = hydrate_edsm_bodies(&pool, &dump).await.unwrap();
-    assert_eq!((result.bodies, result.main_stars, result.written), (4, 2, 2));
+    assert_eq!(
+        (result.bodies, result.main_stars, result.written),
+        (4, 2, 2)
+    );
     // An older observation for A does not regress it; a newer one replaces it.
-    let older = ed_api::stars::StarObservation { address: 100, subtype: "K (Yellow-Orange) Star".into(), class: ed_galaxy::StarClass::K, scoopable: true, observed_at: 1, source: "test".into() };
-    assert_eq!(ed_api::stars::apply_stars(&pool, &[older]).await.unwrap(), 0);
-    let newer = ed_api::stars::StarObservation { address: 100, subtype: "White Dwarf (DA) Star".into(), class: ed_galaxy::StarClass::WhiteDwarf, scoopable: false, observed_at: 2_000_000_000, source: "test".into() };
-    assert_eq!(ed_api::stars::apply_stars(&pool, &[newer]).await.unwrap(), 1);
+    let older = ed_api::stars::StarObservation {
+        address: 100,
+        subtype: "K (Yellow-Orange) Star".into(),
+        class: ed_galaxy::StarClass::K,
+        scoopable: true,
+        observed_at: 1,
+        source: "test".into(),
+    };
+    assert_eq!(
+        ed_api::stars::apply_stars(&pool, &[older]).await.unwrap(),
+        0
+    );
+    let newer = ed_api::stars::StarObservation {
+        address: 100,
+        subtype: "White Dwarf (DA) Star".into(),
+        class: ed_galaxy::StarClass::WhiteDwarf,
+        scoopable: false,
+        observed_at: 2_000_000_000,
+        source: "test".into(),
+    };
+    assert_eq!(
+        ed_api::stars::apply_stars(&pool, &[newer]).await.unwrap(),
+        1
+    );
 
     // The endpoint: known answered, unknown queued once.
     let answer = answer_stars(&pool, &[100, 200, 300, 300]).await.unwrap();
     assert_eq!(answer.known.len(), 2);
     assert_eq!(answer.known[0].id64, 100);
-    assert_eq!(answer.known[0].class, ed_galaxy::StarClass::WhiteDwarf.code());
+    assert_eq!(
+        answer.known[0].class,
+        ed_galaxy::StarClass::WhiteDwarf.code()
+    );
     assert_eq!(answer.queued, vec![300, 300]);
-    let queued: i64 = sqlx::query_scalar("SELECT count(*) FROM star_lookups").fetch_one(&pool).await.unwrap();
+    let queued: i64 = sqlx::query_scalar("SELECT count(*) FROM star_lookups")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(queued, 1);
 
     // Published as the stars product, decodable and in address order.
@@ -1053,19 +1365,28 @@ async fn stars_are_learned_published_and_answered() {
     assert_eq!(publication.stars, 2);
     let path = dir.path().join(&publication.artifact.path);
     let bytes = ed_ebex::decompress(&std::fs::read(&path).unwrap()).unwrap();
-    let section = ed_ebex::section(&bytes, ed_ebex::SECTION_STARS).unwrap().unwrap();
+    let section = ed_ebex::section(&bytes, ed_ebex::SECTION_STARS)
+        .unwrap()
+        .unwrap();
     ed_ebex::validate_stars_section(section).unwrap();
     let records: Vec<ed_ebex::StarRecord> = ed_ebex::star_records(section).unwrap().collect();
-    assert_eq!(records.iter().map(|r| r.address).collect::<Vec<_>>(), vec![100, 200]);
+    assert_eq!(
+        records.iter().map(|r| r.address).collect::<Vec<_>>(),
+        vec![100, 200]
+    );
     assert_eq!(records[1].class, ed_galaxy::StarClass::K.code());
-    let manifest = ed_api::routing::read_current_manifest(dir.path()).unwrap().unwrap();
+    let manifest = ed_api::routing::read_current_manifest(dir.path())
+        .unwrap()
+        .unwrap();
     assert!(manifest.products.contains_key(&ed_sync::ProductKey::Stars));
 }
 
 /// A detached recorder per call: tests must not fight over the one
 /// global recorder slot.
 fn test_metrics() -> metrics_exporter_prometheus::PrometheusHandle {
-    metrics_exporter_prometheus::PrometheusBuilder::new().build_recorder().handle()
+    metrics_exporter_prometheus::PrometheusBuilder::new()
+        .build_recorder()
+        .handle()
 }
 
 /// /v1/trade/search: legs pair the cheapest fresh buy boards with the
@@ -1083,7 +1404,9 @@ async fn trade_search_pairs_legs_and_caches() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -1104,7 +1427,11 @@ async fn trade_search_pairs_legs_and_caches() {
     .execute(&pool)
     .await
     .unwrap();
-    let app = http::router(AppState::new(pool.clone(), artifact_dir.path().to_owned(), test_metrics()));
+    let app = http::router(AppState::new(
+        pool.clone(),
+        artifact_dir.path().to_owned(),
+        test_metrics(),
+    ));
     let post = || {
         Request::post("/v1/trade/search")
             .header("content-type", "application/json")
@@ -1113,10 +1440,17 @@ async fn trade_search_pairs_legs_and_caches() {
     };
     let response = app.clone().oneshot(post()).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
-    let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+    let bytes = http_body_util::BodyExt::collect(response.into_body())
+        .await
+        .unwrap()
+        .to_bytes();
     let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let legs = value["legs"].as_array().unwrap();
-    assert_eq!(legs.len(), 1, "the confiscating sink must not appear: {value}");
+    assert_eq!(
+        legs.len(),
+        1,
+        "the confiscating sink must not appear: {value}"
+    );
     let leg = &legs[0];
     assert_eq!(leg["commodity"], "Gold");
     assert_eq!(leg["profit_t"], 50_000);
@@ -1145,7 +1479,9 @@ async fn market_search_mirrors_the_local_contract() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -1190,7 +1526,11 @@ async fn market_search_mirrors_the_local_contract() {
     .await
     .unwrap();
 
-    let app = http::router(AppState::new(pool.clone(), artifact_dir.path().to_owned(), test_metrics()));
+    let app = http::router(AppState::new(
+        pool.clone(),
+        artifact_dir.path().to_owned(),
+        test_metrics(),
+    ));
     let post = |body: serde_json::Value| {
         Request::post("/v1/market/search")
             .header("content-type", "application/json")
@@ -1198,7 +1538,10 @@ async fn market_search_mirrors_the_local_contract() {
             .unwrap()
     };
     async fn read(response: axum::response::Response) -> serde_json::Value {
-        let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+        let bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
         serde_json::from_slice::<serde_json::Value>(&bytes).unwrap()
     }
     let stations = |value: &serde_json::Value| -> Vec<String> {
@@ -1226,18 +1569,34 @@ async fn market_search_mirrors_the_local_contract() {
         .unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
     let value = read(response).await;
-    assert_eq!(stations(&value), vec!["Sentinel Rest", "Good Port", "Small Outpost"], "{value}");
+    assert_eq!(
+        stations(&value),
+        vec!["Sentinel Rest", "Good Port", "Small Outpost"],
+        "{value}"
+    );
     assert_eq!(value["symbol"], "palladium");
     assert_eq!(value["provenance"], "server");
     assert!(value["as_of"].as_str().unwrap().ends_with('Z'));
     let hit = &value["results"][0];
     for key in [
-        "station_id", "station", "system", "distance_ly", "distance_to_arrival",
-        "max_pad", "is_carrier", "price", "quantity", "updated", "age_hours",
+        "station_id",
+        "station",
+        "system",
+        "distance_ly",
+        "distance_to_arrival",
+        "max_pad",
+        "is_carrier",
+        "price",
+        "quantity",
+        "updated",
+        "age_hours",
     ] {
         assert!(hit.get(key).is_some(), "missing {key}: {hit}");
     }
-    assert_eq!(hit["price"], 210000, "price order leads with the unlimited-demand board");
+    assert_eq!(
+        hit["price"], 210000,
+        "price order leads with the unlimited-demand board"
+    );
     assert_eq!(hit["quantity"], 999999);
     assert_eq!(hit["max_pad"], "large");
 
@@ -1258,7 +1617,10 @@ async fn market_search_mirrors_the_local_contract() {
     assert!(names.contains(&"Blackmarket Bay".to_owned()), "{names:?}");
     assert!(names.contains(&"X9Z-42".to_owned()), "{names:?}");
     assert!(!names.contains(&"Confiscator".to_owned()), "{names:?}");
-    assert!(!names.contains(&"Small Outpost".to_owned()), "pad floor: {names:?}");
+    assert!(
+        !names.contains(&"Small Outpost".to_owned()),
+        "pad floor: {names:?}"
+    );
 
     // Buy side reads supply and the min-quantity floor.
     let value = read(
@@ -1319,7 +1681,14 @@ async fn market_search_mirrors_the_local_contract() {
         .unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
     let value = read(response).await;
-    assert!(value["matches"].as_array().unwrap().iter().any(|m| m == "Palladium"), "{value}");
+    assert!(
+        value["matches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m == "Palladium"),
+        "{value}"
+    );
     let response = app
         .oneshot(post(json!({
             "kind": "commodity", "text": "Palladium", "system": "Nowhere Real", "side": "sell",
@@ -1353,7 +1722,9 @@ async fn knowledge_system_answers_locally_and_learns_what_it_fetches() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -1389,7 +1760,10 @@ async fn knowledge_system_answers_locally_and_learns_what_it_fetches() {
     assert_eq!(value["primaryStar"]["isScoopable"], true);
 
     // A name we do not hold is not invented.
-    assert!(ed_api::knowledge::local_system(&pool, "Nowhere At All").await.unwrap().is_none());
+    assert!(ed_api::knowledge::local_system(&pool, "Nowhere At All")
+        .await
+        .unwrap()
+        .is_none());
 
     // An upstream reply, parsed then learned, becomes a LOCAL answer --
     // the proxy's whole bargain. EDSM sends `information` as [] when it
@@ -1401,10 +1775,16 @@ async fn knowledge_system_answers_locally_and_learns_what_it_fetches() {
         "information": [],
         "primaryStar": { "type": "K (Yellow-Orange) Star", "isScoopable": true }
     });
-    let parsed = ed_api::knowledge::parse_upstream_system(&upstream)
-        .expect("a named system parses");
-    assert_eq!(parsed.information, serde_json::json!({}), "[] becomes an empty object");
-    ed_api::knowledge::learn_system(&pool, &parsed).await.unwrap();
+    let parsed =
+        ed_api::knowledge::parse_upstream_system(&upstream).expect("a named system parses");
+    assert_eq!(
+        parsed.information,
+        serde_json::json!({}),
+        "[] becomes an empty object"
+    );
+    ed_api::knowledge::learn_system(&pool, &parsed)
+        .await
+        .unwrap();
 
     let relearned = ed_api::knowledge::local_system(&pool, "DECIAT")
         .await
@@ -1413,7 +1793,10 @@ async fn knowledge_system_answers_locally_and_learns_what_it_fetches() {
     assert_eq!(relearned.id64, Some(77002));
     let value = serde_json::to_value(&relearned).unwrap();
     assert_eq!(value["coords"]["z"], -47.0);
-    assert_eq!(value["primaryStar"]["isScoopable"], true, "the star landed in the shared table");
+    assert_eq!(
+        value["primaryStar"]["isScoopable"], true,
+        "the star landed in the shared table"
+    );
 
     // An unknown name upstream is `{}` -- absence, not an error.
     assert!(ed_api::knowledge::parse_upstream_system(&serde_json::json!({})).is_none());
@@ -1439,17 +1822,29 @@ async fn trade_report_finds_the_round_trip_the_legacy_query_could_not() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
     seed_two_station_loop(&pool).await;
-    let c = ed_route::profit::Constraints { radius_ly: 50.0, max_age_hours: 48.0, ..Default::default() };
-    let prepared = ed_api::trade_report::prepare(&pool, (0.0, 0.0, 0.0), &c).await.unwrap();
+    let c = ed_route::profit::Constraints {
+        radius_ly: 50.0,
+        max_age_hours: 48.0,
+        ..Default::default()
+    };
+    let prepared = ed_api::trade_report::prepare(&pool, (0.0, 0.0, 0.0), &c)
+        .await
+        .unwrap();
     assert_eq!(prepared.stations.len(), 2);
     assert_eq!(prepared.rows.len(), 4);
     assert_eq!(prepared.excluded.no_market_data, 0);
-    let ship = ed_route::cost::Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
+    let ship = ed_route::cost::Ship {
+        cargo_capacity: 100,
+        jump_range_ly: 30.0,
+        laden_range_ly: 25.0,
+    };
     let report = ed_route::profit::assemble(
         "Alpha",
         (0.0, 0.0, 0.0),
@@ -1502,7 +1897,9 @@ async fn trade_search_with_a_ship_returns_the_report() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
@@ -1510,12 +1907,23 @@ async fn trade_search_with_a_ship_returns_the_report() {
     let service = ed_api::trade_search::TradeService::default();
     let req = ed_api::trade_search::ReportRequest {
         system: "Alpha".into(),
-        ship: ed_route::cost::Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 },
-        constraints: ed_route::profit::Constraints { radius_ly: 50.0, max_age_hours: 48.0, ..Default::default() },
-        from_station_id: None, board: None,
+        ship: ed_route::cost::Ship {
+            cargo_capacity: 100,
+            jump_range_ly: 30.0,
+            laden_range_ly: 25.0,
+        },
+        constraints: ed_route::profit::Constraints {
+            radius_ly: 50.0,
+            max_age_hours: 48.0,
+            ..Default::default()
+        },
+        from_station_id: None,
+        board: None,
         limit: Some(10),
     };
-    let ed_api::trade_search::TradeOutcome::Legs(value, verdict) = service.report(&pool, &req).await.unwrap() else {
+    let ed_api::trade_search::TradeOutcome::Legs(value, verdict) =
+        service.report(&pool, &req).await.unwrap()
+    else {
         panic!("saturated")
     };
     assert_eq!(verdict, "miss");
@@ -1523,7 +1931,9 @@ async fn trade_search_with_a_ship_returns_the_report() {
     assert_eq!(value["legs"].as_array().unwrap().len(), 2);
     assert_eq!(value["provenance"], "server");
     assert_eq!(value["stations_considered"], 2);
-    let ed_api::trade_search::TradeOutcome::Legs(_, verdict) = service.report(&pool, &req).await.unwrap() else {
+    let ed_api::trade_search::TradeOutcome::Legs(_, verdict) =
+        service.report(&pool, &req).await.unwrap()
+    else {
         panic!("saturated")
     };
     assert_eq!(verdict, "hit");
@@ -1535,33 +1945,80 @@ async fn trade_search_with_a_ship_returns_the_report() {
         station_id: 11,
         observed_at,
         rows: vec![
-            ed_api::trade_report::ClientBoardRow { symbol: "gold".into(), buy_price: gold_buy, sell_price: 0, demand: 0, supply: 1000 },
-            ed_api::trade_report::ClientBoardRow { symbol: "silver".into(), buy_price: 0, sell_price: 150, demand: 1000, supply: 0 },
+            ed_api::trade_report::ClientBoardRow {
+                symbol: "gold".into(),
+                buy_price: gold_buy,
+                sell_price: 0,
+                demand: 0,
+                supply: 1000,
+            },
+            ed_api::trade_report::ClientBoardRow {
+                symbol: "silver".into(),
+                buy_price: 0,
+                sell_price: 150,
+                demand: 1000,
+                supply: 0,
+            },
         ],
     };
     let fresh = ed_store::session::iso_from_epoch(ed_route::profit::now_epoch_secs() + 60);
-    let docked = ed_api::trade_search::ReportRequest { from_station_id: Some(11), board: Some(board(fresh, 80)), ..req.clone() };
-    let ed_api::trade_search::TradeOutcome::Legs(value, verdict) = service.report(&pool, &docked).await.unwrap() else {
+    let docked = ed_api::trade_search::ReportRequest {
+        from_station_id: Some(11),
+        board: Some(board(fresh, 80)),
+        ..req.clone()
+    };
+    let ed_api::trade_search::TradeOutcome::Legs(value, verdict) =
+        service.report(&pool, &docked).await.unwrap()
+    else {
         panic!("saturated")
     };
     assert_eq!(verdict, "bypass", "a fused report is one commander's");
-    assert_eq!(value["board"], serde_json::json!({"used": true, "reason": "newer", "rows": 2}), "{value}");
+    assert_eq!(
+        value["board"],
+        serde_json::json!({"used": true, "reason": "newer", "rows": 2}),
+        "{value}"
+    );
     let legs = value["legs"].as_array().unwrap();
     assert_eq!(legs.len(), 1, "sourced from A Dock only: {value}");
-    assert_eq!((legs[0]["symbol"].as_str(), legs[0]["buy_price"].as_i64()), (Some("gold"), Some(80)));
+    assert_eq!(
+        (legs[0]["symbol"].as_str(), legs[0]["buy_price"].as_i64()),
+        (Some("gold"), Some(80))
+    );
     assert_eq!(value["round_trips"].as_array().unwrap().len(), 1);
-    let stale = ed_api::trade_search::ReportRequest { from_station_id: Some(11), board: Some(board("2020-01-01T00:00:00Z".into(), 80)), ..req.clone() };
-    let ed_api::trade_search::TradeOutcome::Legs(value, _) = service.report(&pool, &stale).await.unwrap() else {
+    let stale = ed_api::trade_search::ReportRequest {
+        from_station_id: Some(11),
+        board: Some(board("2020-01-01T00:00:00Z".into(), 80)),
+        ..req.clone()
+    };
+    let ed_api::trade_search::TradeOutcome::Legs(value, _) =
+        service.report(&pool, &stale).await.unwrap()
+    else {
         panic!("saturated")
     };
-    assert_eq!(value["board"], serde_json::json!({"used": false, "reason": "older", "rows": 0}));
-    assert_eq!(value["legs"][0]["buy_price"].as_i64(), Some(100), "the stored board priced the leg");
-    let ed_api::trade_search::TradeOutcome::Legs(_, verdict) = service.report(&pool, &req).await.unwrap() else {
+    assert_eq!(
+        value["board"],
+        serde_json::json!({"used": false, "reason": "older", "rows": 0})
+    );
+    assert_eq!(
+        value["legs"][0]["buy_price"].as_i64(),
+        Some(100),
+        "the stored board priced the leg"
+    );
+    let ed_api::trade_search::TradeOutcome::Legs(_, verdict) =
+        service.report(&pool, &req).await.unwrap()
+    else {
         panic!("saturated")
     };
-    assert_eq!(verdict, "hit", "the plain request's cache entry survived the fused ones");
+    assert_eq!(
+        verdict, "hit",
+        "the plain request's cache entry survived the fused ones"
+    );
     // And over the wire: the same body through the router is the report.
-    let app = http::router(AppState::new(pool.clone(), artifact_dir.path().to_owned(), test_metrics()));
+    let app = http::router(AppState::new(
+        pool.clone(),
+        artifact_dir.path().to_owned(),
+        test_metrics(),
+    ));
     let response = app
         .oneshot(
             Request::post("/v1/trade/search")
@@ -1572,7 +2029,10 @@ async fn trade_search_with_a_ship_returns_the_report() {
         .await
         .unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
-    let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+    let bytes = http_body_util::BodyExt::collect(response.into_body())
+        .await
+        .unwrap()
+        .to_bytes();
     let wire: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(wire["round_trips"].as_array().unwrap().len(), 1);
 }
@@ -1592,43 +2052,82 @@ async fn stations_answers_the_three_lookups() {
         database_url,
         artifact_dir: artifact_dir.path().to_owned(),
         eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
-        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+        eddn_queue_capacity: 100,
+        ingest_bind: "127.0.0.1:0".parse().unwrap(),
+        eddn_in_serve: true,
     };
     let pool = database_pool(&config).await.unwrap();
     reset_database(&pool).await;
     seed_two_station_loop(&pool).await;
     let q = ed_api::stations::StationsQuery::default();
-    let in_alpha = ed_api::stations::in_system(&pool, "alpha", &q).await.unwrap();
+    let in_alpha = ed_api::stations::in_system(&pool, "alpha", &q)
+        .await
+        .unwrap();
     assert_eq!(in_alpha.len(), 1, "{in_alpha:?}");
     assert_eq!(in_alpha[0]["name"], "A Dock");
     assert_eq!(in_alpha[0]["max_pad"], "large");
     assert_eq!(in_alpha[0]["class"], "starport");
     assert!(in_alpha[0]["updated"].is_string());
-    let traders = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), Some("materialtrader"), 50.0, None, &q).await.unwrap();
+    let traders = ed_api::stations::near(
+        &pool,
+        (0.0, 0.0, 0.0),
+        Some("materialtrader"),
+        50.0,
+        None,
+        &q,
+    )
+    .await
+    .unwrap();
     assert_eq!(traders.len(), 1, "{traders:?}");
     assert_eq!(traders[0]["id"], 22);
     assert!((traders[0]["distance_ly"].as_f64().unwrap() - 10.0).abs() < 1e-6);
-    let none = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), Some("techbroker"), 50.0, None, &q).await.unwrap();
+    let none = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), Some("techbroker"), 50.0, None, &q)
+        .await
+        .unwrap();
     assert!(none.is_empty(), "an empty sphere is a valid empty answer");
-    let large_only = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), None, 50.0, Some(ed_domain::station::PadSize::Large), &q).await.unwrap();
+    let large_only = ed_api::stations::near(
+        &pool,
+        (0.0, 0.0, 0.0),
+        None,
+        50.0,
+        Some(ed_domain::station::PadSize::Large),
+        &q,
+    )
+    .await
+    .unwrap();
     assert_eq!(large_only.len(), 2);
     let by_name = ed_api::stations::by_name(&pool, "b d", &q).await.unwrap();
     assert_eq!(by_name.len(), 1, "{by_name:?}");
     assert_eq!(by_name[0]["system_name"], "Beta");
     // Over the wire: a bad service is a 400 that names the accepted keys.
-    let app = http::router(AppState::new(pool.clone(), artifact_dir.path().to_owned(), test_metrics()));
+    let app = http::router(AppState::new(
+        pool.clone(),
+        artifact_dir.path().to_owned(),
+        test_metrics(),
+    ));
     let response = app
         .clone()
-        .oneshot(Request::get("/v1/stations?near=Alpha&service=teleporter").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::get("/v1/stations?near=Alpha&service=teleporter")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
     let response = app
-        .oneshot(Request::get("/v1/stations?system=Beta").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::get("/v1/stations?system=Beta")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
-    let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+    let bytes = http_body_util::BodyExt::collect(response.into_body())
+        .await
+        .unwrap()
+        .to_bytes();
     let wire: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(wire[0]["name"], "B Dock");
 }

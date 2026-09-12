@@ -13,9 +13,9 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use ed_ebex::{SnapshotHeader, SnapshotWriter, StarRecord, SECTION_STARS, STAR_RECORD_BYTES};
 use ed_galaxy::star::StarClassCode as _;
 use ed_galaxy::StarClass;
-use ed_ebex::{SnapshotHeader, SnapshotWriter, StarRecord, SECTION_STARS, STAR_RECORD_BYTES};
 use ed_sync::{ArtifactFile, Manifest, Product, ProductKey};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -59,7 +59,10 @@ pub fn edsm_body_main_star(line: &str, source: &str) -> Option<StarObservation> 
         .unwrap_or(0);
     Some(StarObservation {
         address,
-        scoopable: v.get("isScoopable").and_then(|b| b.as_bool()).unwrap_or_else(|| class.scoopable()),
+        scoopable: v
+            .get("isScoopable")
+            .and_then(|b| b.as_bool())
+            .unwrap_or_else(|| class.scoopable()),
         subtype,
         class,
         observed_at,
@@ -122,7 +125,8 @@ pub fn parse_edsm_time(s: &str) -> Option<i64> {
 /// refuses a batch that touches one conflict key twice — and Spansh
 /// systems really do carry two `mainStar` bodies sometimes.
 pub fn dedupe_newest(stars: &[StarObservation]) -> Vec<StarObservation> {
-    let mut newest: std::collections::HashMap<i64, &StarObservation> = std::collections::HashMap::new();
+    let mut newest: std::collections::HashMap<i64, &StarObservation> =
+        std::collections::HashMap::new();
     for star in stars {
         match newest.entry(star.address) {
             std::collections::hash_map::Entry::Vacant(slot) => {
@@ -195,9 +199,12 @@ pub struct EdsmBodiesResult {
 pub async fn hydrate_edsm_bodies(pool: &PgPool, path: &Path) -> Result<EdsmBodiesResult> {
     let source = format!(
         "edsm:bodies:{}",
-        path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+        path.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
     );
-    let metadata = std::fs::metadata(path).with_context(|| format!("reading {}", path.display()))?;
+    let metadata =
+        std::fs::metadata(path).with_context(|| format!("reading {}", path.display()))?;
     let modified = metadata
         .modified()
         .ok()
@@ -235,12 +242,14 @@ pub async fn hydrate_edsm_bodies(pool: &PgPool, path: &Path) -> Result<EdsmBodie
                 main_stars += 1;
                 batch.push(star);
                 if batch.len() == 5_000 {
-                    tx.blocking_send(std::mem::take(&mut batch)).map_err(|_| anyhow::anyhow!("writer stopped"))?;
+                    tx.blocking_send(std::mem::take(&mut batch))
+                        .map_err(|_| anyhow::anyhow!("writer stopped"))?;
                 }
             }
         }
         if !batch.is_empty() {
-            tx.blocking_send(batch).map_err(|_| anyhow::anyhow!("writer stopped"))?;
+            tx.blocking_send(batch)
+                .map_err(|_| anyhow::anyhow!("writer stopped"))?;
         }
         Ok((bodies, main_stars))
     });
@@ -274,7 +283,12 @@ pub async fn hydrate_edsm_bodies(pool: &PgPool, path: &Path) -> Result<EdsmBodie
         .execute(pool)
         .await?;
     tracing::info!(bodies, main_stars, written, "EDSM bodies hydrated");
-    Ok(EdsmBodiesResult { source, bodies, main_stars, written })
+    Ok(EdsmBodiesResult {
+        source,
+        bodies,
+        main_stars,
+        written,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -308,7 +322,13 @@ pub async fn publish_stars(pool: &PgPool, artifact_dir: &Path) -> Result<StarsPu
     result
 }
 
-async fn build_stars(pool: &PgPool, artifact_dir: &Path, sequence: i64, created_at: i64, generated_at: &str) -> Result<StarsPublication> {
+async fn build_stars(
+    pool: &PgPool,
+    artifact_dir: &Path,
+    sequence: i64,
+    created_at: i64,
+    generated_at: &str,
+) -> Result<StarsPublication> {
     use futures_util::TryStreamExt;
     let version = crate::version::short_version("stars", sequence, generated_at);
     let filename = format!("stars-{version}.ebex.zst");
@@ -316,11 +336,21 @@ async fn build_stars(pool: &PgPool, artifact_dir: &Path, sequence: i64, created_
     tokio::fs::create_dir_all(&staging).await?;
     let raw = staging.join(format!("stars-{version}.ebex"));
     let compressed = staging.join(&filename);
-    let watermark: i64 = sqlx::query_scalar("SELECT COALESCE(EXTRACT(EPOCH FROM MAX(observed_at))::BIGINT, 0) FROM stars")
-        .fetch_one(pool)
-        .await?;
+    let watermark: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(EXTRACT(EPOCH FROM MAX(observed_at))::BIGINT, 0) FROM stars",
+    )
+    .fetch_one(pool)
+    .await?;
     let plan = [ed_ebex::stars_section_plan()];
-    let mut writer = SnapshotWriter::create(&raw, SnapshotHeader { sequence: u64::try_from(sequence)?, created_at, watermark }, &plan)?;
+    let mut writer = SnapshotWriter::create(
+        &raw,
+        SnapshotHeader {
+            sequence: u64::try_from(sequence)?,
+            created_at,
+            watermark,
+        },
+        &plan,
+    )?;
     writer.begin_section(SECTION_STARS)?;
     let mut count = 0u64;
     {
@@ -331,7 +361,13 @@ async fn build_stars(pool: &PgPool, artifact_dir: &Path, sequence: i64, created_
         .fetch(pool);
         while let Some((address, class, scoopable, observed_at)) = rows.try_next().await? {
             buffer.clear();
-            StarRecord { address, class: u8::try_from(class)?, scoopable, observed_at }.encode_into(&mut buffer);
+            StarRecord {
+                address,
+                class: u8::try_from(class)?,
+                scoopable,
+                observed_at,
+            }
+            .encode_into(&mut buffer);
             writer.write_record(&buffer)?;
             count += 1;
         }
@@ -351,20 +387,37 @@ async fn build_stars(pool: &PgPool, artifact_dir: &Path, sequence: i64, created_
     let (bytes, sha256) = ed_ebex::compress_file(&raw, &compressed, 9)?;
     tokio::fs::remove_file(&raw).await?;
     let relative = format!("stars/{version}/{filename}");
-    let artifact = ArtifactFile { path: relative, bytes, sha256 };
+    let artifact = ArtifactFile {
+        path: relative,
+        bytes,
+        sha256,
+    };
     artifact.validate()?;
     let published = artifact_dir.join("stars").join(&version);
     tokio::fs::create_dir_all(artifact_dir.join("stars")).await?;
-    tokio::fs::rename(&staging, &published).await.context("atomically publishing stars artifact")?;
+    tokio::fs::rename(&staging, &published)
+        .await
+        .context("atomically publishing stars artifact")?;
     let manifest = Manifest::with_product(
         crate::routing::read_current_manifest(artifact_dir)?,
         generated_at,
         None,
         ProductKey::Stars,
-        Product { version: version.clone(), schema: ed_sync::STARS_SCHEMA_V1, minimum_client: None, files: vec![artifact.clone()], overlays: Vec::new(), covers_from: None },
+        Product {
+            version: version.clone(),
+            schema: ed_sync::STARS_SCHEMA_V1,
+            minimum_client: None,
+            files: vec![artifact.clone()],
+            overlays: Vec::new(),
+            covers_from: None,
+        },
     );
     crate::routing::write_manifest(artifact_dir, &manifest, &format!("stars-{version}"))?;
-    Ok(StarsPublication { version, stars: count, artifact })
+    Ok(StarsPublication {
+        version,
+        stars: count,
+        artifact,
+    })
 }
 
 // ── the lookup endpoint and its queue ──
@@ -395,7 +448,10 @@ pub const MAX_LOOKUP_IDS: usize = 500;
 
 /// Answer what the store knows and queue the rest.
 pub async fn answer_stars(pool: &PgPool, ids: &[i64]) -> Result<StarsAnswer> {
-    anyhow::ensure!(ids.len() <= MAX_LOOKUP_IDS, "at most {MAX_LOOKUP_IDS} ids per request");
+    anyhow::ensure!(
+        ids.len() <= MAX_LOOKUP_IDS,
+        "at most {MAX_LOOKUP_IDS} ids per request"
+    );
     let ids: Vec<i64> = ids.iter().copied().filter(|id| *id > 0).collect();
     let known: Vec<(i64, i16, bool, i64)> = sqlx::query_as(
         "SELECT address, class, scoopable, EXTRACT(EPOCH FROM observed_at)::BIGINT FROM stars WHERE address = ANY($1) ORDER BY address",
@@ -404,7 +460,11 @@ pub async fn answer_stars(pool: &PgPool, ids: &[i64]) -> Result<StarsAnswer> {
     .fetch_all(pool)
     .await?;
     let known_ids: std::collections::BTreeSet<i64> = known.iter().map(|k| k.0).collect();
-    let queued: Vec<i64> = ids.iter().copied().filter(|id| !known_ids.contains(id)).collect();
+    let queued: Vec<i64> = ids
+        .iter()
+        .copied()
+        .filter(|id| !known_ids.contains(id))
+        .collect();
     if !queued.is_empty() {
         sqlx::query("INSERT INTO star_lookups (address) SELECT unnest($1::bigint[]) ON CONFLICT (address) DO NOTHING")
             .bind(&queued)
@@ -415,7 +475,15 @@ pub async fn answer_stars(pool: &PgPool, ids: &[i64]) -> Result<StarsAnswer> {
     metrics::counter!("edda_stars_ids_total", "answer" => "known").increment(known.len() as u64);
     metrics::counter!("edda_stars_ids_total", "answer" => "queued").increment(queued.len() as u64);
     Ok(StarsAnswer {
-        known: known.into_iter().map(|(id64, class, scoopable, observed_at)| KnownStar { id64, class: class as u8, scoopable, observed_at }).collect(),
+        known: known
+            .into_iter()
+            .map(|(id64, class, scoopable, observed_at)| KnownStar {
+                id64,
+                class: class as u8,
+                scoopable,
+                observed_at,
+            })
+            .collect(),
         queued,
     })
 }
@@ -458,11 +526,19 @@ pub async fn run_edsm_lookups(pool: PgPool, client: reqwest::Client) {
 }
 
 /// One EDSM `api-v1/system` call by id64 for the primary star.
-async fn edsm_primary_star(client: &reqwest::Client, address: i64) -> Result<Option<StarObservation>> {
-    let url = format!("https://www.edsm.net/api-v1/system?systemId64={address}&showPrimaryStar=1&showId=1");
+async fn edsm_primary_star(
+    client: &reqwest::Client,
+    address: i64,
+) -> Result<Option<StarObservation>> {
+    let url = format!(
+        "https://www.edsm.net/api-v1/system?systemId64={address}&showPrimaryStar=1&showId=1"
+    );
     let v: serde_json::Value = client
         .get(&url)
-        .header(reqwest::header::USER_AGENT, "EDDA-API/0.1 (edda community server)")
+        .header(
+            reqwest::header::USER_AGENT,
+            "EDDA-API/0.1 (edda community server)",
+        )
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await?
@@ -482,10 +558,16 @@ pub fn edsm_system_primary_star(v: &serde_json::Value, address: i64) -> Option<S
     }
     Some(StarObservation {
         address,
-        scoopable: star.get("isScoopable").and_then(|b| b.as_bool()).unwrap_or_else(|| class.scoopable()),
+        scoopable: star
+            .get("isScoopable")
+            .and_then(|b| b.as_bool())
+            .unwrap_or_else(|| class.scoopable()),
         subtype,
         class,
-        observed_at: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0),
+        observed_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0),
         source: "edsm api".into(),
     })
 }
@@ -505,14 +587,43 @@ mod tests {
             main_star: main,
             ..Default::default()
         };
-        let star = spansh_body_main_star(42, &body("Star", Some("Neutron Star"), true), Some(1_756_900_000), "spansh:galaxy:galaxy_7days.json.gz").unwrap();
-        assert_eq!((star.address, star.class, star.scoopable, star.observed_at), (42, StarClass::Neutron, false, 1_756_900_000));
-        let scoopy = spansh_body_main_star(7, &body("Star", Some("K (Yellow-Orange) Star"), true), None, "s").unwrap();
+        let star = spansh_body_main_star(
+            42,
+            &body("Star", Some("Neutron Star"), true),
+            Some(1_756_900_000),
+            "spansh:galaxy:galaxy_7days.json.gz",
+        )
+        .unwrap();
+        assert_eq!(
+            (star.address, star.class, star.scoopable, star.observed_at),
+            (42, StarClass::Neutron, false, 1_756_900_000)
+        );
+        let scoopy = spansh_body_main_star(
+            7,
+            &body("Star", Some("K (Yellow-Orange) Star"), true),
+            None,
+            "s",
+        )
+        .unwrap();
         assert!(scoopy.scoopable && scoopy.observed_at == 0);
-        assert!(spansh_body_main_star(42, &body("Star", Some("Neutron Star"), false), None, "s").is_none(), "secondary star");
-        assert!(spansh_body_main_star(42, &body("Planet", Some("Icy body"), true), None, "s").is_none(), "not a star");
-        assert!(spansh_body_main_star(42, &body("Star", None, true), None, "s").is_none(), "no subtype");
-        assert!(spansh_body_main_star(0, &body("Star", Some("Neutron Star"), true), None, "s").is_none(), "bad address");
+        assert!(
+            spansh_body_main_star(42, &body("Star", Some("Neutron Star"), false), None, "s")
+                .is_none(),
+            "secondary star"
+        );
+        assert!(
+            spansh_body_main_star(42, &body("Planet", Some("Icy body"), true), None, "s").is_none(),
+            "not a star"
+        );
+        assert!(
+            spansh_body_main_star(42, &body("Star", None, true), None, "s").is_none(),
+            "no subtype"
+        );
+        assert!(
+            spansh_body_main_star(0, &body("Star", Some("Neutron Star"), true), None, "s")
+                .is_none(),
+            "bad address"
+        );
     }
 
     /// The bug the first galaxy_7days run found: a batch with the same
@@ -537,7 +648,10 @@ mod tests {
         ]);
         assert_eq!(out.len(), 2);
         assert_eq!(out[0].observed_at, 200, "address 1 kept the newer");
-        assert_eq!(out[1].subtype, "K (Yellow-Orange) Star", "address 2 kept the first on a tie");
+        assert_eq!(
+            out[1].subtype, "K (Yellow-Orange) Star",
+            "address 2 kept the first on a tie"
+        );
     }
 
     #[test]
@@ -547,8 +661,12 @@ mod tests {
         assert_eq!(s.address, 19594034844259);
         assert_eq!(s.class, StarClass::WhiteDwarf);
         assert!(!s.scoopable);
-        assert_eq!(s.observed_at, parse_edsm_time("2026-08-23 06:53:55").unwrap());
-        let planet = r#"{"type":"Planet","subType":"Rocky body","isMainStar":false,"systemId64":5}"#;
+        assert_eq!(
+            s.observed_at,
+            parse_edsm_time("2026-08-23 06:53:55").unwrap()
+        );
+        let planet =
+            r#"{"type":"Planet","subType":"Rocky body","isMainStar":false,"systemId64":5}"#;
         assert!(edsm_body_main_star(planet, "x").is_none());
         let secondary = r#"{"type":"Star","subType":"K (Yellow-Orange) Star","isMainStar":false,"systemId64":5}"#;
         assert!(edsm_body_main_star(secondary, "x").is_none());
@@ -570,6 +688,10 @@ mod tests {
         assert_eq!(s.class, StarClass::G);
         assert!(s.scoopable);
         assert!(edsm_system_primary_star(&serde_json::json!({}), 1).is_none());
-        assert!(edsm_system_primary_star(&serde_json::json!({"primaryStar":{"type":"?? not a star type"}}), 1).is_none());
+        assert!(edsm_system_primary_star(
+            &serde_json::json!({"primaryStar":{"type":"?? not a star type"}}),
+            1
+        )
+        .is_none());
     }
 }

@@ -61,15 +61,29 @@ const SECONDS_BUCKETS: &[f64] = &[
 /// telemetry contract): 10 ms to 20 min, x3-ish steps — plots run
 /// 1-20 s, hydrates minutes.
 const MS_BUCKETS: &[f64] = &[
-    10.0, 30.0, 100.0, 300.0, 1_000.0, 3_000.0, 10_000.0, 30_000.0, 100_000.0, 300_000.0, 1_200_000.0,
+    10.0,
+    30.0,
+    100.0,
+    300.0,
+    1_000.0,
+    3_000.0,
+    10_000.0,
+    30_000.0,
+    100_000.0,
+    300_000.0,
+    1_200_000.0,
 ];
 
 /// Search-parameter distributions (wire expansion 2026-09-05): what
 /// freshness people search trade at, and where their router-distance
 /// GATE sits (default 1,000 ly; 0 = EDDA always plans, which the
 /// le="0" bucket captures for the always-plans-share panel).
-const SEARCH_AGE_BUCKETS: &[f64] = &[1.0, 2.0, 3.0, 6.0, 12.0, 24.0, 48.0, 72.0, 168.0, 336.0, 720.0];
-const ROUTER_GATE_BUCKETS: &[f64] = &[0.0, 50.0, 100.0, 250.0, 500.0, 1_000.0, 2_000.0, 5_000.0, 20_000.0];
+const SEARCH_AGE_BUCKETS: &[f64] = &[
+    1.0, 2.0, 3.0, 6.0, 12.0, 24.0, 48.0, 72.0, 168.0, 336.0, 720.0,
+];
+const ROUTER_GATE_BUCKETS: &[f64] = &[
+    0.0, 50.0, 100.0, 250.0, 500.0, 1_000.0, 2_000.0, 5_000.0, 20_000.0,
+];
 /// Carrier-picture staleness (Item 52 A). CarrierStats fires only when
 /// the commander opens carrier management, so these buckets are the
 /// hours-to-a-month scale review asked for: 1 h, 6 h, a day, three
@@ -83,9 +97,18 @@ pub fn install() -> Result<PrometheusHandle, anyhow::Error> {
     let handle = PrometheusBuilder::new()
         .set_buckets_for_metric(Matcher::Suffix("_seconds".into()), SECONDS_BUCKETS)?
         .set_buckets_for_metric(Matcher::Suffix("_ms".into()), MS_BUCKETS)?
-        .set_buckets_for_metric(Matcher::Full("edda_client_search_age_hours".into()), SEARCH_AGE_BUCKETS)?
-        .set_buckets_for_metric(Matcher::Full("edda_client_router_gate_ly".into()), ROUTER_GATE_BUCKETS)?
-        .set_buckets_for_metric(Matcher::Full("edda_client_carrier_stats_age_hours".into()), CARRIER_AGE_BUCKETS)?
+        .set_buckets_for_metric(
+            Matcher::Full("edda_client_search_age_hours".into()),
+            SEARCH_AGE_BUCKETS,
+        )?
+        .set_buckets_for_metric(
+            Matcher::Full("edda_client_router_gate_ly".into()),
+            ROUTER_GATE_BUCKETS,
+        )?
+        .set_buckets_for_metric(
+            Matcher::Full("edda_client_carrier_stats_age_hours".into()),
+            CARRIER_AGE_BUCKETS,
+        )?
         .install_recorder()?;
     metrics::gauge!("edda_build_info", "version" => env!("CARGO_PKG_VERSION")).set(1.0);
     Ok(handle)
@@ -143,22 +166,39 @@ pub(crate) struct PublicationCost {
 }
 
 async fn latest_publication_costs(pool: &PgPool) -> Result<Vec<PublicationCost>, sqlx::Error> {
-    let rows: Vec<(String, f64, Option<f64>, Option<i64>, Option<i64>, Option<String>, f64)> =
-        sqlx::query_as(
-            "SELECT DISTINCT ON (product) product, \
+    let rows: Vec<(
+        String,
+        f64,
+        Option<f64>,
+        Option<i64>,
+        Option<i64>,
+        Option<String>,
+        f64,
+    )> = sqlx::query_as(
+        "SELECT DISTINCT ON (product) product, \
              EXTRACT(EPOCH FROM completed_at - created_at)::DOUBLE PRECISION, \
              cpu_seconds, artifact_bytes, rows_published, phase_seconds::text, \
              EXTRACT(EPOCH FROM completed_at)::DOUBLE PRECISION \
              FROM artifact_publications WHERE status = 'complete' \
              ORDER BY product, id DESC",
-        )
-        .fetch_all(pool)
-        .await?;
+    )
+    .fetch_all(pool)
+    .await?;
     Ok(rows
         .into_iter()
-        .map(|(product, build_seconds, cpu_seconds, bytes, rows, phase_seconds, completed_unix)| {
-            PublicationCost { product, build_seconds, cpu_seconds, bytes, rows, phase_seconds, completed_unix }
-        })
+        .map(
+            |(product, build_seconds, cpu_seconds, bytes, rows, phase_seconds, completed_unix)| {
+                PublicationCost {
+                    product,
+                    build_seconds,
+                    cpu_seconds,
+                    bytes,
+                    rows,
+                    phase_seconds,
+                    completed_unix,
+                }
+            },
+        )
         .collect())
 }
 
@@ -176,8 +216,16 @@ pub(crate) fn publication_series(
         labels
     };
     let mut series = vec![
-        ("edda_publish_build_seconds", product(None), row.build_seconds),
-        ("edda_publish_last_complete_unix_seconds", product(None), row.completed_unix),
+        (
+            "edda_publish_build_seconds",
+            product(None),
+            row.build_seconds,
+        ),
+        (
+            "edda_publish_last_complete_unix_seconds",
+            product(None),
+            row.completed_unix,
+        ),
     ];
     if let Some(cpu) = row.cpu_seconds {
         series.push(("edda_publish_cpu_seconds", product(None), cpu));
@@ -224,7 +272,8 @@ pub async fn track_http(request: Request, next: Next) -> impl IntoResponse {
     let response = next.run(request).await;
     let status = response.status().as_u16().to_string();
     metrics::counter!("edda_http_requests_total", "route" => route.clone(), "method" => method, "status" => status).increment(1);
-    metrics::histogram!("edda_http_request_seconds", "route" => route).record(started.elapsed().as_secs_f64());
+    metrics::histogram!("edda_http_request_seconds", "route" => route)
+        .record(started.elapsed().as_secs_f64());
     response
 }
 
@@ -243,8 +292,14 @@ mod tests {
         metrics::histogram!("edda_eddn_batch_apply_seconds").record(0.02);
         metrics::gauge!("edda_eddn_queue_depth").set(7.0);
         let text = handle.render();
-        assert!(text.contains(r#"edda_eddn_batches_total{outcome="applied"} 3"#), "{text}");
-        assert!(text.contains(r#"edda_eddn_batch_apply_seconds_bucket{le="0.03"} 1"#), "{text}");
+        assert!(
+            text.contains(r#"edda_eddn_batches_total{outcome="applied"} 3"#),
+            "{text}"
+        );
+        assert!(
+            text.contains(r#"edda_eddn_batch_apply_seconds_bucket{le="0.03"} 1"#),
+            "{text}"
+        );
         assert!(text.contains("edda_eddn_queue_depth 7"), "{text}");
         assert!(text.contains(r#"edda_build_info{version=""#), "{text}");
         // A second install must fail loudly instead of silently
@@ -252,8 +307,14 @@ mod tests {
         assert!(install().is_err());
     }
 
-    fn series_value(series: &[(&'static str, Vec<metrics::Label>, f64)], name: &str) -> Option<f64> {
-        series.iter().find(|(n, _, _)| *n == name).map(|(_, _, v)| *v)
+    fn series_value(
+        series: &[(&'static str, Vec<metrics::Label>, f64)],
+        name: &str,
+    ) -> Option<f64> {
+        series
+            .iter()
+            .find(|(n, _, _)| *n == name)
+            .map(|(_, _, v)| *v)
     }
 
     /// A fully instrumented row (migration 0011 columns present) fans
@@ -270,18 +331,35 @@ mod tests {
             completed_unix: 1_757_000_000.0,
         };
         let series = publication_series(&row);
-        assert_eq!(series_value(&series, "edda_publish_build_seconds"), Some(42.5));
-        assert_eq!(series_value(&series, "edda_publish_cpu_seconds"), Some(37.2));
-        assert_eq!(series_value(&series, "edda_publish_bytes"), Some(9_000_000.0));
-        assert_eq!(series_value(&series, "edda_publish_rows"), Some(1_234_567.0));
-        assert_eq!(series_value(&series, "edda_publish_last_complete_unix_seconds"), Some(1_757_000_000.0));
+        assert_eq!(
+            series_value(&series, "edda_publish_build_seconds"),
+            Some(42.5)
+        );
+        assert_eq!(
+            series_value(&series, "edda_publish_cpu_seconds"),
+            Some(37.2)
+        );
+        assert_eq!(
+            series_value(&series, "edda_publish_bytes"),
+            Some(9_000_000.0)
+        );
+        assert_eq!(
+            series_value(&series, "edda_publish_rows"),
+            Some(1_234_567.0)
+        );
+        assert_eq!(
+            series_value(&series, "edda_publish_last_complete_unix_seconds"),
+            Some(1_757_000_000.0)
+        );
         let phases: Vec<_> = series
             .iter()
             .filter(|(name, _, _)| *name == "edda_publish_phase_seconds")
             .collect();
         assert_eq!(phases.len(), 3);
         for (_, labels, _) in &phases {
-            assert!(labels.iter().any(|l| l.key() == "product" && l.value() == "market_daily"));
+            assert!(labels
+                .iter()
+                .any(|l| l.key() == "product" && l.value() == "market_daily"));
             assert!(labels.iter().any(|l| l.key() == "phase"));
         }
     }
@@ -302,7 +380,13 @@ mod tests {
         };
         let series = publication_series(&row);
         assert_eq!(series.len(), 2, "{series:?}");
-        assert_eq!(series_value(&series, "edda_publish_build_seconds"), Some(300.0));
-        assert_eq!(series_value(&series, "edda_publish_last_complete_unix_seconds"), Some(1_756_000_000.0));
+        assert_eq!(
+            series_value(&series, "edda_publish_build_seconds"),
+            Some(300.0)
+        );
+        assert_eq!(
+            series_value(&series, "edda_publish_last_complete_unix_seconds"),
+            Some(1_756_000_000.0)
+        );
     }
 }

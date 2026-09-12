@@ -75,7 +75,11 @@ fn archive_name(conn: &Connection, name: &str) -> Result<String> {
     for letter in 'a'..='z' {
         let candidate = format!("{stem}{letter}.log");
         let taken: bool = conn
-            .query_row("SELECT 1 FROM events WHERE file = ?1 LIMIT 1", [&candidate], |_| Ok(true))
+            .query_row(
+                "SELECT 1 FROM events WHERE file = ?1 LIMIT 1",
+                [&candidate],
+                |_| Ok(true),
+            )
             .optional()?
             .unwrap_or(false);
         if !taken {
@@ -338,7 +342,10 @@ mod tests {
         ));
         ingest_file(&conn, dir.path(), name).unwrap();
         let archived = "Journal.2026-08-01T100000.01.a.log";
-        assert!(archived < name, "archive sorts before the original for chronological replay");
+        assert!(
+            archived < name,
+            "archive sorts before the original for chronological replay"
+        );
         assert_eq!(
             count("SELECT COUNT(*) FROM events WHERE file = 'Journal.2026-08-01T100000.01.a.log'"),
             2,
@@ -349,7 +356,11 @@ mod tests {
             2,
             "new incarnation read from byte zero"
         );
-        assert_eq!(count("SELECT COUNT(*) FROM combat_kills"), 1, "the bounty survives");
+        assert_eq!(
+            count("SELECT COUNT(*) FROM combat_kills"),
+            1,
+            "the bounty survives"
+        );
         let last_ship: String = conn
             .query_row(
                 "SELECT json_extract(raw, '$.Ship') FROM events WHERE event = 'Loadout' ORDER BY ts DESC LIMIT 1",
@@ -357,7 +368,10 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(last_ship, "panthermkii", "the ship the commander flies is not forgotten");
+        assert_eq!(
+            last_ship, "panthermkii",
+            "the ship the commander flies is not forgotten"
+        );
 
         // A second reuse of the same name archives as .b. — no collision.
         write("{\"timestamp\":\"2026-08-01T12:00:00Z\",\"event\":\"Shutdown\"}\n");

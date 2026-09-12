@@ -138,7 +138,11 @@ pub fn build(sub: &Galaxy) -> Result<Aggregate> {
         node.count = count.min(u32::from(u16::MAX)) as u16;
         leaves.push(node);
     }
-    let mut levels = vec![Level { shift: 0, nodes: leaves, first_leaf: Vec::new() }];
+    let mut levels = vec![Level {
+        shift: 0,
+        nodes: leaves,
+        first_leaf: Vec::new(),
+    }];
     // Group the leaves by ever-shorter prefixes until one root remains.
     // The morton sort makes each group a contiguous leaf run.
     let mut shift = 3u32;
@@ -162,7 +166,11 @@ pub fn build(sub: &Galaxy) -> Result<Aggregate> {
         for node in &mut nodes {
             node.best_boost_class = best_boost_class(node.flags);
         }
-        levels.push(Level { shift, nodes, first_leaf });
+        levels.push(Level {
+            shift,
+            nodes,
+            first_leaf,
+        });
         shift += 3;
     }
     Ok(Aggregate { levels })
@@ -187,14 +195,20 @@ impl Aggregate {
     ) -> (bool, Probe) {
         let mut probe = Probe::default();
         let top = self.levels.len() - 1;
-        debug_assert_eq!(self.levels[0].nodes.len(), sub.cell_count(), "aggregate belongs to another sub-index");
+        debug_assert_eq!(
+            self.levels[0].nodes.len(),
+            sub.cell_count(),
+            "aggregate belongs to another sub-index"
+        );
         if self.levels[0].nodes.is_empty() {
             return (false, probe);
         }
         let r2 = radius * radius;
         let cell_ly = sub.cell_ly;
         // (level, node index) pairs still to look at.
-        let mut stack: Vec<(usize, usize)> = (0..self.levels[top].nodes.len()).map(|i| (top, i)).collect();
+        let mut stack: Vec<(usize, usize)> = (0..self.levels[top].nodes.len())
+            .map(|i| (top, i))
+            .collect();
         while let Some((li, ni)) = stack.pop() {
             probe.nodes_visited += 1;
             probe.depth = probe.depth.max((self.levels.len() - li) as u32);
@@ -233,7 +247,9 @@ impl Aggregate {
                 let (_, start, count) = sub.cell_entry(ni);
                 for r in start..start + count {
                     probe.records_scanned += 1;
-                    if (want == 0 || star_flags(sub, r) & want != 0) && dist(sub.pos_of(r), center) <= radius {
+                    if (want == 0 || star_flags(sub, r) & want != 0)
+                        && dist(sub.pos_of(r), center) <= radius
+                    {
                         return (true, probe);
                     }
                 }
@@ -293,7 +309,8 @@ impl Aggregate {
                 out.extend_from_slice(&f.to_le_bytes());
             }
         }
-        let mut file = std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
+        let mut file =
+            std::fs::File::create(path).with_context(|| format!("writing {}", path.display()))?;
         file.write_all(&out)?;
         Ok(())
     }
@@ -310,7 +327,10 @@ impl Aggregate {
         }
         ensure!(bytes[4] == 1, "unknown aggregate version {}", bytes[4]);
         let level_count = u32::from_le_bytes(take(8, 4)?.try_into().unwrap()) as usize;
-        ensure!((1..=22).contains(&level_count), "implausible level count {level_count}");
+        ensure!(
+            (1..=22).contains(&level_count),
+            "implausible level count {level_count}"
+        );
         let mut shapes = Vec::with_capacity(level_count);
         let mut at = 12;
         for _ in 0..level_count {
@@ -339,9 +359,18 @@ impl Aggregate {
                     at += 4;
                 }
             }
-            levels.push(Level { shift, nodes, first_leaf });
+            levels.push(Level {
+                shift,
+                nodes,
+                first_leaf,
+            });
         }
-        ensure!(at == bytes.len(), "{} has {} trailing bytes", path.display(), bytes.len() - at);
+        ensure!(
+            at == bytes.len(),
+            "{} has {} trailing bytes",
+            path.display(),
+            bytes.len() - at
+        );
         Ok(Aggregate { levels })
     }
 }
@@ -368,7 +397,12 @@ mod tests {
             ));
         }
         source.push(']');
-        import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let ndir = dir.path().join("boost250");
         import::subset_cells(&g, &ndir, crate::long_range::NEUTRON_CELL_LY, |r| {
@@ -381,7 +415,9 @@ mod tests {
 
     fn brute_force(sub: &Galaxy, center: [f32; 3], radius: f32, want: u8) -> bool {
         let mut hit = false;
-        sub.for_each_within(center, radius, |idx, _| hit |= star_flags(sub, idx) & want != 0);
+        sub.for_each_within(center, radius, |idx, _| {
+            hit |= star_flags(sub, idx) & want != 0
+        });
         hit
     }
 
@@ -399,10 +435,22 @@ mod tests {
         ]);
         let agg = build(&g).expect("main index is v3 morton, so the aggregate builds over it");
         let at = |x: f32| [x, 0.0, 0.0];
-        assert!(agg.any_within(&g, at(0.0), 50.0, ANY_SCOOPABLE), "the K star is scoopable");
-        assert!(!agg.any_within(&g, at(900.0), 500.0, ANY_SCOOPABLE), "nothing scoopable near the lonely neutron");
-        assert!(agg.any_within(&g, at(900.0), 950.0, ANY_SCOOPABLE), "wide enough to reach the K");
-        assert!(agg.any_within(&g, at(900.0), 950.0, ANY_NEUTRON), "the neutron itself is seen too");
+        assert!(
+            agg.any_within(&g, at(0.0), 50.0, ANY_SCOOPABLE),
+            "the K star is scoopable"
+        );
+        assert!(
+            !agg.any_within(&g, at(900.0), 500.0, ANY_SCOOPABLE),
+            "nothing scoopable near the lonely neutron"
+        );
+        assert!(
+            agg.any_within(&g, at(900.0), 950.0, ANY_SCOOPABLE),
+            "wide enough to reach the K"
+        );
+        assert!(
+            agg.any_within(&g, at(900.0), 950.0, ANY_NEUTRON),
+            "the neutron itself is seen too"
+        );
     }
 
     /// The oracle agrees with a brute-force scan on 1,000 random spheres
@@ -419,11 +467,19 @@ mod tests {
                     s ^= s << 17;
                     (s % 12_000) as f32 - 6_000.0
                 };
-                (format!("H{i}"), next(), next(), next(), if i % 3 == 0 { D } else { N })
+                (
+                    format!("H{i}"),
+                    next(),
+                    next(),
+                    next(),
+                    if i % 3 == 0 { D } else { N },
+                )
             })
             .collect();
-        let refs: Vec<(&str, f32, f32, f32, &str)> =
-            stars.iter().map(|(n, x, y, z, s)| (n.as_str(), *x, *y, *z, *s)).collect();
+        let refs: Vec<(&str, f32, f32, f32, &str)> = stars
+            .iter()
+            .map(|(n, x, y, z, s)| (n.as_str(), *x, *y, *z, *s))
+            .collect();
         let (_dir, _g, sub) = field(&refs);
         let agg = build(&sub).unwrap();
         let mut s = 0xdeadbeefcafef00du64;
@@ -446,8 +502,17 @@ mod tests {
                 sub.for_each_within(center, radius, |_, _| hit = true);
                 hit
             };
-            assert_eq!(agg.any_within(&sub, center, radius, 0), any_star, "sphere {i} any-star diverged");
-            for want in [ANY_NEUTRON, ANY_WHITE_DWARF, ANY_SCOOPABLE, ANY_NEUTRON | ANY_WHITE_DWARF] {
+            assert_eq!(
+                agg.any_within(&sub, center, radius, 0),
+                any_star,
+                "sphere {i} any-star diverged"
+            );
+            for want in [
+                ANY_NEUTRON,
+                ANY_WHITE_DWARF,
+                ANY_SCOOPABLE,
+                ANY_NEUTRON | ANY_WHITE_DWARF,
+            ] {
                 assert_eq!(
                     agg.any_within(&sub, center, radius, want),
                     brute_force(&sub, center, radius, want),
@@ -469,10 +534,14 @@ mod tests {
         let agg = build(&sub).unwrap();
         // Far off the highway line: no scoopable (none exists at all --
         // plain neutrons refuel nothing).
-        let (hit, probe) = agg.any_within_probed(&sub, [5_000.0, 5_000.0, 5_000.0], 900.0, ANY_SCOOPABLE);
+        let (hit, probe) =
+            agg.any_within_probed(&sub, [5_000.0, 5_000.0, 5_000.0], 900.0, ANY_SCOOPABLE);
         assert!(!hit);
         assert!(probe.depth <= 3, "took {} levels", probe.depth);
-        assert_eq!(probe.records_scanned, 0, "flags alone must answer a dark volume");
+        assert_eq!(
+            probe.records_scanned, 0,
+            "flags alone must answer a dark volume"
+        );
     }
 
     /// The highway rebuild writes the oracle beside the cells it
@@ -499,7 +568,11 @@ mod tests {
         let agg = build(&sub).unwrap();
         let root = agg.levels.last().unwrap().nodes[0];
         assert_eq!(root.flags, ANY_NEUTRON | ANY_WHITE_DWARF);
-        assert_eq!(root.best_boost_class, crate::StarClass::Neutron.code(), "neutron beats white dwarf");
+        assert_eq!(
+            root.best_boost_class,
+            crate::StarClass::Neutron.code(),
+            "neutron beats white dwarf"
+        );
         assert_eq!(root.count, 2);
         let path = _dir.path().join(AGG_FILE);
         agg.write(&path).unwrap();

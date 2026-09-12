@@ -10,7 +10,10 @@
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
-    let dir = std::path::PathBuf::from(args.next().expect("usage: heal_axis <index> <heal.json> <out_dir>"));
+    let dir = std::path::PathBuf::from(
+        args.next()
+            .expect("usage: heal_axis <index> <heal.json> <out_dir>"),
+    );
     let heal = std::path::PathBuf::from(args.next().expect("heal.json"));
     let out = std::path::PathBuf::from(args.next().expect("out_dir"));
     let g = ed_galaxy::Galaxy::open(&dir)?;
@@ -25,11 +28,19 @@ fn main() -> anyhow::Result<()> {
         g.learn_class(*id64, class);
         learned += 1;
     }
-    eprintln!("{learned} classes learned; building healed sub-index at {}", out.display());
+    eprintln!(
+        "{learned} classes learned; building healed sub-index at {}",
+        out.display()
+    );
     let t = std::time::Instant::now();
-    let stats = ed_galaxy::import::subset_cells(&g, &out, ed_galaxy::long_range::NEUTRON_CELL_LY, |r| {
-        ed_galaxy::long_range::highway_star(g.class(r))
-    })?;
-    eprintln!("{} highway stars in {:.1}s (was 3,853,782 with the holes)", stats.systems, t.elapsed().as_secs_f64());
+    let stats =
+        ed_galaxy::import::subset_cells(&g, &out, ed_galaxy::long_range::NEUTRON_CELL_LY, |r| {
+            ed_galaxy::long_range::highway_star(g.class(r))
+        })?;
+    eprintln!(
+        "{} highway stars in {:.1}s (was 3,853,782 with the holes)",
+        stats.systems,
+        t.elapsed().as_secs_f64()
+    );
     Ok(())
 }

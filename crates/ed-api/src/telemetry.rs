@@ -192,14 +192,24 @@ mod tests {
 
     #[test]
     fn unknown_fields_levels_and_kinds_are_rejected() {
-        assert!(batch(r#"{"version":"0.2.1","surprise":1}"#).is_err(), "unknown top-level field");
+        assert!(
+            batch(r#"{"version":"0.2.1","surprise":1}"#).is_err(),
+            "unknown top-level field"
+        );
         assert!(
             batch(r#"{"events":[{"callsite":"a","level":"warn","count":1,"extra":2}]}"#).is_err(),
             "unknown entry field"
         );
-        let info = batch(r#"{"version":"0.2.1","events":[{"callsite":"a","level":"info","count":1}]}"#).unwrap();
-        assert_eq!(validate(&info), Err("unknown level"), "info is not in the allowlist");
-        let decode = batch(r#"{"version":"0.2.1","timings":[{"kind":"decode","ms":5,"ok":true}]}"#).unwrap();
+        let info =
+            batch(r#"{"version":"0.2.1","events":[{"callsite":"a","level":"info","count":1}]}"#)
+                .unwrap();
+        assert_eq!(
+            validate(&info),
+            Err("unknown level"),
+            "info is not in the allowlist"
+        );
+        let decode =
+            batch(r#"{"version":"0.2.1","timings":[{"kind":"decode","ms":5,"ok":true}]}"#).unwrap();
         assert_eq!(validate(&decode), Err("unknown kind"));
     }
 
@@ -208,9 +218,17 @@ mod tests {
         assert!(label_ok("edda::follow::fuel_chatter", MAX_CALLSITE));
         assert!(label_ok("windows x86_64", MAX_NAME));
         assert!(!label_ok("", MAX_NAME), "empty is not a label");
-        assert!(!label_ok("a\"};evil{", MAX_NAME), "injection charset refused");
-        assert!(!label_ok(&"x".repeat(MAX_CALLSITE + 1), MAX_CALLSITE), "over cap refused");
-        let sneaky = batch(r#"{"version":"0.2.1","events":[{"callsite":"a{b}","level":"warn","count":1}]}"#).unwrap();
+        assert!(
+            !label_ok("a\"};evil{", MAX_NAME),
+            "injection charset refused"
+        );
+        assert!(
+            !label_ok(&"x".repeat(MAX_CALLSITE + 1), MAX_CALLSITE),
+            "over cap refused"
+        );
+        let sneaky =
+            batch(r#"{"version":"0.2.1","events":[{"callsite":"a{b}","level":"warn","count":1}]}"#)
+                .unwrap();
         assert_eq!(validate(&sneaky), Err("bad callsite"));
     }
 
@@ -220,8 +238,16 @@ mod tests {
         for i in 0..MAX_DISTINCT_CALLSITES {
             assert_eq!(guard.admit(&format!("site{i}")), format!("site{i}"));
         }
-        assert_eq!(guard.admit("site0"), "site0", "known callsites keep their label forever");
-        assert_eq!(guard.admit("brand-new"), OVERFLOW_CALLSITE, "past the cap: the overflow bucket");
+        assert_eq!(
+            guard.admit("site0"),
+            "site0",
+            "known callsites keep their label forever"
+        );
+        assert_eq!(
+            guard.admit("brand-new"),
+            OVERFLOW_CALLSITE,
+            "past the cap: the overflow bucket"
+        );
     }
 
     /// The searches wire expansion (2026-09-05): closed kinds, each on
@@ -236,29 +262,59 @@ mod tests {
             enabled_features: vec![],
             events: vec![],
             timings: vec![],
-            searches: vec![SearchEntry { kind: kind.into(), value }],
+            searches: vec![SearchEntry {
+                kind: kind.into(),
+                value,
+            }],
             created_at: None,
         };
         assert!(validate(&batch("trade_max_age_hours", 2)).is_ok());
-        assert!(validate(&batch("plot_router_gate_ly", 0)).is_ok(), "gate 0 = EDDA always plans");
+        assert!(
+            validate(&batch("plot_router_gate_ly", 0)).is_ok(),
+            "gate 0 = EDDA always plans"
+        );
         assert!(validate(&batch("plot_router_gate_ly", 1000)).is_ok());
-        assert_eq!(validate(&batch("favourite_station", 1)), Err("unknown search kind"));
-        assert_eq!(validate(&batch("plot_range_ly", 62)), Err("unknown search kind"), "the retired kind stays retired");
-        assert_eq!(validate(&batch("plot_router_gate_ly", 2_000_000)), Err("bad search value"));
-        assert_eq!(search_metric("trade_max_age_hours"), Some("edda_client_search_age_hours"));
-        assert_eq!(search_metric("plot_router_gate_ly"), Some("edda_client_router_gate_ly"));
+        assert_eq!(
+            validate(&batch("favourite_station", 1)),
+            Err("unknown search kind")
+        );
+        assert_eq!(
+            validate(&batch("plot_range_ly", 62)),
+            Err("unknown search kind"),
+            "the retired kind stays retired"
+        );
+        assert_eq!(
+            validate(&batch("plot_router_gate_ly", 2_000_000)),
+            Err("bad search value")
+        );
+        assert_eq!(
+            search_metric("trade_max_age_hours"),
+            Some("edda_client_search_age_hours")
+        );
+        assert_eq!(
+            search_metric("plot_router_gate_ly"),
+            Some("edda_client_router_gate_ly")
+        );
         // Item 52 A: carrier-picture staleness. Its own metric name
         // because hours and light-years cannot share one `le` set, and a
         // batch carrying it must be ACCEPTED -- an unmapped kind rejects
         // the WHOLE batch, blacking out every other series the client
         // sent, which is why review held it client-side until now.
-        assert!(validate(&batch("carrier_stats_age_hours", 0)).is_ok(), "a fresh carrier reading is 0 h");
-        assert!(validate(&batch("carrier_stats_age_hours", 720)).is_ok(), "a month-old picture still reports");
+        assert!(
+            validate(&batch("carrier_stats_age_hours", 0)).is_ok(),
+            "a fresh carrier reading is 0 h"
+        );
+        assert!(
+            validate(&batch("carrier_stats_age_hours", 720)).is_ok(),
+            "a month-old picture still reports"
+        );
         assert_eq!(
             search_metric("carrier_stats_age_hours"),
             Some("edda_client_carrier_stats_age_hours")
         );
-        let old: Batch = serde_json::from_str(r#"{"version":"0.2.4","os":"w","events":[],"timings":[]}"#).unwrap();
+        let old: Batch =
+            serde_json::from_str(r#"{"version":"0.2.4","os":"w","events":[],"timings":[]}"#)
+                .unwrap();
         assert!(old.searches.is_empty(), "pre-expansion batches still parse");
     }
 }

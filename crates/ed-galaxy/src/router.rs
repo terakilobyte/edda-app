@@ -20,9 +20,9 @@
 use crate::format::{dist, Galaxy};
 use crate::fuel::{BoostProfile, FuelModel};
 use crate::star::{StarClass, StarClassCode as _};
+use rustc_hash::FxHashMap as HashMap;
 use serde::Serialize;
 use std::cmp::Ordering;
-use rustc_hash::FxHashMap as HashMap;
 use std::collections::BinaryHeap;
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,7 +99,28 @@ pub struct RouteRequest {
 
 impl Default for RouteRequest {
     fn default() -> Self {
-        RouteRequest { from: 0, to: 0, range_ly: 30.0, supercharge: true, max_dry_jumps: 0, weight: 1.3, max_expansions: 0, thorough: false, boost: BoostProfile::default(), fuel: None, start_fuel: 0.0, injection: None, time_budget_ms: 0, grace_ms: 0, min_fuel: false, stop_weight: 1.0, prize_k: None, t_jump_s: None, stop_overhead_s: None, secondary_boost_ls: 0.0 }
+        RouteRequest {
+            from: 0,
+            to: 0,
+            range_ly: 30.0,
+            supercharge: true,
+            max_dry_jumps: 0,
+            weight: 1.3,
+            max_expansions: 0,
+            thorough: false,
+            boost: BoostProfile::default(),
+            fuel: None,
+            start_fuel: 0.0,
+            injection: None,
+            time_budget_ms: 0,
+            grace_ms: 0,
+            min_fuel: false,
+            stop_weight: 1.0,
+            prize_k: None,
+            t_jump_s: None,
+            stop_overhead_s: None,
+            secondary_boost_ls: 0.0,
+        }
     }
 }
 
@@ -112,8 +133,23 @@ const INJECTION_PENALTY: u32 = 3;
 /// with a neutron or white dwarf supercharge, so it only ever helps a
 /// jump that would otherwise be unboosted.
 pub const INJECTION_RECIPES: [(f32, &str, &[&str]); 3] = [
-    (2.0, "premium", &["carbon", "germanium", "arsenic", "niobium", "yttrium", "polonium"]),
-    (1.5, "standard", &["carbon", "vanadium", "germanium", "cadmium", "niobium"]),
+    (
+        2.0,
+        "premium",
+        &[
+            "carbon",
+            "germanium",
+            "arsenic",
+            "niobium",
+            "yttrium",
+            "polonium",
+        ],
+    ),
+    (
+        1.5,
+        "standard",
+        &["carbon", "vanadium", "germanium", "cadmium", "niobium"],
+    ),
     (1.25, "basic", &["carbon", "vanadium", "germanium"]),
 ];
 
@@ -231,7 +267,13 @@ pub struct Route {
 /// Simulate the pruned truth on a clone and mark the stops it drops as
 /// `fuel_optional` — "fuel available here, not needed" — so a HUD can
 /// tell a real stop from a comfort top-up without changing the plan.
-pub fn mark_optional_stops(m: &FuelModel, boost: &BoostProfile, injection_mult: Option<f32>, route: &mut Route, start_fuel: f32) {
+pub fn mark_optional_stops(
+    m: &FuelModel,
+    boost: &BoostProfile,
+    injection_mult: Option<f32>,
+    route: &mut Route,
+    start_fuel: f32,
+) {
     let mut pruned = route.clone();
     if !minimize_refuels(m, boost, injection_mult, &mut pruned, start_fuel) {
         return;
@@ -241,7 +283,13 @@ pub fn mark_optional_stops(m: &FuelModel, boost: &BoostProfile, injection_mult: 
     }
 }
 
-pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Option<f32>, route: &mut Route, start_fuel: f32) -> bool {
+pub fn minimize_refuels(
+    m: &FuelModel,
+    boost: &BoostProfile,
+    injection_mult: Option<f32>,
+    route: &mut Route,
+    start_fuel: f32,
+) -> bool {
     let n = route.hops.len();
     if n == 0 || m.capacity <= 0.0 {
         return true;
@@ -320,7 +368,13 @@ pub struct Control<'a> {
 
 impl Control<'_> {
     pub fn none() -> Control<'static> {
-        Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} }
+        Control {
+            cancelled: &|| false,
+            progress: &|_, _| {},
+            stage: &|_, _, _| {},
+            found: &|_| {},
+            trace: &|_, _, _| {},
+        }
     }
 }
 
@@ -335,7 +389,10 @@ impl std::fmt::Display for RouteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RouteError::Cancelled => write!(f, "route cancelled"),
-            RouteError::NoRoute => write!(f, "Sorry, no route possible. A gap on the way is wider than the ship can jump."),
+            RouteError::NoRoute => write!(
+                f,
+                "Sorry, no route possible. A gap on the way is wider than the ship can jump."
+            ),
             RouteError::Budget => write!(f, "Sorry, no route found within the search limit."),
         }
     }
@@ -390,7 +447,12 @@ const LEG_FANOUT: usize = 512;
 /// reaches the coarse pass, the legs and the exact search alike
 /// (2026-09-11: the first measurement only reached the exact search and
 /// measured nothing).
-pub fn boost_source(g: &Galaxy, req: &RouteRequest, idx: u32, class: StarClass) -> (f32, Option<(StarClass, f32)>) {
+pub fn boost_source(
+    g: &Galaxy,
+    req: &RouteRequest,
+    idx: u32,
+    class: StarClass,
+) -> (f32, Option<(StarClass, f32)>) {
     if !req.supercharge {
         return (1.0, None);
     }
@@ -399,7 +461,9 @@ pub fn boost_source(g: &Galaxy, req: &RouteRequest, idx: u32, class: StarClass) 
         return (own, None);
     }
     match g.boost_secondary(idx) {
-        Some((secondary, ls)) if ls <= req.secondary_boost_ls => (req.boost.for_class(secondary), Some((secondary, ls))),
+        Some((secondary, ls)) if ls <= req.secondary_boost_ls => {
+            (req.boost.for_class(secondary), Some((secondary, ls)))
+        }
         _ => (1.0, None),
     }
 }
@@ -420,13 +484,23 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // 1/255 of capacity, in the slot the dry-run counter otherwise uses.
     let quant = |fuel: f32| -> u32 {
         match fuel_model {
-            Some(m) if m.capacity > 0.0 => ((fuel / m.capacity) * 255.0).round().clamp(0.0, 255.0) as u32,
+            Some(m) if m.capacity > 0.0 => {
+                ((fuel / m.capacity) * 255.0).round().clamp(0.0, 255.0) as u32
+            }
             _ => 0,
         }
     };
     // Thorough: admissible heuristic over the best reachable boost, exact A*.
     let (h_range, weight) = if req.thorough {
-        (range * if req.supercharge { req.boost.neutron } else { 1.0 }, 1.0)
+        (
+            range
+                * if req.supercharge {
+                    req.boost.neutron
+                } else {
+                    1.0
+                },
+            1.0,
+        )
     } else {
         (range, req.weight)
     };
@@ -440,7 +514,9 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // impossible plot over 145k systems expanded 7.25 M times before
     // saying no (2026-09-10, galos spike). Then the system is the state.
     let dry_matters = fuel_model.is_some() || req.max_dry_jumps > 0;
-    let key = move |idx: u32, dry: u32| -> u64 { ((idx as u64) << 8) | if dry_matters { dry.min(255) as u64 } else { 0 } };
+    let key = move |idx: u32, dry: u32| -> u64 {
+        ((idx as u64) << 8) | if dry_matters { dry.min(255) as u64 } else { 0 }
+    };
     // Best (jumps, ly) seen per state; a path with equal jumps but fewer ly
     // still improves on the recorded one.
     // (jumps, boosts, ly): lexicographically smaller is better.
@@ -452,15 +528,16 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // worthless: fuel levels quantised to 1/255 otherwise multiply every
     // system into dozens of near-identical states.
     let mut pareto: HashMap<u32, Vec<(u32, f32)>> = HashMap::default();
-    let dominated = |pareto: &mut HashMap<u32, Vec<(u32, f32)>>, idx: u32, jumps: u32, fuel: f32| -> bool {
-        let e = pareto.entry(idx).or_default();
-        if e.iter().any(|&(j, f)| j <= jumps && f >= fuel - 0.05) {
-            return true;
-        }
-        e.retain(|&(j, f)| !(jumps <= j && fuel >= f));
-        e.push((jumps, fuel));
-        false
-    };
+    let dominated =
+        |pareto: &mut HashMap<u32, Vec<(u32, f32)>>, idx: u32, jumps: u32, fuel: f32| -> bool {
+            let e = pareto.entry(idx).or_default();
+            if e.iter().any(|&(j, f)| j <= jumps && f >= fuel - 0.05) {
+                return true;
+            }
+            e.retain(|&(j, f)| !(jumps <= j && fuel >= f));
+            e.push((jumps, fuel));
+            false
+        };
 
     let start_fuel = match fuel_model {
         Some(m) => req.start_fuel.clamp(0.0, m.capacity),
@@ -473,21 +550,42 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // light-year for determinism. Both extras are far below one jump so
     // they never change the jump count.
     let cost = |g: u32, boosts: u32, ly: f32| g as f32 + 0.01 * boosts as f32 + 0.0001 * ly / range;
-    open.push(Open { f: h(start_rec.pos()), g: 0, ly: 0.0, boosts: 0, idx: req.from, dry: quant(start_fuel), fuel: start_fuel, inj: 0 });
+    open.push(Open {
+        f: h(start_rec.pos()),
+        g: 0,
+        ly: 0.0,
+        boosts: 0,
+        idx: req.from,
+        dry: quant(start_fuel),
+        fuel: start_fuel,
+        inj: 0,
+    });
 
     let mut expansions: u64 = 0;
     let mut cands: Vec<(f32, u32, f32)> = Vec::with_capacity(4096);
-    let fanout: usize = std::env::var("ED_LEG_FANOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(LEG_FANOUT);
+    let fanout: usize = std::env::var("ED_LEG_FANOUT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(LEG_FANOUT);
     let mut best_remaining = straight;
 
     while let Some(cur) = open.pop() {
         let cur_key = key(cur.idx, cur.dry);
-        let cur_rank = (cur.g + cur.inj * INJECTION_PENALTY, cur.boosts as i32, cur.ly);
-        if best_g.get(&cur_key).is_some_and(|&(bg, bb, bl)| (bg, bb, bl) < cur_rank) {
+        let cur_rank = (
+            cur.g + cur.inj * INJECTION_PENALTY,
+            cur.boosts as i32,
+            cur.ly,
+        );
+        if best_g
+            .get(&cur_key)
+            .is_some_and(|&(bg, bb, bl)| (bg, bb, bl) < cur_rank)
+        {
             continue; // stale entry
         }
         if cur.idx == req.to {
-            return Ok(reconstruct(g, req, &parent, cur_key, straight, expansions, started));
+            return Ok(reconstruct(
+                g, req, &parent, cur_key, straight, expansions, started,
+            ));
         }
         expansions += 1;
         if expansions.is_multiple_of(200) {
@@ -525,7 +623,11 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
         // Cells that cannot bring the ship closer than (remaining + one
         // unboosted jump) to the goal hold nothing a weighted search will
         // take; from a neutron that halves a 400 ly sphere.
-        let toward = if req.thorough { None } else { Some((goal, remaining + range)) };
+        let toward = if req.thorough {
+            None
+        } else {
+            Some((goal, remaining + range))
+        };
         // One pass at the ship's reach; if injections are allowed and the
         // commander still has some, a second pass over the longer reach for
         // the candidates only an injection gets to.
@@ -541,7 +643,11 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
                     _ => break,
                 },
             };
-            let eff_boost = if injected { req.injection.map(|(m, _, _)| m).unwrap_or(1.0) } else { boost };
+            let eff_boost = if injected {
+                req.injection.map(|(m, _, _)| m).unwrap_or(1.0)
+            } else {
+                boost
+            };
             // In the core a boosted hop's sphere holds thousands of stars;
             // relaxing them all costs milliseconds per expansion. Only the
             // ones making the most progress (scoopables ranked a jump
@@ -552,8 +658,18 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
                     return;
                 }
                 let to_goal = dist(g.pos_of(n_idx), goal);
-                let scoop = g.class_code(n_idx) != crate::StarClass::Unknown.code() && crate::StarClass::from_code(g.class_code(n_idx)).scoopable() || g.flags(n_idx) & crate::format::FLAG_SCOOP_NEARBY != 0;
-                cands.push((if scoop || n_idx == goal_idx { to_goal - range } else { to_goal }, n_idx, d));
+                let scoop = g.class_code(n_idx) != crate::StarClass::Unknown.code()
+                    && crate::StarClass::from_code(g.class_code(n_idx)).scoopable()
+                    || g.flags(n_idx) & crate::format::FLAG_SCOOP_NEARBY != 0;
+                cands.push((
+                    if scoop || n_idx == goal_idx {
+                        to_goal - range
+                    } else {
+                        to_goal
+                    },
+                    n_idx,
+                    d,
+                ));
             });
             if cands.len() > fanout {
                 cands.select_nth_unstable_by(fanout, |a, b| a.0.total_cmp(&b.0));
@@ -561,19 +677,30 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             }
             for &(_, n_idx, d) in cands.iter() {
                 let n_code = g.class_code(n_idx);
-                let n_class = if n_code == crate::StarClass::Unknown.code() { g.class(&g.record(n_idx)) } else { crate::StarClass::from_code(n_code) };
-                let scoop = n_class.scoopable() || g.flags(n_idx) & crate::format::FLAG_SCOOP_NEARBY != 0;
+                let n_class = if n_code == crate::StarClass::Unknown.code() {
+                    g.class(&g.record(n_idx))
+                } else {
+                    crate::StarClass::from_code(n_code)
+                };
+                let scoop =
+                    n_class.scoopable() || g.flags(n_idx) & crate::format::FLAG_SCOOP_NEARBY != 0;
                 // Fuel: burn for the hop; refill on a scoopable arrival.
                 let (n_fuel, refuel, dry) = match fuel_model {
                     Some(m) => {
-                        let Some(left) = m.jump(d, cur.fuel, eff_boost) else { continue };
+                        let Some(left) = m.jump(d, cur.fuel, eff_boost) else {
+                            continue;
+                        };
                         let refuel = scoop && left < m.capacity;
                         let after = if scoop { m.capacity } else { left };
                         (after, refuel, quant(after))
                     }
                     None => (0.0, false, if scoop { 0 } else { cur.dry + 1 }),
                 };
-                if fuel_model.is_none() && req.max_dry_jumps > 0 && dry > req.max_dry_jumps && n_idx != req.to {
+                if fuel_model.is_none()
+                    && req.max_dry_jumps > 0
+                    && dry > req.max_dry_jumps
+                    && n_idx != req.to
+                {
                     continue;
                 }
                 let ng = cur.g + 1;
@@ -581,19 +708,37 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
                 let nl = cur.ly + d;
                 // Boosted when beyond plain reach, or when the plain jump is
                 // not fundable from the tank (fuel was charged at the boosted rate).
-                let boosted = !injected && boost > 1.0 && (d > reach / boost || fuel_model.is_some_and(|m| m.jump(d, cur.fuel, 1.0).is_none()));
+                let boosted = !injected
+                    && boost > 1.0
+                    && (d > reach / boost
+                        || fuel_model.is_some_and(|m| m.jump(d, cur.fuel, 1.0).is_none()));
                 let nb = cur.boosts + boosted as u32;
                 let nk = key(n_idx, dry);
                 let rank = (ng + ninj * INJECTION_PENALTY, nb as i32, nl);
-                if best_g.get(&nk).is_some_and(|&(bg, bb, bl)| (bg, bb, bl) <= rank) {
+                if best_g
+                    .get(&nk)
+                    .is_some_and(|&(bg, bb, bl)| (bg, bb, bl) <= rank)
+                {
                     continue;
                 }
-                if fuel_model.is_some() && n_idx != goal_idx && dominated(&mut pareto, n_idx, ng + ninj * INJECTION_PENALTY, n_fuel) {
+                if fuel_model.is_some()
+                    && n_idx != goal_idx
+                    && dominated(&mut pareto, n_idx, ng + ninj * INJECTION_PENALTY, n_fuel)
+                {
                     continue;
                 }
                 best_g.insert(nk, rank);
                 parent.insert(nk, (cur_key, boosted, d, n_fuel, refuel, injected));
-                open.push(Open { f: cost(ng + ninj * INJECTION_PENALTY, nb, nl) + h(g.pos_of(n_idx)), g: ng, ly: nl, boosts: nb, idx: n_idx, dry, fuel: n_fuel, inj: ninj });
+                open.push(Open {
+                    f: cost(ng + ninj * INJECTION_PENALTY, nb, nl) + h(g.pos_of(n_idx)),
+                    g: ng,
+                    ly: nl,
+                    boosts: nb,
+                    idx: n_idx,
+                    dry,
+                    fuel: n_fuel,
+                    inj: ninj,
+                });
             }
         }
     }
@@ -668,7 +813,11 @@ fn reconstruct(
             fuel_after: req.fuel.map(|_| fuel),
             refuel,
             fuel_optional: false,
-            injection: if injected { req.injection.map(|(_, name, _)| name.to_string()) } else { None },
+            injection: if injected {
+                req.injection.map(|(_, name, _)| name.to_string())
+            } else {
+                None
+            },
             synthesized: false,
             via_secondary,
         });
@@ -707,7 +856,13 @@ mod tests {
         let mut lines = vec!["[".to_string()];
         let mut id = 1;
         for i in 0..=10 {
-            let sub = if i == 2 { "Neutron Star" } else if i == 5 { "L (Brown dwarf) Star" } else { "K (Yellow-Orange) Star" };
+            let sub = if i == 2 {
+                "Neutron Star"
+            } else if i == 5 {
+                "L (Brown dwarf) Star"
+            } else {
+                "K (Yellow-Orange) Star"
+            };
             lines.push(format!(
                 r#"{{"id64":{id},"name":"S{i}","coords":{{"x":{},"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"{sub}","mainStar":true}}]}},"#,
                 i * 20
@@ -718,7 +873,12 @@ mod tests {
         lines.push(format!(r#"{{"id64":{id},"name":"Island","coords":{{"x":40,"y":100,"z":0}},"bodies":[{{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}}]}}"#));
         lines.push("]".into());
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(
+            Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         (dir, g)
     }
@@ -743,15 +903,33 @@ mod tests {
         lines.push(r#"{"id64":999,"name":"Far","coords":{"x":1000,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}"#.into());
         lines.push("]".into());
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(
+            Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
-        let req = RouteRequest { from: g.find("D0").unwrap(), to: g.find("Far").unwrap(), range_ly: 15.0, supercharge: true, max_dry_jumps: 0, ..Default::default() };
+        let req = RouteRequest {
+            from: g.find("D0").unwrap(),
+            to: g.find("Far").unwrap(),
+            range_ly: 15.0,
+            supercharge: true,
+            max_dry_jumps: 0,
+            ..Default::default()
+        };
         let expanded = std::sync::atomic::AtomicU64::new(0);
         let progress = |n: u64, _: f32| expanded.store(n, std::sync::atomic::Ordering::Relaxed);
-        let ctl = Control { progress: &progress, ..Control::none() };
+        let ctl = Control {
+            progress: &progress,
+            ..Control::none()
+        };
         assert!(matches!(plan(&g, &req, &ctl), Err(RouteError::NoRoute)));
         let n = expanded.load(std::sync::atomic::Ordering::Relaxed);
-        assert!(n <= 80, "refusing an impossible route took {n} expansions over 40 reachable systems");
+        assert!(
+            n <= 80,
+            "refusing an impossible route took {n} expansions over 40 reachable systems"
+        );
     }
 
     /// The experiment's second kind of boost: a system whose arrival star
@@ -770,14 +948,37 @@ mod tests {
 {"id64":3,"name":"Far","coords":{"x":130,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}
 ]"#;
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(
+            Box::new(std::io::Cursor::new(json.as_bytes().to_vec())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
-        let base = RouteRequest { from: g.find("Sol").unwrap(), to: g.find("Far").unwrap(), range_ly: 30.0, supercharge: true, ..Default::default() };
+        let base = RouteRequest {
+            from: g.find("Sol").unwrap(),
+            to: g.find("Far").unwrap(),
+            range_ly: 30.0,
+            supercharge: true,
+            ..Default::default()
+        };
         let ctl = Control::none();
-        assert!(matches!(plan(&g, &base, &ctl), Err(RouteError::NoRoute)), "off: the 100 ly gap is unbridgeable");
-        let too_far = RouteRequest { secondary_boost_ls: 1_000.0, ..base.clone() };
-        assert!(matches!(plan(&g, &too_far, &ctl), Err(RouteError::NoRoute)), "a 4,000 ls secondary is outside a 1,000 ls run");
-        let allowed = RouteRequest { secondary_boost_ls: 5_000.0, ..base.clone() };
+        assert!(
+            matches!(plan(&g, &base, &ctl), Err(RouteError::NoRoute)),
+            "off: the 100 ly gap is unbridgeable"
+        );
+        let too_far = RouteRequest {
+            secondary_boost_ls: 1_000.0,
+            ..base.clone()
+        };
+        assert!(
+            matches!(plan(&g, &too_far, &ctl), Err(RouteError::NoRoute)),
+            "a 4,000 ls secondary is outside a 1,000 ls run"
+        );
+        let allowed = RouteRequest {
+            secondary_boost_ls: 5_000.0,
+            ..base.clone()
+        };
         let route = plan(&g, &allowed, &ctl).unwrap();
         assert_eq!(route.jumps, 2);
         assert_eq!(route.secondary_boosts, 1);
@@ -785,7 +986,10 @@ mod tests {
         let far = route.hops.last().unwrap();
         assert!(far.boosted);
         assert_eq!(far.via_secondary, Some((StarClass::Neutron, 4000.0)));
-        assert_eq!(route.hops[1].via_secondary, None, "the hop into Twin was a plain jump");
+        assert_eq!(
+            route.hops[1].via_secondary, None,
+            "the hop into Twin was a plain jump"
+        );
     }
 
     /// Item 39: an eager plan's comfort top-ups get labelled — the tank
@@ -797,29 +1001,67 @@ mod tests {
         let (_d, g) = galaxy();
         let m = FuelModel::from_loadout(100.0, 100.0, 8.0, 5, false, false, 75.0, 0.0, 0.0);
         let req = RouteRequest {
-            from: g.find("S0").unwrap(), to: g.find("S10").unwrap(),
-            range_ly: m.range_at(m.capacity), supercharge: false,
-            fuel: Some(m), start_fuel: 100.0, ..Default::default()
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            range_ly: m.range_at(m.capacity),
+            supercharge: false,
+            fuel: Some(m),
+            start_fuel: 100.0,
+            ..Default::default()
         };
         let mut r = plan(&g, &req, &Control::none()).unwrap();
-        assert!(r.refuel_stops > 0, "the eager plan tops up at scoopable stars: {:?}", r.hops.iter().map(|h| (h.name.as_str(), h.refuel)).collect::<Vec<_>>());
+        assert!(
+            r.refuel_stops > 0,
+            "the eager plan tops up at scoopable stars: {:?}",
+            r.hops
+                .iter()
+                .map(|h| (h.name.as_str(), h.refuel))
+                .collect::<Vec<_>>()
+        );
         mark_optional_stops(&m, &req.boost, None, &mut r, req.start_fuel);
-        let optional = r.hops.iter().filter(|h| h.refuel && h.fuel_optional).count();
-        assert!(optional > 0, "a 100 t tank over 200 ly needs none of those stops");
+        let optional = r
+            .hops
+            .iter()
+            .filter(|h| h.refuel && h.fuel_optional)
+            .count();
+        assert!(
+            optional > 0,
+            "a 100 t tank over 200 ly needs none of those stops"
+        );
         // The pruned route: surviving stops are needed, so nothing is optional.
         let mut lean = r.clone();
-        assert!(minimize_refuels(&m, &req.boost, None, &mut lean, req.start_fuel));
+        assert!(minimize_refuels(
+            &m,
+            &req.boost,
+            None,
+            &mut lean,
+            req.start_fuel
+        ));
         mark_optional_stops(&m, &req.boost, None, &mut lean, req.start_fuel);
-        assert!(lean.hops.iter().all(|h| !h.fuel_optional), "pruned stops are all load-bearing");
+        assert!(
+            lean.hops.iter().all(|h| !h.fuel_optional),
+            "pruned stops are all load-bearing"
+        );
     }
 
     #[test]
     fn a_star_walks_the_line_in_minimum_jumps() {
         let (_d, g) = galaxy();
-        let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), range_ly: 45.0, supercharge: false, ..Default::default() };
+        let req = RouteRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            range_ly: 45.0,
+            supercharge: false,
+            ..Default::default()
+        };
         let r = plan(&g, &req, &Control::none()).unwrap();
         // 200 ly at 45 ly/jump over 20 ly spacing: 40 ly hops -> 5 jumps.
-        assert_eq!(r.jumps, 5, "{:?}", r.hops.iter().map(|h| h.name.as_str()).collect::<Vec<_>>());
+        assert_eq!(
+            r.jumps,
+            5,
+            "{:?}",
+            r.hops.iter().map(|h| h.name.as_str()).collect::<Vec<_>>()
+        );
         assert_eq!(r.hops.first().unwrap().name, "S0");
         assert_eq!(r.hops.last().unwrap().name, "S10");
         assert_eq!(r.boosted_jumps, 0);
@@ -828,14 +1070,29 @@ mod tests {
     #[test]
     fn supercharging_reaches_the_island_and_is_reported() {
         let (_d, g) = galaxy();
-        let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("Island").unwrap(), range_ly: 30.0, supercharge: true, ..Default::default() };
+        let req = RouteRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("Island").unwrap(),
+            range_ly: 30.0,
+            supercharge: true,
+            ..Default::default()
+        };
         let r = plan(&g, &req, &Control::none()).unwrap();
         assert_eq!(r.hops.last().unwrap().name, "Island");
-        assert!(r.hops.last().unwrap().boosted, "the last jump must be the 4x from the neutron star");
+        assert!(
+            r.hops.last().unwrap().boosted,
+            "the last jump must be the 4x from the neutron star"
+        );
         assert_eq!(r.boosted_jumps, 1);
         // Without supercharging the island is unreachable at 30 ly.
-        let plain = RouteRequest { supercharge: false, ..req.clone() };
-        assert!(matches!(plan(&g, &plain, &Control::none()), Err(RouteError::NoRoute)));
+        let plain = RouteRequest {
+            supercharge: false,
+            ..req.clone()
+        };
+        assert!(matches!(
+            plan(&g, &plain, &Control::none()),
+            Err(RouteError::NoRoute)
+        ));
     }
 
     #[test]
@@ -843,11 +1100,32 @@ mod tests {
         let (_d, g) = galaxy();
         // S5 is a brown dwarf; with max_dry_jumps=1 the route may pass it
         // but must not chain two dry arrivals.
-        let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), range_ly: 25.0, supercharge: false, max_dry_jumps: 1, ..Default::default() };
+        let req = RouteRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            range_ly: 25.0,
+            supercharge: false,
+            max_dry_jumps: 1,
+            ..Default::default()
+        };
         let r = plan(&g, &req, &Control::none()).unwrap();
-        let dry_runs = r.hops.iter().skip(1).fold((0, 0), |(cur, max), h| if h.scoopable { (0, max) } else { (cur + 1, (cur + 1).max(max)) }).1;
+        let dry_runs = r
+            .hops
+            .iter()
+            .skip(1)
+            .fold((0, 0), |(cur, max), h| {
+                if h.scoopable {
+                    (0, max)
+                } else {
+                    (cur + 1, (cur + 1).max(max))
+                }
+            })
+            .1;
         assert!(dry_runs <= 1);
-        assert!(r.hops.iter().any(|h| !h.scoopable), "S5 is on the only path at 25 ly");
+        assert!(
+            r.hops.iter().any(|h| !h.scoopable),
+            "S5 is on the only path at 25 ly"
+        );
     }
 
     /// The time budget must bind INSIDE the exact planner too. A short
@@ -876,7 +1154,12 @@ mod tests {
         ));
         lines.push("]".into());
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(
+            Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let req = RouteRequest {
             from: g.find("G0x0").unwrap(),
@@ -888,15 +1171,29 @@ mod tests {
         };
         let t = std::time::Instant::now();
         let r = plan(&g, &req, &Control::none());
-        assert!(matches!(r, Err(RouteError::Budget)), "the deadline must bind before exhaustion: {r:?}");
+        assert!(
+            matches!(r, Err(RouteError::Budget)),
+            "the deadline must bind before exhaustion: {r:?}"
+        );
         assert!(t.elapsed() < std::time::Duration::from_secs(5));
     }
 
     #[test]
     fn cancellation_is_honoured() {
         let (_d, g) = galaxy();
-        let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), range_ly: 25.0, ..Default::default() };
-        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+        let req = RouteRequest {
+            from: g.find("S0").unwrap(),
+            to: g.find("S10").unwrap(),
+            range_ly: 25.0,
+            ..Default::default()
+        };
+        let ctl = Control {
+            cancelled: &|| true,
+            progress: &|_, _| {},
+            stage: &|_, _, _| {},
+            found: &|_| {},
+            trace: &|_, _, _| {},
+        };
         // Tiny graph: may finish before the first cancel check; either way it must not panic.
         let _ = plan(&g, &req, &ctl);
     }

@@ -6,10 +6,13 @@
 //! that into [`api_down`] - there is no local table to fall back to
 //! (maintainer: "Local search should be limited to journal data").
 
-use ed_store::lookup::{MarketEntry, NearbySystem, StationInfo, StationWithService, SystemInfo};
 use crate::exchange::SendApi;
+use ed_store::lookup::{MarketEntry, NearbySystem, StationInfo, StationWithService, SystemInfo};
 
-use crate::capabilities::galaxy::{FindStationRequest, FindSystemRequest, NearestServiceRequest, StationsInSystemRequest, SystemsNearRequest};
+use crate::capabilities::galaxy::{
+    FindStationRequest, FindSystemRequest, NearestServiceRequest, StationsInSystemRequest,
+    SystemsNearRequest,
+};
 use crate::capabilities::CapError;
 use crate::state::AppState;
 
@@ -24,7 +27,11 @@ pub fn api_down(what: &str) -> CapError {
 
 /// One `/v1/stations` call; the rows as JSON, or `None` with the reason
 /// logged.
-async fn fetch(state: &AppState, what: &'static str, query: &[(&str, String)]) -> Option<Vec<serde_json::Value>> {
+async fn fetch(
+    state: &AppState,
+    what: &'static str,
+    query: &[(&str, String)],
+) -> Option<Vec<serde_json::Value>> {
     let api = crate::exchange::endpoint(state)?;
     let started = std::time::Instant::now();
     let response = state
@@ -64,7 +71,10 @@ fn station(row: &serde_json::Value) -> Option<StationInfo> {
     serde_json::from_value(row.clone()).ok()
 }
 
-pub async fn stations_in_system(state: &AppState, req: &StationsInSystemRequest) -> Option<Vec<StationInfo>> {
+pub async fn stations_in_system(
+    state: &AppState,
+    req: &StationsInSystemRequest,
+) -> Option<Vec<StationInfo>> {
     let rows = fetch(
         state,
         "system",
@@ -83,7 +93,13 @@ pub async fn find_station(state: &AppState, req: &FindStationRequest) -> Option<
     let rows = fetch(
         state,
         "name",
-        &[("name", req.name.clone()), ("limit", crate::capabilities::galaxy::FIND_STATION_LIMIT.to_string())],
+        &[
+            ("name", req.name.clone()),
+            (
+                "limit",
+                crate::capabilities::galaxy::FIND_STATION_LIMIT.to_string(),
+            ),
+        ],
     )
     .await?;
     rows.iter().map(station).collect()
@@ -92,7 +108,10 @@ pub async fn find_station(state: &AppState, req: &FindStationRequest) -> Option<
 /// Nearest with a service; the origin resolves here (the request's
 /// system or the commander's current one) so the answer names it, as
 /// the local path does.
-pub async fn nearest_service(state: &AppState, req: &NearestServiceRequest) -> Option<(String, Vec<StationWithService>)> {
+pub async fn nearest_service(
+    state: &AppState,
+    req: &NearestServiceRequest,
+) -> Option<(String, Vec<StationWithService>)> {
     let system = {
         let conn = state.read_conn().ok()?;
         crate::capabilities::galaxy::system_or_current(&conn, req.system.as_deref()).ok()?
@@ -102,7 +121,10 @@ pub async fn nearest_service(state: &AppState, req: &NearestServiceRequest) -> O
         ("service", req.service_key()),
         ("radius_ly", req.radius_ly.to_string()),
         ("include_carriers", req.include_carriers.to_string()),
-        ("limit", crate::capabilities::galaxy::NEAREST_SERVICE_LIMIT.to_string()),
+        (
+            "limit",
+            crate::capabilities::galaxy::NEAREST_SERVICE_LIMIT.to_string(),
+        ),
     ];
     if let Some(pad) = &req.min_pad {
         query.push(("min_pad", pad.clone()));
@@ -111,7 +133,10 @@ pub async fn nearest_service(state: &AppState, req: &NearestServiceRequest) -> O
     let hits: Option<Vec<StationWithService>> = rows
         .iter()
         .map(|row| {
-            Some(StationWithService { station: station(row)?, distance_ly: row.get("distance_ly")?.as_f64()? })
+            Some(StationWithService {
+                station: station(row)?,
+                distance_ly: row.get("distance_ly")?.as_f64()?,
+            })
         })
         .collect();
     Some((system, hits?))
@@ -138,10 +163,17 @@ async fn knowledge_system(state: &AppState, name: &str) -> Option<Option<serde_j
 }
 
 fn system_info(v: &serde_json::Value, station_count: i64) -> Option<SystemInfo> {
-    let info = v.get("information").cloned().unwrap_or(serde_json::Value::Null);
+    let info = v
+        .get("information")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
     let text = |k: &str| info.get(k).and_then(|x| x.as_str()).map(str::to_string);
     let coords = v.get("coords").and_then(|c| {
-        Some((c.get("x")?.as_f64()?, c.get("y")?.as_f64()?, c.get("z")?.as_f64()?))
+        Some((
+            c.get("x")?.as_f64()?,
+            c.get("y")?.as_f64()?,
+            c.get("z")?.as_f64()?,
+        ))
     });
     Some(SystemInfo {
         id64: v.get("id64").and_then(|x| x.as_i64()),
@@ -165,11 +197,21 @@ fn system_info(v: &serde_json::Value, station_count: i64) -> Option<SystemInfo> 
 /// EDSM on the server) plus a station count from `/v1/stations`.
 pub async fn find_system(state: &AppState, req: &FindSystemRequest) -> Option<Option<SystemInfo>> {
     let answer = knowledge_system(state, req.name.trim()).await?;
-    let Some(value) = answer else { return Some(None) };
-    let stations = fetch(state, "system", &[("system", req.name.trim().to_string()), ("include_carriers", "true".into()), ("limit", "100".into())])
-        .await
-        .map(|rows| rows.len() as i64)
-        .unwrap_or(0);
+    let Some(value) = answer else {
+        return Some(None);
+    };
+    let stations = fetch(
+        state,
+        "system",
+        &[
+            ("system", req.name.trim().to_string()),
+            ("include_carriers", "true".into()),
+            ("limit", "100".into()),
+        ],
+    )
+    .await
+    .map(|rows| rows.len() as i64)
+    .unwrap_or(0);
     Some(system_info(&value, stations))
 }
 
@@ -179,13 +221,22 @@ pub async fn find_system(state: &AppState, req: &FindSystemRequest) -> Option<Op
 pub async fn systems_near(state: &AppState, req: &SystemsNearRequest) -> Option<Vec<NearbySystem>> {
     let origin = knowledge_system(state, req.system.trim()).await??;
     let c = origin.get("coords")?;
-    let (x, y, z) = (c.get("x")?.as_f64()?, c.get("y")?.as_f64()?, c.get("z")?.as_f64()?);
+    let (x, y, z) = (
+        c.get("x")?.as_f64()?,
+        c.get("y")?.as_f64()?,
+        c.get("z")?.as_f64()?,
+    );
     let api = crate::exchange::endpoint(state)?;
     let started = std::time::Instant::now();
     let items: Vec<serde_json::Value> = state
         .http
         .get(format!("{api}/v1/knowledge/sphere"))
-        .query(&[("x", x.to_string()), ("y", y.to_string()), ("z", z.to_string()), ("radius", req.radius_ly.clamp(1.0, 100.0).to_string())])
+        .query(&[
+            ("x", x.to_string()),
+            ("y", y.to_string()),
+            ("z", z.to_string()),
+            ("radius", req.radius_ly.clamp(1.0, 100.0).to_string()),
+        ])
         .timeout(TIMEOUT)
         .send_api()
         .await
@@ -202,8 +253,14 @@ pub async fn systems_near(state: &AppState, req: &SystemsNearRequest) -> Option<
                 name: i.get("name")?.as_str()?.to_string(),
                 id64: i.get("id64")?.as_i64()?,
                 distance_ly: i.get("distance")?.as_f64()?,
-                controlling_power: i.get("controllingPower").and_then(|x| x.as_str()).map(str::to_string),
-                power_state: i.get("powerState").and_then(|x| x.as_str()).map(str::to_string),
+                controlling_power: i
+                    .get("controllingPower")
+                    .and_then(|x| x.as_str())
+                    .map(str::to_string),
+                power_state: i
+                    .get("powerState")
+                    .and_then(|x| x.as_str())
+                    .map(str::to_string),
                 population: i.get("population").and_then(|x| x.as_i64()),
             })
         })
@@ -211,7 +268,11 @@ pub async fn systems_near(state: &AppState, req: &SystemsNearRequest) -> Option<
         .collect();
     out.sort_by(|a, b| a.distance_ly.total_cmp(&b.distance_ly));
     out.truncate(crate::capabilities::galaxy::SYSTEMS_NEAR_LIMIT);
-    tracing::info!(systems = out.len(), ms = started.elapsed().as_millis() as u64, "systems near served by API");
+    tracing::info!(
+        systems = out.len(),
+        ms = started.elapsed().as_millis() as u64,
+        "systems near served by API"
+    );
     Some(out)
 }
 
@@ -219,7 +280,12 @@ pub async fn systems_near(state: &AppState, req: &SystemsNearRequest) -> Option<
 /// search boxes. Short timeout: this runs per keystroke and a slow
 /// answer is worse than a shorter list. `None` with the reason logged
 /// (never the prefix) when the server cannot be asked.
-pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, prefix: &str, limit: usize) -> Option<Vec<crate::routing::NameHit>> {
+pub async fn complete_names(
+    state: &AppState,
+    kind: crate::routing::NameKind,
+    prefix: &str,
+    limit: usize,
+) -> Option<Vec<crate::routing::NameHit>> {
     let api = crate::exchange::endpoint(state)?;
     let kind = match kind {
         crate::routing::NameKind::System => "system",
@@ -229,7 +295,11 @@ pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, pr
     let response = state
         .http
         .get(format!("{api}/v1/names/complete"))
-        .query(&[("kind", kind), ("prefix", prefix), ("limit", &limit.to_string())])
+        .query(&[
+            ("kind", kind),
+            ("prefix", prefix),
+            ("limit", &limit.to_string()),
+        ])
         .timeout(std::time::Duration::from_secs(3))
         .send_api()
         .await;
@@ -273,7 +343,13 @@ fn trader_economies(kind: &str) -> Option<&'static [&'static str]> {
 /// `encoded`) around a system: the API's nearest `material_trader`
 /// stations, kept when their economy hosts that kind. `None` when the
 /// kind is unknown or the API gave no answer.
-pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str, radius_ly: f64, limit: usize) -> Option<Vec<StationWithService>> {
+pub async fn nearest_material_traders(
+    state: &AppState,
+    system: &str,
+    kind: &str,
+    radius_ly: f64,
+    limit: usize,
+) -> Option<Vec<StationWithService>> {
     let economies = trader_economies(kind)?;
     let req = NearestServiceRequest {
         system: Some(system.to_string()),
@@ -285,7 +361,12 @@ pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str
     let (_, hits) = nearest_service(state, &req).await?;
     let mut out: Vec<StationWithService> = hits
         .into_iter()
-        .filter(|h| h.station.primary_economy.as_deref().is_some_and(|e| economies.iter().any(|x| x.eq_ignore_ascii_case(e))))
+        .filter(|h| {
+            h.station
+                .primary_economy
+                .as_deref()
+                .is_some_and(|e| economies.iter().any(|x| x.eq_ignore_ascii_case(e)))
+        })
         .collect();
     out.truncate(limit);
     Some(out)
@@ -295,10 +376,20 @@ pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str
 /// whose pads fit, a fleet carrier present). From a plain thread (the
 /// fuel trap runs on the watcher): one `/v1/stations` call. `None` when
 /// the API gave no answer - callers fail closed.
-pub fn stations_at_blocking(state: &AppState, system: &str, pad: ed_store::lookup::PadSize) -> Option<(bool, bool)> {
-    let req = StationsInSystemRequest { system: system.to_string(), include_carriers: true, include_minor: true };
+pub fn stations_at_blocking(
+    state: &AppState,
+    system: &str,
+    pad: ed_store::lookup::PadSize,
+) -> Option<(bool, bool)> {
+    let req = StationsInSystemRequest {
+        system: system.to_string(),
+        include_carriers: true,
+        include_minor: true,
+    };
     let stations = tauri::async_runtime::block_on(stations_in_system(state, &req))?;
-    let fits = stations.iter().any(|s| !s.is_carrier && s.max_pad.is_some_and(|p| p.fits(pad)));
+    let fits = stations
+        .iter()
+        .any(|s| !s.is_carrier && s.max_pad.is_some_and(|p| p.fits(pad)));
     let carrier = stations.iter().any(|s| s.is_carrier);
     Some((fits, carrier))
 }
@@ -306,7 +397,12 @@ pub fn stations_at_blocking(state: &AppState, system: &str, pad: ed_store::looku
 /// The nearest system (distance, name) within `radius_ly` of `system`
 /// with a non-carrier refuel station whose pads fit `pad`, from a plain
 /// thread. `None` when there is none or the API gave no answer.
-pub fn nearest_refuel_blocking(state: &AppState, system: &str, pad: ed_store::lookup::PadSize, radius_ly: f64) -> Option<(f32, String)> {
+pub fn nearest_refuel_blocking(
+    state: &AppState,
+    system: &str,
+    pad: ed_store::lookup::PadSize,
+    radius_ly: f64,
+) -> Option<(f32, String)> {
     let req = NearestServiceRequest {
         system: Some(system.to_string()),
         service: "refuel".into(),
@@ -325,7 +421,11 @@ pub fn nearest_refuel_blocking(state: &AppState, system: &str, pad: ed_store::lo
 /// `GET /v1/stations?systems=a,b,c` (the assistant session, 2fe8099), 200 names per
 /// call. Lower-cased system names. `None` when any call went unanswered
 /// - callers treat that as "no dock known" and warn rather than guess.
-pub async fn docks_by_systems(state: &AppState, systems: &[String], pad: ed_store::lookup::PadSize) -> Option<std::collections::HashSet<String>> {
+pub async fn docks_by_systems(
+    state: &AppState,
+    systems: &[String],
+    pad: ed_store::lookup::PadSize,
+) -> Option<std::collections::HashSet<String>> {
     let mut docks = std::collections::HashSet::new();
     for chunk in systems.chunks(200) {
         let rows = fetch(
@@ -354,7 +454,13 @@ pub async fn docks_by_systems(state: &AppState, systems: &[String], pad: ed_stor
 /// type and landable bodies around the journal's position. The answer
 /// is the Mining page's shape minus the marks. `None` when the server
 /// gave no usable answer.
-pub async fn mining_search(state: &AppState, text: &str, system: &str, coords: (f64, f64, f64), radius_ly: f64) -> Option<serde_json::Value> {
+pub async fn mining_search(
+    state: &AppState,
+    text: &str,
+    system: &str,
+    coords: (f64, f64, f64),
+    radius_ly: f64,
+) -> Option<serde_json::Value> {
     let api = crate::exchange::endpoint(state)?;
     let started = std::time::Instant::now();
     let body = serde_json::json!({ "text": text, "system": system, "coords": [coords.0, coords.1, coords.2], "radius_ly": radius_ly });
@@ -428,7 +534,12 @@ pub async fn station_board(state: &AppState, station_id: i64) -> Option<Vec<Mark
     }
     let value = response.json::<serde_json::Value>().await.ok()?;
     let entries: Vec<MarketEntry> = serde_json::from_value(value.get("entries")?.clone()).ok()?;
-    tracing::info!(station_id, entries = entries.len(), ms, "station board served by API");
+    tracing::info!(
+        station_id,
+        entries = entries.len(),
+        ms,
+        "station board served by API"
+    );
     Some(entries)
 }
 
@@ -468,7 +579,8 @@ mod tests {
         assert_eq!(info.primary_economy.as_deref(), Some("Industrial"));
         assert_eq!(info.population, Some(31778844));
         assert_eq!(info.station_count, 12);
-        let bare = system_info(&serde_json::json!({"name": "Nowhere"}), 0).expect("a bare answer still maps");
+        let bare = system_info(&serde_json::json!({"name": "Nowhere"}), 0)
+            .expect("a bare answer still maps");
         assert!(bare.coords.is_none() && bare.controlling_power.is_none());
     }
 
@@ -480,7 +592,10 @@ mod tests {
         assert_eq!(info.class, StationClass::Starport);
         assert_eq!(info.max_pad, Some(PadSize::Large));
         assert_eq!(info.age_hours, Some(1.5));
-        let with = StationWithService { station: info, distance_ly: row()["distance_ly"].as_f64().unwrap() };
+        let with = StationWithService {
+            station: info,
+            distance_ly: row()["distance_ly"].as_f64().unwrap(),
+        };
         assert_eq!(with.distance_ly, 10.0);
         assert!(station(&serde_json::json!({"id": "not a number"})).is_none());
     }

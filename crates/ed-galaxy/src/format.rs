@@ -348,7 +348,12 @@ impl Galaxy {
         }
         let side = self
             .boost_side
-            .get_or_init(|| crate::boost_side::BoostSide::open(&self.dir.join(crate::boost_side::BOOST_SIDE_FILE)).ok())
+            .get_or_init(|| {
+                crate::boost_side::BoostSide::open(
+                    &self.dir.join(crate::boost_side::BOOST_SIDE_FILE),
+                )
+                .ok()
+            })
             .as_ref()?;
         let e = side.lookup(self.record(idx).id64)?;
         Some((crate::StarClass::from_code(e.class), e.ls))
@@ -407,8 +412,14 @@ impl Galaxy {
     /// Occupied cells in the box whose bytes have NOT landed yet -- what
     /// a chunked fetcher still owes this volume. Empty when the index
     /// has no presence bitmap (whole-file install).
-    pub fn missing_cells_in_box(&self, lo: (i32, i32, i32), hi: (i32, i32, i32)) -> Vec<(i32, i32, i32)> {
-        let Some(presence) = self.presence() else { return Vec::new() };
+    pub fn missing_cells_in_box(
+        &self,
+        lo: (i32, i32, i32),
+        hi: (i32, i32, i32),
+    ) -> Vec<(i32, i32, i32)> {
+        let Some(presence) = self.presence() else {
+            return Vec::new();
+        };
         if presence.missing() == 0 || self.version < 3 {
             // Sparse installs are a v3 product feature; a bitmap on a
             // pre-morton index has no defined cell decoding.
@@ -425,7 +436,10 @@ impl Galaxy {
             }
             let (key, _, _) = self.cell_entry(i);
             let (cx, cy, cz) = morton_cell_of(key);
-            if (lo.0..=hi.0).contains(&cx) && (lo.1..=hi.1).contains(&cy) && (lo.2..=hi.2).contains(&cz) {
+            if (lo.0..=hi.0).contains(&cx)
+                && (lo.1..=hi.1).contains(&cy)
+                && (lo.2..=hi.2).contains(&cz)
+            {
                 missing.push((cx, cy, cz));
             }
         }
@@ -904,7 +918,11 @@ impl Galaxy {
         // occupied cells, so the sphere and goal prunes run per occupied
         // cell instead of per box cell.
         self.for_each_cell_in_box(lo, hi, |cx, cy, cz, start, count| {
-            let (gx, gy, gz) = (axis_gap(cx, pos[0]), axis_gap(cy, pos[1]), axis_gap(cz, pos[2]));
+            let (gx, gy, gz) = (
+                axis_gap(cx, pos[0]),
+                axis_gap(cy, pos[1]),
+                axis_gap(cz, pos[2]),
+            );
             if gx * gx + gy * gy + gz * gz > r2 {
                 return std::ops::ControlFlow::Continue(()); // the sphere never touches this cell
             }
@@ -1075,14 +1093,21 @@ mod tests {
         for x in -2..=2 {
             for y in -2..=2 {
                 for z in -2..=2 {
-                    assert!(seen.insert(morton_cell_key(x, y, z)), "duplicate key at {x},{y},{z}");
+                    assert!(
+                        seen.insert(morton_cell_key(x, y, z)),
+                        "duplicate key at {x},{y},{z}"
+                    );
                 }
             }
         }
         // Locality: one step in any axis flips low-order bits only; the
         // distance to a far cell dominates every near neighbour.
         let base = morton_cell_key(10, 20, 30);
-        let near = [morton_cell_key(11, 20, 30), morton_cell_key(10, 21, 30), morton_cell_key(10, 20, 31)];
+        let near = [
+            morton_cell_key(11, 20, 30),
+            morton_cell_key(10, 21, 30),
+            morton_cell_key(10, 20, 31),
+        ];
         let far = morton_cell_key(1000, 20, 30);
         for n in near {
             assert!(base.abs_diff(n) < base.abs_diff(far));
@@ -1103,23 +1128,40 @@ mod tests {
         assert_eq!(companion_bucket_ls(0), None);
         assert_eq!(companion_bucket_ls(COMPANION_BUCKETS + 1), None);
         let mut previous = 0u8;
-        for ls in [1.0, 2.0, 5.0, 12.0, 40.0, 100.0, 320.0, 700.0, 1_499.0, 1_500.0] {
+        for ls in [
+            1.0, 2.0, 5.0, 12.0, 40.0, 100.0, 320.0, 700.0, 1_499.0, 1_500.0,
+        ] {
             let bucket = companion_bucket(ls);
-            assert!((1..=COMPANION_BUCKETS).contains(&bucket), "{ls} ls -> bucket {bucket}");
+            assert!(
+                (1..=COMPANION_BUCKETS).contains(&bucket),
+                "{ls} ls -> bucket {bucket}"
+            );
             assert!(bucket >= previous, "buckets must be monotonic in distance");
             previous = bucket;
             let decoded = companion_bucket_ls(bucket).unwrap();
             let ratio = decoded / ls;
-            assert!((0.85..=1.18).contains(&ratio), "{ls} ls decoded as {decoded:.1} ls (bucket {bucket})");
+            assert!(
+                (0.85..=1.18).contains(&ratio),
+                "{ls} ls decoded as {decoded:.1} ls (bucket {bucket})"
+            );
         }
-        assert_eq!(companion_bucket(0.0), 1, "clamped, never zero: zero is reserved for unknown");
+        assert_eq!(
+            companion_bucket(0.0),
+            1,
+            "clamped, never zero: zero is reserved for unknown"
+        );
         assert_eq!(companion_bucket(9_999.0), COMPANION_BUCKETS);
     }
 
     /// Decode inverts encode over the whole coordinate range.
     #[test]
     fn morton_decode_inverts_encode() {
-        for (x, y, z) in [(0, 0, 0), (1, -1, 2), (-1_048_576, 1_048_575, 0), (517, -33, 9_812)] {
+        for (x, y, z) in [
+            (0, 0, 0),
+            (1, -1, 2),
+            (-1_048_576, 1_048_575, 0),
+            (517, -33, 9_812),
+        ] {
             assert_eq!(morton_cell_of(morton_cell_key(x, y, z)), (x, y, z));
         }
     }
@@ -1148,7 +1190,9 @@ mod tests {
             let zmin = morton_cell_key(lo.0, lo.1, lo.2);
             let zmax = morton_cell_key(hi.0, hi.1, hi.2);
             let in_box = |c: (i32, i32, i32)| {
-                (lo.0..=hi.0).contains(&c.0) && (lo.1..=hi.1).contains(&c.1) && (lo.2..=hi.2).contains(&c.2)
+                (lo.0..=hi.0).contains(&c.0)
+                    && (lo.1..=hi.1).contains(&c.1)
+                    && (lo.2..=hi.2).contains(&c.2)
             };
             for (probe, cell) in &keys {
                 if in_box(*cell) {
@@ -1173,9 +1217,17 @@ mod tests {
     #[test]
     fn box_walk_visits_exactly_the_occupied_cells() {
         let dir = tempfile::tempdir().unwrap();
-        let mut source = String::from("[
-");
-        let coords = [(0, 0, 0), (60, 0, 0), (-60, 0, 0), (120, 60, -60), (300, 300, 300)];
+        let mut source = String::from(
+            "[
+",
+        );
+        let coords = [
+            (0, 0, 0),
+            (60, 0, 0),
+            (-60, 0, 0),
+            (120, 60, -60),
+            (300, 300, 300),
+        ];
         for (i, (x, y, z)) in coords.iter().enumerate() {
             source.push_str(&format!(
                 "{{\"id64\":{},\"name\":\"S{i}\",\"coords\":{{\"x\":{x}.0,\"y\":{y}.0,\"z\":{z}.0}},\"bodies\":[]}}{}
@@ -1185,7 +1237,12 @@ mod tests {
             ));
         }
         source.push(']');
-        crate::import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        crate::import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let mut seen = Vec::new();
         g.for_each_cell_in_box((-2, -2, -2), (2, 2, 2), |cx, cy, cz, start, count| {
@@ -1193,8 +1250,17 @@ mod tests {
             std::ops::ControlFlow::Continue(())
         });
         let cells: Vec<(i32, i32, i32)> = seen.iter().map(|(c, _, _)| *c).collect();
-        assert!(cells.contains(&(0, 0, 0)) && cells.contains(&(1, 0, 0)) && cells.contains(&(-2, 0, 0)) && cells.contains(&(2, 1, -2)));
-        assert_eq!(cells.len(), 4, "the far cell (300,300,300)/(6,6,6) is outside the box");
+        assert!(
+            cells.contains(&(0, 0, 0))
+                && cells.contains(&(1, 0, 0))
+                && cells.contains(&(-2, 0, 0))
+                && cells.contains(&(2, 1, -2))
+        );
+        assert_eq!(
+            cells.len(),
+            4,
+            "the far cell (300,300,300)/(6,6,6) is outside the box"
+        );
         let total: u32 = seen.iter().map(|(_, _, n)| *n).sum();
         assert_eq!(total, 4);
         // Agreement with per-cell probing over the same box.
@@ -1223,7 +1289,13 @@ mod tests {
     fn sphere_scans_agree_with_brute_force_on_walk_sized_boxes() {
         let dir = tempfile::tempdir().unwrap();
         let mut source = String::from("[\n");
-        let coords = [(0, 0, 0), (60, 0, 0), (-60, 0, 0), (120, 60, -60), (300, 300, 300)];
+        let coords = [
+            (0, 0, 0),
+            (60, 0, 0),
+            (-60, 0, 0),
+            (120, 60, -60),
+            (300, 300, 300),
+        ];
         for (i, (x, y, z)) in coords.iter().enumerate() {
             source.push_str(&format!(
                 "{{\"id64\":{},\"name\":\"S{i}\",\"coords\":{{\"x\":{x}.0,\"y\":{y}.0,\"z\":{z}.0}},\"bodies\":[]}}{}\n",
@@ -1232,7 +1304,12 @@ mod tests {
             ));
         }
         source.push(']');
-        crate::import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        crate::import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         // Radius 380 at 50 ly cells: a 16^3 = 4096 cell box, above the
         // 2048-cell crossover, so the scan runs on the walked path.
@@ -1245,14 +1322,21 @@ mod tests {
                 let dy = p[1] - center[1];
                 let dz = p[2] - center[2];
                 let brute = (dx * dx + dy * dy + dz * dz).sqrt();
-                assert!((d - brute).abs() < 0.01, "reported distance disagrees for {}", g.name(&r));
+                assert!(
+                    (d - brute).abs() < 0.01,
+                    "reported distance disagrees for {}",
+                    g.name(&r)
+                );
                 names.push(g.name(&r).to_string());
             });
             names.sort();
             names
         };
         // S4 at (300,300,300) is 519 ly out; everything else is inside.
-        assert_eq!(names_within([0.0, 0.0, 0.0], 380.0, None), ["S0", "S1", "S2", "S3"].map(String::from));
+        assert_eq!(
+            names_within([0.0, 0.0, 0.0], 380.0, None),
+            ["S0", "S1", "S2", "S3"].map(String::from)
+        );
         // Toward a goal at (300,0,0) with 260 ly of slack: the cell of S2
         // (-60,0,0) sits 350 ly from the goal and is skipped whole.
         assert_eq!(
@@ -1269,7 +1353,13 @@ mod tests {
     fn a_sparse_install_serves_only_landed_cells() {
         let dir = tempfile::tempdir().unwrap();
         let mut source = String::from("[\n");
-        let coords = [(0, 0, 0), (60, 0, 0), (-60, 0, 0), (120, 60, -60), (300, 300, 300)];
+        let coords = [
+            (0, 0, 0),
+            (60, 0, 0),
+            (-60, 0, 0),
+            (120, 60, -60),
+            (300, 300, 300),
+        ];
         for (i, (x, y, z)) in coords.iter().enumerate() {
             source.push_str(&format!(
                 "{{\"id64\":{},\"name\":\"S{i}\",\"coords\":{{\"x\":{x}.0,\"y\":{y}.0,\"z\":{z}.0}},\"bodies\":[]}}{}\n",
@@ -1278,9 +1368,18 @@ mod tests {
             ));
         }
         source.push(']');
-        crate::import::import_reader(Box::new(std::io::Cursor::new(source.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        crate::import::import_reader(
+            Box::new(std::io::Cursor::new(source.into_bytes())),
+            dir.path(),
+            &mut |_| {},
+        )
+        .unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
-        assert_eq!(g.within([0.0, 0.0, 0.0], 400.0).len(), 4, "S0..S3 in range, S4 far out");
+        assert_eq!(
+            g.within([0.0, 0.0, 0.0], 400.0).len(),
+            4,
+            "S0..S3 in range, S4 far out"
+        );
         let hole = g.cell_of_record(g.find("S1").unwrap());
         let mut p = crate::presence::Presence::new_absent(g.cell_count());
         for i in 0..g.cell_count() {
@@ -1288,7 +1387,8 @@ mod tests {
                 p.mark_present(i);
             }
         }
-        p.write(&dir.path().join(crate::presence::PRESENT_FILE)).unwrap();
+        p.write(&dir.path().join(crate::presence::PRESENT_FILE))
+            .unwrap();
 
         // A fresh handle picks the bitmap up; the old one cached "none".
         let g = Galaxy::open(dir.path()).unwrap();
@@ -1297,11 +1397,25 @@ mod tests {
             .into_iter()
             .map(|(idx, _)| g.name(&g.record(idx)).to_string())
             .collect();
-        assert!(!served.contains(&"S1".to_string()), "the hole is served as empty: {served:?}");
+        assert!(
+            !served.contains(&"S1".to_string()),
+            "the hole is served as empty: {served:?}"
+        );
         assert_eq!(served.len(), 3);
-        assert_eq!(g.cell_range(1, 0, 0), None, "S1's cell is occupied but not landed");
-        assert_eq!(g.missing_cells_in_box((-8, -8, -8), (8, 8, 8)), vec![(1, 0, 0)]);
-        assert_eq!(g.missing_cells_in_box((2, 2, 2), (8, 8, 8)), vec![], "the hole is not in this box");
+        assert_eq!(
+            g.cell_range(1, 0, 0),
+            None,
+            "S1's cell is occupied but not landed"
+        );
+        assert_eq!(
+            g.missing_cells_in_box((-8, -8, -8), (8, 8, 8)),
+            vec![(1, 0, 0)]
+        );
+        assert_eq!(
+            g.missing_cells_in_box((2, 2, 2), (8, 8, 8)),
+            vec![],
+            "the hole is not in this box"
+        );
         // Name search never reads the hole as bytes: S1 is unknown, and
         // anything that does resolve resolves correctly.
         assert_eq!(g.find("S1"), None);
@@ -1322,7 +1436,10 @@ mod tests {
         let g = Galaxy::open(dir.path()).unwrap();
         assert!(g.presence().is_none());
         assert_eq!(g.within([0.0, 0.0, 0.0], 400.0).len(), 4);
-        assert_eq!(g.find("S1").map(|i| g.name(&g.record(i)).to_string()), Some("S1".into()));
+        assert_eq!(
+            g.find("S1").map(|i| g.name(&g.record(i)).to_string()),
+            Some("S1".into())
+        );
     }
 
     #[test]

@@ -53,7 +53,8 @@ const STATION_COLS: &str = "st.id, st.name, sy.name, sy.address, sy.x, sy.y, sy.
                             sy.controlling_power, sy.power_state, sy.powers";
 
 pub(crate) fn station_ref(row: &sqlx::postgres::PgRow) -> StationRef {
-    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) = (row.get(8), row.get(9), row.get(10));
+    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
+        (row.get(8), row.get(9), row.get(10));
     StationRef {
         station_id: row.get::<i64, _>(0),
         station: row.get::<Option<String>, _>(1).unwrap_or_default(),
@@ -70,7 +71,12 @@ pub(crate) fn station_ref(row: &sqlx::postgres::PgRow) -> StationRef {
         power_state: row.get::<Option<String>, _>(14),
         powers: row
             .get::<Option<String>, _>(15)
-            .map(|s| s.split(',').map(|p| p.trim().to_owned()).filter(|p| !p.is_empty()).collect())
+            .map(|s| {
+                s.split(',')
+                    .map(|p| p.trim().to_owned())
+                    .filter(|p| !p.is_empty())
+                    .collect()
+            })
             .unwrap_or_default(),
     }
 }
@@ -120,7 +126,11 @@ pub(crate) fn exclude(
 }
 
 /// Candidate stations, their fresh rows, confiscations applied.
-pub async fn prepare(pool: &PgPool, origin: (f64, f64, f64), c: &Constraints) -> Result<Prepared, Refusal> {
+pub async fn prepare(
+    pool: &PgPool,
+    origin: (f64, f64, f64),
+    c: &Constraints,
+) -> Result<Prepared, Refusal> {
     let (ox, oy, oz) = origin;
     let r = c.radius_ly.clamp(1.0, MAX_RADIUS_LY);
     let mut excluded = Excluded::default();
@@ -157,7 +167,12 @@ pub async fn prepare(pool: &PgPool, origin: (f64, f64, f64), c: &Constraints) ->
     .fetch_all(pool)
     .await
     .map_err(|e| Refusal::Invalid(e.to_string()))?;
-    let stations = exclude(rows.iter().map(station_ref).collect(), origin, c, &mut excluded);
+    let stations = exclude(
+        rows.iter().map(station_ref).collect(),
+        origin,
+        c,
+        &mut excluded,
+    );
     timing.candidates_ms = phase.elapsed().as_millis() as u64;
 
     let phase = Instant::now();
@@ -196,12 +211,13 @@ pub async fn prepare(pool: &PgPool, origin: (f64, f64, f64), c: &Constraints) ->
     timing.market_ms = phase.elapsed().as_millis() as u64;
 
     let phase = Instant::now();
-    let prohibited_rows: Vec<(i64, String)> =
-        sqlx::query_as("SELECT station_id, lower(symbol) FROM station_prohibited WHERE station_id = ANY($1)")
-            .bind(&ids)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| Refusal::Invalid(e.to_string()))?;
+    let prohibited_rows: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT station_id, lower(symbol) FROM station_prohibited WHERE station_id = ANY($1)",
+    )
+    .bind(&ids)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| Refusal::Invalid(e.to_string()))?;
     // Opted in, the sale is allowed exactly where a black market exists
     // to take the goods; elsewhere it stays impossible.
     let black_markets: HashSet<i64> = if c.include_prohibited {
@@ -229,7 +245,12 @@ pub async fn prepare(pool: &PgPool, origin: (f64, f64, f64), c: &Constraints) ->
     excluded.confiscated_sales = silence_prohibited(&mut market, &prohibited);
     timing.guards_ms = phase.elapsed().as_millis() as u64;
 
-    Ok(Prepared { stations, rows: market, excluded, timing })
+    Ok(Prepared {
+        stations,
+        rows: market,
+        excluded,
+        timing,
+    })
 }
 
 // ------------------------------------------------- the docked board
@@ -280,7 +301,11 @@ pub struct BoardUse {
 
 impl BoardUse {
     fn unused(reason: &'static str) -> Self {
-        BoardUse { used: false, reason, rows: 0 }
+        BoardUse {
+            used: false,
+            reason,
+            rows: 0,
+        }
     }
 }
 
@@ -309,7 +334,11 @@ pub fn fuse_board(
     if stored_newest.is_some_and(|stored| stored >= observed) {
         return BoardUse::unused("older");
     }
-    if !prepared.stations.iter().any(|s| s.station_id == board.station_id) {
+    if !prepared
+        .stations
+        .iter()
+        .any(|s| s.station_id == board.station_id)
+    {
         match station {
             Some(s) => prepared.stations.push(s),
             None => return BoardUse::unused("unknown_station"),
@@ -342,7 +371,15 @@ pub fn fuse_board(
         });
         rows += 1;
     }
-    BoardUse { used: true, reason: if stored_newest.is_some() { "newer" } else { "absent" }, rows }
+    BoardUse {
+        used: true,
+        reason: if stored_newest.is_some() {
+            "newer"
+        } else {
+            "absent"
+        },
+        rows,
+    }
 }
 
 /// The async half: bounds, the stored board's age, the station's row
@@ -354,7 +391,10 @@ pub async fn fuse(
     from_station_id: Option<i64>,
 ) -> Result<BoardUse, Refusal> {
     if board.rows.len() > MAX_BOARD_ROWS {
-        return Err(Refusal::Invalid(format!("board carries {} rows; at most {MAX_BOARD_ROWS}", board.rows.len())));
+        return Err(Refusal::Invalid(format!(
+            "board carries {} rows; at most {MAX_BOARD_ROWS}",
+            board.rows.len()
+        )));
     }
     if from_station_id != Some(board.station_id) {
         return Ok(BoardUse::unused("mismatch"));
@@ -366,7 +406,11 @@ pub async fn fuse(
     .fetch_one(pool)
     .await
     .map_err(|e| Refusal::Invalid(e.to_string()))?;
-    let station = if prepared.stations.iter().any(|s| s.station_id == board.station_id) {
+    let station = if prepared
+        .stations
+        .iter()
+        .any(|s| s.station_id == board.station_id)
+    {
         None
     } else {
         sqlx::query(&format!(
@@ -379,15 +423,20 @@ pub async fn fuse(
         .as_ref()
         .map(station_ref)
     };
-    let symbols: Vec<String> = board.rows.iter().map(|r| r.symbol.trim().to_ascii_lowercase()).collect();
-    let names: HashMap<String, String> =
-        sqlx::query_as::<_, (String, String)>("SELECT symbol, name FROM commodities WHERE symbol = ANY($1) AND name <> ''")
-            .bind(&symbols)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| Refusal::Invalid(e.to_string()))?
-            .into_iter()
-            .collect();
+    let symbols: Vec<String> = board
+        .rows
+        .iter()
+        .map(|r| r.symbol.trim().to_ascii_lowercase())
+        .collect();
+    let names: HashMap<String, String> = sqlx::query_as::<_, (String, String)>(
+        "SELECT symbol, name FROM commodities WHERE symbol = ANY($1) AND name <> ''",
+    )
+    .bind(&symbols)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| Refusal::Invalid(e.to_string()))?
+    .into_iter()
+    .collect();
     Ok(fuse_board(
         prepared,
         board,
@@ -410,11 +459,20 @@ mod tests {
     #[test]
     fn the_docked_board_is_used_only_when_newer_and_only_for_its_station() {
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
-            station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
-            demand: 10, supply: 10, age_hours: 5.0,
+            station_id: st,
+            symbol: sym.into(),
+            name: None,
+            buy_price: buy,
+            sell_price: sell,
+            demand: 10,
+            supply: 10,
+            age_hours: 5.0,
         };
         let fresh = || Prepared {
-            stations: vec![station(1, 0.0, Some(PadSize::Large), false, Some(100.0)), station(2, 10.0, Some(PadSize::Large), false, Some(100.0))],
+            stations: vec![
+                station(1, 0.0, Some(PadSize::Large), false, Some(100.0)),
+                station(2, 10.0, Some(PadSize::Large), false, Some(100.0)),
+            ],
             rows: vec![row(1, "gold", 100, 0), row(2, "gold", 0, 200)],
             excluded: Excluded::default(),
             timing: SearchTiming::default(),
@@ -422,30 +480,76 @@ mod tests {
         let board = ClientBoard {
             station_id: 1,
             observed_at: "2026-09-09T10:00:00Z".into(),
-            rows: vec![ClientBoardRow { symbol: "Silver".into(), buy_price: 50, sell_price: 0, demand: 0, supply: 900 }],
+            rows: vec![ClientBoardRow {
+                symbol: "Silver".into(),
+                buy_price: 50,
+                sell_price: 0,
+                demand: 0,
+                supply: 900,
+            }],
         };
         let ts = ed_domain::freshness::parse_timestamp("2026-09-09T10:00:00Z").unwrap();
-        let names: HashMap<String, String> = [("silver".to_string(), "Silver".to_string())].into_iter().collect();
+        let names: HashMap<String, String> = [("silver".to_string(), "Silver".to_string())]
+            .into_iter()
+            .collect();
 
         // Newer than the stored board: station 1's rows are the board's.
         let mut p = fresh();
-        let outcome = fuse_board(&mut p, &board, Some(1), Some(ts - 3_600), None, &names, ts + 1_800);
-        assert_eq!(outcome, BoardUse { used: true, reason: "newer", rows: 1 });
+        let outcome = fuse_board(
+            &mut p,
+            &board,
+            Some(1),
+            Some(ts - 3_600),
+            None,
+            &names,
+            ts + 1_800,
+        );
+        assert_eq!(
+            outcome,
+            BoardUse {
+                used: true,
+                reason: "newer",
+                rows: 1
+            }
+        );
         let mine: Vec<&MarketRow> = p.rows.iter().filter(|r| r.station_id == 1).collect();
         assert_eq!(mine.len(), 1);
-        assert_eq!((mine[0].symbol.as_str(), mine[0].name.as_deref(), mine[0].supply), ("silver", Some("Silver"), 900));
-        assert!((mine[0].age_hours - 0.5).abs() < 1e-9, "age from the board's own timestamp");
-        assert_eq!(p.rows.iter().filter(|r| r.station_id == 2).count(), 1, "the other station is untouched");
+        assert_eq!(
+            (
+                mine[0].symbol.as_str(),
+                mine[0].name.as_deref(),
+                mine[0].supply
+            ),
+            ("silver", Some("Silver"), 900)
+        );
+        assert!(
+            (mine[0].age_hours - 0.5).abs() < 1e-9,
+            "age from the board's own timestamp"
+        );
+        assert_eq!(
+            p.rows.iter().filter(|r| r.station_id == 2).count(),
+            1,
+            "the other station is untouched"
+        );
 
         // Older than (or equal to) the stored board: nothing changes.
         let mut p = fresh();
-        assert_eq!(fuse_board(&mut p, &board, Some(1), Some(ts), None, &names, ts + 60), BoardUse::unused("older"));
+        assert_eq!(
+            fuse_board(&mut p, &board, Some(1), Some(ts), None, &names, ts + 60),
+            BoardUse::unused("older")
+        );
         assert_eq!(p.rows.len(), 2);
 
         // Not the station the request sources from.
         let mut p = fresh();
-        assert_eq!(fuse_board(&mut p, &board, Some(2), None, None, &names, ts), BoardUse::unused("mismatch"));
-        assert_eq!(fuse_board(&mut p, &board, None, None, None, &names, ts), BoardUse::unused("mismatch"));
+        assert_eq!(
+            fuse_board(&mut p, &board, Some(2), None, None, &names, ts),
+            BoardUse::unused("mismatch")
+        );
+        assert_eq!(
+            fuse_board(&mut p, &board, None, None, None, &names, ts),
+            BoardUse::unused("mismatch")
+        );
         assert_eq!(p.rows.len(), 2);
 
         // The server has no board there and the station was not a
@@ -456,19 +560,41 @@ mod tests {
         p.rows.retain(|r| r.station_id != 1);
         p.excluded.no_market_data = 1;
         let docked = station(1, 0.0, Some(PadSize::Large), false, Some(100.0));
-        assert_eq!(fuse_board(&mut p, &board, Some(1), None, Some(docked), &names, ts), BoardUse { used: true, reason: "absent", rows: 1 });
+        assert_eq!(
+            fuse_board(&mut p, &board, Some(1), None, Some(docked), &names, ts),
+            BoardUse {
+                used: true,
+                reason: "absent",
+                rows: 1
+            }
+        );
         assert_eq!(p.stations.len(), 2);
         assert_eq!(p.excluded.no_market_data, 0);
         let mut p = fresh();
         p.stations.retain(|s| s.station_id != 1);
-        assert_eq!(fuse_board(&mut p, &board, Some(1), None, None, &names, ts), BoardUse::unused("unknown_station"));
+        assert_eq!(
+            fuse_board(&mut p, &board, Some(1), None, None, &names, ts),
+            BoardUse::unused("unknown_station")
+        );
 
-        let bad = ClientBoard { observed_at: "yesterday".into(), ..board.clone() };
+        let bad = ClientBoard {
+            observed_at: "yesterday".into(),
+            ..board.clone()
+        };
         let mut p = fresh();
-        assert_eq!(fuse_board(&mut p, &bad, Some(1), None, None, &names, ts), BoardUse::unused("invalid_timestamp"));
+        assert_eq!(
+            fuse_board(&mut p, &bad, Some(1), None, None, &names, ts),
+            BoardUse::unused("invalid_timestamp")
+        );
     }
 
-    fn station(id: i64, x: f64, pad: Option<PadSize>, carrier: bool, arrival: Option<f64>) -> StationRef {
+    fn station(
+        id: i64,
+        x: f64,
+        pad: Option<PadSize>,
+        carrier: bool,
+        arrival: Option<f64>,
+    ) -> StationRef {
         StationRef {
             station_id: id,
             station: format!("S{id}"),
@@ -492,7 +618,12 @@ mod tests {
     /// when a pad is required, then the nearest `max_stations` kept.
     #[test]
     fn exclusions_mirror_the_local_finder() {
-        let c = Constraints { min_pad: Some(PadSize::Large), max_arrival_ls: 1_000.0, max_stations: 2, ..Constraints::default() };
+        let c = Constraints {
+            min_pad: Some(PadSize::Large),
+            max_arrival_ls: 1_000.0,
+            max_stations: 2,
+            ..Constraints::default()
+        };
         let all = vec![
             station(1, 1.0, Some(PadSize::Large), false, Some(10.0)),
             station(2, 2.0, Some(PadSize::Large), true, Some(10.0)),
@@ -504,7 +635,10 @@ mod tests {
         ];
         let mut excluded = Excluded::default();
         let kept = exclude(all, (0.0, 0.0, 0.0), &c, &mut excluded);
-        assert_eq!(kept.iter().map(|s| s.station_id).collect::<Vec<_>>(), vec![1, 6]);
+        assert_eq!(
+            kept.iter().map(|s| s.station_id).collect::<Vec<_>>(),
+            vec![1, 6]
+        );
         assert_eq!(excluded.carriers, 1);
         assert_eq!(excluded.pad_too_small, 1);
         assert_eq!(excluded.pad_unknown, 1);

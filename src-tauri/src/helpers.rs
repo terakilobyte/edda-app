@@ -21,7 +21,9 @@ struct ManagedChild {
 
 impl HelperManager {
     pub fn new() -> Self {
-        Self { children: Mutex::new(HashMap::new()) }
+        Self {
+            children: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Ask the OS for an unused loopback port. Launchers should start
@@ -43,12 +45,19 @@ impl HelperManager {
             return Err(e);
         }
         let pid = child.id();
-        self.children.lock().unwrap_or_else(|e| e.into_inner()).insert(name, ManagedChild { child, _tree: tree });
+        self.children
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(name, ManagedChild { child, _tree: tree });
         Ok(pid)
     }
 
     pub fn stop(&self, name: &str) -> bool {
-        let old = self.children.lock().unwrap_or_else(|e| e.into_inner()).remove(name);
+        let old = self
+            .children
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(name);
         if let Some(mut managed) = old {
             let _ = managed.child.kill();
             let _ = managed.child.wait();
@@ -60,7 +69,9 @@ impl HelperManager {
 
     pub fn running(&self, name: &str) -> bool {
         let mut children = self.children.lock().unwrap_or_else(|e| e.into_inner());
-        let Some(managed) = children.get_mut(name) else { return false };
+        let Some(managed) = children.get_mut(name) else {
+            return false;
+        };
         matches!(managed.child.try_wait(), Ok(None))
     }
 }
@@ -82,33 +93,57 @@ mod platform {
     use std::os::windows::io::AsRawHandle;
     use std::process::Child;
     use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows_sys::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE};
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
 
-    pub struct ProcessTree { job: HANDLE }
+    pub struct ProcessTree {
+        job: HANDLE,
+    }
     unsafe impl Send for ProcessTree {}
 
     impl ProcessTree {
         pub fn new() -> anyhow::Result<Self> {
             let job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
-            if job.is_null() { return Err(std::io::Error::last_os_error()).context("creating helper Job Object") }
+            if job.is_null() {
+                return Err(std::io::Error::last_os_error()).context("creating helper Job Object");
+            }
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
             info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            let ok = unsafe { SetInformationJobObject(job, JobObjectExtendedLimitInformation, &info as *const _ as _, size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32) };
-            if ok == 0 { unsafe { CloseHandle(job) }; return Err(std::io::Error::last_os_error()).context("configuring helper Job Object") }
+            let ok = unsafe {
+                SetInformationJobObject(
+                    job,
+                    JobObjectExtendedLimitInformation,
+                    &info as *const _ as _,
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                )
+            };
+            if ok == 0 {
+                unsafe { CloseHandle(job) };
+                return Err(std::io::Error::last_os_error())
+                    .context("configuring helper Job Object");
+            }
             Ok(Self { job })
         }
 
         pub fn attach(&self, child: &Child) -> anyhow::Result<()> {
             let process = child.as_raw_handle() as HANDLE;
             if unsafe { AssignProcessToJobObject(self.job, process) } == 0 {
-                bail!("assigning helper to Job Object: {}", std::io::Error::last_os_error());
+                bail!(
+                    "assigning helper to Job Object: {}",
+                    std::io::Error::last_os_error()
+                );
             }
             Ok(())
         }
     }
 
     impl Drop for ProcessTree {
-        fn drop(&mut self) { unsafe { CloseHandle(self.job) }; }
+        fn drop(&mut self) {
+            unsafe { CloseHandle(self.job) };
+        }
     }
 }
 
@@ -120,8 +155,12 @@ mod platform {
     /// belongs here and will create a process group before spawn.
     pub struct ProcessTree;
     impl ProcessTree {
-        pub fn new() -> anyhow::Result<Self> { Ok(Self) }
-        pub fn attach(&self, _child: &Child) -> anyhow::Result<()> { Ok(()) }
+        pub fn new() -> anyhow::Result<Self> {
+            Ok(Self)
+        }
+        pub fn attach(&self, _child: &Child) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 }
 

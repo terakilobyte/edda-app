@@ -29,7 +29,9 @@ fn get_i64(v: &Value, key: &str) -> i64 {
 /// "which events change material counts and how" -- keep it exhaustive
 /// rather than adding ad-hoc greps elsewhere.
 pub fn apply_event(inventory: &mut Inventory, event: &Value) {
-    let Some(etype) = get_str(event, "event") else { return };
+    let Some(etype) = get_str(event, "event") else {
+        return;
+    };
 
     match etype {
         "Materials" => {
@@ -47,14 +49,22 @@ pub fn apply_event(inventory: &mut Inventory, event: &Value) {
 
         "MaterialCollected" => {
             if let Some(name) = get_str(event, "Name") {
-                let count = if event.get("Count").is_some() { get_i64(event, "Count") } else { 1 };
+                let count = if event.get("Count").is_some() {
+                    get_i64(event, "Count")
+                } else {
+                    1
+                };
                 *inventory.entry(name.to_lowercase()).or_insert(0) += count;
             }
         }
 
         "MaterialDiscarded" => {
             if let Some(name) = get_str(event, "Name") {
-                let count = if event.get("Count").is_some() { get_i64(event, "Count") } else { 1 };
+                let count = if event.get("Count").is_some() {
+                    get_i64(event, "Count")
+                } else {
+                    1
+                };
                 let entry = inventory.entry(name.to_lowercase()).or_insert(0);
                 *entry = (*entry - count).max(0);
             }
@@ -69,7 +79,8 @@ pub fn apply_event(inventory: &mut Inventory, event: &Value) {
             }
             if let Some(received) = event.get("Received") {
                 if let Some(name) = get_str(received, "Material") {
-                    *inventory.entry(name.to_lowercase()).or_insert(0) += get_i64(received, "Quantity");
+                    *inventory.entry(name.to_lowercase()).or_insert(0) +=
+                        get_i64(received, "Quantity");
                 }
             }
         }

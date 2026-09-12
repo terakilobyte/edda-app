@@ -122,14 +122,27 @@ pub struct RunRequest {
 fn provider_label(state: &AppState) -> (String, String) {
     let cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
     if cfg.ai_provider.as_deref() == Some("openai") {
-        (cfg.openai_base_url.clone().unwrap_or_default(), cfg.openai_model.clone().unwrap_or_default())
+        (
+            cfg.openai_base_url.clone().unwrap_or_default(),
+            cfg.openai_model.clone().unwrap_or_default(),
+        )
     } else {
-        ("anthropic".into(), cfg.anthropic_model.clone().unwrap_or_else(|| "default".into()))
+        (
+            "anthropic".into(),
+            cfg.anthropic_model
+                .clone()
+                .unwrap_or_else(|| "default".into()),
+        )
     }
 }
 
 fn markdown_smell(text: &str) -> bool {
-    text.contains("**") || text.lines().any(|l| l.trim_start().starts_with("# ") || l.trim_start().starts_with("- ") || l.trim_start().starts_with("* "))
+    text.contains("**")
+        || text.lines().any(|l| {
+            l.trim_start().starts_with("# ")
+                || l.trim_start().starts_with("- ")
+                || l.trim_start().starts_with("* ")
+        })
 }
 
 pub async fn run(state: &AppState, req: &RunRequest) -> Report {
@@ -140,7 +153,11 @@ pub async fn run(state: &AppState, req: &RunRequest) -> Report {
     });
     let report = run_inner(state, req).await;
     if let Some(prev) = saved {
-        state.config.lock().unwrap_or_else(|e| e.into_inner()).ai_provider = prev;
+        state
+            .config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .ai_provider = prev;
     }
     report
 }
@@ -171,16 +188,32 @@ async fn run_inner(state: &AppState, req: &RunRequest) -> Report {
                 failures.push(format!("expected a {e:?} effect, got {effects:?}"));
             }
         }
-        if !case.expect_tools.is_empty() && !case.expect_tools.iter().any(|t| tools_used.iter().any(|u| u == t)) {
-            failures.push(format!("expected one of {:?} to be called", case.expect_tools));
+        if !case.expect_tools.is_empty()
+            && !case
+                .expect_tools
+                .iter()
+                .any(|t| tools_used.iter().any(|u| u == t))
+        {
+            failures.push(format!(
+                "expected one of {:?} to be called",
+                case.expect_tools
+            ));
         }
         for t in case.forbid_tools {
             if tools_used.iter().any(|u| u == t) {
                 failures.push(format!("{t} must not be called"));
             }
         }
-        if !case.must_contain.is_empty() && !case.must_contain.iter().any(|s| lower.contains(&s.to_lowercase())) {
-            failures.push(format!("answer should mention one of {:?}", case.must_contain));
+        if !case.must_contain.is_empty()
+            && !case
+                .must_contain
+                .iter()
+                .any(|s| lower.contains(&s.to_lowercase()))
+        {
+            failures.push(format!(
+                "answer should mention one of {:?}",
+                case.must_contain
+            ));
         }
         if let Some((tool, pointer)) = case.must_contain_from {
             let live = crate::ai::tool_output(state, &fx, tool, &json!({}));
@@ -188,7 +221,9 @@ async fn run_inner(state: &AppState, req: &RunRequest) -> Report {
             match live.pointer(pointer).and_then(Value::as_str) {
                 Some(v) if !v.is_empty() => {
                     if !lower.contains(&v.to_lowercase()) {
-                        failures.push(format!("answer should contain {v:?} (from {tool}{pointer})"));
+                        failures.push(format!(
+                            "answer should contain {v:?} (from {tool}{pointer})"
+                        ));
                     }
                 }
                 _ => failures.push(format!("(no live value at {tool}{pointer}; check skipped)")),
@@ -198,27 +233,58 @@ async fn run_inner(state: &AppState, req: &RunRequest) -> Report {
             failures.push("empty answer".into());
         }
         if answer.chars().count() > case.max_chars {
-            failures.push(format!("too long for speech: {} chars > {}", answer.chars().count(), case.max_chars));
+            failures.push(format!(
+                "too long for speech: {} chars > {}",
+                answer.chars().count(),
+                case.max_chars
+            ));
         }
         if markdown_smell(&answer) {
             failures.push("markdown in a spoken reply".into());
         }
         let pass = failures.iter().all(|f| f.starts_with('('));
         tracing::info!(case = case.id, pass, tools = ?tools_used, ms = started.elapsed().as_millis() as u64, "eval case");
-        results.push(CaseResult { id: case.id, question: case.question, pass, failures, tools_used, effects, answer, ms: started.elapsed().as_millis() });
+        results.push(CaseResult {
+            id: case.id,
+            question: case.question,
+            pass,
+            failures,
+            tools_used,
+            effects,
+            answer,
+            ms: started.elapsed().as_millis(),
+        });
     }
     state.chat.lock().unwrap_or_else(|e| e.into_inner()).clear();
     let passed = results.iter().filter(|r| r.pass).count();
-    Report { provider, model, passed, total: results.len(), results }
+    Report {
+        provider,
+        model,
+        passed,
+        total: results.len(),
+        results,
+    }
 }
 
 #[tauri::command]
-pub async fn ai_eval(state: tauri::State<'_, AppState>, only: Option<Vec<String>>, provider: Option<String>) -> Result<Report, String> {
-    let req = RunRequest { only: only.unwrap_or_default(), provider, tool: None, input: None };
+pub async fn ai_eval(
+    state: tauri::State<'_, AppState>,
+    only: Option<Vec<String>>,
+    provider: Option<String>,
+) -> Result<Report, String> {
+    let req = RunRequest {
+        only: only.unwrap_or_default(),
+        provider,
+        tool: None,
+        input: None,
+    };
     let report = run(&state, &req).await;
     let dir = state.data_dir.join("eval");
     let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::write(dir.join("report.json"), serde_json::to_string_pretty(&report).unwrap_or_default());
+    let _ = std::fs::write(
+        dir.join("report.json"),
+        serde_json::to_string_pretty(&report).unwrap_or_default(),
+    );
     Ok(report)
 }
 
@@ -235,18 +301,34 @@ pub async fn dev_hook(token: tokio_util::sync::CancellationToken, app: AppHandle
         let dir = state.data_dir.join("eval");
         let run_file = dir.join("run.json");
         while crate::jobs::sleep_unless_cancelled(&token, std::time::Duration::from_secs(3)).await {
-            let Ok(text) = std::fs::read_to_string(&run_file) else { continue };
+            let Ok(text) = std::fs::read_to_string(&run_file) else {
+                continue;
+            };
             let _ = std::fs::remove_file(&run_file);
             let req: RunRequest = serde_json::from_str(&text).unwrap_or_default();
             if let Some(tool) = req.tool.as_deref() {
                 let fx = crate::ai::Recording::default();
-                let out = crate::ai::tool_output(&state, &fx, tool, &req.input.clone().unwrap_or(json!({})));
-                let _ = std::fs::write(dir.join("tool.json"), serde_json::to_string_pretty(&json!({ "tool": tool, "output": out, "effects": fx.take() })).unwrap_or_default());
+                let out = crate::ai::tool_output(
+                    &state,
+                    &fx,
+                    tool,
+                    &req.input.clone().unwrap_or(json!({})),
+                );
+                let _ = std::fs::write(
+                    dir.join("tool.json"),
+                    serde_json::to_string_pretty(
+                        &json!({ "tool": tool, "output": out, "effects": fx.take() }),
+                    )
+                    .unwrap_or_default(),
+                );
                 continue;
             }
             tracing::info!(only = ?req.only, "eval run requested");
             let report = run(&state, &req).await;
-            let _ = std::fs::write(dir.join("report.json"), serde_json::to_string_pretty(&report).unwrap_or_default());
+            let _ = std::fs::write(
+                dir.join("report.json"),
+                serde_json::to_string_pretty(&report).unwrap_or_default(),
+            );
             tracing::info!(passed = report.passed, total = report.total, "eval done");
         }
     }
