@@ -102,6 +102,8 @@ Initial endpoints:
 - `GET /v1/stations/search`: existing station/service search semantics.
 - `GET /v1/market/search`, `/v1/outfitting/search`, `/v1/shipyard/search`: existing lookup semantics with explicit freshness fields.
 - `GET /v1/status/data`: row counts, latest EDDN timestamps and published artifact versions; safe operational detail only.
+- `POST /v1/route`: plot a jump route over the routing index. `from` and `to` are required; every other field is optional and documented with its default on `RouteApiRequest` in `crates/ed-api/src/plot.rs`. The defaults worth knowing at the call site: `supercharge` true, `white_dwarfs` false, `min_fuel` true, `weight` 1.3, `stop_weight` 1.0, `max_dry_jumps` 0 and **`thorough` true**. An omitted `thorough` therefore takes the expensive portfolio path, which is the right default for a one-shot web caller but *not* what the app sends for its first plot (`false`; `true` only behind "Try harder"). Quick and thorough differ in the route as well as the time, so a caller comparing numbers must send the field explicitly.
+- `POST /v1/loadout/physics`: an EDSY or Coriolis build paste in, a fuel model and boost profile out, for callers that want `/v1/route` to model fuel without owning the ship-physics code.
 
 Responses use a versioned envelope for errors and metadata. Artifact files are the sync protocol; the service exports language-neutral EBEX (EDDA Binary Exchange Format) baselines and never exposes live PostgreSQL storage or arbitrary database pages. Clients hydrate EBEX into SQLite and then continue applying their own EDDN stream. The normative byte layout, compatibility rules, and producer contract are in [BINARY-FORMATS.md](BINARY-FORMATS.md).
 

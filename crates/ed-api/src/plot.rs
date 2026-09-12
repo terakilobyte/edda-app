@@ -113,23 +113,56 @@ const CACHE_CAP: usize = 256;
 pub const RATE_WINDOW: Duration = Duration::from_secs(3_600);
 pub const RATE_PER_WINDOW: u32 = 2_500;
 
-/// The wire request. Everything optional mirrors the client's
-/// `PlotQuery` defaults so the two paths cannot quietly disagree.
+/// The wire request. `from` and `to` are required; everything else is
+/// optional, and an omitted field takes the default noted on it. Those
+/// defaults are the ones a WEB caller wants, which is not always what the
+/// app sends -- see `thorough` (maintainer, 2026-09-11: two sessions
+/// measured "the same" Sol -> Colonia request and got 140 jumps against
+/// 141, because one spelled `thorough` out and the other did not).
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RouteApiRequest {
+    /// Origin system name. Required; resolved against the routing index,
+    /// then Postgres, then EDSM (see `from_coords` for the last resort).
     pub from: String,
+    /// Destination system name. Required, resolved like `from`.
     pub to: String,
+    /// Unladen jump range at full tank, ly. Ignored when `fuel_model` is
+    /// given (the model's own full-tank range wins); required otherwise.
     pub range_ly: Option<f32>,
+    /// The ship's fuel physics, from `/v1/loadout/physics` or the app.
+    /// With it the plot models fuel and scoop stops; without it the plot
+    /// is range-only and reports no refuel stops.
     pub fuel_model: Option<FuelModel>,
+    /// Supercharge multipliers. Default: neutron x4, white dwarf x1.5 for
+    /// a standard drive (`BoostProfile::default`).
     pub boost: Option<BoostProfile>,
+    /// Fuel in the tank at the origin, t. Default: the model's capacity.
     pub start_fuel: Option<f32>,
+    /// Use neutron stars to supercharge. Default: **true**.
     pub supercharge: Option<bool>,
+    /// Also use white dwarfs (about twice as slow to line up as a
+    /// neutron, so opt-in). Default: **false**.
     pub white_dwarfs: Option<bool>,
+    /// Prefer the fewest scoop stops. Default: **true**.
     pub min_fuel: Option<bool>,
+    /// Cap on consecutive unscoopable arrivals. Default: **0** (no cap).
     pub max_dry_jumps: Option<u32>,
+    /// A* heuristic weight, clamped to >= 1.0. Default: **1.3** (fast and
+    /// near-optimal); 1.0 is admissible and much slower.
     pub weight: Option<f32>,
+    /// Jumps-versus-refuels dial. Default: **1.0**, the journal-fit time
+    /// model; 0.0 judges by flying time alone (absolute fewest jumps).
     pub stop_weight: Option<f32>,
+    /// Run the thorough portfolio instead of the quick plot. Default:
+    /// **true** -- an omitted `thorough` gets the EXPENSIVE path, because a
+    /// one-shot web caller wants the best route it can get. EDDA's own
+    /// Route tab sends `false` for its first plot and `true` only when the
+    /// commander presses "Try harder", so a caller that wants the app's
+    /// quick behaviour must send `false` explicitly. The two differ in the
+    /// answer, not just the time: measured on 164fcbd0, Sol -> Colonia at
+    /// 50 ly with supercharge, quick gave 140 jumps / 119 boosted in
+    /// 0.3 s and thorough gave 141 / 122 in 0.5 s.
     pub thorough: Option<bool>,
     /// The commander's own journal position for an endpoint (FSDJump
     /// StarPos) — the no-EDMC case: used ONLY when the name misses the
