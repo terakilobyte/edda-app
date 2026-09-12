@@ -40,12 +40,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   while the highway for the current version is pending is served but
   never cached. Still open: a warm-up plot from adopt/reconcile so the
   build runs before a commander's request.
-- **`boost.bin` is adopted but not published** (2026-09-11). The side
+- **`boost.bin` is carried but not published** (2026-09-11). The side
   file lands in `routing/<version>/` but the manifest's file list still
   names only the four EDGX files and `chunks.json`, so clients on local
   data never fetch it. Harmless while the product passes
   `secondary_boost_ls: 0`; needed the day the planner charges secondary
-  boosts.
+  boosts. Half of it is closed: the reconcile's carry (PR #40) is
+  confirmed in production on the first nightly after it shipped —
+  `routing/a12fce97/boost.bin` and `routing/164fcbd0/boost.bin` are one
+  inode (4932154, link count 2), so the file rides the chain by hard
+  link rather than being copied or dropped. What remains is listing it
+  in the manifest.
 - **`apply api` must ship with its own script** (2026-09-11, measured).
   The 16:25 Deploy API ran the box's *old* `edda-apply`, which restarted
   only the API; `edda-eddn` kept the Sep 9 binary for another four
