@@ -502,12 +502,23 @@ pub struct NameHit {
 pub enum NameKind {
     System,
     Station,
+    /// Ship hulls, from the bundled journal catalog: no API, no index.
+    Ship,
 }
 
 #[tauri::command]
 pub async fn name_complete(state: State<'_, AppState>, routing: State<'_, Arc<RoutingState>>, kind: NameKind, prefix: String) -> Result<Vec<NameHit>, String> {
     Ok({
     let p = prefix.trim();
+    // Hulls are a bundled list of fifty, so one letter is enough and the
+    // answer is local (maintainer, 2026-09-12: the Market tab offered no
+    // completion at all when searching for a ship).
+    if kind == NameKind::Ship {
+        return Ok(ed_journal::ships::complete(p, NAME_HITS)
+            .into_iter()
+            .map(|name| NameHit { name: name.to_string(), detail: None })
+            .collect());
+    }
     if p.len() < 2 {
         return Ok(Vec::new());
     }

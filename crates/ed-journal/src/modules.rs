@@ -7,6 +7,103 @@
 //! "Optional 1 (size 7)", "Thrusters".
 
 /// The outfitting name for a module symbol.
+/// A commander's words for a module -> a fragment of its journal symbol,
+/// for the symbol-only market tables (maintainer, 2026-09-12: the Market
+/// tab's module search only answered when the typed text happened to be a
+/// symbol fragment). "fuel scoop" -> `fuelscoop`, "5A fuel scoop" ->
+/// `fuelscoop_size5_class5`, "beam laser" -> `beamlaser`. Words the symbol
+/// spells differently are mapped first; everything else just loses its
+/// spaces, which is what journal symbols do. Returns None when there is
+/// nothing to search on.
+fn rating_class(rating: u8) -> Option<u32> {
+    match rating.to_ascii_lowercase() {
+        b'a' => Some(5),
+        b'b' => Some(4),
+        b'c' => Some(3),
+        b'd' => Some(2),
+        b'e' => Some(1),
+        _ => None,
+    }
+}
+
+pub fn search_fragment(text: &str) -> Option<String> {
+    let lower = text.trim().to_ascii_lowercase();
+    if lower.is_empty() {
+        return None;
+    }
+    // A leading size+rating ("5A", "3 d") names the slot size and, for
+    // internals, the class digit: A is the best of five.
+    let mut size: Option<u32> = None;
+    let mut class: Option<u32> = None;
+    let mut words: Vec<String> = Vec::new();
+    for w in lower.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()) {
+        let b = w.as_bytes();
+        // A rating written apart from the size ("3 D fuel scoop").
+        if size.is_some() && class.is_none() && words.is_empty() && b.len() == 1 {
+            if let Some(c) = rating_class(b[0]) {
+                class = Some(c);
+                continue;
+            }
+        }
+        let head_size = b[0].is_ascii_digit() && (1..=8).contains(&((b[0] - b'0') as u32));
+        if size.is_none() && words.is_empty() && head_size {
+            size = Some((b[0] - b'0') as u32);
+            let rating = if b.len() == 2 { Some(b[1]) } else { None };
+            class = rating.and_then(|r| rating_class(r));
+            if b.len() <= 2 {
+                continue;
+            }
+        }
+        words.push(w.to_string());
+    }
+    let joined = words.join("");
+    let stem = match joined.as_str() {
+        "" => return None,
+        // Symbols that do not read like their names.
+        "afmu" | "autofieldmaintenanceunit" | "autofieldmaintenance" => "repairer".to_string(),
+        "srvhangar" | "planetaryvehiclehangar" | "vehiclehangar" => "buggybay".to_string(),
+        "shieldcellbank" | "scb" | "shieldcell" => "shieldcellbank".to_string(),
+        "hullreinforcement" | "hrp" => "hullreinforcement".to_string(),
+        "modulereinforcement" | "mrp" => "modulereinforcement".to_string(),
+        "fsdbooster" | "guardianfsdbooster" => "guardianfsdbooster".to_string(),
+        "fsd" | "framshiftdrive" | "frameshiftdrive" => "hyperdrive".to_string(),
+        "detailedsurfacescanner" | "dss" => "detailedsurfacescanner".to_string(),
+        "fss" | "fullspectrumscanner" => "fullspectrumscanner".to_string(),
+        other => other.to_string(),
+    };
+    let mut out = stem;
+    if let Some(n) = size {
+        out.push_str(&format!("_size{n}"));
+        if let Some(c) = class {
+            out.push_str(&format!("_class{c}"));
+        }
+    }
+    Some(out)
+}
+
+#[cfg(test)]
+mod search_fragment_tests {
+    use super::search_fragment;
+    /// The shapes the Market tab's placeholder promises, plus the ones
+    /// whose symbol spells the thing differently.
+    #[test]
+    fn words_become_a_symbol_fragment() {
+        assert_eq!(search_fragment("fuel scoop").as_deref(), Some("fuelscoop"));
+        assert_eq!(search_fragment("5A fuel scoop").as_deref(), Some("fuelscoop_size5_class5"));
+        assert_eq!(search_fragment("5a fuelscoop").as_deref(), Some("fuelscoop_size5_class5"));
+        assert_eq!(search_fragment("3 D fuel scoop").as_deref(), Some("fuelscoop_size3_class2"));
+        assert_eq!(search_fragment("6 fuel scoop").as_deref(), Some("fuelscoop_size6"));
+        assert_eq!(search_fragment("beam laser").as_deref(), Some("beamlaser"));
+        assert_eq!(search_fragment("AFMU").as_deref(), Some("repairer"));
+        assert_eq!(search_fragment("SRV hangar").as_deref(), Some("buggybay"));
+        assert_eq!(search_fragment("guardian fsd booster").as_deref(), Some("guardianfsdbooster"));
+        assert_eq!(search_fragment("FSD").as_deref(), Some("hyperdrive"));
+        // A symbol typed straight in survives unchanged apart from case.
+        assert_eq!(search_fragment("int_fuelscoop_size5_class5").as_deref(), Some("intfuelscoopsize5class5"));
+        assert_eq!(search_fragment("   ").as_deref(), None);
+    }
+}
+
 pub fn item_name(symbol: &str) -> String {
     let s = symbol.to_ascii_lowercase();
     let parts: Vec<&str> = s.split('_').collect();
