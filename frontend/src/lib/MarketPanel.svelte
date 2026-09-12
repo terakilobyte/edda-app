@@ -134,9 +134,13 @@
       {#if kind === "commodity"}
         <Autocomplete bind:value={text} minWidth="100%" fetch={commodityComplete} onenter={run}
           placeholder="Gold, tritium, meta-alloys…" />
+      {:else if kind === "shipyard"}
+        <!-- The hull list is bundled, so this completes offline. -->
+        <Autocomplete bind:value={text} minWidth="100%" fetch={(p) => nameComplete("ship", p)} onenter={run}
+          placeholder="Type-10 Defender, Mandalay…" />
       {:else}
         <input bind:value={text} style="width:100%" onkeydown={(e) => e.key === "Enter" && run()}
-          placeholder={kind === "outfitting" ? "5A fuel scoop, beam laser…" : "Mandalay, Anaconda…"} />
+          placeholder="5A fuel scoop, beam laser…" />
       {/if}
     </label>
     {#if kind === "commodity"}

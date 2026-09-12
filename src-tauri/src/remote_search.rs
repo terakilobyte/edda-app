@@ -20,6 +20,38 @@ use crate::state::AppState;
 /// Only a blackholed host pays the full budget.
 const TOTAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 
+/// What a ship or module search must say to a symbol-only server.
+/// The market tables hold journal symbols, and the client owns the
+/// symbol->name catalog, so the translation belongs here (maintainer,
+/// 2026-09-12: "I can't find a Type-10 Defender" — its symbol is
+/// `type9_military`, and the server matched the typed words against that).
+/// Commodities are already searched by name server-side and pass through.
+fn wire_text(kind: &str, text: &str) -> String {
+    match kind {
+        "ship" => ed_journal::ships::resolve(text).map(str::to_owned).unwrap_or_else(|| text.to_owned()),
+        "module" => ed_journal::modules::search_fragment(text).unwrap_or_else(|| text.to_owned()),
+        _ => text.to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod wire_text_tests {
+    use super::wire_text;
+    /// A hull or module named the way a commander says it; anything the
+    /// catalog cannot place goes up unchanged, so the server's own
+    /// substring match still gets its chance.
+    #[test]
+    fn a_ship_or_module_goes_up_as_a_symbol() {
+        assert_eq!(wire_text("ship", "Type-10 Defender"), "type9_military");
+        assert_eq!(wire_text("ship", "Imperial Cutter"), "cutter");
+        assert_eq!(wire_text("ship", "Mandalay"), "mandalay");
+        assert_eq!(wire_text("ship", "Krait"), "Krait", "ambiguous: let the server try");
+        assert_eq!(wire_text("module", "5A fuel scoop"), "fuelscoop_size5_class5");
+        assert_eq!(wire_text("module", "beam laser"), "beamlaser");
+        assert_eq!(wire_text("commodity", "Gold"), "Gold");
+    }
+}
+
 /// The wire body for POST /v1/market/search, mirrored from the local
 /// request plus locally-resolved context.
 fn wire_body(
@@ -29,7 +61,7 @@ fn wire_body(
 ) -> serde_json::Value {
     serde_json::json!({
         "kind": query.kind,
-        "text": query.text,
+        "text": wire_text(&query.kind, &query.text),
         "system": system,
         "radius_ly": query.radius_ly,
         "min_pad": match min_pad {
