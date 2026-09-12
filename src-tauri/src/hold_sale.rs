@@ -73,6 +73,8 @@ pub async fn sell_hold_search(
             min_quantity: None,
             sort: Some("price".into()),
             limit: Some(PER_COMMODITY_LIMIT),
+            discounted_only: false,
+            stronghold_carriers: None,
         };
         match crate::commands::market_search_of(&state, "commodity", query).await {
             Ok(value) => per_commodity.push((symbol.clone(), value)),

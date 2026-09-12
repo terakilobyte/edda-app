@@ -1669,6 +1669,7 @@ dependencies = [
  "base64 0.22.1",
  "bzip2",
  "chrono",
+ "ed-domain",
  "ed-ebex",
  "ed-eddn",
  "ed-engineering",

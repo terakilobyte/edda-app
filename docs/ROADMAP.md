@@ -145,6 +145,19 @@ verdicts live in the CSV headers under `docs/benches/`.
   full galaxy is wanted; it buys nothing for routing.
 - **Windows and Linux flights before each release**: the maintainer flies
   every release candidate; Linux is alpha until a second tester has.
+- **Ship and module discounts** (2026-09-12, landed). No prices exist to
+  compare -- the feed publishes bare stock lists -- so the Market tab
+  applies the game's published rules instead, from
+  `crates/ed-domain/src/discount.rs`: five Powerplay rules keyed on the
+  controlling Power and its state, nine fixed stations, and the 2.5%
+  Elite rank discount that stacks. Open: the wiki says "controlled by"
+  for some Powers and "exploited by" for others, read here as
+  Stronghold+Fortified against Exploited -- unverified against the game.
+  The instrument for that is free and unbuilt: the journal writes the
+  docked station's whole price list (630 modules with buy prices at
+  Schmitt Enterprise, measured 2026-09-12), so EDDA can check its own
+  table against a real list on every dock and say when they disagree.
+  Sparsity measured in `docs/benches/2026-09-12-discount-coverage.csv`.
 
 ## Data and licensing
 
@@ -153,6 +166,11 @@ verdicts live in the CSV headers under `docs/benches/`.
   dependency graphs.
 - **Community data with no licence file** (FDevIDs, two engineering
   guides): reproduced with attribution; replaced on request.
+- **Discount rules from the Elite Dangerous wiki** (2026-09-12): the
+  Active Discounts table, read as facts -- percentages, Powers, station
+  names -- and cited in `crates/ed-domain/src/discount.rs`. No prose
+  reproduced, as with the Fandom text stripped from `synthesis.json` in
+  the open-sourcing pass.
 
 ## Buried
 

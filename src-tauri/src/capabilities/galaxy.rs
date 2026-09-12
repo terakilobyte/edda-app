@@ -155,6 +155,16 @@ pub struct MarketSearchRequest {
     /// selection under a LIMIT (item F3): a distance-sorted panel must
     /// fetch the nearest matches, not re-sort the cheapest ones.
     pub sort: Option<String>,
+    /// Ships and modules: only stations where this one is discounted.
+    /// The rules are static and the client owns them, so this narrows the
+    /// search to the Powers whose space offers a discount on the item and
+    /// then drops the rows that do not actually qualify.
+    #[serde(default)]
+    pub discounted_only: bool,
+    /// Stronghold Carriers: `all`, `mine` (the commander's own Power only)
+    /// or `none`. Absent means `all`; they are not fleet carriers, so
+    /// `include_carriers` does not govern them.
+    pub stronghold_carriers: Option<String>,
 }
 
 impl Default for MarketSearchRequest {
@@ -172,6 +182,8 @@ impl Default for MarketSearchRequest {
             limit: None,
             min_quantity: None,
             sort: None,
+            discounted_only: false,
+            stronghold_carriers: None,
         }
     }
 }

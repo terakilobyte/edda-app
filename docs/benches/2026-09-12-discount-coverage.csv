@@ -1,0 +1,15 @@
+# 2026-09-12 how sparse are the discounts? Sizing the Market tab's "discounted only" filter.
+# Instrument: docs/benches/knobs/discount_coverage.py — live /v1/market/search rows cross-referenced against
+#   /v1/knowledge/sphere's Powerplay map, applying the same static rules as crates/ed-domain/src/discount.rs.
+# Origin Sol, radius 150 ly, the nearest 75 rows per search, production data, 2026-09-12 ~08:00 -07.
+# VERDICT: discounts are sparse near Sol — 0 to 10 of the nearest 75 stations — so the filter is worth little
+#   WITHOUT the server-side Power narrowing, and worth a lot with it: an Anaconda search returns 75 nearest
+#   stations and not one is discounted, while Li Yong-Rui holds 189 systems within 60 ly of Sol that the
+#   narrowed query would rank first instead. The client-side filter alone (an older server, which ignores the
+#   `powers` field rather than refusing it) is correct but can return an empty list; the narrowing is what
+#   makes it useful. Weapons are the exception: Archer's control space is close enough to Sol to fill the list.
+kind,text,rows_examined,discounted,why,example_station,example_system,percent
+ship,anaconda,75,0,,,,
+ship,cutter,75,2,Li Yong-Rui space,Conrad Hub,Oduduro,15.0
+module,hpt_beamlaser,75,10,Archer control space,Kuttner's Pride,Barnard's Star,20.0
+module,int_cargorack,75,0,,,,
