@@ -64,6 +64,12 @@ pub struct DiffStats {
     pub duplicate_identity: u64,
     /// Teachings ignored because they teach Unknown (never downgrade).
     pub taught_unknown: u64,
+    /// Records set back to Unknown by an explicit retraction: a `stars`
+    /// row of class 0 from a `repair:` source, the one way a class the
+    /// index should never have carried is taken out again (2026-09-10:
+    /// navroute hops taught a secondary star's class into 17,000 blank
+    /// records; a teaching cannot say "forget it", a retraction can).
+    pub retracted: u64,
 }
 
 /// The overlay records for one reconcile day. Pure: index + inputs in,
@@ -72,6 +78,7 @@ pub fn diff(
     base: &Galaxy,
     candidates: &[Candidate],
     taught: &HashMap<u64, u8>,
+    retracted: &HashSet<u64>,
 ) -> Result<(Vec<OverlayRecord>, DiffStats)> {
     let mut stats = DiffStats::default();
     let mut records = Vec::new();
@@ -87,7 +94,12 @@ pub fn diff(
         }
         if let Some(&class) = taught.get(&record.id64) {
             if class == StarClass::Unknown.code() {
-                stats.taught_unknown += 1;
+                if retracted.contains(&record.id64) && record.class != StarClass::Unknown.code() {
+                    records.push(update_at(record.pos(), StarClass::Unknown.code(), record.flags));
+                    stats.retracted += 1;
+                } else {
+                    stats.taught_unknown += 1;
+                }
             } else if class != record.class {
                 ensure!(class <= 0x0f, "taught class {class} exceeds the nibble");
                 records.push(update_at(record.pos(), class, record.flags));
@@ -406,6 +418,17 @@ pub async fn reconcile_routing(
     .into_iter()
     .filter_map(|(address, class)| Some((address as u64, u8::try_from(class).ok()?)))
     .collect();
+    // Retractions: class-0 rows only a repair writes (ingest never stores
+    // Unknown), so a 0 here is a deliberate "this class was wrong".
+    let retracted: HashSet<u64> = sqlx::query_scalar::<_, i64>(
+        "SELECT address FROM stars WHERE address > 0 AND class = 0 AND source LIKE 'repair:%'",
+    )
+    .fetch_all(pool)
+    .await
+    .context("querying retractions")?
+    .into_iter()
+    .map(|a| a as u64)
+    .collect();
 
     // Diff against the published base. Blocking: the update scan walks
     // the whole index.
@@ -428,7 +451,7 @@ pub async fn reconcile_routing(
         let base_dir = base_dir.clone();
         tokio::task::spawn_blocking(move || -> Result<_> {
             let base = Galaxy::open(&base_dir).context("opening the published base index")?;
-            diff(&base, &candidates, &taught)
+            diff(&base, &candidates, &taught, &retracted)
         })
         .await
         .context("reconcile diff panicked")??
@@ -520,7 +543,7 @@ mod tests {
             (2u64, StarClass::Unknown.code()),      // never downgrade
             (999u64, StarClass::K.code()),          // not in the index: ignored
         ]);
-        let (records, stats) = diff(&base, &[], &taught).unwrap();
+        let (records, stats) = diff(&base, &[], &taught, &HashSet::new()).unwrap();
         assert_eq!((stats.updates, stats.taught_unknown), (1, 1));
         assert_eq!(records.len(), 1);
         match &records[0].op {
@@ -530,6 +553,27 @@ mod tests {
             other => panic!("expected an update, got {other:?}"),
         }
         assert_eq!(records[0].pos, [500.0, 0.0, 0.0]);
+    }
+
+    /// A retraction is the one downgrade: a class-0 teaching for an address
+    /// the repair named sets the record back to Unknown; the same class-0
+    /// teaching without the retraction is ignored as before.
+    #[test]
+    fn a_retraction_downgrades_to_unknown_and_a_bare_unknown_still_does_not() {
+        let dir = base_index();
+        let base = Galaxy::open(dir.path()).unwrap();
+        let taught = HashMap::from([
+            (2u64, StarClass::Unknown.code()),
+            (3u64, StarClass::Unknown.code()),
+        ]);
+        let retracted = HashSet::from([2u64]);
+        let (records, stats) = diff(&base, &[], &taught, &retracted).unwrap();
+        assert_eq!((stats.retracted, stats.taught_unknown, stats.updates), (1, 1, 0));
+        assert_eq!(records.len(), 1);
+        match &records[0].op {
+            ed_galaxy::overlay::OverlayOp::Update { class, .. } => assert_eq!(*class, StarClass::Unknown.code()),
+            other => panic!("expected an update to Unknown, got {other:?}"),
+        }
     }
 
     /// Adds come from spatial membership: absent candidates land (class
@@ -549,7 +593,7 @@ mod tests {
             candidate(104, "", [1.0, 1.0, 1.0], None),                  // invalid
             candidate(105, "NaN Land", [f32::NAN, 0.0, 0.0], None),     // invalid
         ];
-        let (records, stats) = diff(&base, &candidates, &HashMap::new()).unwrap();
+        let (records, stats) = diff(&base, &candidates, &HashMap::new(), &HashSet::new()).unwrap();
         assert_eq!(stats.adds, 3, "{stats:?}");
         assert_eq!(stats.present, 1);
         assert_eq!(stats.present_by_id64, 1);
@@ -619,7 +663,7 @@ mod tests {
             [1200.0, -40.0, 6000.0],
             None,
         )];
-        let (records, stats) = diff(&base, &candidates, &taught).unwrap();
+        let (records, stats) = diff(&base, &candidates, &taught, &HashSet::new()).unwrap();
         drop(base);
         let publication =
             publish_overlay(artifact_dir.path(), "2", "2026-09-03T01:00:00Z", records, stats)
@@ -667,7 +711,7 @@ mod tests {
 
         // A quiet day publishes nothing.
         let base = Galaxy::open(&artifact_dir.path().join("routing").join("2")).unwrap();
-        let (records, _) = diff(&base, &candidates, &taught).unwrap();
+        let (records, _) = diff(&base, &candidates, &taught, &HashSet::new()).unwrap();
         assert!(records.is_empty(), "yesterday's changes are in the base now");
     }
 }
