@@ -556,6 +556,8 @@ mod tests {
             radius_ly: None,
             min_pad: None,
             include_carriers: false,
+            include_stronghold_carriers: None,
+            powers: Vec::new(),
             include_prohibited: false,
             max_age_hours: None,
             side: "sell".into(),

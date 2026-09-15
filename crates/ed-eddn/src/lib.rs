@@ -178,6 +178,10 @@ pub struct JournalMessage {
     pub landing_pads: Option<LandingPads>,
     #[serde(rename = "StationServices", default)]
     pub station_services: Option<Vec<String>>,
+    #[serde(rename = "StationEconomy", default)]
+    pub station_economy: Option<String>,
+    #[serde(rename = "StationGovernment", default)]
+    pub station_government: Option<String>,
     // Scan / SAASignalsFound / FSSBodySignals (2026-09-09, maintainer: what the
     // dump adds that the feed carried gets parsed): the arrival star's
     // class for the routing index, prospecting bodies, ring hotspots and
@@ -352,7 +356,8 @@ impl Envelope {
                 };
                 let mut out = Vec::with_capacity(message.route.len() * 2);
                 for hop in &message.route {
-                    let (Some(name), Some(address)) = (hop.star_system.clone(), hop.system_address) else {
+                    let (Some(name), Some(address)) = (hop.star_system.clone(), hop.system_address)
+                    else {
                         continue;
                     };
                     if hop.star_pos.is_some() {
@@ -446,6 +451,15 @@ impl Envelope {
                         pad_small: pads.and_then(|p| p.small),
                         pad_medium: pads.and_then(|p| p.medium),
                         pad_large: pads.and_then(|p| p.large),
+                        primary_economy: message
+                            .station_economy
+                            .as_deref()
+                            .map(ed_domain::station::economy_from_journal),
+                        government: message
+                            .station_government
+                            .as_deref()
+                            .map(ed_domain::station::government_from_journal),
+                        controlling_faction: None,
                         services: message.station_services.clone().unwrap_or_default(),
                     }));
                 }
@@ -480,14 +494,22 @@ impl Envelope {
 /// The star, body and signal teachings inside one journal event.
 fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
     let mut out = Vec::new();
-    let (Some(address), Some(observed)) = (message.system_address, message.timestamp.as_deref().and_then(observed_at)) else {
+    let (Some(address), Some(observed)) = (
+        message.system_address,
+        message.timestamp.as_deref().and_then(observed_at),
+    ) else {
         return out;
     };
     match message.event.as_deref() {
         Some("Scan") => {
             // The arrival star is the one the router cares about: the
             // journal puts it at 0 ls from arrival.
-            if let Some(star_type) = message.star_type.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            if let Some(star_type) = message
+                .star_type
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
                 if message.distance_from_arrival_ls.is_some_and(|d| d == 0.0) {
                     out.push(Operation::Star(ed_domain::StarTeaching {
                         system_address: address,
@@ -548,14 +570,23 @@ fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
             }
         }
         Some("SAASignalsFound") | Some("FSSBodySignals") => {
-            let (Some(body_id), Some(name), Some(signals)) = (message.body_id, message.body_name.as_deref(), message.signals.as_ref()) else {
+            let (Some(body_id), Some(name), Some(signals)) = (
+                message.body_id,
+                message.body_name.as_deref(),
+                message.signals.as_ref(),
+            ) else {
                 return out;
             };
             let is_ring = ring_parent_name(name).is_some();
             let hotspots: Vec<(String, i32)> = signals
                 .iter()
                 .filter(|s| !s.kind.starts_with('$') && !s.kind.trim().is_empty())
-                .map(|s| (s.kind.trim().to_string(), i32::try_from(s.count).unwrap_or(i32::MAX)))
+                .map(|s| {
+                    (
+                        s.kind.trim().to_string(),
+                        i32::try_from(s.count).unwrap_or(i32::MAX),
+                    )
+                })
                 .collect();
             let signal = |key: &str| -> Option<i32> {
                 signals
@@ -619,7 +650,9 @@ pub fn decode(frame: &[u8]) -> Result<Envelope> {
         s if s.starts_with("navroute/") => Payload::NavRoute(serde_json::from_value(raw.message)?),
         // The journal-shaped side schemas (measured 2026-09-09: fssbodysignals
         // is 9.5 % of all frames): the same event fields, their own schema.
-        s if s.starts_with("fssbodysignals/") => Payload::Journal(serde_json::from_value(raw.message)?),
+        s if s.starts_with("fssbodysignals/") => {
+            Payload::Journal(serde_json::from_value(raw.message)?)
+        }
         other => Payload::Other {
             schema: other.to_string(),
         },
@@ -700,8 +733,14 @@ impl FeedStats {
             }
             Payload::NavRoute(message) => {
                 self.journal += 1;
-                *self.journal_events.entry("NavRoute".to_string()).or_default() += 1;
-                *self.journal_events.entry("NavRoute.hops".to_string()).or_default() += message.route.len() as u64;
+                *self
+                    .journal_events
+                    .entry("NavRoute".to_string())
+                    .or_default() += 1;
+                *self
+                    .journal_events
+                    .entry("NavRoute.hops".to_string())
+                    .or_default() += message.route.len() as u64;
             }
             Payload::Other { .. } => self.other += 1,
         }
@@ -831,7 +870,11 @@ pub mod live {
     /// Where decoded envelopes go. One loop ([`subscribe`]) drives every
     /// sink; the sinks are the adapters: a closure, a bounded channel.
     pub trait Sink {
-        fn deliver(&mut self, envelope: Envelope, stats: &FeedStats) -> impl Future<Output = Flow> + Send;
+        fn deliver(
+            &mut self,
+            envelope: Envelope,
+            stats: &FeedStats,
+        ) -> impl Future<Output = Flow> + Send;
     }
 
     /// How long a live connection may stay silent before it is presumed
@@ -853,7 +896,11 @@ pub mod live {
 
     /// [`subscribe`] with its own idle limit -- the tests fake a silent
     /// relay and cannot wait two minutes for the real one.
-    pub async fn subscribe_with_idle<S: Sink + Send>(relay: &str, sink: &mut S, idle: Duration) -> Result<FeedStats> {
+    pub async fn subscribe_with_idle<S: Sink + Send>(
+        relay: &str,
+        sink: &mut S,
+        idle: Duration,
+    ) -> Result<FeedStats> {
         let mut stats = FeedStats::default();
         let mut backoff = Duration::from_secs(1);
 
@@ -863,7 +910,8 @@ pub mod live {
                 Ok(()) => backoff = Duration::from_secs(1),
                 Err(error) => {
                     stats.reconnects += 1;
-                    metrics::counter!("edda_eddn_reconnects_total", "reason" => "connect_failed").increment(1);
+                    metrics::counter!("edda_eddn_reconnects_total", "reason" => "connect_failed")
+                        .increment(1);
                     tracing::warn!(%error, ?backoff, "EDDN connection failed");
                     tokio::time::sleep(backoff).await;
                     backoff = (backoff * 2).min(Duration::from_secs(60));
@@ -881,8 +929,12 @@ pub mod live {
                         // `recv` that never wakes; dropping the socket
                         // and dialling fresh is the only exit.
                         stats.reconnects += 1;
-                        metrics::counter!("edda_eddn_reconnects_total", "reason" => "idle").increment(1);
-                        tracing::warn!(idle_secs = idle.as_secs_f64(), "EDDN silent past the idle limit; rebuilding the connection");
+                        metrics::counter!("edda_eddn_reconnects_total", "reason" => "idle")
+                            .increment(1);
+                        tracing::warn!(
+                            idle_secs = idle.as_secs_f64(),
+                            "EDDN silent past the idle limit; rebuilding the connection"
+                        );
                         break;
                     }
                 };
@@ -916,7 +968,8 @@ pub mod live {
                     }
                     Err(error) => {
                         stats.reconnects += 1;
-                        metrics::counter!("edda_eddn_reconnects_total", "reason" => "recv_failed").increment(1);
+                        metrics::counter!("edda_eddn_reconnects_total", "reason" => "recv_failed")
+                            .increment(1);
                         tracing::warn!(%error, "EDDN receive failed; reconnecting");
                         break;
                     }
@@ -933,8 +986,16 @@ pub mod live {
     where
         F: FnMut(&Envelope, &FeedStats) -> bool + Send,
     {
-        fn deliver(&mut self, envelope: Envelope, stats: &FeedStats) -> impl Future<Output = Flow> + Send {
-            let flow = if (self.0)(&envelope, stats) { Flow::Continue } else { Flow::Stop };
+        fn deliver(
+            &mut self,
+            envelope: Envelope,
+            stats: &FeedStats,
+        ) -> impl Future<Output = Flow> + Send {
+            let flow = if (self.0)(&envelope, stats) {
+                Flow::Continue
+            } else {
+                Flow::Stop
+            };
             std::future::ready(flow)
         }
     }
@@ -955,7 +1016,11 @@ pub mod live {
     }
 
     impl<O: FnMut(&FeedStats) + Send> Sink for ChannelSink<O> {
-        fn deliver(&mut self, envelope: Envelope, stats: &FeedStats) -> impl Future<Output = Flow> + Send {
+        fn deliver(
+            &mut self,
+            envelope: Envelope,
+            stats: &FeedStats,
+        ) -> impl Future<Output = Flow> + Send {
             let operations = envelope.operations();
             if operations.is_empty() {
                 self.normalization_skipped += 1;
@@ -993,7 +1058,11 @@ pub mod live {
         sender: tokio::sync::mpsc::Sender<Operation>,
         observe: impl FnMut(&FeedStats) + Send,
     ) -> Result<FeedStats> {
-        let mut sink = ChannelSink { sender, observe, normalization_skipped: 0 };
+        let mut sink = ChannelSink {
+            sender,
+            observe,
+            normalization_skipped: 0,
+        };
         let mut stats = subscribe(relay, &mut sink).await?;
         stats.normalization_skipped = sink.normalization_skipped;
         Ok(stats)
@@ -1149,7 +1218,10 @@ mod tests {
         let Operation::Outfitting(snapshot) = envelope.operation().unwrap() else {
             panic!("expected outfitting operation");
         };
-        assert_eq!(snapshot.values, vec!["hpt_pulselaser_fixed_small", "int_hyperdrive_size2_class1"]);
+        assert_eq!(
+            snapshot.values,
+            vec!["hpt_pulselaser_fixed_small", "int_hyperdrive_size2_class1"]
+        );
     }
 
     /// The third live shape (captured off the relay 2026-09-02 after
@@ -1168,7 +1240,13 @@ mod tests {
         let Operation::Outfitting(snapshot) = envelope.operation().unwrap() else {
             panic!("expected outfitting operation");
         };
-        assert_eq!(snapshot.values, vec!["hpt_advancedtorppylon_fixed_large", "hpt_basicmissilerack_fixed_large"]);
+        assert_eq!(
+            snapshot.values,
+            vec![
+                "hpt_advancedtorppylon_fixed_large",
+                "hpt_basicmissilerack_fixed_large"
+            ]
+        );
     }
 }
 
@@ -1198,7 +1276,11 @@ mod live_tests {
     }
 
     impl live::Sink for StopAfterFirst {
-        fn deliver(&mut self, _envelope: Envelope, _stats: &FeedStats) -> impl std::future::Future<Output = live::Flow> + Send {
+        fn deliver(
+            &mut self,
+            _envelope: Envelope,
+            _stats: &FeedStats,
+        ) -> impl std::future::Future<Output = live::Flow> + Send {
             self.received += 1;
             std::future::ready(live::Flow::Stop)
         }
@@ -1219,7 +1301,9 @@ mod live_tests {
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(600)).await;
             loop {
-                let _ = publisher.send(zeromq::ZmqMessage::from(zlib(COMMODITY))).await;
+                let _ = publisher
+                    .send(zeromq::ZmqMessage::from(zlib(COMMODITY)))
+                    .await;
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
         });
@@ -1233,7 +1317,10 @@ mod live_tests {
         .unwrap();
         assert_eq!(sink.received, 1);
         assert!(stats.received >= 1);
-        assert!(stats.reconnects >= 1, "the silent stretch must have forced a reconnect: {stats:?}");
+        assert!(
+            stats.reconnects >= 1,
+            "the silent stretch must have forced a reconnect: {stats:?}"
+        );
     }
 }
 
@@ -1247,40 +1334,116 @@ mod teaching_tests {
     use super::*;
 
     fn journal(message: &str) -> Envelope {
-        let raw = format!(r#"{{"$schemaRef":"https://eddn.edcd.io/schemas/journal/1","header":{{"uploaderID":"x","softwareName":"t","softwareVersion":"1"}},"message":{message}}}"#);
+        let raw = format!(
+            r#"{{"$schemaRef":"https://eddn.edcd.io/schemas/journal/1","header":{{"uploaderID":"x","softwareName":"t","softwareVersion":"1"}},"message":{message}}}"#
+        );
         decode(raw.as_bytes()).unwrap()
     }
 
     #[test]
     fn a_star_scan_at_arrival_teaches_the_class_and_the_system() {
-        let env = journal(r#"{"timestamp":"2026-09-09T10:00:00Z","event":"Scan","ScanType":"AutoScan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat","BodyID":0,"DistanceFromArrivalLS":0.0,"StarType":"K","Subclass":3,"StellarMass":0.68}"#);
+        let env = journal(
+            r#"{"timestamp":"2026-09-09T10:00:00Z","event":"Scan","ScanType":"AutoScan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat","BodyID":0,"DistanceFromArrivalLS":0.0,"StarType":"K","Subclass":3,"StellarMass":0.68}"#,
+        );
         let ops = env.operations();
         assert_eq!(ops.len(), 2, "{ops:?}");
-        assert!(matches!(&ops[0], Operation::System(s) if s.system_address == Some(6681123623626) && s.position.is_some()));
-        let Operation::Star(star) = &ops[1] else { panic!("star teaching") };
-        assert_eq!((star.system_address, star.star_type.as_str(), star.source.as_str()), (6681123623626, "K", "eddn:scan"));
-        assert_eq!(star.observed_at.epoch_seconds, epoch_secs("2026-09-09T10:00:00Z").unwrap());
+        assert!(
+            matches!(&ops[0], Operation::System(s) if s.system_address == Some(6681123623626) && s.position.is_some())
+        );
+        let Operation::Star(star) = &ops[1] else {
+            panic!("star teaching")
+        };
+        assert_eq!(
+            (
+                star.system_address,
+                star.star_type.as_str(),
+                star.source.as_str()
+            ),
+            (6681123623626, "K", "eddn:scan")
+        );
+        assert_eq!(
+            star.observed_at.epoch_seconds,
+            epoch_secs("2026-09-09T10:00:00Z").unwrap()
+        );
         // A secondary star (not at 0 ls) is not the arrival star.
-        let secondary = journal(r#"{"timestamp":"2026-09-09T10:00:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat B","BodyID":1,"DistanceFromArrivalLS":9800.5,"StarType":"M"}"#);
+        let secondary = journal(
+            r#"{"timestamp":"2026-09-09T10:00:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat B","BodyID":1,"DistanceFromArrivalLS":9800.5,"StarType":"M"}"#,
+        );
         assert_eq!(secondary.operations().len(), 1, "system only");
     }
 
     #[test]
     fn a_planet_scan_becomes_a_prospecting_body_in_spansh_spelling() {
-        let env = journal(r#"{"timestamp":"2026-09-09T10:01:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat 6 a","BodyID":7,"DistanceFromArrivalLS":1510.2,"PlanetClass":"Rocky body","Landable":true,"SurfaceGravity":1.17679,"Atmosphere":"","Volcanism":"","Materials":[{"Name":"iron","Percent":21.3},{"Name":"nickel","Percent":16.1}],"Rings":[{"Name":"Deciat 6 a A Ring","RingClass":"eRingClass_Metalic","MassMT":1.5e12,"InnerRad":1.0e8,"OuterRad":2.0e8}]}"#);
+        let env = journal(
+            r#"{"timestamp":"2026-09-09T10:01:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"BodyName":"Deciat 6 a","BodyID":7,"DistanceFromArrivalLS":1510.2,"PlanetClass":"Rocky body","Landable":true,"SurfaceGravity":1.17679,"Atmosphere":"","Volcanism":"","Materials":[{"Name":"iron","Percent":21.3},{"Name":"nickel","Percent":16.1}],"Rings":[{"Name":"Deciat 6 a A Ring","RingClass":"eRingClass_Metalic","MassMT":1.5e12,"InnerRad":1.0e8,"OuterRad":2.0e8}]}"#,
+        );
         let ops = env.operations();
-        let Some(Operation::Body(body)) = ops.iter().find(|o| matches!(o, Operation::Body(_))) else { panic!("body: {ops:?}") };
+        let Some(Operation::Body(body)) = ops.iter().find(|o| matches!(o, Operation::Body(_)))
+        else {
+            panic!("body: {ops:?}")
+        };
         assert_eq!(body.id64, ed_domain::body_id64(6681123623626, 7));
         assert_eq!(body.name.as_deref(), Some("Deciat 6 a"));
         assert_eq!(body.sub_type.as_deref(), Some("Rocky body"));
         assert!(body.is_landable);
         assert!((body.gravity.unwrap() - 0.12).abs() < 0.001, "m/s² → g");
-        assert_eq!(body.materials, vec![("Iron".to_string(), 21.3), ("Nickel".to_string(), 16.1)]);
+        assert_eq!(
+            body.materials,
+            vec![("Iron".to_string(), 21.3), ("Nickel".to_string(), 16.1)]
+        );
         assert_eq!(body.rings[0].kind.as_deref(), Some("Metallic"));
         assert_eq!(body.atmosphere, None, "empty strings are absent");
         // A bare gas giant with no rings, no materials, not landable: no row.
-        let bare = journal(r#"{"timestamp":"2026-09-09T10:01:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 5","BodyID":5,"PlanetClass":"Sudarsky class II gas giant","Landable":false}"#);
-        assert!(!bare.operations().iter().any(|o| matches!(o, Operation::Body(_))));
+        let bare = journal(
+            r#"{"timestamp":"2026-09-09T10:01:00Z","event":"Scan","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 5","BodyID":5,"PlanetClass":"Sudarsky class II gas giant","Landable":false}"#,
+        );
+        assert!(!bare
+            .operations()
+            .iter()
+            .any(|o| matches!(o, Operation::Body(_))));
+    }
+
+    /// 2026-09-12: `GET /v1/stations` advertised `primary_economy` and
+    /// returned a hard-coded null, so the client's material-trader type
+    /// filter discarded every row and the Engineering tab said there
+    /// were none. A Docked event carries the economy; it arrives in the
+    /// dump's spelling so the filter can compare it.
+    #[test]
+    fn a_docked_teaches_the_station_economy_in_dump_spelling() {
+        let env = journal(
+            r#"{"timestamp":"2026-09-12T10:00:00Z","event":"Docked","StarSystem":"Deciat","SystemAddress":6681123623626,"StationName":"Garay Terminal","MarketID":3229756928,"StationType":"Coriolis","DistFromStarLS":636.8,"StationEconomy":"$economy_HighTech;","StationGovernment":"$government_Corporate;","StationServices":["dock","autodock","commodities","contacts","materialtrader"]}"#,
+        );
+        let ops = env.operations();
+        let Some(Operation::StationIdentity(id)) = ops
+            .iter()
+            .find(|o| matches!(o, Operation::StationIdentity(_)))
+        else {
+            panic!("station identity: {ops:?}")
+        };
+        assert_eq!(id.primary_economy.as_deref(), Some("High Tech"));
+        assert_eq!(id.government.as_deref(), Some("Corporate"));
+        assert_eq!(id.station_name, "Garay Terminal");
+        // The journal already writes its own service keys; the dump's
+        // names are the ones that need translating, and that happens in
+        // the hydration path, not here.
+        assert!(
+            id.services.iter().any(|s| s == "materialtrader"),
+            "{:?}",
+            id.services
+        );
+        // A Docked without the field teaches everything else and leaves
+        // the economy alone rather than writing a null over a known one.
+        let bare = journal(
+            r#"{"timestamp":"2026-09-12T10:00:00Z","event":"Docked","StarSystem":"Deciat","SystemAddress":6681123623626,"StationName":"Garay Terminal","MarketID":3229756928,"StationType":"Coriolis"}"#,
+        );
+        let ops = bare.operations();
+        let Some(Operation::StationIdentity(id)) = ops
+            .iter()
+            .find(|o| matches!(o, Operation::StationIdentity(_)))
+        else {
+            panic!("station identity: {ops:?}")
+        };
+        assert_eq!(id.primary_economy, None);
     }
 
     #[test]
@@ -1289,11 +1452,18 @@ mod teaching_tests {
         let env = decode(raw.as_bytes()).unwrap();
         assert_eq!(env.schema(), "navroute/1");
         let ops = env.operations();
-        assert_eq!(ops.len(), 3, "one system per hop with a position, and no star: {ops:?}");
+        assert_eq!(
+            ops.len(),
+            3,
+            "one system per hop with a position, and no star: {ops:?}"
+        );
         // The hop's StarClass names a secondary star as often as not (27% of
         // systems changed class when it was taught, 2026-09-10); it must
         // never reach the stars table, even where it happens to say "N".
-        assert!(!ops.iter().any(|o| matches!(o, Operation::Star(_))), "{ops:?}");
+        assert!(
+            !ops.iter().any(|o| matches!(o, Operation::Star(_))),
+            "{ops:?}"
+        );
         assert!(ops.iter().all(|o| matches!(o, Operation::System(_))));
         let mut stats = FeedStats::default();
         stats.count(&env);
@@ -1302,18 +1472,36 @@ mod teaching_tests {
 
     #[test]
     fn ring_signals_are_hotspots_and_body_signals_are_counts() {
-        let ring = journal(r#"{"timestamp":"2026-09-09T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 6 a A Ring","BodyID":8,"Signals":[{"Type":"Painite","Type_Localised":"Painite","Count":2},{"Type":"Platinum","Count":1}]}"#);
+        let ring = journal(
+            r#"{"timestamp":"2026-09-09T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 6 a A Ring","BodyID":8,"Signals":[{"Type":"Painite","Type_Localised":"Painite","Count":2},{"Type":"Platinum","Count":1}]}"#,
+        );
         let ops = ring.operations();
-        let Some(Operation::RingHotspots(h)) = ops.iter().find(|o| matches!(o, Operation::RingHotspots(_))) else { panic!("{ops:?}") };
+        let Some(Operation::RingHotspots(h)) =
+            ops.iter().find(|o| matches!(o, Operation::RingHotspots(_)))
+        else {
+            panic!("{ops:?}")
+        };
         assert_eq!(h.ring_name, "Deciat 6 a A Ring");
-        assert_eq!(h.signals, vec![("Painite".to_string(), 2), ("Platinum".to_string(), 1)]);
+        assert_eq!(
+            h.signals,
+            vec![("Painite".to_string(), 2), ("Platinum".to_string(), 1)]
+        );
         assert_eq!(ring_parent_name(&h.ring_name), Some("Deciat 6 a"));
         assert_eq!(ring_parent_name("Deciat 6 a"), None);
 
-        let planet = journal(r#"{"timestamp":"2026-09-09T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 6 a","BodyID":7,"Signals":[{"Type":"$SAA_SignalType_Biological;","Count":3},{"Type":"$SAA_SignalType_Geological;","Count":5}]}"#);
+        let planet = journal(
+            r#"{"timestamp":"2026-09-09T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 6 a","BodyID":7,"Signals":[{"Type":"$SAA_SignalType_Biological;","Count":3},{"Type":"$SAA_SignalType_Geological;","Count":5}]}"#,
+        );
         let ops = planet.operations();
-        let Some(Operation::BodySignals(s)) = ops.iter().find(|o| matches!(o, Operation::BodySignals(_))) else { panic!("{ops:?}") };
-        assert_eq!((s.id64, s.bio_signals, s.geo_signals), (ed_domain::body_id64(6681123623626, 7), Some(3), Some(5)));
+        let Some(Operation::BodySignals(s)) =
+            ops.iter().find(|o| matches!(o, Operation::BodySignals(_)))
+        else {
+            panic!("{ops:?}")
+        };
+        assert_eq!(
+            (s.id64, s.bio_signals, s.geo_signals),
+            (ed_domain::body_id64(6681123623626, 7), Some(3), Some(5))
+        );
 
         // fssbodysignals is its own schema with the journal's shape.
         let raw = r#"{"$schemaRef":"https://eddn.edcd.io/schemas/fssbodysignals/1","header":{"uploaderID":"x","softwareName":"t","softwareVersion":"1"},"message":{"timestamp":"2026-09-09T10:04:00Z","event":"FSSBodySignals","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 6 b","BodyID":9,"Signals":[{"Type":"$SAA_SignalType_Biological;","Count":1}]}}"#;

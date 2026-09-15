@@ -95,24 +95,26 @@ pub async fn hydrate_fixture(pool: &PgPool, path: &Path) -> Result<HydrationResu
 
     let mut systems_applied = 0;
     for system in &fixture.systems {
-        systems_applied += u64::from(apply_source_system(
-            &mut transaction,
-            &SourceSystem {
-                address: system.address,
-                name: system.name.clone(),
-                position: Some([system.x, system.y, system.z]),
-                population: Some(system.population),
-                security: None,
-                allegiance: None,
-                controlling_power: None,
-                power_state: None,
-                powers: None,
-                observed_at: Some(observed_at),
-                provenance: fixture.source.clone(),
-            },
-        )
-        .await?
-            == SystemWrite::Written);
+        systems_applied += u64::from(
+            apply_source_system(
+                &mut transaction,
+                &SourceSystem {
+                    address: system.address,
+                    name: system.name.clone(),
+                    position: Some([system.x, system.y, system.z]),
+                    population: Some(system.population),
+                    security: None,
+                    allegiance: None,
+                    controlling_power: None,
+                    power_state: None,
+                    powers: None,
+                    observed_at: Some(observed_at),
+                    provenance: fixture.source.clone(),
+                },
+            )
+            .await?
+                == SystemWrite::Written,
+        );
     }
 
     complete_job(&mut transaction, run_id, systems_applied, None).await?;

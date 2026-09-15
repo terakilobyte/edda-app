@@ -30,7 +30,10 @@ async fn main() -> anyhow::Result<()> {
     let mut socket = SubSocket::new();
     socket.connect(ed_eddn::EDDN_RELAY).await?;
     socket.subscribe("").await?;
-    eprintln!("tapping {} for schema *{want}* for {seconds}s", ed_eddn::EDDN_RELAY);
+    eprintln!(
+        "tapping {} for schema *{want}* for {seconds}s",
+        ed_eddn::EDDN_RELAY
+    );
 
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(seconds);
     let mut matched = 0u64;
@@ -40,17 +43,31 @@ async fn main() -> anyhow::Result<()> {
         let Ok(Ok(message)) = tokio::time::timeout_at(deadline, socket.recv()).await else {
             break;
         };
-        let Some(frame) = message.get(0) else { continue };
+        let Some(frame) = message.get(0) else {
+            continue;
+        };
         let Ok(json) = inflate(frame) else { continue };
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&json) else { continue };
-        let schema = value.get("$schemaRef").and_then(|v| v.as_str()).unwrap_or("");
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&json) else {
+            continue;
+        };
+        let schema = value
+            .get("$schemaRef")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if !schema.contains(want) {
             continue;
         }
         matched += 1;
-        let Some(msg) = value.get("message") else { continue };
+        let Some(msg) = value.get("message") else {
+            continue;
+        };
         if want == "outfitting" {
-            for module in msg.get("modules").and_then(|m| m.as_array()).map(|a| a.as_slice()).unwrap_or(&[]) {
+            for module in msg
+                .get("modules")
+                .and_then(|m| m.as_array())
+                .map(|a| a.as_slice())
+                .unwrap_or(&[])
+            {
                 let shape = match module {
                     serde_json::Value::String(_) => "string".to_owned(),
                     serde_json::Value::Object(o) => {
