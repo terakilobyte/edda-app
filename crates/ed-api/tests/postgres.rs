@@ -1488,6 +1488,111 @@ async fn seed_two_station_loop(pool: &PgPool) {
     .unwrap();
 }
 
+/// A dump's station economy reaches the `stations` row — and reaches a
+/// station whose identity is ALREADY current.
+///
+/// Both halves matter. The parse half shipped on 2026-09-12 without the
+/// write half, so `primary_economy` stayed null on all 842,152 rows and
+/// the client kept discarding every material trader. The freshness
+/// guard is the second half: it skips any identity write that is not
+/// newer, which on a re-read of the same dump is all of them. Measured
+/// on the box before this landed: a full-dump pass touched 346 of
+/// 117,541 stations and wrote no economies at all. A column the row has
+/// never learned must re-open the gate, or a column added later can
+/// never be backfilled from the source that carries it.
+#[tokio::test]
+#[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
+async fn a_dump_economy_reaches_the_row_even_when_the_identity_is_current() {
+    use ed_api::hydration::hydrate_spansh;
+    use std::io::Write as _;
+
+    let _serial = DATABASE.lock().await;
+    let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
+        .expect("EDDA_API_TEST_DATABASE_URL must be set for this ignored test");
+    let artifact_dir = TempDir::new().unwrap();
+    let config = ServiceConfig {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        database_url,
+        artifact_dir: artifact_dir.path().to_owned(),
+        eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
+        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+    };
+    let pool = database_pool(&config).await.unwrap();
+    reset_database(&pool).await;
+
+    let dir = TempDir::new().unwrap();
+    let write_dump = |name: &str, body: &str| {
+        let path = dir.path().join(name);
+        let f = std::fs::File::create(&path).unwrap();
+        let mut enc = flate2::write::GzEncoder::new(f, flate2::Compression::fast());
+        enc.write_all(body.as_bytes()).unwrap();
+        enc.finish().unwrap();
+        path
+    };
+
+    // First pass: no economy in the dump at all, the state the box was
+    // in before migration 0017.
+    let first = write_dump(
+        "first.json.gz",
+        concat!(
+            "[\n",
+            r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":10,"name":"Port A","type":"Coriolis Starport","updateTime":"2026-08-25 00:00:00+00","services":["Material Trader"]}]}"#,
+            "\n]\n",
+        ),
+    );
+    hydrate_spansh(&pool, &first).await.unwrap();
+    let economy: Option<String> =
+        sqlx::query_scalar("SELECT primary_economy FROM stations WHERE id = 10")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(economy, None, "nothing taught an economy yet");
+
+    // Second pass: the SAME updateTime, now carrying the three fields.
+    // The timestamp cannot re-open the gate; the null columns must.
+    let second = write_dump(
+        "second.json.gz",
+        concat!(
+            "[\n",
+            r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":10,"name":"Port A","type":"Coriolis Starport","updateTime":"2026-08-25 00:00:00+00","primaryEconomy":"High Tech","government":"Corporate","controllingFaction":"The Dark Wheel","services":["Material Trader"]}]}"#,
+            "\n]\n",
+        ),
+    );
+    hydrate_spansh(&pool, &second).await.unwrap();
+    let row: (Option<String>, Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT primary_economy, government, controlling_faction FROM stations WHERE id = 10",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        row,
+        (
+            Some("High Tech".to_string()),
+            Some("Corporate".to_string()),
+            Some("The Dark Wheel".to_string())
+        ),
+        "a never-learned column must re-open the freshness gate"
+    );
+
+    // And the endpoint the client actually reads reports it.
+    let q = ed_api::stations::StationsQuery::default();
+    let traders = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), Some("materialtrader"), 50.0, None, &q)
+        .await
+        .unwrap();
+    assert_eq!(traders.len(), 1, "{traders:?}");
+    assert_eq!(traders[0]["primary_economy"], "High Tech");
+
+    // A third pass carrying nothing must not erase what was learned.
+    hydrate_spansh(&pool, &first).await.unwrap();
+    let economy: Option<String> =
+        sqlx::query_scalar("SELECT primary_economy FROM stations WHERE id = 10")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(economy.as_deref(), Some("High Tech"), "an absent field is not a null write");
+}
+
 /// The v2 path end to end through `TradeService::report`: a ship in the
 /// request, the report back, and the second call a cache hit.
 #[tokio::test]
