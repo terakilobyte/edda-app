@@ -55,6 +55,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("0015_systems_cell.sql", include_str!("../migrations/0015_systems_cell.sql")),
     ("0016_bodies.sql", include_str!("../migrations/0016_bodies.sql")),
     ("0017_station_economy.sql", include_str!("../migrations/0017_station_economy.sql")),
+    ("0018_hydration_counters.sql", include_str!("../migrations/0018_hydration_counters.sql")),
 ];
 
 pub async fn database_pool(config: &ServiceConfig) -> Result<PgPool> {

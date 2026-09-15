@@ -956,7 +956,24 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     assert_eq!(job.0, result.source);
     assert_eq!(job.1, "complete");
     assert!(job.2 > 0, "byte count recorded");
-    assert_eq!(job.3, 2);
+    // rows_applied is ROWS WRITTEN, not systems alone: it counted only
+    // systems until 2026-09-15, which made a stations-only run record
+    // zero. Stated as the sum rather than a literal so the column's
+    // meaning is legible here.
+    assert_eq!(
+        job.3,
+        i64::try_from(
+            result.systems_applied
+                + result.identities_applied
+                + result.market_rows
+                + result.stars_taught
+                + result.bodies_applied
+                + result.hotspots_applied
+        )
+        .unwrap(),
+        "rows_applied counts every kind written"
+    );
+    assert_eq!(result.systems_applied, 2, "two systems, as the dump carries");
     assert_eq!(job.4, 1_787_616_000, "watermark is the newest system date in the dump");
 
     // Re-hydrating the same dump changes nothing: equal is not newer.
@@ -1591,6 +1608,113 @@ async fn a_dump_economy_reaches_the_row_even_when_the_identity_is_current() {
             .await
             .unwrap();
     assert_eq!(economy.as_deref(), Some("High Tech"), "an absent field is not a null write");
+}
+
+/// A hydration run records everything it applied, not just systems.
+///
+/// 2026-09-15: the full stations backfill wrote `rows_applied = 0` while
+/// applying 799,068 station identities, 1,242,732 bodies, 294,666
+/// hotspots and 2,191 star classes, because the column was written as
+/// the systems count alone. Every reading taken from it — including how
+/// much the dump still teaches week over week, which is the question
+/// that decides whether the weekly sync earns its keep — was measuring
+/// one category and calling it the whole. This run applies NO systems
+/// (the system is already known and unchanged) and must still show its
+/// work.
+#[tokio::test]
+#[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
+async fn a_hydration_records_every_kind_it_applied_not_just_systems() {
+    use ed_api::hydration::hydrate_spansh;
+    use std::io::Write as _;
+
+    let _serial = DATABASE.lock().await;
+    let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
+        .expect("EDDA_API_TEST_DATABASE_URL must be set for this ignored test");
+    let artifact_dir = TempDir::new().unwrap();
+    let config = ServiceConfig {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        database_url,
+        artifact_dir: artifact_dir.path().to_owned(),
+        eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
+        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+    };
+    let pool = database_pool(&config).await.unwrap();
+    reset_database(&pool).await;
+
+    let dir = TempDir::new().unwrap();
+    let write_dump = |name: &str, body: &str| {
+        let path = dir.path().join(name);
+        let f = std::fs::File::create(&path).unwrap();
+        let mut enc = flate2::write::GzEncoder::new(f, flate2::Compression::fast());
+        enc.write_all(body.as_bytes()).unwrap();
+        enc.finish().unwrap();
+        path
+    };
+    const FIRST: &str = concat!(
+        "[\n",
+        r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":10,"name":"Port A","type":"Coriolis Starport","updateTime":"2026-08-25 00:00:00+00","services":["Dock"]}]}"#,
+        "\n]\n",
+    );
+    // The same system, unchanged, but the station's identity is newer:
+    // this run applies stations and NO systems, which is exactly the
+    // shape the stations backfill had when it recorded zero.
+    const SECOND: &str = concat!(
+        "[\n",
+        r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":10,"name":"Port A","type":"Coriolis Starport","updateTime":"2026-09-01 00:00:00+00","primaryEconomy":"Industrial","services":["Dock","Material Trader"]}]}"#,
+        "\n]\n",
+    );
+
+    hydrate_spansh(&pool, &write_dump("first.json.gz", FIRST)).await.unwrap();
+    let result = hydrate_spansh(&pool, &write_dump("second.json.gz", SECOND)).await.unwrap();
+    assert_eq!(result.systems_applied, 0, "the system was already filed");
+    assert!(result.identities_applied > 0, "but a station identity was applied: {result:?}");
+
+    let row: (i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT rows_applied, systems_applied, stations_seen, identities_skipped \
+         FROM service_hydrations ORDER BY id DESC LIMIT 1",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(row.1, 0, "systems_applied is recorded as zero, correctly");
+    assert_eq!(row.2, i64::try_from(result.stations_seen).unwrap(), "stations_seen is recorded");
+    assert_eq!(
+        row.0,
+        i64::try_from(
+            result.systems_applied
+                + result.identities_applied
+                + result.market_rows
+                + result.stars_taught
+                + result.bodies_applied
+                + result.hotspots_applied
+        )
+        .unwrap(),
+        "rows_applied counts every kind written, not systems alone"
+    );
+
+    // And the row agrees with the result the caller was handed, field
+    // for field, so the log and the database can never disagree again.
+    let full: (i64, i64, i64, i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT systems_seen, systems_unfiled, snapshots_applied, snapshots_skipped, \
+                identities_applied, stars_taught, parse_errors \
+         FROM service_hydrations ORDER BY id DESC LIMIT 1",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        full,
+        (
+            i64::try_from(result.systems_seen).unwrap(),
+            i64::try_from(result.systems_unfiled).unwrap(),
+            i64::try_from(result.snapshots_applied).unwrap(),
+            i64::try_from(result.snapshots_skipped).unwrap(),
+            i64::try_from(result.identities_applied).unwrap(),
+            i64::try_from(result.stars_taught).unwrap(),
+            i64::try_from(result.parse_errors).unwrap(),
+        ),
+        "the recorded row and the returned result must agree"
+    );
 }
 
 /// A record that knows no station type must not un-carrier a carrier.

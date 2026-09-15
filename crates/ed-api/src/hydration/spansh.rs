@@ -493,8 +493,26 @@ pub async fn hydrate_spansh(pool: &PgPool, path: &Path) -> Result<HydrationResul
         (None, Ok(stats)) => stats,
     };
 
+    // Every count the summary line prints, so the row says the same
+    // thing as the log (2026-09-15: it used to record systems alone, and
+    // a stations-only run therefore recorded nothing).
+    let applied = super::Applied {
+        systems_seen: stats.systems,
+        systems_applied: written.systems,
+        systems_unfiled: written.unfiled.len() as u64,
+        stations_seen: stats.stations,
+        snapshots_applied: written.snapshots_applied,
+        snapshots_skipped: written.snapshots_skipped,
+        identities_applied: written.identities_applied,
+        identities_skipped: written.identities_skipped,
+        market_rows: written.market_rows,
+        stars_taught: written.stars,
+        bodies_applied: written.bodies,
+        hotspots_applied: written.hotspots,
+        parse_errors: stats.parse_errors,
+    };
     let mut transaction = pool.begin().await?;
-    complete_job(&mut transaction, run_id, written.systems, written.newest).await?;
+    complete_job(&mut transaction, run_id, &applied, written.newest).await?;
     transaction.commit().await?;
     if !written.unfiled.is_empty() {
         tracing::warn!(
