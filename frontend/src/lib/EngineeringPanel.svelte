@@ -253,8 +253,9 @@
       {/if}
       {#each eng.shopping.traders.filter((t) => neededKinds.has(t.kind)) as t}
         <div class="small" style="margin:0.3rem 0">
+          {@const status = traderStatus(t, eng.shopping.origin_system)}
           <strong>Nearest {t.kind_known === false ? "material" : t.kind} traders</strong>{eng.shopping.origin_system ? ` from ${eng.shopping.origin_system}` : ""}:
-          {#if t.kind_known === false && t.nearest.length}<span class="muted" title="A trader's kind follows its station's economy, which the community API does not publish yet. These are every material trader in range.">(kind unknown — all traders shown)</span>{/if}
+          {#if status.text && t.nearest.length}<span class={status.tone} title={status.title ?? ""}>{status.text}</span>{/if}
           {#if t.nearest.length}
             <div class="row small" style="margin-top:0.2rem">
               {#each t.nearest as n}
@@ -263,7 +264,7 @@
               {/each}
             </div>
           {:else}
-            <span class={traderStatus(t).tone}>{traderStatus(t).text}{traderStatus(t).tone === "muted" && !eng.shopping.origin_system ? " (position unknown)" : ""}</span>
+            <span class={status.tone} title={status.title ?? ""}>{status.text}</span>
           {/if}
         </div>
       {/each}

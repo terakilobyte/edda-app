@@ -546,6 +546,10 @@ const TRADER_RADIUS_LY: f64 = 300.0;
 /// The nearest trader of each kind the plan needs, from the community
 /// API, around the commander's system.
 pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) {
+    // No origin: there is nothing to ask, which is not the same as asking
+    // and failing. `asked` stays false and the panel explains the real
+    // reason from `origin_system` — saying "could not reach the API" here
+    // would be the exact lie this flag exists to prevent (review, 2026-09-15).
     let Some(system) = report.origin_system.clone() else { return };
     for stop in &mut report.traders {
         let kind = format!("{:?}", stop.kind).to_lowercase();
