@@ -1593,6 +1593,82 @@ async fn a_dump_economy_reaches_the_row_even_when_the_identity_is_current() {
     assert_eq!(economy.as_deref(), Some("High Tech"), "an absent field is not a null write");
 }
 
+/// A record that knows no station type must not un-carrier a carrier.
+///
+/// `is_carrier` is derived from `station_type`, so an identity without
+/// one reports false. That write used to be unreachable for a current
+/// row, because the freshness guard skipped it. Opening the gate for
+/// never-learned columns (2026-09-15) made it reachable: a dump record
+/// carrying only an economy now passes the gate and, written
+/// unconditionally, would erase the flag. Raised in review by the
+/// second session before it could ship.
+#[tokio::test]
+#[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
+async fn an_identity_without_a_station_type_leaves_the_carrier_flag_alone() {
+    use ed_api::hydration::hydrate_spansh;
+    use std::io::Write as _;
+
+    let _serial = DATABASE.lock().await;
+    let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
+        .expect("EDDA_API_TEST_DATABASE_URL must be set for this ignored test");
+    let artifact_dir = TempDir::new().unwrap();
+    let config = ServiceConfig {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        database_url,
+        artifact_dir: artifact_dir.path().to_owned(),
+        eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
+        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+    };
+    let pool = database_pool(&config).await.unwrap();
+    reset_database(&pool).await;
+
+    let dir = TempDir::new().unwrap();
+    let write_dump = |name: &str, body: &str| {
+        let path = dir.path().join(name);
+        let f = std::fs::File::create(&path).unwrap();
+        let mut enc = flate2::write::GzEncoder::new(f, flate2::Compression::fast());
+        enc.write_all(body.as_bytes()).unwrap();
+        enc.finish().unwrap();
+        path
+    };
+
+    // A carrier, learned properly.
+    let carrier = write_dump(
+        "carrier.json.gz",
+        concat!(
+            "[\n",
+            r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":77,"name":"T2X-02X","type":"Drake-Class Carrier","updateTime":"2026-08-25 00:00:00+00","services":["Dock"]}]}"#,
+            "\n]\n",
+        ),
+    );
+    hydrate_spansh(&pool, &carrier).await.unwrap();
+    let flag: bool = sqlx::query_scalar("SELECT is_carrier FROM stations WHERE id = 77")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(flag, "the dump taught a carrier");
+
+    // The same station, same updateTime, carrying ONLY an economy: it
+    // passes the gate because the economy has never been learned, and it
+    // knows nothing about the station's type.
+    let economy_only = write_dump(
+        "economy.json.gz",
+        concat!(
+            "[\n",
+            r#"{"id64":1,"name":"Alpha","coords":{"x":0,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[{"id":77,"name":"T2X-02X","updateTime":"2026-08-25 00:00:00+00","primaryEconomy":"Carrier"}]}"#,
+            "\n]\n",
+        ),
+    );
+    hydrate_spansh(&pool, &economy_only).await.unwrap();
+    let (flag, economy): (bool, Option<String>) =
+        sqlx::query_as("SELECT is_carrier, primary_economy FROM stations WHERE id = 77")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(economy.as_deref(), Some("Carrier"), "the economy was learned");
+    assert!(flag, "a record with no station type must not un-carrier a carrier");
+}
+
 /// Every station lookup maps the same row shape, and one of them can no
 /// longer be broken by a column added for another.
 ///

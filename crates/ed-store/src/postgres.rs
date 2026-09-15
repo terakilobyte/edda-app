@@ -326,7 +326,7 @@ async fn apply_station_identity(
              pad_small = COALESCE($2, pad_small), \
              pad_medium = COALESCE($3, pad_medium), \
              pad_large = COALESCE($4, pad_large), \
-             is_carrier = $5, \
+             is_carrier = COALESCE($5, is_carrier), \
              arrival_ls = COALESCE($6, arrival_ls), \
              station_type = COALESCE($7, station_type), \
              primary_economy = COALESCE($9, primary_economy), \
@@ -339,7 +339,11 @@ async fn apply_station_identity(
     .bind(identity.pad_small)
     .bind(identity.pad_medium)
     .bind(identity.pad_large)
-    .bind(identity.is_carrier())
+    // Derived from station_type, so an identity that knows no type
+    // reports false. Only assert it when the type is actually known —
+    // otherwise a record carrying just an economy un-carriers a carrier,
+    // which the never-learned-column gate made reachable (2026-09-15).
+    .bind(identity.station_type.as_ref().map(|_| identity.is_carrier()))
     .bind(identity.arrival_ls)
     .bind(identity.station_type.as_deref())
     .bind(identity.observed_at.epoch_seconds)
