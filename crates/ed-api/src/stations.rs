@@ -221,40 +221,102 @@ impl StationsQuery {
 
 /// The station columns, in order; timestamps as text and hours so no
 /// sqlx time feature is needed.
-const COLS: &str = "st.id, st.name, sy.name, st.station_type, st.arrival_ls, st.pad_small, st.pad_medium, st.pad_large, \
-                    st.has_market, st.has_outfitting, st.has_shipyard, COALESCE(st.is_carrier, false), \
-                    st.identity_observed_at::text, \
-                    EXTRACT(EPOCH FROM now() - st.identity_observed_at)::DOUBLE PRECISION / 3600.0, \
-                    st.primary_economy, st.government, st.controlling_faction";
+/// Every column the station queries select, aliased to the field it
+/// fills on [`StationRow`]. Names, not positions: a query may append
+/// its own columns (the near search appends `distance_ly`) and adding
+/// one here can no longer shift another out from under a reader.
+/// Position-indexed reads against this list caused a production outage
+/// on 2026-09-15 — `/v1/stations` 502'd on every request after three
+/// columns were added and the appended distance moved from 14 to 17.
+const COLS: &str = "st.id AS id, st.name AS name, sy.name AS system_name, \
+                    st.station_type AS station_type, st.arrival_ls AS arrival_ls, \
+                    st.pad_small AS pad_small, st.pad_medium AS pad_medium, st.pad_large AS pad_large, \
+                    st.has_market AS has_market, st.has_outfitting AS has_outfitting, \
+                    st.has_shipyard AS has_shipyard, COALESCE(st.is_carrier, false) AS is_carrier, \
+                    st.identity_observed_at::text AS identity_observed_at, \
+                    EXTRACT(EPOCH FROM now() - st.identity_observed_at)::DOUBLE PRECISION / 3600.0 AS age_hours, \
+                    st.primary_economy AS primary_economy, st.government AS government, \
+                    st.controlling_faction AS controlling_faction";
 
-/// How many columns `COLS` selects, and therefore the index of anything
-/// a query appends after it. Kept beside `COLS` and pinned by a test, so
-/// the two cannot drift again.
-const COLUMN_COUNT: usize = 17;
-const DISTANCE_LY_INDEX: usize = COLUMN_COUNT;
+/// One station row, mapped by column name. `distance_ly` is only
+/// selected by the near search, so it defaults to `None` everywhere
+/// else rather than forcing every query to select it.
+struct StationRow {
+    id: i64,
+    name: Option<String>,
+    system_name: Option<String>,
+    station_type: Option<String>,
+    arrival_ls: Option<f64>,
+    pad_small: Option<i32>,
+    pad_medium: Option<i32>,
+    pad_large: Option<i32>,
+    has_market: bool,
+    has_outfitting: bool,
+    has_shipyard: bool,
+    is_carrier: bool,
+    identity_observed_at: Option<String>,
+    age_hours: Option<f64>,
+    primary_economy: Option<String>,
+    government: Option<String>,
+    controlling_faction: Option<String>,
+    distance_ly: Option<f64>,
+}
 
-fn station_json(row: &sqlx::postgres::PgRow, distance_ly: Option<f64>) -> Value {
-    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
-        (row.get(5), row.get(6), row.get(7));
-    let kind: Option<String> = row.get(3);
+/// Mapped by hand rather than by `#[derive(FromRow)]`: the derive needs
+/// sqlx's `macros` feature, and this crate builds sqlx with default
+/// features off on purpose. The guarantee is the same — every column is
+/// fetched by its own name, so no reader can be shifted by a column
+/// added elsewhere.
+impl<'r> sqlx::FromRow<'r, sqlx::postgres::PgRow> for StationRow {
+    fn from_row(row: &'r sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
+        Ok(StationRow {
+            id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            system_name: row.try_get("system_name")?,
+            station_type: row.try_get("station_type")?,
+            arrival_ls: row.try_get("arrival_ls")?,
+            pad_small: row.try_get("pad_small")?,
+            pad_medium: row.try_get("pad_medium")?,
+            pad_large: row.try_get("pad_large")?,
+            has_market: row.try_get("has_market")?,
+            has_outfitting: row.try_get("has_outfitting")?,
+            has_shipyard: row.try_get("has_shipyard")?,
+            is_carrier: row.try_get("is_carrier")?,
+            identity_observed_at: row.try_get("identity_observed_at")?,
+            age_hours: row.try_get("age_hours")?,
+            primary_economy: row.try_get("primary_economy")?,
+            government: row.try_get("government")?,
+            controlling_faction: row.try_get("controlling_faction")?,
+            // Only the near search selects it; absent elsewhere.
+            distance_ly: row.try_get("distance_ly").unwrap_or(None),
+        })
+    }
+}
+
+fn station_json(row: &StationRow) -> Value {
+    let kind = row.station_type.as_deref();
     json!({
-        "id": row.get::<i64, _>(0),
-        "name": row.get::<Option<String>, _>(1),
-        "system_name": row.get::<Option<String>, _>(2),
+        "id": row.id,
+        "name": row.name,
+        "system_name": row.system_name,
         "kind": kind,
-        "class": StationClass::of(kind.as_deref()),
-        "distance_to_arrival": row.get::<Option<f64>, _>(4),
-        "primary_economy": row.get::<Option<String>, _>(14),
-        "government": row.get::<Option<String>, _>(15),
-        "controlling_faction": row.get::<Option<String>, _>(16),
-        "max_pad": PadSize::from_counts(pl.map(i64::from), pm.map(i64::from), ps.map(i64::from)),
-        "has_market": row.get::<bool, _>(8),
-        "has_outfitting": row.get::<bool, _>(9),
-        "has_shipyard": row.get::<bool, _>(10),
-        "is_carrier": row.get::<bool, _>(11),
-        "updated": row.get::<Option<String>, _>(12),
-        "age_hours": row.get::<Option<f64>, _>(13),
-        "distance_ly": distance_ly,
+        "class": StationClass::of(kind),
+        "distance_to_arrival": row.arrival_ls,
+        "primary_economy": row.primary_economy,
+        "government": row.government,
+        "controlling_faction": row.controlling_faction,
+        "max_pad": PadSize::from_counts(
+            row.pad_large.map(i64::from),
+            row.pad_medium.map(i64::from),
+            row.pad_small.map(i64::from),
+        ),
+        "has_market": row.has_market,
+        "has_outfitting": row.has_outfitting,
+        "has_shipyard": row.has_shipyard,
+        "is_carrier": row.is_carrier,
+        "updated": row.identity_observed_at,
+        "age_hours": row.age_hours,
+        "distance_ly": row.distance_ly,
     })
 }
 
@@ -272,7 +334,7 @@ pub async fn in_system(
     system: &str,
     q: &StationsQuery,
 ) -> anyhow::Result<Vec<Value>> {
-    let rows = sqlx::query(&format!(
+    let rows = sqlx::query_as::<_, StationRow>(&format!(
         "SELECT {COLS} FROM stations st JOIN systems sy ON sy.address = st.system_address \
          WHERE lower(sy.name) = lower($1) ORDER BY st.name"
     ))
@@ -281,7 +343,7 @@ pub async fn in_system(
     .await?;
     let mut out: Vec<(StationClass, Value)> = rows
         .iter()
-        .map(|row| station_json(row, None))
+        .map(station_json)
         .filter(|v| q.include_carriers || v["is_carrier"] != true)
         .map(|v| (StationClass::of(v["kind"].as_str()), v))
         .filter(|(class, _)| q.include_minor || !minor(*class))
@@ -305,7 +367,7 @@ pub async fn in_systems(
     q: &StationsQuery,
 ) -> anyhow::Result<Vec<Value>> {
     let keys: Vec<String> = systems.iter().map(|s| s.to_lowercase()).collect();
-    let rows = sqlx::query(&format!(
+    let rows = sqlx::query_as::<_, StationRow>(&format!(
         "SELECT {COLS} FROM stations st JOIN systems sy ON sy.address = st.system_address \
          WHERE lower(sy.name) = ANY($1) ORDER BY st.name"
     ))
@@ -320,7 +382,7 @@ pub async fn in_systems(
     };
     let mut out: Vec<(usize, StationClass, Value)> = rows
         .iter()
-        .map(|row| station_json(row, None))
+        .map(station_json)
         .filter(|v| q.include_carriers || v["is_carrier"] != true)
         .map(|v| (position(&v), StationClass::of(v["kind"].as_str()), v))
         .filter(|(_, class, _)| q.include_minor || !minor(*class))
@@ -356,7 +418,7 @@ pub async fn near(
         Some("shipyard") => "st.has_shipyard",
         Some(_) => "EXISTS (SELECT 1 FROM station_services ss WHERE ss.station_id = st.id AND ss.service = $6)",
     };
-    let rows = sqlx::query(&format!(
+    let rows = sqlx::query_as::<_, StationRow>(&format!(
         "SELECT {COLS}, sqrt((sy.x-$1)^2 + (sy.y-$2)^2 + (sy.z-$3)^2) AS distance_ly \
          FROM stations st JOIN systems sy ON sy.address = st.system_address \
          WHERE sy.cell = ANY($5) \
@@ -384,7 +446,7 @@ pub async fn near(
         // next time a column is added. (2026-09-15: adding economy,
         // government and faction shifted 14 from the distance to a text
         // column, and every /v1/stations request panicked in production.)
-        .map(|row| station_json(row, Some(row.get::<f64, _>(DISTANCE_LY_INDEX))))
+        .map(station_json)
         .filter(|v| match min_pad {
             None => true,
             Some(required) => serde_json::from_value::<Option<PadSize>>(v["max_pad"].clone())
@@ -407,7 +469,7 @@ pub async fn by_name(pool: &PgPool, prefix: &str, q: &StationsQuery) -> anyhow::
     if names.is_empty() {
         return Ok(Vec::new());
     }
-    let rows = sqlx::query(&format!(
+    let rows = sqlx::query_as::<_, StationRow>(&format!(
         "SELECT {COLS} FROM stations st LEFT JOIN systems sy ON sy.address = st.system_address \
          WHERE st.name = ANY($1) ORDER BY COALESCE(st.is_carrier, false), st.name LIMIT $2"
     ))
@@ -415,26 +477,47 @@ pub async fn by_name(pool: &PgPool, prefix: &str, q: &StationsQuery) -> anyhow::
     .bind(q.limit() as i64)
     .fetch_all(pool)
     .await?;
-    Ok(rows.iter().map(|row| station_json(row, None)).collect())
+    Ok(rows.iter().map(station_json).collect())
 }
 
 #[cfg(test)]
 mod tests {
-    /// The positional reads in `station_json` and `DISTANCE_LY_INDEX` are
-    /// only correct while `COLS` selects exactly this many columns. Adding
-    /// one without moving the appended index is what took /v1/stations
-    /// down on 2026-09-15.
+    /// Every field `StationRow` maps by name must actually be selected
+    /// under that name. This replaces the column-count guard that stood
+    /// while the reads were positional: a count cannot catch a rename,
+    /// and the names are what the mapping now depends on. `distance_ly`
+    /// is the one field a query appends rather than `COLS` selecting it.
     #[test]
-    fn the_column_count_matches_the_column_list() {
-        let depth = |s: &str| s.chars().fold((0i32, 0usize), |(d, n), c| match c {
-            '(' => (d + 1, n),
-            ')' => (d - 1, n),
-            ',' if d == 0 => (d, n + 1),
-            _ => (d, n),
-        });
-        let (_, commas) = depth(super::COLS);
-        assert_eq!(commas + 1, super::COLUMN_COUNT, "COLS selects {} columns, COLUMN_COUNT says {}", commas + 1, super::COLUMN_COUNT);
-        assert_eq!(super::DISTANCE_LY_INDEX, super::COLUMN_COUNT, "an appended column sits after the list");
+    fn every_mapped_field_is_selected_under_its_own_name() {
+        let cols = super::COLS;
+        for field in [
+            "id",
+            "name",
+            "system_name",
+            "station_type",
+            "arrival_ls",
+            "pad_small",
+            "pad_medium",
+            "pad_large",
+            "has_market",
+            "has_outfitting",
+            "has_shipyard",
+            "is_carrier",
+            "identity_observed_at",
+            "age_hours",
+            "primary_economy",
+            "government",
+            "controlling_faction",
+        ] {
+            assert!(
+                cols.contains(&format!("AS {field}")),
+                "COLS never aliases {field}"
+            );
+        }
+        assert!(
+            !cols.contains("AS distance_ly"),
+            "the near search appends distance_ly itself"
+        );
     }
 
     use super::*;
