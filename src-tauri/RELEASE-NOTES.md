@@ -7,6 +7,68 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.2
+
+The Engineering tab is back, and the searches that quietly returned
+nothing now work: ships and modules by the names you call them, material
+traders, and every station service rather than three. Ship and module
+discounts show where they apply. Carrier callouts stopped confusing your
+carrier with the squadron's, and the ship computer hands short routes to
+the game's own plotter instead of planning them itself.
+
+**Search by the names you use.** The Market tab matched what you typed
+against the game's internal symbols, so a search only worked when the
+two happened to agree: "Mandalay" found fifty stations, "Type-10
+Defender" found none, and neither did "Imperial Cutter", "Krait Mk II",
+"5A fuel scoop" or "beam laser". EDDA now translates before it asks —
+display names, internal symbols, or a unique fragment like "defender" —
+and the ship search completes as you type, offline.
+
+**Discounts.** Every ship and module row shows the discount that applies
+there and why, from the game's published rules: Li Yong-Rui's space, the
+weapon discounts in Jerome Archer's, Mahon's cargo racks and hull
+reinforcement, Patreus's Imperial hulls, the permit stations such as
+Jameson Memorial, and your own Elite rank, which stacks. "Discounted
+only" narrows the search to where a discount exists rather than filtering
+the nearest results and leaving you nothing. Fleet carriers and a Power's
+Stronghold Carriers are now separate switches.
+
+**The Engineering tab returns**, with blueprint costs, your materials,
+engineer access and the trader shopping list — and the Plan button on
+every module in the Ships tab that hands it straight there.
+
+**Materials you hold are counted.** "Untypical Shield Scans" read zero
+against a hold of 131: one stray space in EDDA's own material table filed
+them under a name no blueprint spells. Fixed, with tests that keep every
+material findable by the name it shows.
+
+**Material traders appear again.** They are typed by their station's
+economy, which the community data does not publish yet, so EDDA had been
+discarding every trader and reporting none. Until that lands it lists
+every material trader in range and says the kind is unknown, and it looks
+300 light-years out instead of 150.
+
+**Services search.** The Galaxy tab offered three services; it now offers
+all of them, interstellar factors included, taken from the same
+vocabulary the data uses so the two cannot drift. Leave the origin empty
+to search from where you are.
+
+**Ships and modules across your whole fleet.** Ask which of your ships
+carries a wake scanner and the ship computer searches every owned ship's
+stored build, not just the one you are flying, and can show any of their
+builds.
+
+**Carriers.** An undocked carrier jump and a heartbeat after departure
+both clear a pending jump, so a scheduled jump no longer sticks at
+"departs in -1350 min". Your carrier and a squadron's are reported
+separately, each remembering where it is.
+
+**Routing.** A route within your route-coverage threshold now goes to the
+game's own plotter when you ask the ship computer for it, the way the
+Route tab and trade following already did. A re-plan that produces the
+plan you are already flying no longer announces itself. A route that
+cannot exist is refused in seconds instead of minutes.
+
 ## 0.3.1
 
 Linux: the AppImage starts again on newer distributions. Everything
