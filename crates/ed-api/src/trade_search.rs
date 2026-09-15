@@ -201,6 +201,24 @@ pub enum TradeOutcome {
     Saturated,
 }
 
+/// The final projection, hoisted so a test can count it: ten leg
+/// columns, then the buy station's seventeen, then the sell
+/// station's seventeen. `endpoint` reads those blocks by offset, so
+/// this string and those offsets must agree — the drift that took
+/// /v1/stations down on 2026-09-15 was exactly this, a shared column
+/// list and a positional reader parting company.
+const PROJECTION: &str = "b.commodity_symbol, COALESCE(NULLIF(c.name, ''), b.commodity_symbol), \
+            s.sell_price - b.buy_price AS profit_t, b.buy_price, s.sell_price, b.supply, s.demand, \
+            EXTRACT(EPOCH FROM now() - b.observed_at)::DOUBLE PRECISION / 3600.0, \
+            EXTRACT(EPOCH FROM now() - s.observed_at)::DOUBLE PRECISION / 3600.0, \
+            sqrt((fb.x-fs.x)^2 + (fb.y-fs.y)^2 + (fb.z-fs.z)^2) AS leg_ly, \
+            fb.id, fb.name, fb.system_name, fb.distance_ly, fb.arrival_ls, \
+            fb.pad_small, fb.pad_medium, fb.pad_large, fb.is_carrier, \
+            fb.address, fb.x, fb.y, fb.z, fb.station_type, fb.controlling_power, fb.power_state, fb.powers, \
+            fs.id, fs.name, fs.system_name, fs.distance_ly, fs.arrival_ls, \
+            fs.pad_small, fs.pad_medium, fs.pad_large, fs.is_carrier, \
+            fs.address, fs.x, fs.y, fs.z, fs.station_type, fs.controlling_power, fs.power_state, fs.powers";
+
 impl TradeService {
     pub async fn search(
         &self,
@@ -236,6 +254,7 @@ impl TradeService {
         cache.insert(key, (Instant::now(), value.clone()));
         Ok(TradeOutcome::Legs(value, miss_kind))
     }
+
 
     /// The v2 answer: `trade_report::prepare` (Postgres) then
     /// `ed_route::profit::assemble` (the finder's own pipeline) behind
@@ -401,17 +420,7 @@ async fn legs(
                  FROM fresh WHERE sell_price > 0 AND demand >= $6 \
              ) s WHERE rn <= {best_k} \
          ) \
-         SELECT b.commodity_symbol, COALESCE(NULLIF(c.name, ''), b.commodity_symbol), \
-                s.sell_price - b.buy_price AS profit_t, b.buy_price, s.sell_price, b.supply, s.demand, \
-                EXTRACT(EPOCH FROM now() - b.observed_at)::DOUBLE PRECISION / 3600.0, \
-                EXTRACT(EPOCH FROM now() - s.observed_at)::DOUBLE PRECISION / 3600.0, \
-                sqrt((fb.x-fs.x)^2 + (fb.y-fs.y)^2 + (fb.z-fs.z)^2) AS leg_ly, \
-                fb.id, fb.name, fb.system_name, fb.distance_ly, fb.arrival_ls, \
-                fb.pad_small, fb.pad_medium, fb.pad_large, fb.is_carrier, \
-                fb.address, fb.x, fb.y, fb.z, fb.station_type, fb.controlling_power, fb.power_state, fb.powers, \
-                fs.id, fs.name, fs.system_name, fs.distance_ly, fs.arrival_ls, \
-                fs.pad_small, fs.pad_medium, fs.pad_large, fs.is_carrier, \
-                fs.address, fs.x, fs.y, fs.z, fs.station_type, fs.controlling_power, fs.power_state, fs.powers \
+         SELECT {PROJECTION} \
          FROM best_buy b \
          JOIN best_sell s ON s.commodity_symbol = b.commodity_symbol AND s.station_id <> b.station_id \
          JOIN box fb ON fb.id = b.station_id \
@@ -445,6 +454,22 @@ async fn legs(
         .fetch_all(pool)
         .await
         .map_err(|e| Refusal::Invalid(e.to_string()))?;
+    // The final SELECT projects two identical station blocks, the buy
+    // endpoint then the sell endpoint, after ten leg columns. These are
+    // the only positional reads left in the API, and they stay positional
+    // on purpose: the two blocks carry the SAME column names, so reading
+    // by name would need all 34 aliased from_/to_, and reshaping this
+    // CTE by hand is a worse risk than the drift it would prevent. The
+    // constants and `the_endpoint_blocks_sit_where_the_reader_expects`
+    // hold the layout and the reader together instead. If you add a leg
+    // column, LEG_COLUMNS moves; if you add a station column, both
+    // BLOCK_WIDTH and the second base move. See stations.rs for what
+    // happens when a list like this drifts from its reader.
+    const LEG_COLUMNS: usize = 10;
+    const BLOCK_WIDTH: usize = 17;
+    const FROM_BASE: usize = LEG_COLUMNS;
+    const TO_BASE: usize = LEG_COLUMNS + BLOCK_WIDTH;
+
     fn endpoint(row: &sqlx::postgres::PgRow, base: usize) -> serde_json::Value {
         use sqlx::Row;
         let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
@@ -482,8 +507,8 @@ async fn legs(
                 "buy_age_hours": row.get::<f64, _>(7),
                 "sell_age_hours": row.get::<f64, _>(8),
                 "distance_ly": row.get::<Option<f64>, _>(9),
-                "from": endpoint(row, 10),
-                "to": endpoint(row, 27),
+                "from": endpoint(row, FROM_BASE),
+                "to": endpoint(row, TO_BASE),
             })
         })
         .collect();
@@ -497,6 +522,32 @@ async fn legs(
 
 #[cfg(test)]
 mod tests {
+    /// The two station blocks sit where `endpoint` reads them.
+    ///
+    /// The final SELECT projects ten leg columns, then the buy station's
+    /// seventeen, then the sell station's seventeen. Those offsets were
+    /// bare literals (10 and 27) until 2026-09-15, when the same pattern
+    /// in `stations.rs` — a column list and a positional reader drifting
+    /// apart — returned 502 on every `/v1/stations` request. This counts
+    /// the projection in the SQL itself, so adding a column to either
+    /// block fails here instead of in production.
+    #[test]
+    fn the_endpoint_blocks_sit_where_the_reader_expects() {
+        // Top-level commas only: the projection is full of function calls.
+        let (_, commas) = super::PROJECTION.chars().fold((0i32, 0usize), |(d, n), c| match c {
+            '(' => (d + 1, n),
+            ')' => (d - 1, n),
+            ',' if d == 0 => (d, n + 1),
+            _ => (d, n),
+        });
+        let columns = commas + 1;
+        assert_eq!(
+            columns,
+            10 + 17 + 17,
+            "the projection selects {columns} columns; endpoint() reads blocks at 10 and 27"
+        );
+    }
+
     use super::*;
 
     #[test]

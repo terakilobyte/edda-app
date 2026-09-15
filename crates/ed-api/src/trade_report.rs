@@ -47,29 +47,48 @@ use crate::market_search::Refusal;
 pub const DEFAULT_MAX_STATIONS: usize = 1_000;
 pub const MAX_RADIUS_LY: f64 = 500.0;
 
-/// The 16 station columns the candidate query selects, in order.
-const STATION_COLS: &str = "st.id, st.name, sy.name, sy.address, sy.x, sy.y, sy.z, st.arrival_ls, \
-                            st.pad_small, st.pad_medium, st.pad_large, COALESCE(st.is_carrier, false), st.station_type, \
-                            sy.controlling_power, sy.power_state, sy.powers";
+/// The station columns the candidate queries select, each aliased to the
+/// name `station_ref` reads it by. Names, not positions: on 2026-09-15
+/// the same shape in `stations.rs` — a shared list read by index — took
+/// `/v1/stations` down for every request when three columns were added
+/// and shifted an appended one. Neither query here appends a column
+/// today, which is the only reason this list has not bitten yet.
+const STATION_COLS: &str = "st.id AS station_id, st.name AS station_name, sy.name AS system_name, \
+                            sy.address AS system_address, sy.x AS x, sy.y AS y, sy.z AS z, \
+                            st.arrival_ls AS arrival_ls, st.pad_small AS pad_small, \
+                            st.pad_medium AS pad_medium, st.pad_large AS pad_large, \
+                            COALESCE(st.is_carrier, false) AS is_carrier, st.station_type AS station_type, \
+                            sy.controlling_power AS controlling_power, sy.power_state AS power_state, \
+                            sy.powers AS powers";
+
+/// Every name `station_ref` fetches, so a test can hold the list and the
+/// reader together without a live database.
+#[cfg(test)]
+pub(crate) const STATION_FIELDS: [&str; 16] = [
+    "station_id", "station_name", "system_name", "system_address", "x", "y", "z", "arrival_ls",
+    "pad_small", "pad_medium", "pad_large", "is_carrier", "station_type", "controlling_power",
+    "power_state", "powers",
+];
 
 pub(crate) fn station_ref(row: &sqlx::postgres::PgRow) -> StationRef {
-    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) = (row.get(8), row.get(9), row.get(10));
+    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
+        (row.get("pad_small"), row.get("pad_medium"), row.get("pad_large"));
     StationRef {
-        station_id: row.get::<i64, _>(0),
-        station: row.get::<Option<String>, _>(1).unwrap_or_default(),
-        system: row.get::<String, _>(2),
-        system_id64: row.get::<i64, _>(3),
-        x: row.get::<Option<f64>, _>(4).unwrap_or(0.0),
-        y: row.get::<Option<f64>, _>(5).unwrap_or(0.0),
-        z: row.get::<Option<f64>, _>(6).unwrap_or(0.0),
-        arrival_ls: row.get::<Option<f64>, _>(7),
+        station_id: row.get::<i64, _>("station_id"),
+        station: row.get::<Option<String>, _>("station_name").unwrap_or_default(),
+        system: row.get::<String, _>("system_name"),
+        system_id64: row.get::<i64, _>("system_address"),
+        x: row.get::<Option<f64>, _>("x").unwrap_or(0.0),
+        y: row.get::<Option<f64>, _>("y").unwrap_or(0.0),
+        z: row.get::<Option<f64>, _>("z").unwrap_or(0.0),
+        arrival_ls: row.get::<Option<f64>, _>("arrival_ls"),
         max_pad: PadSize::from_counts(pl.map(i64::from), pm.map(i64::from), ps.map(i64::from)),
-        class: StationClass::of(row.get::<Option<String>, _>(12).as_deref()),
-        is_carrier: row.get::<bool, _>(11),
-        controlling_power: row.get::<Option<String>, _>(13),
-        power_state: row.get::<Option<String>, _>(14),
+        class: StationClass::of(row.get::<Option<String>, _>("station_type").as_deref()),
+        is_carrier: row.get::<bool, _>("is_carrier"),
+        controlling_power: row.get::<Option<String>, _>("controlling_power"),
+        power_state: row.get::<Option<String>, _>("power_state"),
         powers: row
-            .get::<Option<String>, _>(15)
+            .get::<Option<String>, _>("powers")
             .map(|s| s.split(',').map(|p| p.trim().to_owned()).filter(|p| !p.is_empty()).collect())
             .unwrap_or_default(),
     }
@@ -401,6 +420,25 @@ pub async fn fuse(
 
 #[cfg(test)]
 mod tests {
+    /// Every name `station_ref` fetches must be selected under that name.
+    /// The stations endpoint shipped a 502 on every request (2026-09-15)
+    /// because a shared column list and its reader drifted apart; this
+    /// list is the same shape, so it gets the same guard. A count could
+    /// not catch a rename, which is why this checks names.
+    #[test]
+    fn the_station_columns_are_aliased_to_the_names_the_reader_uses() {
+        for field in super::STATION_FIELDS {
+            assert!(
+                super::STATION_COLS.contains(&format!("AS {field}")),
+                "STATION_COLS never aliases {field}"
+            );
+        }
+        // And the list selects exactly those, so an unread column cannot
+        // sit in the projection pretending to be used.
+        let selected = super::STATION_COLS.matches(" AS ").count();
+        assert_eq!(selected, super::STATION_FIELDS.len(), "STATION_COLS selects {selected} columns");
+    }
+
     use super::*;
 
     /// The docked board replaces the station's stored rows when it is
