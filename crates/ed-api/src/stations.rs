@@ -227,6 +227,12 @@ const COLS: &str = "st.id, st.name, sy.name, st.station_type, st.arrival_ls, st.
                     EXTRACT(EPOCH FROM now() - st.identity_observed_at)::DOUBLE PRECISION / 3600.0, \
                     st.primary_economy, st.government, st.controlling_faction";
 
+/// How many columns `COLS` selects, and therefore the index of anything
+/// a query appends after it. Kept beside `COLS` and pinned by a test, so
+/// the two cannot drift again.
+const COLUMN_COUNT: usize = 17;
+const DISTANCE_LY_INDEX: usize = COLUMN_COUNT;
+
 fn station_json(row: &sqlx::postgres::PgRow, distance_ly: Option<f64>) -> Value {
     let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
         (row.get(5), row.get(6), row.get(7));
@@ -373,7 +379,12 @@ pub async fn near(
     .await?;
     Ok(rows
         .iter()
-        .map(|row| station_json(row, Some(row.get::<f64, _>(14))))
+        // distance_ly is appended AFTER `COLS`, so its index is the column
+        // count -- not a literal that silently means something else the
+        // next time a column is added. (2026-09-15: adding economy,
+        // government and faction shifted 14 from the distance to a text
+        // column, and every /v1/stations request panicked in production.)
+        .map(|row| station_json(row, Some(row.get::<f64, _>(DISTANCE_LY_INDEX))))
         .filter(|v| match min_pad {
             None => true,
             Some(required) => serde_json::from_value::<Option<PadSize>>(v["max_pad"].clone())
@@ -409,6 +420,23 @@ pub async fn by_name(pool: &PgPool, prefix: &str, q: &StationsQuery) -> anyhow::
 
 #[cfg(test)]
 mod tests {
+    /// The positional reads in `station_json` and `DISTANCE_LY_INDEX` are
+    /// only correct while `COLS` selects exactly this many columns. Adding
+    /// one without moving the appended index is what took /v1/stations
+    /// down on 2026-09-15.
+    #[test]
+    fn the_column_count_matches_the_column_list() {
+        let depth = |s: &str| s.chars().fold((0i32, 0usize), |(d, n), c| match c {
+            '(' => (d + 1, n),
+            ')' => (d - 1, n),
+            ',' if d == 0 => (d, n + 1),
+            _ => (d, n),
+        });
+        let (_, commas) = depth(super::COLS);
+        assert_eq!(commas + 1, super::COLUMN_COUNT, "COLS selects {} columns, COLUMN_COUNT says {}", commas + 1, super::COLUMN_COUNT);
+        assert_eq!(super::DISTANCE_LY_INDEX, super::COLUMN_COUNT, "an appended column sits after the list");
+    }
+
     use super::*;
 
     #[test]
