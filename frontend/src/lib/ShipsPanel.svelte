@@ -4,6 +4,7 @@
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { fmtInt, fmtTs, fmtAge } from "./format.js";
+  import { requestPlan } from "./engineering.svelte.js";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   let ships = $state([]);
@@ -131,7 +132,7 @@
               <td class="r num">{#if m.grade}Grade {m.grade}{#if m.quality != null} <span class="muted small">· {(m.quality * 100).toFixed(0)}%</span>{/if}{:else if m.module_type}<span class="muted">unengineered</span>{/if}</td>
               <td class="small">{m.engineer ?? ""}</td>
               <td class="small">{m.experimental ?? ""}</td>
-              <td></td>
+              <td>{#if m.module_type}<button class="mini" onclick={() => requestPlan({ ...m, ship_id: selected.ship_id })} title={m.grade ? "Plan the next grades in the Engineering tab" : "Plan engineering for this module in the Engineering tab"}>Plan</button>{/if}</td>
             </tr>
           {/each}
         </tbody>

@@ -86,10 +86,18 @@ export const topics = [
     tabs: [["powerplay", "Open the Powerplay tab"]],
   },
   {
+    id: "engineering",
+    title: "Engineering",
+    body: [
+      "Blueprint costs for every engineerable module, your live material inventory from the journal, and a shopping list that knows material-trader exchange rates (6:1 per grade up, 3:1 per grade down, 6:1 across groups). A plan an unlocked engineer cannot apply yet says so in red. Everything here is local: the bundled blueprint data and your own journal, no server.",
+    ],
+    tabs: [["engineering", "Open the Engineering tab"]],
+  },
+  {
     id: "ships",
     title: "Ships",
     body: [
-      "Every ship you have flown, from the journal, with its current build: modules, engineering grades and experimental effects. Open in EDSY / Open in Coriolis opens the site with the build already loaded; Copy build puts it on the clipboard in SLEF for anything else that imports it.",
+      "Every ship you have flown, from the journal, with its current build: modules, engineering grades and experimental effects. Plan on any module hands it to the Engineering tab. Open in EDSY / Open in Coriolis opens the site with the build already loaded; Copy build puts it on the clipboard in SLEF for anything else that imports it.",
     ],
     tabs: [["ships", "Open the Ships tab"]],
   },

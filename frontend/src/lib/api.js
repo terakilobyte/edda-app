@@ -177,6 +177,7 @@ export const COMMANDS = {
   macroRecordStop: ["macro_record_stop", ["system"]],
   galaxyNear: ["galaxy_near", ["pos", "radiusLy", "limit"], { limit: 2000 }],
   nameComplete: ["name_complete", ["kind", "prefix"]],
+  serviceOptions: ["service_options"],
   // Powerplay & merits
   meritModel: ["merit_model"],
   powerplaySeen: ["powerplay_seen"],
@@ -273,7 +274,7 @@ export const {
   tradeFollowStart, tradeFollowStop, tradeFollowStatus, carrierRoutePlot, carrierRouteStart, carrierRouteStatus, carrierRouteClear, carrierRouteNext,
   targetMacroEnabledGet, targetMacroEnabledSet, gameRouteMaxGet, gameRouteMaxSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest,
   routePlotTest, mapSetupTest, mapSetupSay, mapSetupCancel, mapSetupTarget, routePlotInGame, targetKeyStatus, targetTriggerCapture, targetTriggerClear, mapPointCapture, mapPointsGet, mapDelaySet, mapPointsClear, macroRecordStart, macroRecordStop,
-  galaxyNear, nameComplete,
+  galaxyNear, nameComplete, serviceOptions,
   meritModel, powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,

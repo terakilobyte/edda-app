@@ -91,7 +91,7 @@ id,symbol,rarity,type,category,name
 128681624,ScanDatabanks,3,Encoded,Data Archives,Classified Scan Databanks
 128681625,WakeSolutions,3,Encoded,Wake Scans,Strange Wake Solutions
 128681626,EmissionData,3,Encoded,Emission Data,Unexpected Emission Data
-128681627,ShieldDensityReports,3,Encoded,Shield Data,Untypical Shield Scans 
+128681627,ShieldDensityReports,3,Encoded,Shield Data,Untypical Shield Scans
 128681628,SecurityFirmware,4,Encoded,Encoded Firmware,Security Firmware Patch
 128681629,EncryptionArchives,4,Encoded,Encryption Files,Atypical Encryption Archives
 128681630,EncodedScanData,4,Encoded,Data Archives,Divergent Scan Data

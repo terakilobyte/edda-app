@@ -1014,9 +1014,16 @@ fn nearest_service(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     if let Some(kind) = service.strip_suffix("_material_trader").or_else(|| service.strip_suffix("_trader")) {
         if matches!(kind, "raw" | "manufactured" | "encoded") {
             let system = ctx.state.with_read(|s| galaxy::system_or_current(s.conn(), req.system.as_deref()))?;
-            let v = tauri::async_runtime::block_on(crate::remote_lookup::nearest_material_traders(ctx.state, &system, kind, req.radius_ly.max(150.0), 10))
+            let hits = tauri::async_runtime::block_on(crate::remote_lookup::nearest_material_traders(ctx.state, &system, kind, req.radius_ly.max(300.0), 10))
                 .ok_or_else(|| crate::remote_lookup::api_down("material traders"))?;
-            return Ok(json!({ "origin": system, "service": format!("{kind} material trader"), "results": v, "note": note, "provenance": "community" }));
+            // Say so when the kind could not be told: the answer is every
+            // material trader nearby, not this kind's (2026-09-12).
+            let kind_note = if hits.kind_known {
+                note.to_string()
+            } else {
+                format!("{note}. These are EVERY material trader in range, not only {kind} ones: station economies are not published yet, and a trader's kind follows its station's economy. Say so rather than promising the kind.")
+            };
+            return Ok(json!({ "origin": system, "service": format!("{kind} material trader"), "results": hits.stations, "kind_known": hits.kind_known, "note": kind_note, "provenance": "community" }));
         }
     }
     let (system, v) = tauri::async_runtime::block_on(crate::remote_lookup::nearest_service(ctx.state, &req))
