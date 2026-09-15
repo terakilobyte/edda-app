@@ -117,7 +117,17 @@ pub async fn hydrate_fixture(pool: &PgPool, path: &Path) -> Result<HydrationResu
         );
     }
 
-    complete_job(&mut transaction, run_id, systems_applied, None).await?;
+    complete_job(
+        &mut transaction,
+        run_id,
+        &Applied {
+            systems_seen: u64::try_from(fixture.systems.len()).unwrap_or(0),
+            systems_applied,
+            ..Applied::default()
+        },
+        None,
+    )
+    .await?;
     transaction.commit().await?;
 
     Ok(HydrationResult {
@@ -147,21 +157,75 @@ async fn start_job(
     .await?)
 }
 
+/// What a hydration run actually did, in the units the summary line
+/// already prints. One struct so the row and the log cannot drift:
+/// `rows_applied` was the systems count alone until 2026-09-15, which
+/// made a stations-only run record zero.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct Applied {
+    pub systems_seen: u64,
+    pub systems_applied: u64,
+    pub systems_unfiled: u64,
+    pub stations_seen: u64,
+    pub snapshots_applied: u64,
+    pub snapshots_skipped: u64,
+    pub identities_applied: u64,
+    pub identities_skipped: u64,
+    pub market_rows: u64,
+    pub stars_taught: u64,
+    pub bodies_applied: u64,
+    pub hotspots_applied: u64,
+    pub parse_errors: u64,
+}
+
+impl Applied {
+    /// Rows written. Boards (`snapshots_applied`) are containers for
+    /// market rows, so summing both would double-count; they are
+    /// recorded but not counted here.
+    pub(crate) fn rows(&self) -> u64 {
+        self.systems_applied
+            + self.identities_applied
+            + self.market_rows
+            + self.stars_taught
+            + self.bodies_applied
+            + self.hotspots_applied
+    }
+}
+
 async fn complete_job(
     transaction: &mut Transaction<'_, Postgres>,
     run_id: i64,
-    rows_applied: u64,
+    applied: &Applied,
     observed_at: Option<i64>,
 ) -> Result<()> {
+    let n = |v: u64| -> Result<i64> { i64::try_from(v).context("a hydration count is too large") };
     sqlx::query(
         "UPDATE service_hydrations \
          SET status = 'complete', completed_at = now(), rows_applied = $1, \
-             source_observed_at = COALESCE(to_timestamp($3), source_observed_at) \
+             source_observed_at = COALESCE(to_timestamp($3), source_observed_at), \
+             systems_seen = $4, systems_applied = $5, systems_unfiled = $6, \
+             stations_seen = $7, snapshots_applied = $8, snapshots_skipped = $9, \
+             identities_applied = $10, identities_skipped = $11, market_rows = $12, \
+             stars_taught = $13, bodies_applied = $14, hotspots_applied = $15, \
+             parse_errors = $16 \
          WHERE id = $2",
     )
-    .bind(i64::try_from(rows_applied).context("applied row count is too large")?)
+    .bind(n(applied.rows())?)
     .bind(run_id)
     .bind(observed_at)
+    .bind(n(applied.systems_seen)?)
+    .bind(n(applied.systems_applied)?)
+    .bind(n(applied.systems_unfiled)?)
+    .bind(n(applied.stations_seen)?)
+    .bind(n(applied.snapshots_applied)?)
+    .bind(n(applied.snapshots_skipped)?)
+    .bind(n(applied.identities_applied)?)
+    .bind(n(applied.identities_skipped)?)
+    .bind(n(applied.market_rows)?)
+    .bind(n(applied.stars_taught)?)
+    .bind(n(applied.bodies_applied)?)
+    .bind(n(applied.hotspots_applied)?)
+    .bind(n(applied.parse_errors)?)
     .execute(&mut **transaction)
     .await?;
     Ok(())
