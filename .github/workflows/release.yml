@@ -61,6 +61,22 @@ jobs:
           echo "version=$tag" >> "$GITHUB_OUTPUT"
           { echo "notes<<EOF"; echo "$blurb"; echo "EOF"; } >> "$GITHUB_OUTPUT"
 
+  # The same licence and advisory gate CI runs (ci.yml, 2026-09-09), on the
+  # release path too. It was only ever in CI, so a tag never checked it:
+  # v0.3.2 shipped carrying RUSTSEC-2026-0285 (rustls TLS 1.3 handshake)
+  # because the advisory landed in the database after the last CI run and
+  # nothing on the tag path looked again. A release is exactly when we
+  # most want to know.
+  deny:
+    name: cargo deny (licenses, advisories)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories bans sources
+
   test:
     name: test (${{ matrix.os }})
     needs: verify
@@ -102,7 +118,7 @@ jobs:
 
   build-windows:
     name: build (windows installer, signed)
-    needs: [verify, test]
+    needs: [verify, test, deny]
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -143,7 +159,7 @@ jobs:
 
   build-linux:
     name: build (linux AppImage + deb + rpm, signed)
-    needs: [verify, test]
+    needs: [verify, test, deny]
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
@@ -206,7 +222,7 @@ jobs:
 
   build-api:
     name: build (ed-api server)
-    needs: [verify, test]
+    needs: [verify, test, deny]
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
@@ -225,7 +241,7 @@ jobs:
 
   deploy:
     name: deploy (box, manifest, site, release)
-    needs: [verify, build-windows, build-linux, build-api]
+    needs: [verify, deny, build-windows, build-linux, build-api]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
