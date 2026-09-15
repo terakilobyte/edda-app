@@ -1,0 +1,18 @@
+# Chosen by measurement, 2026-09-15, after `cargo fmt --all` produced a
+# 169-file, 20,892-line diff while a one-line change was in flight.
+#
+# The tree has never been rustfmt-formatted, so NO setting makes
+# `cargo fmt` a no-op today: measured hunks over the whole workspace
+# were 2,531 at the default 100 columns, 2,483 at 120, 2,393 at 140,
+# and 2,212 at 120 with small-item heuristics maxed — the setting below,
+# the closest fit to the code as written. Line widths bear that out:
+# p50 36, p95 93, p99 135.
+#
+# So this file makes an EDITOR's format-on-save agree with the house
+# style. It does not make a whole-tree format safe. Until the tree is
+# formatted once deliberately (a single commit plus a
+# .git-blame-ignore-revs entry, maintainer's call), do not run
+# `cargo fmt --all` or `cargo fmt -p <crate>`: both rewrite files your
+# change never touched and bury the diff.
+max_width = 120
+use_small_heuristics = "Max"

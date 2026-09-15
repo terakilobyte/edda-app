@@ -54,6 +54,26 @@ jobs:
     name: test (ubuntu)
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # The twelve `#[ignore]`d integration tests in crates/ed-api/tests/
+    # need a real Postgres. Without one they never ran, and on
+    # 2026-09-15 that let /v1/stations ship 502ing on every request:
+    # `stations_answers_the_three_lookups` reproduces that exact panic
+    # (ColumnDecode index 14, UnexpectedNullError) in 0.12 s, and had
+    # simply never been executed by CI.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: edda
+          POSTGRES_PASSWORD: edda
+          POSTGRES_DB: edda
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edda"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -102,6 +122,12 @@ jobs:
 
       - name: Rust tests
         run: cargo test --workspace
+
+      # These reset and share one database, so they run in one thread.
+      - name: Rust tests against Postgres (the ignored integration suite)
+        env:
+          EDDA_API_TEST_DATABASE_URL: postgres://edda:edda@127.0.0.1:5432/edda
+        run: cargo test -p ed-api --test postgres -- --ignored --test-threads=1
 
       - name: Clippy
         # The tree is not yet clippy-clean (pre-existing lints in ed-store/ed-galaxy/commands.rs);

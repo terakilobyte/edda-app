@@ -1593,6 +1593,102 @@ async fn a_dump_economy_reaches_the_row_even_when_the_identity_is_current() {
     assert_eq!(economy.as_deref(), Some("High Tech"), "an absent field is not a null write");
 }
 
+/// Every station lookup maps the same row shape, and one of them can no
+/// longer be broken by a column added for another.
+///
+/// 2026-09-15: `/v1/stations` returned 502 on every request in
+/// production. Three columns were added to the shared `COLS` list,
+/// which pushed the near search's appended `distance_ly` from index 14
+/// to 17; index 14 was then a nullable economy, decoded as `f64`, and
+/// the worker panicked. The mapping now goes by column NAME, and these
+/// assertions pin the properties that made the failure possible:
+/// the four lookups must agree on their keys, a null economy must
+/// survive every one of them, and `distance_ly` must be the only field
+/// that differs between the near search and the rest.
+#[tokio::test]
+#[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
+async fn every_station_lookup_maps_the_same_shape_and_tolerates_null_columns() {
+    let _serial = DATABASE.lock().await;
+    let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
+        .expect("EDDA_API_TEST_DATABASE_URL must be set for this ignored test");
+    let artifact_dir = TempDir::new().unwrap();
+    let config = ServiceConfig {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        database_url,
+        artifact_dir: artifact_dir.path().to_owned(),
+        eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
+        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+    };
+    let pool = database_pool(&config).await.unwrap();
+    reset_database(&pool).await;
+    seed_two_station_loop(&pool).await;
+    // A Dock learns all three; B Dock learns none. Whichever the query
+    // returns, a null must decode as an absent value, never a panic.
+    sqlx::raw_sql(
+        "UPDATE stations SET primary_economy = 'High Tech', government = 'Corporate', \
+             controlling_faction = 'The Dark Wheel' WHERE id = 11;",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let q = ed_api::stations::StationsQuery::default();
+    let in_system = ed_api::stations::in_system(&pool, "alpha", &q).await.unwrap();
+    let in_systems =
+        ed_api::stations::in_systems(&pool, &["Alpha".to_string(), "Beta".to_string()], &q).await.unwrap();
+    let near = ed_api::stations::near(&pool, (0.0, 0.0, 0.0), None, 50.0, None, &q).await.unwrap();
+    let by_name = ed_api::stations::by_name(&pool, "a d", &q).await.unwrap();
+    assert_eq!((in_system.len(), in_systems.len(), near.len(), by_name.len()), (1, 2, 2, 1));
+
+    // The four lookups agree on their keys. A mapping that works in one
+    // path and not another is exactly what shipped the outage.
+    let keys = |v: &serde_json::Value| {
+        v.as_object().unwrap().keys().cloned().collect::<std::collections::BTreeSet<_>>()
+    };
+    let expected = keys(&in_system[0]);
+    for (label, rows) in [("in_systems", &in_systems), ("near", &near), ("by_name", &by_name)] {
+        assert_eq!(keys(&rows[0]), expected, "{label} returns a different shape");
+    }
+    for field in [
+        "id", "name", "system_name", "kind", "class", "distance_to_arrival", "primary_economy",
+        "government", "controlling_faction", "max_pad", "has_market", "has_outfitting",
+        "has_shipyard", "is_carrier", "updated", "age_hours", "distance_ly",
+    ] {
+        assert!(expected.contains(field), "{field} is missing from the station shape");
+    }
+
+    // The station that learned them carries them, in every lookup.
+    let a_dock = |rows: &[serde_json::Value]| {
+        rows.iter().find(|r| r["id"] == 11).expect("A Dock").clone()
+    };
+    for (label, rows) in [
+        ("in_system", &in_system),
+        ("in_systems", &in_systems),
+        ("near", &near),
+        ("by_name", &by_name),
+    ] {
+        let row = a_dock(rows);
+        assert_eq!(row["primary_economy"], "High Tech", "{label}");
+        assert_eq!(row["government"], "Corporate", "{label}");
+        assert_eq!(row["controlling_faction"], "The Dark Wheel", "{label}");
+    }
+    // The station that learned nothing answers null, not an error.
+    let b_dock = near.iter().find(|r| r["id"] == 22).expect("B Dock");
+    assert!(b_dock["primary_economy"].is_null(), "an unlearned economy is null");
+    assert!(b_dock["government"].is_null());
+    assert!(b_dock["controlling_faction"].is_null());
+
+    // distance_ly is the one field the near search fills and the others
+    // leave null — the appended column whose index moved.
+    assert!(
+        near.iter().all(|r| r["distance_ly"].as_f64().is_some()),
+        "the near search fills distance_ly: {near:?}"
+    );
+    for (label, rows) in [("in_system", &in_system), ("in_systems", &in_systems), ("by_name", &by_name)] {
+        assert!(rows[0]["distance_ly"].is_null(), "{label} does not select distance_ly");
+    }
+}
+
 /// The v2 path end to end through `TradeService::report`: a ship in the
 /// request, the report back, and the second call a cache hit.
 #[tokio::test]
