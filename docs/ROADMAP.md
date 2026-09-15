@@ -14,6 +14,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   threads (`EDDA_API_PLANNER_THREADS`, to be added) on a Beagle Point plot
   before changing the default. Baseline: 39 s on the box vs 20 s on a
   desktop for the same 193-jump route.
+- **`rows_applied` does not count most of what a hydrate applies**
+  (2026-09-15, measured). The 2026-09-15 stations backfill recorded
+  `rows_applied = 0` in `service_hydrations` while its own summary line
+  reported 799,068 identities applied, 1,242,732 bodies, 294,666
+  hotspots and 2,191 stars taught. So the column counts only some
+  categories, and any week-over-week reading of it — including the
+  feed-vs-dump question below — is measuring a fraction of the work and
+  calling it the whole. Fix the counter before drawing the curve, and
+  persist the per-kind counts the item below actually asks for rather
+  than one aggregate.
 - **The feed-vs-dump delta** (2026-09-09). The listener now parses scans,
   plotted routes and ring/body signals. Watch the nightly hydrate's
   `stars_taught`, `bodies_applied`, `hotspots_applied`, `systems_applied`
@@ -68,6 +78,39 @@ verdicts live in the CSV headers under `docs/benches/`.
   undocumented, and it cost two sessions an evening of comparing rows
   that were not the same request. Document it on the endpoint; decide
   whether the default should follow the app.
+- **The stations outage** (2026-09-15, closed same night). `/v1/stations`
+  returned 502 on every request for about twenty minutes after v0.3.2
+  deployed. Chain, each link worth keeping: three columns added to a
+  shared `COLS` string pushed the near search's appended `distance_ly`
+  from index 14 to 17; index 14 was then a nullable economy, decoded as
+  `f64`, and the worker panicked. Twenty panics, five of them our own
+  probes, no commander-visible history — because the client fails closed
+  and an unreachable API reads exactly like an empty result.
+  Three deeper causes, all fixed: rows were mapped by position against a
+  shared list (now by name, in `stations.rs` and `trade_report.rs`); the
+  economy feature had shipped with only its parse half, so the columns
+  could never fill (write half restored, 842k stations backfilled); and
+  `stations_answers_the_three_lookups` reproduces the exact panic in
+  0.12 s but CI had never run it — all twelve integration tests were
+  `#[ignore]`d behind `EDDA_API_TEST_DATABASE_URL` and no runner ever
+  set one. The ubuntu job now has a Postgres service. Verified by
+  checking the buggy commit out and watching the suite fail.
+  Near miss worth naming: opening the freshness gate for never-learned
+  columns made an unconditional `is_carrier` write reachable, which
+  would have un-carriered carriers. Caught in review, reproduced, fixed;
+  live check found 55,029 carriers flagged and zero damaged rows.
+- **An unreachable API must not read as an empty result** (2026-09-15).
+  `nearest_service` returns `None` on an API error and the callers fail
+  closed, so the Engineering tab prints "none known within 300 ly"
+  whether there are no traders, no economies, or no server. That is why
+  a dead endpoint looked like the data gap we already knew about, and
+  why 0.3.2 looked clean. The client should say it could not reach the
+  community API. Owned by the second session.
+- **The release path does not run `cargo deny`** (2026-09-15). It is in
+  `ci.yml` only, so a tag never checks licences or advisories. v0.3.2
+  shipped carrying RUSTSEC-2026-0285 (rustls 0.23.43) for that reason —
+  the advisory landed in the database after the tag, and nothing on the
+  release path would have caught it either way.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
