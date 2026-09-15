@@ -298,12 +298,24 @@ async fn apply_station_identity(
     else {
         return Ok(skipped());
     };
+    // Newer than what the row holds, OR the row never learned a column
+    // this write can fill. Without the second clause a column added
+    // later stays null forever on every station whose identity is
+    // already current: the freshness guard skips the very write that
+    // would fill it. Measured 2026-09-15 — a full-dump backfill touched
+    // 346 of 117,541 stations and wrote no economies at all.
     let fresh = sqlx::query_scalar::<_, bool>(
         "SELECT identity_observed_at IS NULL OR identity_observed_at < to_timestamp($2) \
+                OR ($3 AND primary_economy IS NULL) \
+                OR ($4 AND government IS NULL) \
+                OR ($5 AND controlling_faction IS NULL) \
          FROM stations WHERE id = $1",
     )
     .bind(station_id)
     .bind(identity.observed_at.epoch_seconds)
+    .bind(identity.primary_economy.is_some())
+    .bind(identity.government.is_some())
+    .bind(identity.controlling_faction.is_some())
     .fetch_one(&mut **transaction)
     .await?;
     if !fresh {
@@ -317,7 +329,10 @@ async fn apply_station_identity(
              is_carrier = $5, \
              arrival_ls = COALESCE($6, arrival_ls), \
              station_type = COALESCE($7, station_type), \
-             identity_observed_at = to_timestamp($8) \
+             primary_economy = COALESCE($9, primary_economy), \
+             government = COALESCE($10, government), \
+             controlling_faction = COALESCE($11, controlling_faction), \
+             identity_observed_at = GREATEST(identity_observed_at, to_timestamp($8)) \
          WHERE id = $1",
     )
     .bind(station_id)
@@ -328,6 +343,9 @@ async fn apply_station_identity(
     .bind(identity.arrival_ls)
     .bind(identity.station_type.as_deref())
     .bind(identity.observed_at.epoch_seconds)
+    .bind(identity.primary_economy.as_deref())
+    .bind(identity.government.as_deref())
+    .bind(identity.controlling_faction.as_deref())
     .execute(&mut **transaction)
     .await?;
     if !identity.services.is_empty() {
