@@ -52,10 +52,15 @@ impl StationClass {
         } else if lower.contains("starport")
             || lower.contains("asteroid base")
             || lower.contains("mega ship")
-            || matches!(lower.as_str(), "coriolis" | "orbis" | "ocellus" | "bernal" | "asteroidbase" | "megaship")
+            || matches!(
+                lower.as_str(),
+                "coriolis" | "orbis" | "ocellus" | "bernal" | "asteroidbase" | "megaship"
+            )
         {
             StationClass::Starport
-        } else if lower == "planetary port" || matches!(lower.as_str(), "craterport" | "surfacestation") {
+        } else if lower == "planetary port"
+            || matches!(lower.as_str(), "craterport" | "surfacestation")
+        {
             StationClass::PlanetaryPort
         } else if lower.contains("outpost") {
             StationClass::Outpost
@@ -104,7 +109,11 @@ pub enum PadSize {
 impl<'de> Deserialize<'de> for PadSize {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let raw = String::deserialize(d)?;
-        PadSize::parse(&raw).ok_or_else(|| serde::de::Error::custom(format!("pad size is s/m/l or small/medium/large, not {raw:?}")))
+        PadSize::parse(&raw).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "pad size is s/m/l or small/medium/large, not {raw:?}"
+            ))
+        })
     }
 }
 
@@ -125,7 +134,11 @@ impl PadSize {
     /// sometimes withholds.)
     /// Guessing here fails open, and a route that sends a Cutter to an
     /// outpost is worse than one that admits it doesn't know.
-    pub fn from_counts(large: Option<i64>, medium: Option<i64>, small: Option<i64>) -> Option<Self> {
+    pub fn from_counts(
+        large: Option<i64>,
+        medium: Option<i64>,
+        small: Option<i64>,
+    ) -> Option<Self> {
         match (large.unwrap_or(0), medium.unwrap_or(0), small.unwrap_or(0)) {
             (l, _, _) if l > 0 => Some(PadSize::Large),
             (_, m, _) if m > 0 => Some(PadSize::Medium),
@@ -145,17 +158,38 @@ impl PadSize {
     /// [`PadSize::from_counts`] refuses to guess.
     pub fn for_journal_ship(ship: &str) -> Option<Self> {
         Some(match ship.trim().to_ascii_lowercase().as_str() {
-            "adder" | "cobramkiii" | "cobramkiv" | "cobramkv" | "diamondback"
-            | "diamondbackxl" | "dolphin" | "eagle" | "empire_courier" | "empire_eagle"
-            | "hauler" | "sidewinder" | "viper" | "viper_mkiv" | "vulture" => PadSize::Small,
-            "asp" | "asp_scout" | "corsair" | "federation_dropship"
-            | "federation_dropship_mkii" | "federation_gunship" | "ferdelance"
-            | "independant_trader" | "krait_light" | "krait_mkii" | "mamba" | "mandalay"
-            | "python" | "python_nx" | "type6" | "type8" | "typex" | "typex_2" | "typex_3" => {
-                PadSize::Medium
-            }
-            "anaconda" | "belugaliner" | "cutter" | "empire_trader" | "federation_corvette"
-            | "orca" | "panthermkii" | "type7" | "type9" | "type9_military" => PadSize::Large,
+            "adder" | "cobramkiii" | "cobramkiv" | "cobramkv" | "diamondback" | "diamondbackxl"
+            | "dolphin" | "eagle" | "empire_courier" | "empire_eagle" | "hauler" | "sidewinder"
+            | "viper" | "viper_mkiv" | "vulture" => PadSize::Small,
+            "asp"
+            | "asp_scout"
+            | "corsair"
+            | "federation_dropship"
+            | "federation_dropship_mkii"
+            | "federation_gunship"
+            | "ferdelance"
+            | "independant_trader"
+            | "krait_light"
+            | "krait_mkii"
+            | "mamba"
+            | "mandalay"
+            | "python"
+            | "python_nx"
+            | "type6"
+            | "type8"
+            | "typex"
+            | "typex_2"
+            | "typex_3" => PadSize::Medium,
+            "anaconda"
+            | "belugaliner"
+            | "cutter"
+            | "empire_trader"
+            | "federation_corvette"
+            | "orca"
+            | "panthermkii"
+            | "type7"
+            | "type9"
+            | "type9_military" => PadSize::Large,
             _ => return None,
         })
     }
@@ -184,12 +218,20 @@ mod pad_tests {
 
     #[test]
     fn a_pad_deserializes_from_any_spelling_and_serializes_long() {
-        for (raw, want) in [("\"l\"", PadSize::Large), ("\"Large\"", PadSize::Large), ("\"m\"", PadSize::Medium), ("\"small\"", PadSize::Small)] {
+        for (raw, want) in [
+            ("\"l\"", PadSize::Large),
+            ("\"Large\"", PadSize::Large),
+            ("\"m\"", PadSize::Medium),
+            ("\"small\"", PadSize::Small),
+        ] {
             assert_eq!(serde_json::from_str::<PadSize>(raw).unwrap(), want, "{raw}");
         }
         assert!(serde_json::from_str::<PadSize>("\"xl\"").is_err());
         assert_eq!(serde_json::to_string(&PadSize::Large).unwrap(), "\"large\"");
-        assert_eq!(serde_json::from_str::<Option<PadSize>>("null").unwrap(), None);
+        assert_eq!(
+            serde_json::from_str::<Option<PadSize>>("null").unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -197,7 +239,14 @@ mod pad_tests {
         for carrier in ["W1V-8BQ", "N2T-21V", "K7F-83H", "X0J-43Z"] {
             assert!(is_carrier_callsign(carrier), "{carrier}");
         }
-        for station in ["Metz Enterprise", "Garay Terminal", "abc-def", "AB-CDEF", "A1B-2C3D", "SWZN"] {
+        for station in [
+            "Metz Enterprise",
+            "Garay Terminal",
+            "abc-def",
+            "AB-CDEF",
+            "A1B-2C3D",
+            "SWZN",
+        ] {
             assert!(!is_carrier_callsign(station), "{station}");
         }
     }
@@ -209,7 +258,10 @@ mod pad_tests {
     fn journal_ship_pads_cover_the_gotchas() {
         assert_eq!(PadSize::for_journal_ship("Type7"), Some(PadSize::Large));
         assert_eq!(PadSize::for_journal_ship("type8"), Some(PadSize::Medium));
-        assert_eq!(PadSize::for_journal_ship("empire_trader"), Some(PadSize::Large));
+        assert_eq!(
+            PadSize::for_journal_ship("empire_trader"),
+            Some(PadSize::Large)
+        );
         assert_eq!(PadSize::for_journal_ship("mandalay"), Some(PadSize::Medium));
         assert_eq!(PadSize::for_journal_ship("dolphin"), Some(PadSize::Small));
         assert_eq!(PadSize::for_journal_ship("shiny_new_ship"), None);
@@ -245,6 +297,55 @@ pub fn journal_service_key(name: &str) -> String {
     }
 }
 
+/// The journal spells an economy as a symbol (`$economy_HighTech;`)
+/// where the Spansh dump spells it in words ("High Tech"). One
+/// vocabulary wins, and it is the dump's, because that is what the
+/// client's material-trader filter compares against. Already-plain
+/// names pass through. Unknown symbols are unwrapped and split on the
+/// capitals, so a new economy still arrives readable rather than raw.
+pub fn economy_from_journal(name: &str) -> String {
+    let raw = name.trim();
+    let inner = unwrap_symbol(raw, "economy");
+    match inner.to_ascii_lowercase().as_str() {
+        "agri" | "agriculture" => "Agriculture".into(),
+        "hightech" | "high tech" => "High Tech".into(),
+        "privateenterprise" | "private enterprise" => "Private Enterprise".into(),
+        "none" => "None".into(),
+        _ => split_capitals(inner),
+    }
+}
+
+/// The government's twin (`$government_PrisonColony;` -> "Prison Colony").
+pub fn government_from_journal(name: &str) -> String {
+    let raw = name.trim();
+    let inner = unwrap_symbol(raw, "government");
+    split_capitals(inner)
+}
+
+/// `$economy_HighTech;` -> `HighTech`; anything else unchanged.
+fn unwrap_symbol<'a>(raw: &'a str, kind: &str) -> &'a str {
+    let prefix = format!("${kind}_");
+    raw.strip_prefix(prefix.as_str())
+        .map(|rest| rest.strip_suffix(';').unwrap_or(rest))
+        .unwrap_or(raw)
+}
+
+/// `HighTech` -> `High Tech`; a name that already has spaces is left
+/// alone so dump spellings survive untouched.
+fn split_capitals(inner: &str) -> String {
+    if inner.contains(' ') || inner.is_empty() {
+        return inner.to_owned();
+    }
+    let mut out = String::with_capacity(inner.len() + 2);
+    for (i, c) in inner.char_indices() {
+        if i > 0 && c.is_ascii_uppercase() {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    out
+}
+
 #[cfg(test)]
 mod journal_spelling_tests {
     use super::*;
@@ -266,10 +367,44 @@ mod journal_spelling_tests {
             ("OnFootSettlement", "Settlement"),
             ("PlanetaryConstructionDepot", "Planetary Construction Depot"),
         ] {
-            assert_eq!(StationClass::of(Some(journal)), StationClass::of(Some(dump)), "{journal} vs {dump}");
+            assert_eq!(
+                StationClass::of(Some(journal)),
+                StationClass::of(Some(dump)),
+                "{journal} vs {dump}"
+            );
         }
         assert_eq!(StationClass::of(Some("Coriolis")), StationClass::Starport);
-        assert_eq!(StationClass::of(Some("SurfaceStation")), StationClass::PlanetaryPort);
+        assert_eq!(
+            StationClass::of(Some("SurfaceStation")),
+            StationClass::PlanetaryPort
+        );
+    }
+
+    /// The journal's economy symbols land on the dump's words, because
+    /// the client's material-trader filter compares against the dump
+    /// spelling: Extraction/Refinery = raw, Industrial = manufactured,
+    /// High Tech/Military = encoded.
+    #[test]
+    fn journal_economy_symbols_become_dump_words() {
+        for (journal, dump) in [
+            ("$economy_Industrial;", "Industrial"),
+            ("$economy_HighTech;", "High Tech"),
+            ("$economy_Extraction;", "Extraction"),
+            ("$economy_Refinery;", "Refinery"),
+            ("$economy_Military;", "Military"),
+            ("$economy_Agri;", "Agriculture"),
+            ("$economy_Tourism;", "Tourism"),
+            ("$economy_PrivateEnterprise;", "Private Enterprise"),
+        ] {
+            assert_eq!(economy_from_journal(journal), dump, "{journal}");
+            // The dump's own spelling survives a second pass unchanged.
+            assert_eq!(economy_from_journal(dump), dump, "{dump} round trip");
+        }
+        assert_eq!(
+            government_from_journal("$government_PrisonColony;"),
+            "Prison Colony"
+        );
+        assert_eq!(government_from_journal("Corporate"), "Corporate");
     }
 
     /// Dump service names land on the journal's keys — the vocabulary
@@ -277,8 +412,14 @@ mod journal_spelling_tests {
     #[test]
     fn dump_service_names_become_journal_keys() {
         assert_eq!(journal_service_key("Material Trader"), "materialtrader");
-        assert_eq!(journal_service_key("Interstellar Factors Contact"), "facilitator");
-        assert_eq!(journal_service_key("Universal Cartographics"), "exploration");
+        assert_eq!(
+            journal_service_key("Interstellar Factors Contact"),
+            "facilitator"
+        );
+        assert_eq!(
+            journal_service_key("Universal Cartographics"),
+            "exploration"
+        );
         assert_eq!(journal_service_key("Black Market"), "blackmarket");
         assert_eq!(journal_service_key("Restock"), "rearm");
         assert_eq!(journal_service_key("Vista Genomics"), "vistagenomics");

@@ -118,7 +118,12 @@ pub enum Mode {
     InSystem(String),
     /// Up to `MAX_SYSTEMS` names, deduplicated case-blind, order kept.
     InSystems(Vec<String>),
-    Near { system: String, service: Option<&'static str>, radius_ly: f64, min_pad: Option<PadSize> },
+    Near {
+        system: String,
+        service: Option<&'static str>,
+        radius_ly: f64,
+        min_pad: Option<PadSize>,
+    },
     Name(String),
 }
 
@@ -135,16 +140,23 @@ impl StationsQuery {
     /// The row cap for `systems=`: the whole list by default, so a
     /// route's dock count is never silently short.
     pub fn systems_limit(&self) -> usize {
-        self.limit.unwrap_or(MAX_SYSTEMS_ROWS).clamp(1, MAX_SYSTEMS_ROWS)
+        self.limit
+            .unwrap_or(MAX_SYSTEMS_ROWS)
+            .clamp(1, MAX_SYSTEMS_ROWS)
     }
 
     /// Exactly one of `system` / `systems` / `near` / `name`; the error
     /// text is the 400 body.
     pub fn mode(&self) -> Result<Mode, String> {
-        let given = [self.system.is_some(), self.systems.is_some(), self.near.is_some(), self.name.is_some()]
-            .iter()
-            .filter(|given| **given)
-            .count();
+        let given = [
+            self.system.is_some(),
+            self.systems.is_some(),
+            self.near.is_some(),
+            self.name.is_some(),
+        ]
+        .iter()
+        .filter(|given| **given)
+        .count();
         if given != 1 {
             return Err("give exactly one of system=, systems=, near=, name=".into());
         }
@@ -164,7 +176,10 @@ impl StationsQuery {
                 return Err("systems= needs at least one name".into());
             }
             if names.len() > MAX_SYSTEMS {
-                return Err(format!("systems= takes at most {MAX_SYSTEMS} names, got {}", names.len()));
+                return Err(format!(
+                    "systems= takes at most {MAX_SYSTEMS} names, got {}",
+                    names.len()
+                ));
             }
             return Ok(Mode::InSystems(names));
         }
@@ -172,35 +187,49 @@ impl StationsQuery {
             return Ok(Mode::Name(prefix.trim().to_owned()));
         }
         let system = self.near.as_deref().unwrap_or("").trim().to_owned();
-        let service = match self.service.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        let service = match self
+            .service
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             None => None,
-            Some(text) => Some(
-                service_key(text)
-                    .ok_or_else(|| format!("unknown service {text:?}; accepted: {}", accepted_services()))?,
-            ),
+            Some(text) => Some(service_key(text).ok_or_else(|| {
+                format!(
+                    "unknown service {text:?}; accepted: {}",
+                    accepted_services()
+                )
+            })?),
         };
         let min_pad = match self.min_pad.as_deref().map(str::trim) {
             None | Some("") | Some("any") | Some("Any") => None,
-            Some(text) => Some(PadSize::parse(text).ok_or_else(|| format!("unknown pad size {text:?}"))?),
+            Some(text) => {
+                Some(PadSize::parse(text).ok_or_else(|| format!("unknown pad size {text:?}"))?)
+            }
         };
         Ok(Mode::Near {
             system,
             service,
-            radius_ly: self.radius_ly.unwrap_or(DEFAULT_NEAR_RADIUS_LY).clamp(1.0, MAX_NEAR_RADIUS_LY),
+            radius_ly: self
+                .radius_ly
+                .unwrap_or(DEFAULT_NEAR_RADIUS_LY)
+                .clamp(1.0, MAX_NEAR_RADIUS_LY),
             min_pad,
         })
     }
 }
 
-/// The 15 station columns, in order; timestamps as text and hours so no
+/// The station columns, in order; timestamps as text and hours so no
 /// sqlx time feature is needed.
 const COLS: &str = "st.id, st.name, sy.name, st.station_type, st.arrival_ls, st.pad_small, st.pad_medium, st.pad_large, \
                     st.has_market, st.has_outfitting, st.has_shipyard, COALESCE(st.is_carrier, false), \
                     st.identity_observed_at::text, \
-                    EXTRACT(EPOCH FROM now() - st.identity_observed_at)::DOUBLE PRECISION / 3600.0";
+                    EXTRACT(EPOCH FROM now() - st.identity_observed_at)::DOUBLE PRECISION / 3600.0, \
+                    st.primary_economy, st.government, st.controlling_faction";
 
 fn station_json(row: &sqlx::postgres::PgRow, distance_ly: Option<f64>) -> Value {
-    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) = (row.get(5), row.get(6), row.get(7));
+    let (ps, pm, pl): (Option<i32>, Option<i32>, Option<i32>) =
+        (row.get(5), row.get(6), row.get(7));
     let kind: Option<String> = row.get(3);
     json!({
         "id": row.get::<i64, _>(0),
@@ -209,9 +238,9 @@ fn station_json(row: &sqlx::postgres::PgRow, distance_ly: Option<f64>) -> Value 
         "kind": kind,
         "class": StationClass::of(kind.as_deref()),
         "distance_to_arrival": row.get::<Option<f64>, _>(4),
-        "primary_economy": Value::Null,
-        "government": Value::Null,
-        "controlling_faction": Value::Null,
+        "primary_economy": row.get::<Option<String>, _>(14),
+        "government": row.get::<Option<String>, _>(15),
+        "controlling_faction": row.get::<Option<String>, _>(16),
         "max_pad": PadSize::from_counts(pl.map(i64::from), pm.map(i64::from), ps.map(i64::from)),
         "has_market": row.get::<bool, _>(8),
         "has_outfitting": row.get::<bool, _>(9),
@@ -224,12 +253,19 @@ fn station_json(row: &sqlx::postgres::PgRow, distance_ly: Option<f64>) -> Value 
 }
 
 fn minor(class: StationClass) -> bool {
-    matches!(class, StationClass::Settlement | StationClass::ConstructionDepot | StationClass::Other)
+    matches!(
+        class,
+        StationClass::Settlement | StationClass::ConstructionDepot | StationClass::Other
+    )
 }
 
 /// Stations in one system, the local `stations_in_system_filtered`
 /// order: class rank, then name.
-pub async fn in_system(pool: &PgPool, system: &str, q: &StationsQuery) -> anyhow::Result<Vec<Value>> {
+pub async fn in_system(
+    pool: &PgPool,
+    system: &str,
+    q: &StationsQuery,
+) -> anyhow::Result<Vec<Value>> {
     let rows = sqlx::query(&format!(
         "SELECT {COLS} FROM stations st JOIN systems sy ON sy.address = st.system_address \
          WHERE lower(sy.name) = lower($1) ORDER BY st.name"
@@ -245,7 +281,9 @@ pub async fn in_system(pool: &PgPool, system: &str, q: &StationsQuery) -> anyhow
         .filter(|(class, _)| q.include_minor || !minor(*class))
         .collect();
     out.sort_by(|a, b| {
-        a.0.rank().cmp(&b.0.rank()).then_with(|| a.1["name"].as_str().cmp(&b.1["name"].as_str()))
+        a.0.rank()
+            .cmp(&b.0.rank())
+            .then_with(|| a.1["name"].as_str().cmp(&b.1["name"].as_str()))
     });
     Ok(out.into_iter().map(|(_, v)| v).take(q.limit()).collect())
 }
@@ -255,7 +293,11 @@ pub async fn in_system(pool: &PgPool, system: &str, q: &StationsQuery) -> anyhow
 /// name. A name the server does not know simply contributes no rows —
 /// the caller counts docks per `system_name` and treats absence as
 /// "no dock known", which is what the fuel marks want.
-pub async fn in_systems(pool: &PgPool, systems: &[String], q: &StationsQuery) -> anyhow::Result<Vec<Value>> {
+pub async fn in_systems(
+    pool: &PgPool,
+    systems: &[String],
+    q: &StationsQuery,
+) -> anyhow::Result<Vec<Value>> {
     let keys: Vec<String> = systems.iter().map(|s| s.to_lowercase()).collect();
     let rows = sqlx::query(&format!(
         "SELECT {COLS} FROM stations st JOIN systems sy ON sy.address = st.system_address \
@@ -282,7 +324,11 @@ pub async fn in_systems(pool: &PgPool, systems: &[String], q: &StationsQuery) ->
             .then_with(|| a.1.rank().cmp(&b.1.rank()))
             .then_with(|| a.2["name"].as_str().cmp(&b.2["name"].as_str()))
     });
-    Ok(out.into_iter().map(|(_, _, v)| v).take(q.systems_limit()).collect())
+    Ok(out
+        .into_iter()
+        .map(|(_, _, v)| v)
+        .take(q.systems_limit())
+        .collect())
 }
 
 /// Nearest stations with a service inside a sphere, nearest first. The
@@ -330,9 +376,10 @@ pub async fn near(
         .map(|row| station_json(row, Some(row.get::<f64, _>(14))))
         .filter(|v| match min_pad {
             None => true,
-            Some(required) => {
-                serde_json::from_value::<Option<PadSize>>(v["max_pad"].clone()).ok().flatten().is_some_and(|p| p.fits(required))
-            }
+            Some(required) => serde_json::from_value::<Option<PadSize>>(v["max_pad"].clone())
+                .ok()
+                .flatten()
+                .is_some_and(|p| p.fits(required)),
         })
         .take(q.limit())
         .collect())
@@ -375,8 +422,17 @@ mod tests {
         assert!(matches!(q("name=jame").mode().unwrap(), Mode::Name(ref p) if p == "jame"));
         assert!(q("").mode().is_err());
         assert!(q("system=Sol&name=x").mode().is_err());
-        assert!(q("near=Sol&service=teleporter").mode().unwrap_err().contains("material_trader"));
-        assert!(matches!(q("near=Sol&min_pad=l").mode().unwrap(), Mode::Near { min_pad: Some(PadSize::Large), .. }));
+        assert!(q("near=Sol&service=teleporter")
+            .mode()
+            .unwrap_err()
+            .contains("material_trader"));
+        assert!(matches!(
+            q("near=Sol&min_pad=l").mode().unwrap(),
+            Mode::Near {
+                min_pad: Some(PadSize::Large),
+                ..
+            }
+        ));
         assert!(q("near=Sol&min_pad=huge").mode().is_err());
     }
 
@@ -386,15 +442,23 @@ mod tests {
     #[test]
     fn a_system_list_is_one_mode() {
         let q = |s: &str| serde_urlencoded::from_str::<StationsQuery>(s).unwrap();
-        let Mode::InSystems(names) = q("systems=Sol,%20Deciat%20,,sol,Wongi").mode().unwrap() else {
+        let Mode::InSystems(names) = q("systems=Sol,%20Deciat%20,,sol,Wongi").mode().unwrap()
+        else {
             panic!("systems= is the list mode");
         };
         assert_eq!(names, vec!["Sol", "Deciat", "Wongi"]);
         assert!(q("systems=,,").mode().is_err());
         assert!(q("systems=Sol&system=Sol").mode().is_err());
         let many: Vec<String> = (0..=MAX_SYSTEMS).map(|i| format!("S{i}")).collect();
-        assert!(q(&format!("systems={}", many.join(","))).mode().unwrap_err().contains("at most"));
-        assert_eq!(q("systems=Sol").systems_limit(), MAX_SYSTEMS_ROWS, "the whole list by default");
+        assert!(q(&format!("systems={}", many.join(",")))
+            .mode()
+            .unwrap_err()
+            .contains("at most"));
+        assert_eq!(
+            q("systems=Sol").systems_limit(),
+            MAX_SYSTEMS_ROWS,
+            "the whole list by default"
+        );
         assert_eq!(q("systems=Sol&limit=5").systems_limit(), 5);
     }
 
@@ -411,8 +475,22 @@ mod tests {
 
     #[test]
     fn the_limit_is_clamped() {
-        assert_eq!(StationsQuery { limit: Some(9_000), ..Default::default() }.limit(), MAX_LIMIT);
-        assert_eq!(StationsQuery { limit: Some(0), ..Default::default() }.limit(), 1);
+        assert_eq!(
+            StationsQuery {
+                limit: Some(9_000),
+                ..Default::default()
+            }
+            .limit(),
+            MAX_LIMIT
+        );
+        assert_eq!(
+            StationsQuery {
+                limit: Some(0),
+                ..Default::default()
+            }
+            .limit(),
+            1
+        );
         assert_eq!(StationsQuery::default().limit(), DEFAULT_LIMIT);
     }
 }
