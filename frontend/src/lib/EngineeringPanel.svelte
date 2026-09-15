@@ -252,8 +252,8 @@
         <p class="ok small">Everything covered by trading what you carry.</p>
       {/if}
       {#each eng.shopping.traders.filter((t) => neededKinds.has(t.kind)) as t}
+        {@const status = traderStatus(t, eng.shopping.origin_system)}
         <div class="small" style="margin:0.3rem 0">
-          {@const status = traderStatus(t, eng.shopping.origin_system)}
           <strong>Nearest {t.kind_known === false ? "material" : t.kind} traders</strong>{eng.shopping.origin_system ? ` from ${eng.shopping.origin_system}` : ""}:
           {#if status.text && t.nearest.length}<span class={status.tone} title={status.title ?? ""}>{status.text}</span>{/if}
           {#if t.nearest.length}
