@@ -13,6 +13,7 @@
   import CombatPanel from "./lib/CombatPanel.svelte";
   import GalaxyPanel from "./lib/GalaxyPanel.svelte";
   import PowerplayPanel from "./lib/PowerplayPanel.svelte";
+  import EngineeringPanel from "./lib/EngineeringPanel.svelte";
   import InventoryPanel from "./lib/InventoryPanel.svelte";
   import VoiceSettings from "./lib/VoiceSettings.svelte";
   import SystemSettings from "./lib/SystemSettings.svelte";
@@ -22,6 +23,7 @@
   import AiChat from "./lib/AiChat.svelte";
   import HelpPanel from "./lib/HelpPanel.svelte";
   import { help as helpStore } from "./lib/help.svelte.js";
+  import { eng as engStore } from "./lib/engineering.svelte.js";
   import ShipsPanel from "./lib/ShipsPanel.svelte";
   import Onboarding from "./lib/Onboarding.svelte";
   import WhatsNew from "./lib/WhatsNew.svelte";
@@ -45,6 +47,7 @@
     ["combat", "Combat"],
     ["powerplay", "Powerplay"],
     ["ships", "Ships"],
+    ["engineering", "Engineering"],
     ["voice", "Voice"],
     ["settings", "Settings"],
     ["report", "Report"],
@@ -57,6 +60,8 @@
   $effect(() => { if (routing.openTab) { pick("route"); routing.openTab = false; } });
   // A "?" anywhere asks for a Help topic.
   $effect(() => { if (helpStore.requested) pick("help"); });
+  // The Ships tab can hand a module to the Engineering tab.
+  $effect(() => { if (engStore.openTab) { pick("engineering"); engStore.openTab = false; } });
   let sync = $state(null); // {file, done, total}
   let synced = $state(false);
   let game = $state(null); // {running}
@@ -232,6 +237,7 @@
       {:else if tab === "route"}<RoutePanel />
       {:else if tab === "galaxy"}<GalaxyPanel />
       {:else if tab === "powerplay"}<PowerplayPanel />
+      {:else if tab === "engineering"}<EngineeringPanel />
       {:else if tab === "inventory"}<InventoryPanel />
       {:else if tab === "ships"}<ShipsPanel />
       {:else if tab === "voice"}<VoiceSettings />

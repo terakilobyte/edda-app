@@ -1040,6 +1040,12 @@ pub const SERVICES: &[(&str, &str)] = &[
     ("shop", "Shop"),
     ("system_colonisation", "System Colonisation"),
     ("construction_services", "Construction Services"),
+    // The three the station board carries as columns rather than in its
+    // services list; a commander looking for "where can I buy a ship"
+    // means the same thing by them (2026-09-13).
+    ("market", "Market"),
+    ("outfitting", "Outfitting"),
+    ("shipyard", "Shipyard"),
 ];
 
 /// The dump's name for a friendly service key ("tech broker", "technology_broker"...).

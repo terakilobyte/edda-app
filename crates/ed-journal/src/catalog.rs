@@ -66,8 +66,13 @@ impl Catalog {
         let mut by_symbol = HashMap::new();
         let mut by_name = HashMap::new();
 
+        // Vendored rows are trimmed on the way in: one trailing space in
+        // material.csv ("Untypical Shield Scans ") keyed the catalog by a
+        // name no lookup could ever spell, so a commander holding 131 of
+        // them was told they had none (maintainer, 2026-09-12).
         let mut push =
             |symbol: &str, name: &str, category: &str, group: &str, grade: u8, kind: Kind| {
+                let (symbol, name, category, group) = (symbol.trim(), name.trim(), category.trim(), group.trim());
                 let key = symbol.to_lowercase();
                 by_name
                     .entry(name.to_lowercase())
@@ -113,6 +118,11 @@ impl Catalog {
         Catalog { by_symbol, by_name }
     }
 
+    /// Every symbol in the catalog, for tests and audits.
+    pub fn symbols(&self) -> impl Iterator<Item = &str> {
+        self.by_symbol.values().map(|i| i.symbol.as_str())
+    }
+
     pub fn by_symbol(&self, symbol: &str) -> Option<&Item> {
         self.by_symbol.get(&symbol.to_lowercase())
     }
@@ -150,7 +160,58 @@ impl Catalog {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{Catalog, Kind};
+
+    /// The bug this guards: `material.csv` had "Untypical Shield Scans "
+    /// with a trailing space, so the inventory map was keyed by a name the
+    /// blueprint tables spell without one. A commander with 131 of them
+    /// was told they had 0 (maintainer, 2026-09-12).
+    #[test]
+    fn a_trailing_space_cannot_hide_a_material_again() {
+        let c = Catalog::load();
+        let scans = c.by_symbol("ShieldDensityReports").expect("the encoded shield material");
+        assert_eq!(scans.name, "Untypical Shield Scans");
+        assert_eq!(c.by_name("Untypical Shield Scans").map(|i| i.symbol.as_str()), Some("ShieldDensityReports"));
+        assert_eq!(c.by_name("untypical shield scans").map(|i| i.symbol.as_str()), Some("ShieldDensityReports"));
+
+        // No vendored row may carry stray spacing in any field.
+        let symbols: Vec<String> = c.symbols().map(str::to_owned).collect();
+        assert!(symbols.len() > 300, "the whole catalog loaded: {} entries", symbols.len());
+        for symbol in &symbols {
+            let item = c.by_symbol(symbol).expect("a listed symbol resolves");
+            for (what, field) in [("symbol", &item.symbol), ("name", &item.name), ("category", &item.category), ("group", &item.group)] {
+                assert_eq!(field.trim(), field.as_str(), "{what} of {symbol} carries stray whitespace: {field:?}");
+            }
+        }
+    }
+
+    /// Every MATERIAL must be findable by the name it displays, because
+    /// the inventory is keyed by name. One display name is shared with a
+    /// commodity in the game's own data ("Wreckage Components", salvage
+    /// and the Thargoid material), and the catalog keeps one of the two;
+    /// that collision is listed here so a NEW one fails this test instead
+    /// of silently costing a commander their count.
+    #[test]
+    fn every_material_is_findable_by_its_display_name() {
+        let c = Catalog::load();
+        const SHARED_WITH_A_COMMODITY: &[&str] = &["wreckage components"];
+        let mut checked = 0;
+        for symbol in c.symbols().map(str::to_owned).collect::<Vec<_>>() {
+            let item = c.by_symbol(&symbol).expect("a listed symbol resolves");
+            if item.kind != Kind::Material || SHARED_WITH_A_COMMODITY.contains(&item.name.to_lowercase().as_str()) {
+                continue;
+            }
+            checked += 1;
+            assert_eq!(
+                c.by_name(&item.name).map(|i| i.symbol.as_str()),
+                Some(item.symbol.as_str()),
+                "{} does not round-trip through its display name {:?}",
+                item.symbol,
+                item.name
+            );
+        }
+        assert!(checked > 100, "materials were actually checked: {checked}");
+    }
 
     #[test]
     fn resolves_previously_missed_internal_names() {

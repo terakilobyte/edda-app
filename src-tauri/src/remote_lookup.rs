@@ -276,7 +276,7 @@ fn trader_economies(kind: &str) -> Option<&'static [&'static str]> {
 /// `encoded`) around a system: the API's nearest `material_trader`
 /// stations, kept when their economy hosts that kind. `None` when the
 /// kind is unknown or the API gave no answer.
-pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str, radius_ly: f64, limit: usize) -> Option<Vec<StationWithService>> {
+pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str, radius_ly: f64, limit: usize) -> Option<TraderHits> {
     let economies = trader_economies(kind)?;
     let req = NearestServiceRequest {
         system: Some(system.to_string()),
@@ -286,12 +286,87 @@ pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str
         include_carriers: false,
     };
     let (_, hits) = nearest_service(state, &req).await?;
-    let mut out: Vec<StationWithService> = hits
-        .into_iter()
-        .filter(|h| h.station.primary_economy.as_deref().is_some_and(|e| economies.iter().any(|x| x.eq_ignore_ascii_case(e))))
-        .collect();
+    Some(split_by_economy(hits, economies, limit))
+}
+
+/// Material traders around a system, and whether their KIND is known.
+/// A trader's kind follows its station's economy, and the API publishes
+/// no station economy today (measured 2026-09-12: null on 100 of 100
+/// trader stations near Sol), so the kind filter would discard every
+/// station and the commander would be told there are none — while Inara
+/// lists plenty. Unclassified is the honest answer: here are the traders,
+/// the kind is not knowable yet.
+#[derive(Debug, Default)]
+pub struct TraderHits {
+    pub stations: Vec<StationWithService>,
+    /// False when no station carried an economy, so `stations` is every
+    /// material trader nearby rather than the ones of this kind.
+    pub kind_known: bool,
+}
+
+fn split_by_economy(hits: Vec<StationWithService>, economies: &[&str], limit: usize) -> TraderHits {
+    let known = hits.iter().any(|h| h.station.primary_economy.is_some());
+    let mut out: Vec<StationWithService> = if known {
+        hits.into_iter()
+            .filter(|h| h.station.primary_economy.as_deref().is_some_and(|e| economies.iter().any(|x| x.eq_ignore_ascii_case(e))))
+            .collect()
+    } else {
+        hits
+    };
     out.truncate(limit);
-    Some(out)
+    TraderHits { stations: out, kind_known: known }
+}
+
+#[cfg(test)]
+mod trader_kind_tests {
+    use super::{split_by_economy, trader_economies};
+    use ed_store::lookup::{StationInfo, StationWithService};
+
+    fn station(name: &str, economy: Option<&str>) -> StationWithService {
+        StationWithService {
+            station: StationInfo {
+                id: 1,
+                name: Some(name.to_string()),
+                system_name: None,
+                kind: None,
+                class: ed_store::lookup::StationClass::Starport,
+                distance_to_arrival: None,
+                primary_economy: economy.map(str::to_owned),
+                government: None,
+                controlling_faction: None,
+                max_pad: None,
+                has_market: false,
+                has_outfitting: false,
+                has_shipyard: false,
+                is_carrier: false,
+                updated: None,
+                age_hours: None,
+            },
+            distance_ly: 1.0,
+        }
+    }
+
+    /// With economies, only the right kind survives. Without any — which
+    /// is what the API sends today — every trader is kept and the caller
+    /// is told the kind is unknown, rather than being handed an empty list.
+    #[test]
+    fn traders_are_kept_when_the_kind_cannot_be_told() {
+        let economies = trader_economies("raw").unwrap();
+        let classified = vec![station("Refinery Dock", Some("Refinery")), station("Factory", Some("Industrial"))];
+        let hits = split_by_economy(classified, economies, 5);
+        assert!(hits.kind_known);
+        assert_eq!(hits.stations.len(), 1);
+        assert_eq!(hits.stations[0].station.name.as_deref(), Some("Refinery Dock"));
+
+        let unclassified = vec![station("Meredith City", None), station("Jameson Memorial", None)];
+        let hits = split_by_economy(unclassified, economies, 5);
+        assert!(!hits.kind_known, "nothing to classify by");
+        assert_eq!(hits.stations.len(), 2, "both kept: some traders beat none");
+
+        let empty = split_by_economy(Vec::new(), economies, 5);
+        assert!(!empty.kind_known);
+        assert!(empty.stations.is_empty());
+    }
 }
 
 /// What `system` offers a ship that needs `pad`: (a non-carrier station

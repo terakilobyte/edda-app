@@ -1,8 +1,8 @@
 <script>
   // System and station lookup — the Inara replacement. Community data,
   // with its age shown, and first-hand Powerplay readings preferred.
-  import { findSystem, galaxyFind, edsmSystem, stationsInSystem, findStation, nearestService, stationMarket, nameComplete, activityHeatmap } from "./api.js";
-  import { onDestroy } from "svelte";
+  import { findSystem, galaxyFind, edsmSystem, stationsInSystem, findStation, nearestService, stationMarket, nameComplete, activityHeatmap, serviceOptions } from "./api.js";
+  import { onDestroy, onMount } from "svelte";
   import { fmtInt, fmtLs, fmtLy, fmtTs } from "./format.js";
   import { mergeSystem } from "./galaxyMerge.js";
   import { KEYS, persisted } from "./storage.svelte.js";
@@ -11,7 +11,10 @@
 
   let q = $state("");
   let mode = $state("system"); // system | station | service
-  let service = $state("outfitting");
+  let service = $state("interstellar_factors");
+  // The vocabulary, from the backend rather than typed out here.
+  let services = $state([{ key: "interstellar_factors", label: "Interstellar Factors Contact" }]);
+  onMount(async () => { try { services = await serviceOptions(); } catch { /* keep the fallback */ } });
   let minPad = $state("large");
   let radius = $state(50);
   let carriers = $state(false);
@@ -69,7 +72,9 @@
 
   async function run() {
     const name = q.trim();
-    if (!name) return;
+    // Services searches from the current system when no origin is typed;
+    // the other modes need their subject.
+    if (!name && mode !== "service") return;
     loading = true;
     error = "";
     market = null;
@@ -124,15 +129,17 @@
     <select bind:value={mode}>
       <option value="system">System</option>
       <option value="station">Station by name</option>
-      <option value="service">Nearest service from</option>
+      <option value="service">Services</option>
       <option value="activity">Live activity</option>
     </select>
-    {#if mode !== "activity"}<Autocomplete bind:value={q} placeholder={mode === "station" ? "Station name" : "System name"} minWidth="14rem" fetch={(p) => nameComplete(mode === "station" ? "station" : "system", p)} onenter={run} onchoose={run} />{/if}
+    {#if mode !== "activity"}<Autocomplete bind:value={q} placeholder={mode === "station" ? "Station name" : mode === "service" ? "From (current system)" : "System name"} minWidth="14rem" fetch={(p) => nameComplete(mode === "station" ? "station" : "system", p)} onenter={run} onchoose={run} />{/if}
     {#if mode === "service"}
+      <!-- Every service the shared vocabulary knows, so the panel cannot
+           drift from what the data holds (maintainer, 2026-09-13: "I can't
+           find legal facilities" — interstellar factors answered fine, the
+           dropdown offered three of twenty-eight). -->
       <select bind:value={service}>
-        <option value="outfitting">outfitting</option>
-        <option value="shipyard">shipyard</option>
-        <option value="market">market</option>
+        {#each services as s}<option value={s.key}>{s.label}</option>{/each}
       </select>
       <select bind:value={minPad}>
         <option value="">any pad</option>

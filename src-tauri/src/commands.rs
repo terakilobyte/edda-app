@@ -275,6 +275,9 @@ fn material_inventory(conn: &rusqlite::Connection) -> std::collections::HashMap<
 pub struct TraderStop {
     pub kind: ed_engineering::trader::TraderKind,
     pub nearest: Vec<StationWithService>,
+    /// False when the API published no station economies, so `nearest` is
+    /// every material trader in range rather than this kind's.
+    pub kind_known: bool,
 }
 
 /// A plan's shortfall turned into trades at material traders.
@@ -427,7 +430,7 @@ pub fn shopping_for(
         }
     }
     // The nearest traders come from the API; `fill_traders` adds them.
-    let traders = trader_kinds.iter().map(|k| TraderStop { kind: *k, nearest: Vec::new() }).collect();
+    let traders = trader_kinds.iter().map(|k| TraderStop { kind: *k, nearest: Vec::new(), kind_known: true }).collect();
     Ok(ShoppingReport {
         short,
         list,
@@ -525,15 +528,23 @@ pub async fn material_sources(
     state.with_read(|s| sources_for(s.conn(), galaxy.as_deref(), &material))
 }
 
+/// How far to look for a material trader. Wider than the old 150 ly
+/// (maintainer, 2026-09-12: "might need further than 150"); the server
+/// clamps its own radius, and a trader 300 ly away still beats being told
+/// there are none.
+const TRADER_RADIUS_LY: f64 = 300.0;
+
 /// The nearest trader of each kind the plan needs, from the community
-/// API, around the commander's system (150 ly, five each).
+/// API, around the commander's system.
 pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) {
     let Some(system) = report.origin_system.clone() else { return };
     for stop in &mut report.traders {
         let kind = format!("{:?}", stop.kind).to_lowercase();
-        stop.nearest = crate::remote_lookup::nearest_material_traders(state, &system, &kind, 150.0, 5)
+        let hits = crate::remote_lookup::nearest_material_traders(state, &system, &kind, TRADER_RADIUS_LY, 5)
             .await
             .unwrap_or_default();
+        stop.kind_known = hits.kind_known;
+        stop.nearest = hits.stations;
     }
 }
 
@@ -692,6 +703,27 @@ fn loadout_raw(state: &AppState, ship_id: Option<i64>) -> Result<String, String>
 #[tauri::command]
 pub async fn carrier_status(state: State<'_, AppState>) -> Result<serde_json::Value, CapError> {
     carrier::status(&state)
+}
+
+/// One service the station search understands: the key the wire wants and
+/// the label a commander reads. The list is the shared vocabulary, so the
+/// panel cannot drift from what the data knows (maintainer, 2026-09-13:
+/// "I can't find legal facilities" — interstellar factors answered fine,
+/// the dropdown just offered three of twenty-eight services).
+#[derive(Debug, Serialize)]
+pub struct ServiceOption {
+    pub key: String,
+    pub label: String,
+}
+
+#[tauri::command]
+pub async fn service_options() -> Result<Vec<ServiceOption>, String> {
+    let mut out: Vec<ServiceOption> = ed_store::lookup::SERVICES
+        .iter()
+        .map(|(key, label)| ServiceOption { key: (*key).to_string(), label: (*label).to_string() })
+        .collect();
+    out.sort_by(|a, b| a.label.cmp(&b.label));
+    Ok(out)
 }
 
 #[tauri::command]
@@ -998,6 +1030,10 @@ pub async fn nearest_service(
     include_carriers: Option<bool>,
 ) -> Result<Vec<StationWithService>, CapError> {
     let d = galaxy::NearestServiceRequest::default();
+    // An empty origin is "from where I am" (maintainer, 2026-09-14: the
+    // Services search "did nothing" — the panel required a system name and
+    // returned before calling anything).
+    let system = state.with_read(|s| galaxy::system_or_current(s.conn(), Some(system.as_str())))?;
     let req = galaxy::NearestServiceRequest {
         system: Some(system),
         service,
