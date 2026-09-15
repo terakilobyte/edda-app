@@ -14,6 +14,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   threads (`EDDA_API_PLANNER_THREADS`, to be added) on a Beagle Point plot
   before changing the default. Baseline: 39 s on the box vs 20 s on a
   desktop for the same 193-jump route.
+- **`rows_applied` does not count most of what a hydrate applies**
+  (2026-09-15, measured). The 2026-09-15 stations backfill recorded
+  `rows_applied = 0` in `service_hydrations` while its own summary line
+  reported 799,068 identities applied, 1,242,732 bodies, 294,666
+  hotspots and 2,191 stars taught. So the column counts only some
+  categories, and any week-over-week reading of it — including the
+  feed-vs-dump question below — is measuring a fraction of the work and
+  calling it the whole. Fix the counter before drawing the curve, and
+  persist the per-kind counts the item below actually asks for rather
+  than one aggregate.
 - **The feed-vs-dump delta** (2026-09-09). The listener now parses scans,
   plotted routes and ring/body signals. Watch the nightly hydrate's
   `stars_taught`, `bodies_applied`, `hotspots_applied`, `systems_applied`
