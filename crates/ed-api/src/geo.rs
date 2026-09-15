@@ -42,7 +42,10 @@ mod cell_tests {
         // Same arithmetic as the SQL: ((0+1024)*2048 + 1024)*2048 + 1024.
         assert_eq!(cell_of(0.0, 0.0, 0.0), ((1024 * 2048 + 1024) * 2048) + 1024);
         // Negative coordinates floor toward -inf, as SQL floor() does.
-        assert_eq!(cell_of(-0.5, 0.0, 0.0), ((1023 * 2048 + 1024) * 2048) + 1024);
+        assert_eq!(
+            cell_of(-0.5, 0.0, 0.0),
+            ((1023 * 2048 + 1024) * 2048) + 1024
+        );
     }
 
     #[test]
@@ -51,7 +54,10 @@ mod cell_tests {
         let cells = cells_covering(ox, oy, oz, r);
         assert!(cells.contains(&cell_of(ox, oy, oz)));
         for (dx, dy, dz) in [(-r, -r, -r), (r, r, r), (-r, r, -r), (r, -r, r)] {
-            assert!(cells.contains(&cell_of(ox + dx, oy + dy, oz + dz)), "corner {dx},{dy},{dz}");
+            assert!(
+                cells.contains(&cell_of(ox + dx, oy + dy, oz + dz)),
+                "corner {dx},{dy},{dz}"
+            );
         }
         // 40 ly around Deciat: x 82.6..162.6 → cells 0..1, y -40.8..39.2 →
         // -1..0, z -87.3..-7.3 → -1 only → 2 × 2 × 1 = 4.
@@ -60,7 +66,10 @@ mod cell_tests {
 
     #[test]
     fn a_radius_inside_one_cell_is_one_cell() {
-        assert_eq!(cells_covering(50.0, 50.0, 50.0, 10.0), vec![cell_of(50.0, 50.0, 50.0)]);
+        assert_eq!(
+            cells_covering(50.0, 50.0, 50.0, 10.0),
+            vec![cell_of(50.0, 50.0, 50.0)]
+        );
     }
 
     #[test]

@@ -43,7 +43,10 @@ pub struct GalaxyHandle {
 
 impl GalaxyService {
     pub fn new(artifact_dir: PathBuf) -> Self {
-        GalaxyService { artifact_dir, state: tokio::sync::Mutex::new(None) }
+        GalaxyService {
+            artifact_dir,
+            state: tokio::sync::Mutex::new(None),
+        }
     }
 
     fn neutron_dir(&self, version: &str) -> PathBuf {
@@ -57,7 +60,10 @@ impl GalaxyService {
     /// when no routing product has ever been published (a fresh box).
     pub async fn current(self: &Arc<Self>) -> Result<Option<GalaxyHandle>> {
         let manifest = read_current_manifest(&self.artifact_dir)?;
-        let Some(product) = manifest.as_ref().and_then(|m| m.products.get(&ProductKey::Routing)) else {
+        let Some(product) = manifest
+            .as_ref()
+            .and_then(|m| m.products.get(&ProductKey::Routing))
+        else {
             return Ok(None);
         };
         let version = product.version.clone();
@@ -106,7 +112,10 @@ impl GalaxyService {
 
     async fn build_neutrons(self: Arc<Self>, galaxy: Arc<Galaxy>, version: String) {
         let dir = self.neutron_dir(&version);
-        let staging = self.artifact_dir.join(".highway").join(format!(".staging-{version}"));
+        let staging = self
+            .artifact_dir
+            .join(".highway")
+            .join(format!(".staging-{version}"));
         let started = std::time::Instant::now();
         let build = {
             let staging = staging.clone();
@@ -137,7 +146,8 @@ impl GalaxyService {
                 loaded.neutrons_building = false;
                 match outcome.and_then(|()| Galaxy::open(&dir)) {
                     Ok(n) => {
-                        metrics::histogram!("edda_highway_build_seconds").record(started.elapsed().as_secs_f64());
+                        metrics::histogram!("edda_highway_build_seconds")
+                            .record(started.elapsed().as_secs_f64());
                         tracing::info!(%version, secs = started.elapsed().as_secs(), "serve: highway sub-index built");
                         loaded.neutrons = Some(Arc::new(n));
                     }

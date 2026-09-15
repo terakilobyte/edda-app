@@ -373,7 +373,13 @@ pub async fn near(
     .await?;
     Ok(rows
         .iter()
-        .map(|row| station_json(row, Some(row.get::<f64, _>(14))))
+        // By NAME, not by position: this column is appended after COLS,
+        // so every column added to COLS used to shift it. Adding the
+        // three economy columns (2026-09-12) moved it from 14 to 17 and
+        // index 14 became a nullable economy, which this decoded as f64
+        // and panicked on — every /v1/stations request 502'd until the
+        // index was corrected. A name cannot drift.
+        .map(|row| station_json(row, Some(row.get::<f64, _>("distance_ly"))))
         .filter(|v| match min_pad {
             None => true,
             Some(required) => serde_json::from_value::<Option<PadSize>>(v["max_pad"].clone())

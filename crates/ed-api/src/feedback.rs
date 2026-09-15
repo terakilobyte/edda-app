@@ -48,7 +48,11 @@ impl Default for Limiter {
 
 impl Limiter {
     pub fn new(window: Duration, per_window: u32) -> Self {
-        Limiter { window, per_window, entries: Mutex::default() }
+        Limiter {
+            window,
+            per_window,
+            entries: Mutex::default(),
+        }
     }
 
     pub fn allow(&self, source: &str, now: Instant) -> bool {
@@ -118,7 +122,10 @@ pub const BURST_WINDOW: Duration = Duration::from_secs(10);
 
 impl Budget {
     pub fn new(hourly: Limiter, burst_per_10s: u32) -> Self {
-        Budget { hourly, burst: Limiter::new(BURST_WINDOW, burst_per_10s) }
+        Budget {
+            hourly,
+            burst: Limiter::new(BURST_WINDOW, burst_per_10s),
+        }
     }
 
     pub fn allow(&self, source: &str, now: Instant) -> Result<(), Refused> {
@@ -163,6 +170,10 @@ mod budget_tests {
         assert_eq!(budget.allow("cmdr", t0), Ok(()));
         assert_eq!(budget.allow("cmdr", t0), Ok(()));
         assert_eq!(budget.allow("cmdr", t0), Err(Refused::Hourly));
-        assert_eq!(budget.allow("other", t0), Ok(()), "another source is unaffected");
+        assert_eq!(
+            budget.allow("other", t0),
+            Ok(()),
+            "another source is unaffected"
+        );
     }
 }

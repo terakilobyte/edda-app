@@ -76,7 +76,9 @@ pub struct MarketSearchApiRequest {
 
 impl MarketSearchApiRequest {
     fn radius(&self) -> f64 {
-        self.radius_ly.unwrap_or(DEFAULT_RADIUS_LY).clamp(1.0, MAX_RADIUS_LY)
+        self.radius_ly
+            .unwrap_or(DEFAULT_RADIUS_LY)
+            .clamp(1.0, MAX_RADIUS_LY)
     }
     fn max_age(&self) -> f64 {
         // Cap at 30 days: the fresh-first plan materializes the
@@ -84,7 +86,9 @@ impl MarketSearchApiRequest {
         // staleness policy the client offers. An uncapped window would
         // let one request materialize a common commodity's whole
         // 400k-row history.
-        self.max_age_hours.unwrap_or(DEFAULT_MAX_AGE_HOURS).clamp(0.25, 720.0)
+        self.max_age_hours
+            .unwrap_or(DEFAULT_MAX_AGE_HOURS)
+            .clamp(0.25, 720.0)
     }
     fn limit(&self) -> i64 {
         self.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
@@ -123,13 +127,12 @@ fn pad_clause(min_pad: Option<PadSize>) -> &'static str {
 }
 
 pub(crate) async fn origin_coords(pool: &PgPool, name: &str) -> Result<(f64, f64, f64), Refusal> {
-    let row: Option<(Option<f64>, Option<f64>, Option<f64>)> = sqlx::query_as(
-        "SELECT x, y, z FROM systems WHERE lower(name) = lower($1)",
-    )
-    .bind(name)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| Refusal::Invalid(e.to_string()))?;
+    let row: Option<(Option<f64>, Option<f64>, Option<f64>)> =
+        sqlx::query_as("SELECT x, y, z FROM systems WHERE lower(name) = lower($1)")
+            .bind(name)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| Refusal::Invalid(e.to_string()))?;
     match row {
         Some((Some(x), Some(y), Some(z))) => Ok((x, y, z)),
         _ => Err(Refusal::UnknownSystem(name.to_owned())),
@@ -204,7 +207,10 @@ fn merge(base: serde_json::Value, extra: serde_json::Value) -> serde_json::Value
     base
 }
 
-pub async fn search(pool: &PgPool, req: &MarketSearchApiRequest) -> Result<serde_json::Value, Refusal> {
+pub async fn search(
+    pool: &PgPool,
+    req: &MarketSearchApiRequest,
+) -> Result<serde_json::Value, Refusal> {
     let origin = origin_coords(pool, req.system.trim()).await?;
     let min_pad = req.min_pad()?;
     let radius = req.radius();
@@ -239,7 +245,8 @@ pub async fn search(pool: &PgPool, req: &MarketSearchApiRequest) -> Result<serde
             let (symbol, name, category) = commodity.expect("resolved above for this kind");
             let selling = req.side.trim().eq_ignore_ascii_case("sell");
             let side = if selling { "sell" } else { "buy" };
-            let results = commodity_rows(pool, origin, &symbol, selling, radius, min_pad, req).await?;
+            let results =
+                commodity_rows(pool, origin, &symbol, selling, radius, min_pad, req).await?;
             json!({
                 "origin": req.system.trim(), "commodity": name, "symbol": symbol, "category": category,
                 "side": side, "results": results, "provenance": "server", "as_of": as_of,
@@ -247,12 +254,16 @@ pub async fn search(pool: &PgPool, req: &MarketSearchApiRequest) -> Result<serde
             })
         }
         "module" | "outfitting" => {
-            let results = availability_rows(pool, origin, req, radius, min_pad, Availability::Outfitting).await?;
+            let results =
+                availability_rows(pool, origin, req, radius, min_pad, Availability::Outfitting)
+                    .await?;
             json!({ "origin": req.system.trim(), "query": req.text, "results": results,
                     "provenance": "server", "as_of": as_of })
         }
         "ship" | "shipyard" => {
-            let results = availability_rows(pool, origin, req, radius, min_pad, Availability::Shipyard).await?;
+            let results =
+                availability_rows(pool, origin, req, radius, min_pad, Availability::Shipyard)
+                    .await?;
             json!({ "origin": req.system.trim(), "query": req.text, "results": results,
                     "provenance": "server", "as_of": as_of })
         }
@@ -304,7 +315,11 @@ async fn commodity_rows(
     let order = match req.sort.as_deref().map(str::trim).unwrap_or("price") {
         "" | "price" => format!("{price} {direction}, st.arrival_ls NULLS LAST"),
         "distance" => format!("distance_ly ASC, {price} {direction}"),
-        other => return Err(Refusal::Invalid(format!("unknown sort {other:?}; price or distance"))),
+        other => {
+            return Err(Refusal::Invalid(format!(
+                "unknown sort {other:?}; price or distance"
+            )))
+        }
     };
     // Fresh-first, forced by shape: the MATERIALIZED CTE walks
     // market_commodity_fresh_idx (index-only — every referenced column
@@ -353,13 +368,25 @@ async fn commodity_rows(
         // the display name); Postgres counts parameters from the SQL.
         query = query.bind(req.text.trim());
     }
-    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, i64, i64, f64)> =
-        query
-            // Fresh plan per execution — see `search`.
-            .persistent(false)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| Refusal::Invalid(e.to_string()))?;
+    let rows: Vec<(
+        i64,
+        Option<String>,
+        String,
+        f64,
+        Option<f64>,
+        Option<i32>,
+        Option<i32>,
+        Option<i32>,
+        bool,
+        i64,
+        i64,
+        f64,
+    )> = query
+        // Fresh plan per execution — see `search`.
+        .persistent(false)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| Refusal::Invalid(e.to_string()))?;
     let now = now_unix();
     Ok(rows
         .into_iter()
@@ -419,22 +446,35 @@ async fn availability_rows(
         stronghold = STRONGHOLD_CARRIER,
     );
     #[allow(clippy::type_complexity)]
-    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, String, Option<f64>, Option<String>, Option<String>)> =
-        sqlx::query_as(&sql)
-            .bind(req.text.trim())
-            .bind(ox)
-            .bind(oy)
-            .bind(oz)
-            .bind(radius)
-            .bind(req.include_carriers)
-            .bind(cells_covering(ox, oy, oz, radius))
-            .bind(req.include_stronghold_carriers.unwrap_or(true))
-            .bind(req.powers.clone())
-            // Fresh plan per execution — see `search`.
-            .persistent(false)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| Refusal::Invalid(e.to_string()))?;
+    let rows: Vec<(
+        i64,
+        Option<String>,
+        String,
+        f64,
+        Option<f64>,
+        Option<i32>,
+        Option<i32>,
+        Option<i32>,
+        bool,
+        String,
+        Option<f64>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(&sql)
+        .bind(req.text.trim())
+        .bind(ox)
+        .bind(oy)
+        .bind(oz)
+        .bind(radius)
+        .bind(req.include_carriers)
+        .bind(cells_covering(ox, oy, oz, radius))
+        .bind(req.include_stronghold_carriers.unwrap_or(true))
+        .bind(req.powers.clone())
+        // Fresh plan per execution — see `search`.
+        .persistent(false)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| Refusal::Invalid(e.to_string()))?;
     Ok(rows
         .into_iter()
         .map(|r| {
@@ -506,7 +546,16 @@ pub async fn station_board(pool: &PgPool, station_id: i64) -> Result<serde_json:
     let Some((station_name, system_name)) = station else {
         return Err(Refusal::UnknownSystem(format!("station {station_id}")));
     };
-    let rows: Vec<(String, Option<String>, Option<String>, i64, i64, i64, i64, f64)> = sqlx::query_as(
+    let rows: Vec<(
+        String,
+        Option<String>,
+        Option<String>,
+        i64,
+        i64,
+        i64,
+        i64,
+        f64,
+    )> = sqlx::query_as(
         "SELECT m.commodity_symbol, NULLIF(c.name, ''), NULLIF(c.category, ''), \
                 m.buy_price, m.sell_price, m.demand, m.supply, \
                 EXTRACT(EPOCH FROM m.observed_at)::DOUBLE PRECISION \
@@ -521,19 +570,21 @@ pub async fn station_board(pool: &PgPool, station_id: i64) -> Result<serde_json:
     let now = now_unix();
     let entries: Vec<serde_json::Value> = rows
         .into_iter()
-        .map(|(symbol, name, category, buy, sell, demand, supply, observed)| {
-            json!({
-                "symbol": symbol,
-                "name": name,
-                "category": category,
-                "buy_price": buy,
-                "sell_price": sell,
-                "demand": demand,
-                "supply": supply,
-                "updated": iso_from_unix(observed),
-                "age_hours": (now - observed).max(0.0) / 3600.0,
-            })
-        })
+        .map(
+            |(symbol, name, category, buy, sell, demand, supply, observed)| {
+                json!({
+                    "symbol": symbol,
+                    "name": name,
+                    "category": category,
+                    "buy_price": buy,
+                    "sell_price": sell,
+                    "demand": demand,
+                    "supply": supply,
+                    "updated": iso_from_unix(observed),
+                    "age_hours": (now - observed).max(0.0) / 3600.0,
+                })
+            },
+        )
         .collect();
     Ok(json!({
         "station": station_name.unwrap_or_default(),
@@ -630,8 +681,17 @@ mod tests {
             serde_json::json!({"price": 190_000, "quantity": 4_000, "updated": "2026-09-05T00:00:00Z", "age_hours": 0.5}),
         );
         for key in [
-            "station_id", "station", "system", "distance_ly", "distance_to_arrival",
-            "max_pad", "is_carrier", "price", "quantity", "updated", "age_hours",
+            "station_id",
+            "station",
+            "system",
+            "distance_ly",
+            "distance_to_arrival",
+            "max_pad",
+            "is_carrier",
+            "price",
+            "quantity",
+            "updated",
+            "age_hours",
         ] {
             assert!(value.get(key).is_some(), "missing {key}: {value}");
         }

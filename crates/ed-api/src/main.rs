@@ -67,11 +67,15 @@ async fn main() -> Result<()> {
             source,
             artifact_dir,
         } => build_routing(config, source, artifact_dir).await,
-        Command::AdoptRouting { prebuilt, artifact_dir } => {
+        Command::AdoptRouting {
+            prebuilt,
+            artifact_dir,
+        } => {
             let pool = database_pool(&config).await?;
             let artifact_dir = artifact_dir.unwrap_or(config.artifact_dir);
             tokio::fs::create_dir_all(&artifact_dir).await?;
-            let publication = routing::adopt_routing_recorded(&pool, &artifact_dir, &prebuilt).await?;
+            let publication =
+                routing::adopt_routing_recorded(&pool, &artifact_dir, &prebuilt).await?;
             println!("{}", serde_json::to_string(&publication)?);
             Ok(())
         }
@@ -125,7 +129,11 @@ async fn serve(config: ServiceConfig) -> Result<()> {
     // pool ran every core at normal priority, so two fanning plots read
     // 99.5 % CPU and a 253 ms trade search waited 15 s for a core (load
     // bench, API-only spec Phase A step 1).
-    let planner_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).saturating_sub(2).max(1);
+    let planner_threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .saturating_sub(2)
+        .max(1);
     ed_galaxy::init_thread_pool(planner_thread_start);
     tracing::info!(threads = planner_threads, nice = 10, "planner pool sized");
     // The recorder goes in before anything can emit; every counter
@@ -137,7 +145,10 @@ async fn serve(config: ServiceConfig) -> Result<()> {
     // no boards. The gauges task is held either way; with no feed here
     // it simply has no queue to report.
     let (eddn_sender, eddn_receiver) = tokio::sync::mpsc::channel(config.eddn_queue_capacity);
-    tokio::spawn(ed_api::metrics::run_gauges(pool.clone(), eddn_sender.downgrade()));
+    tokio::spawn(ed_api::metrics::run_gauges(
+        pool.clone(),
+        eddn_sender.downgrade(),
+    ));
     if config.eddn_in_serve {
         tokio::spawn(ed_api::eddn::run_writer(pool.clone(), eddn_receiver));
         let relay = config.eddn_relay.clone();
@@ -154,7 +165,10 @@ async fn serve(config: ServiceConfig) -> Result<()> {
     }
     // Systems clients asked about that the store cannot answer: EDSM, one
     // request a second, for as long as the server runs.
-    tokio::spawn(ed_api::stars::run_edsm_lookups(pool.clone(), reqwest::Client::new()));
+    tokio::spawn(ed_api::stars::run_edsm_lookups(
+        pool.clone(),
+        reqwest::Client::new(),
+    ));
     tokio::fs::create_dir_all(&config.artifact_dir).await?;
     let listener = tokio::net::TcpListener::bind(config.bind)
         .await
@@ -163,7 +177,11 @@ async fn serve(config: ServiceConfig) -> Result<()> {
 
     axum::serve(
         listener,
-        http::router(http::AppState::new(pool, config.artifact_dir, metrics_handle)),
+        http::router(http::AppState::new(
+            pool,
+            config.artifact_dir,
+            metrics_handle,
+        )),
     )
     .with_graceful_shutdown(shutdown_signal())
     .await

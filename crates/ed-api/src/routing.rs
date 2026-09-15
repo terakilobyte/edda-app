@@ -77,7 +77,12 @@ pub fn build_routing(
     version: &str,
     generated_at: &str,
 ) -> Result<RoutingPublication> {
-    publish_from(&RoutingSource::Import(source.to_owned()), artifact_dir, version, generated_at)
+    publish_from(
+        &RoutingSource::Import(source.to_owned()),
+        artifact_dir,
+        version,
+        generated_at,
+    )
 }
 
 /// Adopt an index built elsewhere as the next routing version: a rebase
@@ -90,7 +95,12 @@ pub fn adopt_routing(
     version: &str,
     generated_at: &str,
 ) -> Result<RoutingPublication> {
-    publish_from(&RoutingSource::Prebuilt(prebuilt.to_owned()), artifact_dir, version, generated_at)
+    publish_from(
+        &RoutingSource::Prebuilt(prebuilt.to_owned()),
+        artifact_dir,
+        version,
+        generated_at,
+    )
 }
 
 /// Side files an index may carry beside the four product files. Copied
@@ -151,7 +161,7 @@ fn publish_from(
             // A full build is a rebase: the fresh version starts a fresh
             // overlay chain (Item 47 — the overlay publisher extends it).
             overlays: Vec::new(),
-        covers_from: None,
+            covers_from: None,
         },
     );
     write_manifest(artifact_dir, &manifest, &format!("routing-{version}"))?;
@@ -244,7 +254,11 @@ fn build_into(
 
 /// Digest and chunk the four product files in `staging`: the artifact
 /// list and the chunk manifest a client verifies against.
-fn chunk_staging(staging: &Path, artifact_dir: &Path, version: &str) -> Result<(Vec<ArtifactFile>, u64)> {
+fn chunk_staging(
+    staging: &Path,
+    artifact_dir: &Path,
+    version: &str,
+) -> Result<(Vec<ArtifactFile>, u64)> {
     let mut files = Vec::with_capacity(ROUTING_FILES.len() + 1);
     let mut bytes = 0;
     for name in ROUTING_FILES {
@@ -305,7 +319,7 @@ pub fn chunk_file(path: &Path, name: &str) -> Result<ed_sync::ChunkedFile> {
         name: name.to_owned(),
         bytes: offset,
         sha256: format!("{:x}", whole.finalize()),
-    	chunks,
+        chunks,
     })
 }
 
@@ -317,7 +331,10 @@ pub fn write_chunk_manifest(staging: &Path, version: &str) -> Result<ArtifactFil
     for name in ROUTING_FILES {
         files.push(chunk_file(&staging.join(name), name)?);
     }
-    let manifest = ed_sync::ChunkManifest { version: version.to_owned(), files };
+    let manifest = ed_sync::ChunkManifest {
+        version: version.to_owned(),
+        files,
+    };
     manifest.validate()?;
     let bytes = serde_json::to_vec(&manifest)?;
     let path = staging.join(ed_sync::CHUNKS_FILE);
@@ -402,7 +419,12 @@ pub async fn adopt_routing_recorded(
     artifact_dir: &Path,
     prebuilt: &Path,
 ) -> Result<RoutingPublication> {
-    publish_recorded(pool, artifact_dir, RoutingSource::Prebuilt(prebuilt.to_owned())).await
+    publish_recorded(
+        pool,
+        artifact_dir,
+        RoutingSource::Prebuilt(prebuilt.to_owned()),
+    )
+    .await
 }
 
 async fn publish_recorded(
@@ -478,7 +500,10 @@ mod tests {
         chunked.validate().unwrap();
         assert_eq!(chunked.bytes, data.len() as u64);
         assert_eq!(chunked.sha256, ed_sync::sha256_hex(&data));
-        assert!(chunked.chunks.len() > 1, "5 MiB should cut into several ~1 MiB chunks");
+        assert!(
+            chunked.chunks.len() > 1,
+            "5 MiB should cut into several ~1 MiB chunks"
+        );
         for chunk in &chunked.chunks {
             let slice = &data[chunk.offset as usize..chunk.offset as usize + chunk.len as usize];
             assert_eq!(chunk.sha256, ed_sync::sha256_hex(slice));
@@ -495,27 +520,53 @@ mod tests {
 {"id64":2,"name":"Twin","coords":{"x":30,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true},{"type":"Star","subType":"Neutron Star","mainStar":false,"distanceToArrival":4000.0}]}
 ]"#;
         let built = tempfile::tempdir().unwrap();
-        ed_galaxy::import::import_reader(Box::new(std::io::Cursor::new(json.as_bytes().to_vec())), built.path(), &mut |_| {}).unwrap();
-        assert!(built.path().join(ed_galaxy::boost_side::BOOST_SIDE_FILE).is_file());
+        ed_galaxy::import::import_reader(
+            Box::new(std::io::Cursor::new(json.as_bytes().to_vec())),
+            built.path(),
+            &mut |_| {},
+        )
+        .unwrap();
+        assert!(built
+            .path()
+            .join(ed_galaxy::boost_side::BOOST_SIDE_FILE)
+            .is_file());
         let artifacts = tempfile::tempdir().unwrap();
-        let publication = adopt_routing(built.path(), artifacts.path(), "77", "2026-09-10T12:00:00Z").unwrap();
+        let publication =
+            adopt_routing(built.path(), artifacts.path(), "77", "2026-09-10T12:00:00Z").unwrap();
         assert_eq!(publication.stats.systems, 2);
         let published = artifacts.path().join("routing").join("77");
         for name in ROUTING_FILES {
             assert!(published.join(name).is_file(), "{name} published");
         }
-        assert!(published.join(ed_sync::CHUNKS_FILE).is_file(), "chunks.json written");
-        assert!(published.join(ed_galaxy::boost_side::BOOST_SIDE_FILE).is_file(), "side file carried");
-        assert_eq!(publication.files.len(), ROUTING_FILES.len() + 1, "the side file is not a product file");
+        assert!(
+            published.join(ed_sync::CHUNKS_FILE).is_file(),
+            "chunks.json written"
+        );
+        assert!(
+            published
+                .join(ed_galaxy::boost_side::BOOST_SIDE_FILE)
+                .is_file(),
+            "side file carried"
+        );
+        assert_eq!(
+            publication.files.len(),
+            ROUTING_FILES.len() + 1,
+            "the side file is not a product file"
+        );
         let g = Galaxy::open(&published).unwrap();
-        assert_eq!(g.boost_secondary(g.find("Twin").unwrap()), Some((ed_galaxy::StarClass::Neutron, 4000.0)));
+        assert_eq!(
+            g.boost_secondary(g.find("Twin").unwrap()),
+            Some((ed_galaxy::StarClass::Neutron, 4000.0))
+        );
         let manifest = read_current_manifest(artifacts.path()).unwrap().unwrap();
         let routing = manifest.products.get(&ProductKey::Routing).unwrap();
         assert_eq!(routing.version, "77");
         assert!(routing.overlays.is_empty(), "a rebase starts a fresh chain");
         // A directory without the four files is refused before anything moves.
         let empty = tempfile::tempdir().unwrap();
-        assert!(adopt_routing(empty.path(), artifacts.path(), "78", "2026-09-10T12:00:00Z").is_err());
+        assert!(
+            adopt_routing(empty.path(), artifacts.path(), "78", "2026-09-10T12:00:00Z").is_err()
+        );
         assert!(!artifacts.path().join("routing").join("78").exists());
     }
 
@@ -538,8 +589,13 @@ mod tests {
             assert!(!root.join(gone).exists(), "{gone} should be pruned");
         }
         // No grace (fresh install), missing root: both fine.
-        assert_eq!(prune_routing_versions(dir.path(), "51", None).unwrap(), ["50"]);
+        assert_eq!(
+            prune_routing_versions(dir.path(), "51", None).unwrap(),
+            ["50"]
+        );
         let empty = tempfile::tempdir().unwrap();
-        assert!(prune_routing_versions(empty.path(), "1", None).unwrap().is_empty());
+        assert!(prune_routing_versions(empty.path(), "1", None)
+            .unwrap()
+            .is_empty());
     }
 }

@@ -26,14 +26,21 @@ pub const MAX_PASTE_BYTES: usize = 256 * 1024;
 
 pub fn physics(body: &serde_json::Value) -> Result<serde_json::Value, String> {
     let (text, cargo) = match serde_json::from_value::<PhysicsRequest>(body.clone()) {
-        Ok(PhysicsRequest { paste: Some(paste), cargo_t }) => (paste, cargo_t),
+        Ok(PhysicsRequest {
+            paste: Some(paste),
+            cargo_t,
+        }) => (paste, cargo_t),
         _ => (body.to_string(), 0.0),
     };
     if text.len() > MAX_PASTE_BYTES {
-        return Err(format!("paste is {} bytes; at most {MAX_PASTE_BYTES}", text.len()));
+        return Err(format!(
+            "paste is {} bytes; at most {MAX_PASTE_BYTES}",
+            text.len()
+        ));
     }
     let loadout = ed_galaxy::loadout::loadout_from_paste(&text).map_err(|e| e.to_string())?;
-    let p = ed_galaxy::loadout::physics_from_loadout(&loadout, cargo.max(0.0), None).map_err(|e| e.to_string())?;
+    let p = ed_galaxy::loadout::physics_from_loadout(&loadout, cargo.max(0.0), None)
+        .map_err(|e| e.to_string())?;
     let full_tank = p.model.range_at(p.model.capacity);
     let one_jump = p.model.range_at(p.model.max_fuel_per_jump);
     Ok(serde_json::json!({
@@ -53,7 +60,10 @@ pub fn physics(body: &serde_json::Value) -> Result<serde_json::Value, String> {
     }))
 }
 
-pub async fn handler(State(_state): State<AppState>, axum::Json(body): axum::Json<serde_json::Value>) -> impl IntoResponse {
+pub async fn handler(
+    State(_state): State<AppState>,
+    axum::Json(body): axum::Json<serde_json::Value>,
+) -> impl IntoResponse {
     let counter = |outcome: &'static str| {
         metrics::counter!("edda_loadout_physics_total", "outcome" => outcome).increment(1)
     };
@@ -64,7 +74,11 @@ pub async fn handler(State(_state): State<AppState>, axum::Json(body): axum::Jso
         }
         Err(message) => {
             counter("invalid");
-            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": message}))).into_response()
+            (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": message})),
+            )
+                .into_response()
         }
     }
 }
@@ -87,10 +101,17 @@ mod tests {
         assert_eq!(direct["fuel_model"]["cargo"], 0.0);
         assert_eq!(wrapped["fsd"]["size"], 7);
         assert_eq!(wrapped["booster_ly"], 10.5);
-        assert!(wrapped["full_tank_range_ly"].as_f64().unwrap() < wrapped["one_jump_range_ly"].as_f64().unwrap());
+        assert!(
+            wrapped["full_tank_range_ly"].as_f64().unwrap()
+                < wrapped["one_jump_range_ly"].as_f64().unwrap()
+        );
         assert!(direct["summary"].as_str().unwrap().contains("size 7A"));
-        assert!(physics(&serde_json::json!({"paste": "not json"})).unwrap_err().contains("not JSON"));
-        assert!(physics(&serde_json::json!({"event": "Docked"})).unwrap_err().contains("not a Loadout"));
+        assert!(physics(&serde_json::json!({"paste": "not json"}))
+            .unwrap_err()
+            .contains("not JSON"));
+        assert!(physics(&serde_json::json!({"event": "Docked"}))
+            .unwrap_err()
+            .contains("not a Loadout"));
         let huge = serde_json::json!({"paste": "x".repeat(MAX_PASTE_BYTES + 1)});
         assert!(physics(&huge).unwrap_err().contains("at most"));
     }

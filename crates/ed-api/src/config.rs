@@ -55,8 +55,9 @@ impl ServiceConfig {
             .parse()
             .context("EDDA_API_INGEST_BIND must be an IP address and port")?;
         let eddn_in_serve = match env::var("EDDA_API_EDDN_IN_SERVE") {
-            Ok(text) => parse_bool(&text)
-                .with_context(|| format!("EDDA_API_EDDN_IN_SERVE must be true or false, got {text:?}"))?,
+            Ok(text) => parse_bool(&text).with_context(|| {
+                format!("EDDA_API_EDDN_IN_SERVE must be true or false, got {text:?}")
+            })?,
             Err(_) => true,
         };
 
@@ -84,6 +85,10 @@ mod tests {
         for no in ["false", "0", "no", "off"] {
             assert_eq!(parse_bool(no), Some(false), "{no:?}");
         }
-        assert_eq!(parse_bool("maybe"), None, "an unknown spelling is a startup error, never a silent default");
+        assert_eq!(
+            parse_bool("maybe"),
+            None,
+            "an unknown spelling is a startup error, never a silent default"
+        );
     }
 }

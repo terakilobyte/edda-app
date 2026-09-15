@@ -95,7 +95,11 @@ pub fn diff(
         if let Some(&class) = taught.get(&record.id64) {
             if class == StarClass::Unknown.code() {
                 if retracted.contains(&record.id64) && record.class != StarClass::Unknown.code() {
-                    records.push(update_at(record.pos(), StarClass::Unknown.code(), record.flags));
+                    records.push(update_at(
+                        record.pos(),
+                        StarClass::Unknown.code(),
+                        record.flags,
+                    ));
                     stats.retracted += 1;
                 } else {
                     stats.taught_unknown += 1;
@@ -109,7 +113,7 @@ pub fn diff(
     }
 
     let mut seen: BTreeSet<(u64, [u8; 12])> = BTreeSet::new();
-    let pos_bytes =|pos: [f32; 3]| {
+    let pos_bytes = |pos: [f32; 3]| {
         let mut bytes = [0u8; 12];
         bytes[0..4].copy_from_slice(&pos[0].to_le_bytes());
         bytes[4..8].copy_from_slice(&pos[1].to_le_bytes());
@@ -165,9 +169,8 @@ fn spatially_present(base: &Galaxy, pos: [f32; 3]) -> bool {
                 };
                 for index in start..start + count {
                     let p = base.record(index).pos();
-                    let d2 = (p[0] - pos[0]).powi(2)
-                        + (p[1] - pos[1]).powi(2)
-                        + (p[2] - pos[2]).powi(2);
+                    let d2 =
+                        (p[0] - pos[0]).powi(2) + (p[1] - pos[1]).powi(2) + (p[2] - pos[2]).powi(2);
                     if d2 < 0.01 {
                         return true;
                     }
@@ -321,11 +324,8 @@ pub fn publish_overlay(
     // The manifest now points at `version`; `from_version` is the grace
     // copy for clients that fetched the manifest moments ago. Everything
     // older is unreachable and goes (11 GB per dir — ledger 04bd87a).
-    let pruned = crate::routing::prune_routing_versions(
-        artifact_dir,
-        version,
-        Some(from_version.as_str()),
-    )?;
+    let pruned =
+        crate::routing::prune_routing_versions(artifact_dir, version, Some(from_version.as_str()))?;
     tracing::info!(
         version,
         pruned = pruned.len(),
@@ -393,31 +393,31 @@ pub async fn reconcile_routing(
     artifact_dir: &Path,
 ) -> Result<Option<OverlayPublication>> {
     let query_started = std::time::Instant::now();
-    let candidates: Vec<Candidate> = sqlx::query_as::<_, (i64, String, f64, f64, f64, Option<i16>)>(
-        "SELECT s.address, s.name, s.x, s.y, s.z, st.class \
+    let candidates: Vec<Candidate> =
+        sqlx::query_as::<_, (i64, String, f64, f64, f64, Option<i16>)>(
+            "SELECT s.address, s.name, s.x, s.y, s.z, st.class \
          FROM systems s LEFT JOIN stars st ON st.address = s.address \
          WHERE s.address > 0 AND s.x IS NOT NULL AND s.y IS NOT NULL AND s.z IS NOT NULL",
-    )
-    .fetch_all(pool)
-    .await
-    .context("querying add candidates")?
-    .into_iter()
-    .map(|(address, name, x, y, z, class)| Candidate {
-        address: address as u64,
-        name,
-        pos: [x as f32, y as f32, z as f32],
-        class: class.and_then(|c| u8::try_from(c).ok()),
-    })
-    .collect();
-    let taught: HashMap<u64, u8> = sqlx::query_as::<_, (i64, i16)>(
-        "SELECT address, class FROM stars WHERE address > 0",
-    )
-    .fetch_all(pool)
-    .await
-    .context("querying taught classes")?
-    .into_iter()
-    .filter_map(|(address, class)| Some((address as u64, u8::try_from(class).ok()?)))
-    .collect();
+        )
+        .fetch_all(pool)
+        .await
+        .context("querying add candidates")?
+        .into_iter()
+        .map(|(address, name, x, y, z, class)| Candidate {
+            address: address as u64,
+            name,
+            pos: [x as f32, y as f32, z as f32],
+            class: class.and_then(|c| u8::try_from(c).ok()),
+        })
+        .collect();
+    let taught: HashMap<u64, u8> =
+        sqlx::query_as::<_, (i64, i16)>("SELECT address, class FROM stars WHERE address > 0")
+            .fetch_all(pool)
+            .await
+            .context("querying taught classes")?
+            .into_iter()
+            .filter_map(|(address, class)| Some((address as u64, u8::try_from(class).ok()?)))
+            .collect();
     // Retractions: class-0 rows only a repair writes (ingest never stores
     // Unknown), so a 0 here is a deliberate "this class was wrong".
     let retracted: HashSet<u64> = sqlx::query_scalar::<_, i64>(
@@ -527,7 +527,12 @@ mod tests {
     }
 
     fn candidate(address: u64, name: &str, pos: [f32; 3], class: Option<u8>) -> Candidate {
-        Candidate { address, name: name.to_owned(), pos, class }
+        Candidate {
+            address,
+            name: name.to_owned(),
+            pos,
+            class,
+        }
     }
 
     /// Updates come from the id64 scan: a taught class lands on its
@@ -538,10 +543,10 @@ mod tests {
         let dir = base_index();
         let base = Galaxy::open(dir.path()).unwrap();
         let taught = HashMap::from([
-            (3u64, StarClass::Neutron.code()),      // Far Away learns its class
-            (1u64, StarClass::G.code()),            // Sol: unchanged, no record
-            (2u64, StarClass::Unknown.code()),      // never downgrade
-            (999u64, StarClass::K.code()),          // not in the index: ignored
+            (3u64, StarClass::Neutron.code()), // Far Away learns its class
+            (1u64, StarClass::G.code()),       // Sol: unchanged, no record
+            (2u64, StarClass::Unknown.code()), // never downgrade
+            (999u64, StarClass::K.code()),     // not in the index: ignored
         ]);
         let (records, stats) = diff(&base, &[], &taught, &HashSet::new()).unwrap();
         assert_eq!((stats.updates, stats.taught_unknown), (1, 1));
@@ -568,10 +573,15 @@ mod tests {
         ]);
         let retracted = HashSet::from([2u64]);
         let (records, stats) = diff(&base, &[], &taught, &retracted).unwrap();
-        assert_eq!((stats.retracted, stats.taught_unknown, stats.updates), (1, 1, 0));
+        assert_eq!(
+            (stats.retracted, stats.taught_unknown, stats.updates),
+            (1, 1, 0)
+        );
         assert_eq!(records.len(), 1);
         match &records[0].op {
-            ed_galaxy::overlay::OverlayOp::Update { class, .. } => assert_eq!(*class, StarClass::Unknown.code()),
+            ed_galaxy::overlay::OverlayOp::Update { class, .. } => {
+                assert_eq!(*class, StarClass::Unknown.code())
+            }
             other => panic!("expected an update to Unknown, got {other:?}"),
         }
     }
@@ -584,14 +594,19 @@ mod tests {
         let dir = base_index();
         let base = Galaxy::open(dir.path()).unwrap();
         let candidates = vec![
-            candidate(100, "Gria Hypue AA-A h0", [1200.0, -40.0, 6000.0], Some(StarClass::Neutron.code())),
+            candidate(
+                100,
+                "Gria Hypue AA-A h0",
+                [1200.0, -40.0, 6000.0],
+                Some(StarClass::Neutron.code()),
+            ),
             candidate(101, "Untaught Newborn", [7000.0, 12.0, -30.0], None),
-            candidate(200, "Sol Duplicate", [0.0, 0.0, 0.0], None),      // new id64, known position: present spatially
+            candidate(200, "Sol Duplicate", [0.0, 0.0, 0.0], None), // new id64, known position: present spatially
             candidate(2, "Jackson's Moved", [-10.05, 5.0, 20.0], None), // same id64, drifted pos
             candidate(102, "Twin A", [42.0, 42.0, 42.0], None),
-            candidate(103, "Twin A Copy", [42.0, 42.0, 42.0], None),    // duplicate identity
-            candidate(104, "", [1.0, 1.0, 1.0], None),                  // invalid
-            candidate(105, "NaN Land", [f32::NAN, 0.0, 0.0], None),     // invalid
+            candidate(103, "Twin A Copy", [42.0, 42.0, 42.0], None), // duplicate identity
+            candidate(104, "", [1.0, 1.0, 1.0], None),               // invalid
+            candidate(105, "NaN Land", [f32::NAN, 0.0, 0.0], None),  // invalid
         ];
         let (records, stats) = diff(&base, &candidates, &HashMap::new(), &HashSet::new()).unwrap();
         assert_eq!(stats.adds, 3, "{stats:?}");
@@ -635,7 +650,7 @@ mod tests {
                 minimum_client: None,
                 files,
                 overlays: Vec::new(),
-            covers_from: None,
+                covers_from: None,
             },
         );
         write_manifest(artifact_dir.path(), &manifest, "test").unwrap();
@@ -665,9 +680,14 @@ mod tests {
         )];
         let (records, stats) = diff(&base, &candidates, &taught, &HashSet::new()).unwrap();
         drop(base);
-        let publication =
-            publish_overlay(artifact_dir.path(), "2", "2026-09-03T01:00:00Z", records, stats)
-                .unwrap();
+        let publication = publish_overlay(
+            artifact_dir.path(),
+            "2",
+            "2026-09-03T01:00:00Z",
+            records,
+            stats,
+        )
+        .unwrap();
         assert_eq!((publication.diff.adds, publication.diff.updates), (1, 1));
         assert_eq!(publication.apply.systems, 4);
         assert_eq!(
@@ -690,13 +710,20 @@ mod tests {
         let chain = product.overlay_chain("1").unwrap();
         assert_eq!(chain.len(), 1);
         assert_eq!(chain[0].artifact.path, "routing/overlays/2.edgo");
-        assert!(product.overlay_chain("0").is_none(), "unknown base: full download");
+        assert!(
+            product.overlay_chain("0").is_none(),
+            "unknown base: full download"
+        );
         Galaxy::validate_dir(&artifact_dir.path().join("routing").join("2")).unwrap();
 
         // The client's side of the contract: read the served overlay,
         // apply it to the served base, compare every byte.
         let served = Overlay::read(
-            &artifact_dir.path().join("routing").join("overlays").join("2.edgo"),
+            &artifact_dir
+                .path()
+                .join("routing")
+                .join("overlays")
+                .join("2.edgo"),
         )
         .unwrap();
         let client_out = tempfile::tempdir().unwrap();
@@ -712,6 +739,9 @@ mod tests {
         // A quiet day publishes nothing.
         let base = Galaxy::open(&artifact_dir.path().join("routing").join("2")).unwrap();
         let (records, _) = diff(&base, &candidates, &taught, &HashSet::new()).unwrap();
-        assert!(records.is_empty(), "yesterday's changes are in the base now");
+        assert!(
+            records.is_empty(),
+            "yesterday's changes are in the base now"
+        );
     }
 }

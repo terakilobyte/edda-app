@@ -75,10 +75,16 @@ pub fn body_row(
     let mut rings = Vec::new();
     let mut hotspots = Vec::new();
     for ring in &body.rings {
-        let Some(name) = ring.name.clone() else { continue };
+        let Some(name) = ring.name.clone() else {
+            continue;
+        };
         if let Some(signals) = &ring.signals {
             for (material, count) in &signals.signals {
-                hotspots.push((name.clone(), material.clone(), i32::try_from(*count).unwrap_or(i32::MAX)));
+                hotspots.push((
+                    name.clone(),
+                    material.clone(),
+                    i32::try_from(*count).unwrap_or(i32::MAX),
+                ));
             }
         }
         rings.push(ed_domain::RingTeaching {
@@ -104,7 +110,10 @@ pub fn body_row(
         volcanism: body.volcanism.clone(),
         bio_signals: bio,
         geo_signals: geo,
-        observed_at: ed_domain::ObservedAt::new(ed_store::session::iso_from_epoch(observed_epoch), observed_epoch),
+        observed_at: ed_domain::ObservedAt::new(
+            ed_store::session::iso_from_epoch(observed_epoch),
+            observed_epoch,
+        ),
         provenance: provenance.to_owned(),
         materials,
         rings,
@@ -176,9 +185,21 @@ pub struct MaterialEntry {
 /// The laser-mined goods the ring-type hint knows, for the client's
 /// autocomplete; kept in step with `ed_store::mining::ring_type_for`.
 pub const LASER_GOODS: [&str; 15] = [
-    "Gold", "Silver", "Palladium", "Osmium", "Bertrandite", "Indite", "Gallite",
-    "Praseodymium", "Samarium", "Bauxite", "Cobalt", "Rutile", "Water",
-    "Liquid Oxygen", "Lithium Hydroxide",
+    "Gold",
+    "Silver",
+    "Palladium",
+    "Osmium",
+    "Bertrandite",
+    "Indite",
+    "Gallite",
+    "Praseodymium",
+    "Samarium",
+    "Bauxite",
+    "Cobalt",
+    "Rutile",
+    "Water",
+    "Liquid Oxygen",
+    "Lithium Hydroxide",
 ];
 
 /// The stored vocabulary: distinct hotspot materials and surface
@@ -200,13 +221,19 @@ pub async fn vocabulary(pool: &PgPool) -> Result<Vec<MaterialEntry>, Refusal> {
         .fetch_all(pool)
         .await
         .map_err(|e| Refusal::Invalid(e.to_string()))?;
-        out.extend(names.into_iter().map(|(stored,)| MaterialEntry { stored, kind: kind.into() }));
+        out.extend(names.into_iter().map(|(stored,)| MaterialEntry {
+            stored,
+            kind: kind.into(),
+        }));
     }
     Ok(out)
 }
 
 /// The stored spellings a typed name resolves to: `(hotspot, surface)`.
-pub fn resolve_material<'v>(vocab: &'v [MaterialEntry], text: &str) -> (Option<&'v str>, Option<&'v str>) {
+pub fn resolve_material<'v>(
+    vocab: &'v [MaterialEntry],
+    text: &str,
+) -> (Option<&'v str>, Option<&'v str>) {
     let key = ed_store::mining::material_key(text);
     let (mut hotspot, mut surface) = (None, None);
     for entry in vocab {
@@ -223,7 +250,10 @@ pub fn resolve_material<'v>(vocab: &'v [MaterialEntry], text: &str) -> (Option<&
 /// The search: resolves the origin and the material, then runs the three
 /// lists. `serde_json::Value` because the answer is exactly the object
 /// the Mining page renders (its marks are added client-side).
-pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_json::Value, Refusal> {
+pub async fn search(
+    pool: &PgPool,
+    req: &MiningSearchRequest,
+) -> Result<serde_json::Value, Refusal> {
     let started = std::time::Instant::now();
     let text = req.text.trim();
     if text.is_empty() {
@@ -231,10 +261,16 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
     }
     let (origin, origin_name) = match (req.coords, req.system.as_deref().map(str::trim)) {
         (Some([x, y, z]), name) => ((x, y, z), name.unwrap_or("").to_owned()),
-        (None, Some(name)) if !name.is_empty() => (crate::market_search::origin_coords(pool, name).await?, name.to_owned()),
+        (None, Some(name)) if !name.is_empty() => (
+            crate::market_search::origin_coords(pool, name).await?,
+            name.to_owned(),
+        ),
         _ => return Err(Refusal::Invalid("system or coords is required".into())),
     };
-    let radius = req.radius_ly.unwrap_or(DEFAULT_RADIUS_LY).clamp(1.0, MAX_RADIUS_LY);
+    let radius = req
+        .radius_ly
+        .unwrap_or(DEFAULT_RADIUS_LY)
+        .clamp(1.0, MAX_RADIUS_LY);
     let limit = req.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let vocab = vocabulary(pool).await?;
     let (hotspot_name, surface_name) = resolve_material(&vocab, text);
@@ -245,7 +281,9 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
         None => Vec::new(),
     };
     let rings = match ring_hint {
-        Some((ring_type, _)) if hotspot_name.is_none() => rings_near(pool, origin, ring_type, radius, limit).await?,
+        Some((ring_type, _)) if hotspot_name.is_none() => {
+            rings_near(pool, origin, ring_type, radius, limit).await?
+        }
         _ => Vec::new(),
     };
     let bodies = match surface_name {
@@ -254,8 +292,14 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
     };
     let ms = started.elapsed().as_millis() as u64;
     tracing::info!(
-        radius, limit, hotspots = hotspots.len(), rings = rings.len(), bodies = bodies.len(),
-        known_hotspot = hotspot_name.is_some(), known_surface = surface_name.is_some(), ms,
+        radius,
+        limit,
+        hotspots = hotspots.len(),
+        rings = rings.len(),
+        bodies = bodies.len(),
+        known_hotspot = hotspot_name.is_some(),
+        known_surface = surface_name.is_some(),
+        ms,
         "mining search"
     );
     Ok(serde_json::json!({
@@ -289,7 +333,16 @@ async fn hotspots_near(
     limit: usize,
 ) -> Result<Vec<HotspotHit>, Refusal> {
     #[allow(clippy::type_complexity)]
-    let rows: Vec<(String, Option<String>, String, Option<String>, String, i32, f64, Option<f64>)> = sqlx::query_as(&format!(
+    let rows: Vec<(
+        String,
+        Option<String>,
+        String,
+        Option<String>,
+        String,
+        i32,
+        f64,
+        Option<f64>,
+    )> = sqlx::query_as(&format!(
         "SELECT sy.name AS system, b.name AS body, h.ring_name AS ring, r.type AS ring_type, \
                 h.material, h.count, \
                 sqrt((sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$6)^2) AS distance_ly, \
@@ -315,9 +368,20 @@ async fn hotspots_near(
     .map_err(|e| Refusal::Invalid(e.to_string()))?;
     Ok(rows
         .into_iter()
-        .map(|(system, body, ring, ring_type, material, count, distance_ly, distance_to_arrival)| HotspotHit {
-            system, body, ring, ring_type, material, count, distance_ly, distance_to_arrival,
-        })
+        .map(
+            |(system, body, ring, ring_type, material, count, distance_ly, distance_to_arrival)| {
+                HotspotHit {
+                    system,
+                    body,
+                    ring,
+                    ring_type,
+                    material,
+                    count,
+                    distance_ly,
+                    distance_to_arrival,
+                }
+            },
+        )
         .collect())
 }
 
@@ -332,8 +396,9 @@ async fn rings_near(
     limit: usize,
 ) -> Result<Vec<RingSite>, Refusal> {
     #[allow(clippy::type_complexity)]
-    let rows: Vec<(String, Option<String>, String, String, f64, Option<f64>)> = sqlx::query_as(&format!(
-        "SELECT sy.name AS system, b.name AS body, r.name AS ring, r.type AS ring_type, \
+    let rows: Vec<(String, Option<String>, String, String, f64, Option<f64>)> =
+        sqlx::query_as(&format!(
+            "SELECT sy.name AS system, b.name AS body, r.name AS ring, r.type AS ring_type, \
                 sqrt((sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$6)^2) AS distance_ly, \
                 b.distance_to_arrival \
          FROM rings r \
@@ -342,23 +407,30 @@ async fn rings_near(
          WHERE r.type = $1 AND {SPHERE} \
          ORDER BY distance_ly ASC \
          LIMIT $7"
-    ))
-    .bind(ring_type)
-    .bind(ox)
-    .bind(oy)
-    .bind(radius)
-    .bind(crate::geo::cells_covering(ox, oy, oz, radius))
-    .bind(oz)
-    .bind(limit as i64)
-    .persistent(false)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| Refusal::Invalid(e.to_string()))?;
+        ))
+        .bind(ring_type)
+        .bind(ox)
+        .bind(oy)
+        .bind(radius)
+        .bind(crate::geo::cells_covering(ox, oy, oz, radius))
+        .bind(oz)
+        .bind(limit as i64)
+        .persistent(false)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| Refusal::Invalid(e.to_string()))?;
     Ok(rows
         .into_iter()
-        .map(|(system, body, ring, ring_type, distance_ly, distance_to_arrival)| RingSite {
-            system, body, ring, ring_type, distance_ly, distance_to_arrival,
-        })
+        .map(
+            |(system, body, ring, ring_type, distance_ly, distance_to_arrival)| RingSite {
+                system,
+                body,
+                ring,
+                ring_type,
+                distance_ly,
+                distance_to_arrival,
+            },
+        )
         .collect())
 }
 
@@ -374,7 +446,18 @@ async fn body_candidates(
     limit: usize,
 ) -> Result<Vec<BodyCandidate>, Refusal> {
     #[allow(clippy::type_complexity)]
-    let rows: Vec<(String, Option<String>, Option<String>, String, f64, f64, Option<f64>, Option<f64>, Option<i32>, Option<i32>)> = sqlx::query_as(&format!(
+    let rows: Vec<(
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        f64,
+        f64,
+        Option<f64>,
+        Option<f64>,
+        Option<i32>,
+        Option<i32>,
+    )> = sqlx::query_as(&format!(
         "SELECT sy.name AS system, b.name AS body, b.sub_type, m.material, m.percent, \
                 sqrt((sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$6)^2) AS distance_ly, \
                 b.distance_to_arrival, b.gravity, b.bio_signals, b.geo_signals \
@@ -398,9 +481,33 @@ async fn body_candidates(
     .map_err(|e| Refusal::Invalid(e.to_string()))?;
     Ok(rows
         .into_iter()
-        .map(|(system, body, sub_type, material, percent, distance_ly, distance_to_arrival, gravity, bio_signals, geo_signals)| {
-            BodyCandidate { system, body, sub_type, material, percent, distance_ly, distance_to_arrival, gravity, bio_signals, geo_signals }
-        })
+        .map(
+            |(
+                system,
+                body,
+                sub_type,
+                material,
+                percent,
+                distance_ly,
+                distance_to_arrival,
+                gravity,
+                bio_signals,
+                geo_signals,
+            )| {
+                BodyCandidate {
+                    system,
+                    body,
+                    sub_type,
+                    material,
+                    percent,
+                    distance_ly,
+                    distance_to_arrival,
+                    gravity,
+                    bio_signals,
+                    geo_signals,
+                }
+            },
+        )
         .collect())
 }
 
@@ -427,11 +534,18 @@ mod tests {
         let row = body_row(1, &giant, Some(5), "spansh:test").expect("ringed giant is a row");
         assert_eq!(row.rings.len(), 1);
         assert_eq!(row.rings[0].kind.as_deref(), Some("Metallic"));
-        let mut hotspots: Vec<(&str, i32)> = row.hotspots.iter().map(|(_, m, c)| (m.as_str(), *c)).collect();
+        let mut hotspots: Vec<(&str, i32)> = row
+            .hotspots
+            .iter()
+            .map(|(_, m, c)| (m.as_str(), *c))
+            .collect();
         hotspots.sort();
         assert_eq!(hotspots, vec![("Painite", 1), ("Platinum", 2)]);
-        assert_eq!(row.observed_at.epoch_seconds, ed_domain::freshness::parse_timestamp("2026-09-01 10:00:00").unwrap(),
-                   "the body's own updateTime wins over the system date");
+        assert_eq!(
+            row.observed_at.epoch_seconds,
+            ed_domain::freshness::parse_timestamp("2026-09-01 10:00:00").unwrap(),
+            "the body's own updateTime wins over the system date"
+        );
         assert!(!row.is_landable);
 
         let rock = body(serde_json::json!({
@@ -442,16 +556,28 @@ mod tests {
         }));
         let row = body_row(1, &rock, Some(5), "spansh:test").expect("landable rock is a row");
         assert!(row.is_landable);
-        assert_eq!(row.materials, vec![("Iron".to_string(), 21.3), ("Nickel".to_string(), 16.1)]);
+        assert_eq!(
+            row.materials,
+            vec![("Iron".to_string(), 21.3), ("Nickel".to_string(), 16.1)]
+        );
         assert_eq!((row.bio_signals, row.geo_signals), (Some(2), Some(5)));
-        assert_eq!(row.observed_at.epoch_seconds, 5, "no updateTime: the system's date");
+        assert_eq!(
+            row.observed_at.epoch_seconds, 5,
+            "no updateTime: the system's date"
+        );
 
         let star = body(serde_json::json!({
             "id64": 102, "bodyId": 0, "name": "Deciat", "type": "Star", "subType": "K (Yellow-Orange) Star",
             "mainStar": true
         }));
-        assert!(body_row(1, &star, Some(5), "spansh:test").is_none(), "a bare star is the stars table's, not ours");
-        assert!(body_row(0, &rock, Some(5), "spansh:test").is_none(), "no system address, no row");
+        assert!(
+            body_row(1, &star, Some(5), "spansh:test").is_none(),
+            "a bare star is the stars table's, not ours"
+        );
+        assert!(
+            body_row(0, &rock, Some(5), "spansh:test").is_none(),
+            "no system address, no row"
+        );
     }
 
     /// The panel's autocomplete and the search agree on spelling: typed
@@ -460,14 +586,36 @@ mod tests {
     #[test]
     fn typed_names_resolve_to_stored_spellings() {
         let vocab = vec![
-            MaterialEntry { stored: "LowTemperatureDiamond".into(), kind: "hotspot".into() },
-            MaterialEntry { stored: "Platinum".into(), kind: "hotspot".into() },
-            MaterialEntry { stored: "Iron".into(), kind: "surface".into() },
+            MaterialEntry {
+                stored: "LowTemperatureDiamond".into(),
+                kind: "hotspot".into(),
+            },
+            MaterialEntry {
+                stored: "Platinum".into(),
+                kind: "hotspot".into(),
+            },
+            MaterialEntry {
+                stored: "Iron".into(),
+                kind: "surface".into(),
+            },
         ];
-        assert_eq!(resolve_material(&vocab, "low temperature diamonds"), (Some("LowTemperatureDiamond"), None));
-        assert_eq!(resolve_material(&vocab, "PLATINUM"), (Some("Platinum"), None));
+        assert_eq!(
+            resolve_material(&vocab, "low temperature diamonds"),
+            (Some("LowTemperatureDiamond"), None)
+        );
+        assert_eq!(
+            resolve_material(&vocab, "PLATINUM"),
+            (Some("Platinum"), None)
+        );
         assert_eq!(resolve_material(&vocab, "iron"), (None, Some("Iron")));
-        assert_eq!(resolve_material(&vocab, "gold"), (None, None), "laser goods are the ring hint's");
-        assert_eq!(ed_store::mining::ring_type_for("gold").map(|(t, _)| t), Some("Metallic"));
+        assert_eq!(
+            resolve_material(&vocab, "gold"),
+            (None, None),
+            "laser goods are the ring hint's"
+        );
+        assert_eq!(
+            ed_store::mining::ring_type_for("gold").map(|(t, _)| t),
+            Some("Metallic")
+        );
     }
 }

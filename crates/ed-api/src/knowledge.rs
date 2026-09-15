@@ -91,7 +91,11 @@ pub struct FlightGuard<'a> {
 
 impl Drop for FlightGuard<'_> {
     fn drop(&mut self) {
-        self.flight.inflight.lock().unwrap_or_else(|e| e.into_inner()).remove(&self.key);
+        self.flight
+            .inflight
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.key);
         self.flight.done.notify_waiters();
     }
 }
@@ -102,7 +106,10 @@ impl SingleFlight {
     pub fn begin(&self, key: &str) -> Option<FlightGuard<'_>> {
         let mut inflight = self.inflight.lock().unwrap_or_else(|e| e.into_inner());
         if inflight.insert(key.to_owned()) {
-            Some(FlightGuard { flight: self, key: key.to_owned() })
+            Some(FlightGuard {
+                flight: self,
+                key: key.to_owned(),
+            })
         } else {
             None
         }
@@ -114,7 +121,12 @@ impl SingleFlight {
         let deadline = tokio::time::Instant::now() + WAIT_BUDGET;
         loop {
             let notified = self.done.notified();
-            if !self.inflight.lock().unwrap_or_else(|e| e.into_inner()).contains(key) {
+            if !self
+                .inflight
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .contains(key)
+            {
                 return;
             }
             if tokio::time::timeout_at(deadline, notified).await.is_err() {
@@ -133,7 +145,9 @@ pub struct Pacer {
 
 impl Default for Pacer {
     fn default() -> Self {
-        Pacer { last: tokio::sync::Mutex::new(None) }
+        Pacer {
+            last: tokio::sync::Mutex::new(None),
+        }
     }
 }
 
@@ -189,7 +203,10 @@ pub async fn fetch_and_learn_sphere(
     let started = std::time::Instant::now();
     let response = http
         .get(&url)
-        .header(reqwest::header::USER_AGENT, "EDDA-API/0.1 (edda community server)")
+        .header(
+            reqwest::header::USER_AGENT,
+            "EDDA-API/0.1 (edda community server)",
+        )
         .timeout(EDSM_TIMEOUT)
         .send()
         .await
@@ -266,7 +283,9 @@ pub async fn answer_sphere(
             return;
         }
         let r = galaxy.record(idx);
-        let Ok(id64) = i64::try_from(r.id64) else { return };
+        let Ok(id64) = i64::try_from(r.id64) else {
+            return;
+        };
         hits.push(Hit {
             id64,
             name: galaxy.name(&r).to_string(),
@@ -292,7 +311,10 @@ pub async fn answer_sphere(
     .fetch_all(pool)
     .await?;
     let facts: std::collections::HashMap<i64, (Option<i64>, Option<String>, Option<String>)> =
-        facts.into_iter().map(|(a, p, cp, ps)| (a, (p, cp, ps))).collect();
+        facts
+            .into_iter()
+            .map(|(a, p, cp, ps)| (a, (p, cp, ps)))
+            .collect();
     let answer = hits
         .into_iter()
         .filter_map(|h| {
@@ -305,7 +327,8 @@ pub async fn answer_sphere(
             // sphere when the bundled bubble does not hold the target
             // (API-only spec, Phase B.2) and needs positions to find the
             // nearest scoopable star.
-            let (population, controlling_power, power_state) = facts.get(&h.id64).cloned().unwrap_or((None, None, None));
+            let (population, controlling_power, power_state) =
+                facts.get(&h.id64).cloned().unwrap_or((None, None, None));
             Some(serde_json::json!({
                 "name": h.name,
                 "id64": h.id64,
@@ -363,7 +386,10 @@ pub async fn bodies_document(
     let started = std::time::Instant::now();
     let body = http
         .get(url)
-        .header(reqwest::header::USER_AGENT, "EDDA-API/0.1 (edda community server)")
+        .header(
+            reqwest::header::USER_AGENT,
+            "EDDA-API/0.1 (edda community server)",
+        )
         .timeout(EDSM_TIMEOUT)
         .send()
         .await
@@ -434,7 +460,10 @@ mod tests {
         assert!(flight.begin("cell").is_none(), "second caller coalesces");
         assert!(flight.begin("other").is_some(), "keys are independent");
         drop(guard);
-        assert!(flight.begin("cell").is_some(), "guard drop released the key");
+        assert!(
+            flight.begin("cell").is_some(),
+            "guard drop released the key"
+        );
     }
 
     #[tokio::test]
@@ -510,11 +539,21 @@ fn information(
     put("economy", economy.map(serde_json::Value::from));
     // Powerplay, so the API-only client's system lookup carries what the
     // local sys_systems row used to (2026-09-08).
-    put("controllingPower", controlling_power.map(serde_json::Value::from));
+    put(
+        "controllingPower",
+        controlling_power.map(serde_json::Value::from),
+    );
     put("powerState", power_state.map(serde_json::Value::from));
     put(
         "powers",
-        powers.map(|p| serde_json::Value::from(p.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect::<Vec<_>>())),
+        powers.map(|p| {
+            serde_json::Value::from(
+                p.split(',')
+                    .map(|x| x.trim().to_string())
+                    .filter(|x| !x.is_empty())
+                    .collect::<Vec<_>>(),
+            )
+        }),
     );
     serde_json::Value::Object(map)
 }
@@ -575,14 +614,23 @@ pub async fn local_system(pool: &PgPool, name: &str) -> Result<Option<SystemAnsw
         (Some(x), Some(y), Some(z)) => Some(serde_json::json!({ "x": x, "y": y, "z": z })),
         _ => None,
     };
-    let primary_star = subtype.map(|subtype| {
-        serde_json::json!({ "type": subtype, "isScoopable": scoopable.unwrap_or(false) })
-    });
+    let primary_star = subtype.map(
+        |subtype| serde_json::json!({ "type": subtype, "isScoopable": scoopable.unwrap_or(false) }),
+    );
     Ok(Some(SystemAnswer {
         name,
         id64: Some(address),
         coords,
-        information: information(allegiance, government, population, security, economy, controlling_power, power_state, powers),
+        information: information(
+            allegiance,
+            government,
+            population,
+            security,
+            economy,
+            controlling_power,
+            power_state,
+            powers,
+        ),
         primary_star,
     }))
 }
@@ -598,7 +646,11 @@ pub async fn learn_system(pool: &PgPool, answer: &SystemAnswer) -> Result<()> {
     let info = &answer.information;
     let text = |k: &str| info.get(k).and_then(|v| v.as_str()).map(str::to_string);
     let coord = |k: &str| {
-        answer.coords.as_ref().and_then(|c| c.get(k)).and_then(serde_json::Value::as_f64)
+        answer
+            .coords
+            .as_ref()
+            .and_then(|c| c.get(k))
+            .and_then(serde_json::Value::as_f64)
     };
     sqlx::query(
         "INSERT INTO systems (address, name, x, y, z, population, security, allegiance, \
@@ -628,8 +680,11 @@ pub async fn learn_system(pool: &PgPool, answer: &SystemAnswer) -> Result<()> {
     .await?;
     // The primary star goes into the table the sphere proxy fills, so one
     // system never disagrees with itself across the two endpoints.
-    if let Some(subtype) =
-        answer.primary_star.as_ref().and_then(|s| s.get("type")).and_then(|v| v.as_str())
+    if let Some(subtype) = answer
+        .primary_star
+        .as_ref()
+        .and_then(|s| s.get("type"))
+        .and_then(|v| v.as_str())
     {
         let class = StarClass::from_subtype(subtype);
         if class != StarClass::Unknown {
@@ -654,7 +709,10 @@ pub async fn learn_system(pool: &PgPool, answer: &SystemAnswer) -> Result<()> {
 /// `{}` (and `information` as `[]` when it has nothing political), so an
 /// absent name is the UNKNOWN signal, not an error.
 pub fn parse_upstream_system(value: &serde_json::Value) -> Option<SystemAnswer> {
-    let name = value.get("name").and_then(|v| v.as_str()).filter(|n| !n.is_empty())?;
+    let name = value
+        .get("name")
+        .and_then(|v| v.as_str())
+        .filter(|n| !n.is_empty())?;
     let information = match value.get("information") {
         Some(v) if v.is_object() => v.clone(),
         _ => serde_json::Value::Object(serde_json::Map::new()),
@@ -722,7 +780,10 @@ pub async fn system_document(
     let started = std::time::Instant::now();
     let value: serde_json::Value = http
         .get(url)
-        .header(reqwest::header::USER_AGENT, "EDDA-API/0.1 (edda community server)")
+        .header(
+            reqwest::header::USER_AGENT,
+            "EDDA-API/0.1 (edda community server)",
+        )
         .timeout(EDSM_TIMEOUT)
         .send()
         .await
@@ -751,9 +812,9 @@ pub async fn system_document(
 pub fn index_system(galaxy: &ed_galaxy::Galaxy, name: &str) -> Option<SystemAnswer> {
     let idx = galaxy.find(name)?;
     let r = galaxy.record(idx);
-    let primary_star = canonical_subtype(galaxy.class(&r)).map(|subtype| {
-        serde_json::json!({ "type": subtype, "isScoopable": galaxy.scoopable(idx) })
-    });
+    let primary_star = canonical_subtype(galaxy.class(&r)).map(
+        |subtype| serde_json::json!({ "type": subtype, "isScoopable": galaxy.scoopable(idx) }),
+    );
     Some(SystemAnswer {
         name: galaxy.name(&r).to_string(),
         id64: i64::try_from(r.id64).ok(),
@@ -783,11 +844,19 @@ mod index_tests {
     fn a_system_the_index_knows_is_answered_without_going_upstream() {
         let (_dir, g) = tiny_galaxy();
         let answer = index_system(&g, "wongi").expect("the index knows Wongi");
-        assert_eq!(answer.name, "Wongi", "canonical case from the index, not the query");
+        assert_eq!(
+            answer.name, "Wongi",
+            "canonical case from the index, not the query"
+        );
         assert_eq!(answer.id64, Some(5031654888146));
-        assert_eq!(answer.coords, Some(serde_json::json!({ "x": -12.5, "y": 8.25, "z": -40.0 })));
+        assert_eq!(
+            answer.coords,
+            Some(serde_json::json!({ "x": -12.5, "y": 8.25, "z": -40.0 }))
+        );
         assert_eq!(answer.information, serde_json::json!({}));
-        let star = answer.primary_star.expect("primary star from the index class");
+        let star = answer
+            .primary_star
+            .expect("primary star from the index class");
         // canonical_subtype's class string, the one the client's parser
         // round-trips — not the import source's wording.
         assert_eq!(star["type"], "M Star");
