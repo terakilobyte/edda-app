@@ -278,6 +278,12 @@ pub struct TraderStop {
     /// False when the API published no station economies, so `nearest` is
     /// every material trader in range rather than this kind's.
     pub kind_known: bool,
+    /// False when the lookup could not be made at all. An empty list then
+    /// means "we could not ask", not "there are none" — the two read
+    /// identically to a commander otherwise, which is exactly how a
+    /// twenty-minute outage looked like the economy gap we already knew
+    /// about (2026-09-15 stations incident).
+    pub asked: bool,
 }
 
 /// A plan's shortfall turned into trades at material traders.
@@ -430,7 +436,10 @@ pub fn shopping_for(
         }
     }
     // The nearest traders come from the API; `fill_traders` adds them.
-    let traders = trader_kinds.iter().map(|k| TraderStop { kind: *k, nearest: Vec::new(), kind_known: true }).collect();
+    let traders = trader_kinds
+        .iter()
+        .map(|k| TraderStop { kind: *k, nearest: Vec::new(), kind_known: true, asked: false })
+        .collect();
     Ok(ShoppingReport {
         short,
         list,
@@ -540,11 +549,16 @@ pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) 
     let Some(system) = report.origin_system.clone() else { return };
     for stop in &mut report.traders {
         let kind = format!("{:?}", stop.kind).to_lowercase();
-        let hits = crate::remote_lookup::nearest_material_traders(state, &system, &kind, TRADER_RADIUS_LY, 5)
-            .await
-            .unwrap_or_default();
-        stop.kind_known = hits.kind_known;
-        stop.nearest = hits.stations;
+        match crate::remote_lookup::nearest_material_traders(state, &system, &kind, TRADER_RADIUS_LY, 5).await {
+            Some(hits) => {
+                stop.asked = true;
+                stop.kind_known = hits.kind_known;
+                stop.nearest = hits.stations;
+            }
+            // The API refused or could not be reached. Leave the list
+            // empty but say so, rather than reporting an empty galaxy.
+            None => stop.asked = false,
+        }
     }
 }
 

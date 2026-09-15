@@ -28,3 +28,24 @@ export function requestPlan(module) {
   eng.planRequest = module;
   eng.openTab = true;
 }
+
+/**
+ * What a trader stop should SAY, which is three different facts that used
+ * to render as one sentence. An unreachable API and an empty galaxy read
+ * identically to a commander, and that is how a twenty-minute outage on
+ * 2026-09-15 looked exactly like the station-economy gap we already knew
+ * about. `asked: false` means the lookup never happened.
+ * @param {{asked?: boolean, kind_known?: boolean, nearest?: unknown[]}} stop
+ * @returns {{tone: "warn"|"muted"|"ok", text: string}}
+ */
+export function traderStatus(stop) {
+  const found = (stop?.nearest ?? []).length;
+  if (stop?.asked === false) {
+    return { tone: "warn", text: "could not reach the community API — this is not “no traders nearby”, it is “we could not ask”" };
+  }
+  if (!found) return { tone: "muted", text: "none known within 300 ly" };
+  if (stop?.kind_known === false) {
+    return { tone: "ok", text: "kind unknown — every material trader in range is listed" };
+  }
+  return { tone: "ok", text: "" };
+}

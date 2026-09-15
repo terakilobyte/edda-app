@@ -5,7 +5,7 @@
   import { onMount } from "svelte";
   // Per-module engineering lives on the Ships tab; "Plan" there lands here.
   import { requestRoute } from "./route.svelte.js";
-  import { eng } from "./engineering.svelte.js";
+  import { eng, traderStatus } from "./engineering.svelte.js";
   import { listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, checkExperimental, listEngineers, materialShopping, shipSlef } from "./api.js";
 
   let error = $state("");
@@ -263,7 +263,7 @@
               {/each}
             </div>
           {:else}
-            <span class="muted">none known within 300 ly{eng.shopping.origin_system ? "" : " (position unknown)"}</span>
+            <span class={traderStatus(t).tone}>{traderStatus(t).text}{traderStatus(t).tone === "muted" && !eng.shopping.origin_system ? " (position unknown)" : ""}</span>
           {/if}
         </div>
       {/each}
