@@ -12,7 +12,35 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
+/// Show or hide the HUD and remember it. The shortcut, the Settings
+/// buttons and startup all come through here, so what a commander last
+/// chose is what they get back (maintainer, 2026-09-15: hid the HUD, quit,
+/// relaunched, HUD back).
+pub fn set_visible(app: &AppHandle, visible: bool) -> Result<()> {
+    if let Some(w) = app.get_webview_window("overlay") {
+        if visible { w.show() } else { w.hide() }.context("toggling the overlay window")?;
+    }
+    let state = app.state::<AppState>();
+    let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+    if cfg.overlay_hidden == visible {
+        cfg.overlay_hidden = !visible;
+        if let Err(error) = cfg.save(&state.data_dir) {
+            tracing::warn!(%error, visible, "overlay visibility set but not remembered");
+        }
+    }
+    Ok(())
+}
+
 pub fn setup(app: &AppHandle) -> Result<()> {
+    // What the commander last chose. tauri-plugin-window-state restores
+    // size and position; visibility is ours to keep.
+    let hidden = app.state::<AppState>().config.lock().unwrap_or_else(|e| e.into_inner()).overlay_hidden;
+    if hidden {
+        if let Some(w) = app.get_webview_window("overlay") {
+            let _ = w.hide();
+            tracing::info!("overlay hidden on start, as it was left");
+        }
+    }
     if let Some(w) = app.get_webview_window("overlay") {
         w.set_ignore_cursor_events(true).context("overlay click-through")?;
         if w.outer_position().ok().is_some_and(|p| p.x == 24 && p.y == 24) {
@@ -64,9 +92,9 @@ pub fn setup(app: &AppHandle) -> Result<()> {
                     return;
                 }
                 if shortcut == &hide {
-                    if let Some(w) = app.get_webview_window("overlay") {
-                        let visible = w.is_visible().unwrap_or(true);
-                        let _ = if visible { w.hide() } else { w.show() };
+                    let visible = app.get_webview_window("overlay").and_then(|w| w.is_visible().ok()).unwrap_or(true);
+                    if let Err(error) = set_visible(app, !visible) {
+                        tracing::warn!(%error, "Ctrl+Shift+H");
                     }
                 }
             })

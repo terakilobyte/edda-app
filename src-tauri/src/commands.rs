@@ -2019,10 +2019,22 @@ pub fn voice_interrupt(state: State<AppState>) {
 
 #[tauri::command]
 pub async fn set_muted(state: State<'_, AppState>, muted: bool) -> Result<bool, String> {
-    Ok({
-        state.voice.set_muted(muted);
-        muted
-    })
+    Ok(set_voice_muted(&state, muted))
+}
+
+/// Mute or unmute the voice AND remember it, so "mute all callouts" holds
+/// across a restart instead of living only in the voice thread's atomic
+/// (maintainer, 2026-09-15: muted, quit, relaunched, greeted aloud).
+pub(crate) fn set_voice_muted(state: &AppState, muted: bool) -> bool {
+    state.voice.set_muted(muted);
+    let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+    if cfg.voice_muted != muted {
+        cfg.voice_muted = muted;
+        if let Err(error) = cfg.save(&state.data_dir) {
+            tracing::warn!(%error, muted, "mute set but not remembered");
+        }
+    }
+    muted
 }
 
 #[tauri::command]
@@ -2050,11 +2062,7 @@ pub async fn set_overlay_interactive(
 
 #[tauri::command]
 pub fn overlay_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
-    use tauri::Manager;
-    let Some(w) = app.get_webview_window("overlay") else {
-        return Ok(());
-    };
-    if visible { w.show() } else { w.hide() }.map_err(err)
+    crate::overlay::set_visible(&app, visible).map_err(|e| e.to_string())
 }
 
 // ── Missions ─────────────────────────────────────────────────────────

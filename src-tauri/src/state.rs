@@ -73,6 +73,16 @@ pub struct AppConfig {
     /// Callout kinds switched off (neither spoken nor shown).
     #[serde(default)]
     pub callouts_off: Vec<String>,
+    /// "Mute all callouts": the voice stays silent across restarts. Until
+    /// 2026-09-15 this lived only in the voice thread's atomic, so a
+    /// commander who muted EDDA entirely was greeted aloud on every launch.
+    #[serde(default)]
+    pub voice_muted: bool,
+    /// The HUD was hidden (Ctrl+Shift+H or Settings) when EDDA last ran,
+    /// and stays hidden until shown again. Same date, same class of bug:
+    /// the toggle only ever touched the window.
+    #[serde(default)]
+    pub overlay_hidden: bool,
     /// Public EDDA community-data API. `EDDA_API_URL` overrides this for
     /// development and self-hosted deployments.
     #[serde(default)]
@@ -208,6 +218,11 @@ impl AppState {
     pub fn new(store: Store, data_dir: PathBuf, db_path: PathBuf) -> Self {
         let voice = Arc::new(VoiceHandle::spawn(&data_dir, USER_AGENT));
         let config = Arc::new(Mutex::new(AppConfig::load(&data_dir)));
+        // Before anything can speak: the greeting fires after the initial
+        // sync, and a commander who muted everything must not hear it.
+        if config.lock().unwrap_or_else(|e| e.into_inner()).voice_muted {
+            voice.set_muted(true);
+        }
         let install_header = {
             let id = config.lock().unwrap_or_else(|e| e.into_inner()).install_id.clone().unwrap_or_default();
             let mut headers = reqwest::header::HeaderMap::new();
@@ -516,6 +531,22 @@ fn mint_install_id() -> String {
 #[cfg(test)]
 mod install_id_tests {
     use super::*;
+
+    /// "Mute all callouts" and a hidden HUD survive a restart (maintainer,
+    /// 2026-09-15: both were forgotten on every launch).
+    #[test]
+    fn mute_and_hidden_hud_are_remembered() {
+        let dir = tempfile::tempdir().unwrap();
+        let fresh = AppConfig::load(dir.path());
+        assert!(!fresh.voice_muted && !fresh.overlay_hidden, "a new install speaks and shows the HUD");
+        let mut cfg = fresh;
+        cfg.voice_muted = true;
+        cfg.overlay_hidden = true;
+        cfg.save(dir.path()).unwrap();
+        let again = AppConfig::load(dir.path());
+        assert!(again.voice_muted, "the mute is remembered");
+        assert!(again.overlay_hidden, "the hidden HUD is remembered");
+    }
 
     /// A fresh data dir gets one id, persisted, and keeps it; a mangled
     /// one is replaced rather than sent.
