@@ -47,6 +47,21 @@ describe("holdSummary", () => {
     expect(moreTons).toBe(many.slice(8).reduce((n, h) => n + h.tons, 0));
   });
 
+  // The maintainer asked for an expand/collapse control: collapsed shows
+  // the largest lots with a counted remainder, expanded shows every
+  // commodity, both named and sorted by tonnage.
+  it("expands to the whole hold when the cap is lifted", () => {
+    const many = Array.from({ length: 48 }, (_, i) => ({ commodity: `c${i}`, tons: 100 - i }));
+    const collapsed = holdSummary(many, 8);
+    const expanded = holdSummary(many, Infinity);
+    expect(collapsed.shown).toHaveLength(8);
+    expect(expanded.shown).toHaveLength(48);
+    expect(expanded.more).toBe(0);
+    // Still ordered by tonnage, not by the order they arrived.
+    expect(expanded.shown[0].tons).toBe(100);
+    expect(expanded.shown.at(-1).tons).toBe(53);
+  });
+
   it("says nothing extra when everything fits", () => {
     expect(holdSummary(lines).more).toBe(0);
   });

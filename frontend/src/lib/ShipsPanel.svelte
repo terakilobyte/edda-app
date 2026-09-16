@@ -1,5 +1,6 @@
 <script>
   import { ownCarriers, holdSummary } from "./carriers.js";
+  import { SvelteSet } from "svelte/reactivity";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
@@ -20,6 +21,15 @@
   // Strangers' carriers are in the store because docking at one creates a
   // row; they do not belong on the commander's Ships tab.
   const mine = $derived(ownCarriers(carriers));
+  // Which carriers' holds are open. Panel-local and per carrier: the
+  // maintainer asked to click a carrier open, not to have it remembered
+  // (2026-09-16, "clicking a carrier should it expand it so I can see
+  // the full inventory").
+  let expanded = $state(new SvelteSet());
+  function toggleHold(id) {
+    if (expanded.has(id)) expanded.delete(id);
+    else expanded.add(id);
+  }
   async function loadCarriers() {
     try { carriers = (await carrierStatus()).carriers ?? []; } catch { carriers = []; }
   }
@@ -85,13 +95,25 @@
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
       {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
       {#if c.hold_moved.length}
-        {@const hold = holdSummary(c.hold_moved)}
-        <div class="muted small" style="margin-top:0.2rem">Moved aboard by you</div>
+        {@const open = expanded.has(c.carrier_id)}
+        {@const hold = holdSummary(c.hold_moved, open ? Infinity : 8)}
+        <button
+          class="holdToggle muted small"
+          aria-expanded={open}
+          onclick={() => toggleHold(c.carrier_id)}
+          title={open ? "Collapse the hold" : "Show every commodity aboard"}
+        >{open ? "▾" : "▸"} Moved aboard by you · {c.hold_moved.length} commodit{c.hold_moved.length === 1 ? "y" : "ies"}</button>
         <div class="row small hold">
           {#each hold.shown as h}
             <span class="pill"><b>{fmtInt(h.tons)} t</b> {h.label}</span>
           {/each}
-          {#if hold.more}<span class="pill muted" title="Smaller lots, hidden to keep this readable">+{hold.more} more · {fmtInt(hold.moreTons)} t</span>{/if}
+          {#if hold.more}
+            <button class="pill asButton" onclick={() => toggleHold(c.carrier_id)}
+              title="Show every commodity aboard">Show all {c.hold_moved.length} · +{fmtInt(hold.moreTons)} t more</button>
+          {:else if open && c.hold_moved.length > 8}
+            <button class="pill asButton" onclick={() => toggleHold(c.carrier_id)}
+              title="Show only the largest lots">Show less</button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -156,6 +178,24 @@
 {/if}
 
 <style>
+  /* The hold's expand/collapse: a control, not a paragraph that happens
+     to be clickable (maintainer, 2026-09-16: "expand/collapse button or
+     something"). */
+  .holdToggle {
+    display: block;
+    margin: 0.3rem 0 0.1rem;
+    padding: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: left;
+  }
+  .holdToggle:hover { color: var(--fg); }
+  .pill.asButton { font: inherit; cursor: pointer; border: 1px solid var(--muted); background: none; color: inherit; }
+  .pill.asButton:hover { border-color: var(--fg); }
+
   .ships { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.5rem; }
   .card { width: 100%; text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
   .card.on { border-color: var(--accent); }
