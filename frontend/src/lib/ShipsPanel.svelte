@@ -1,4 +1,5 @@
 <script>
+  import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
@@ -16,6 +17,9 @@
   // Item 52 A: the commander's carrier from the journal — a card, not a
   // ship (a carrier has no ShipID and never appears in StoredShips).
   let carriers = $state([]);
+  // Strangers' carriers are in the store because docking at one creates a
+  // row; they do not belong on the commander's Ships tab.
+  const mine = $derived(ownCarriers(carriers));
   async function loadCarriers() {
     try { carriers = (await carrierStatus()).carriers ?? []; } catch { carriers = []; }
   }
@@ -66,13 +70,13 @@
   const cr = (n) => `${fmtInt(n)} cr`;
 </script>
 
-{#if carriers.length}
+{#if mine.length}
 <section class="panel">
-  <h2>Carrier{carriers.length > 1 ? "s" : ""} <span class="sub">from your journal — every figure carries its age</span></h2>
-  {#each carriers as c}
+  <h2>Carrier{mine.length > 1 ? "s" : ""} <span class="sub">from your journal — every figure carries its age</span></h2>
+  {#each mine as c}
     <div class="carrier">
       <div class="name">{c.name ?? c.callsign} <span class="muted small">{c.callsign}</span>
-        {#if c.owned}<span class="pill ok">yours</span>{:else}<span class="pill">{c.carrier_type === "SquadronCarrier" ? "squadron" : "seen"}</span>{/if}
+        {#if c.owned}<span class="pill ok">yours</span>{:else}<span class="pill">squadron</span>{/if}
         {#if c.decommissioned}<span class="pill warn">decommissioning</span>{/if}
       </div>
       <div class="muted small">Location: {aged(c.location)}{c.body ? ` (${c.body})` : ""}</div>
@@ -80,7 +84,16 @@
       {#if c.capacity}<div class="muted small">Capacity: {fmtInt(c.capacity.value.used_t ?? 0)} t used, {fmtInt(c.capacity.value.free_t ?? 0)} t free of {fmtInt(c.capacity.value.total_t)} t · as of {fmtAge(c.capacity.age_hours)}</div>{/if}
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
       {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
-      {#if c.hold_moved.length}<div class="muted small">Moved aboard by you: {c.hold_moved.map((h) => `${fmtInt(h.tons)} t ${h.commodity}`).join(", ")}</div>{/if}
+      <!-- No hold listing here on purpose. The journal only records the
+           transfers the commander made themselves, so a running total of
+           those is not the carrier's inventory: it cannot see the
+           carrier's own market sales, another commander's transfers, or
+           services consuming cargo, and it drifts further from the truth
+           the longer the carrier trades. Showing it looked like current
+           stock and was not (maintainer, 2026-09-16: "if we can't show a
+           carrier's *current* inventory we shouldn't show the inventory
+           at all"). Frontier's CAPI /fleetcarrier returns the real
+           thing; until that is wired, nothing is shown. -->
     </div>
   {/each}
 </section>
@@ -143,6 +156,7 @@
 {/if}
 
 <style>
+
   .ships { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.5rem; }
   .card { width: 100%; text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
   .card.on { border-color: var(--accent); }

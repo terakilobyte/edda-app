@@ -205,6 +205,20 @@ verdicts live in the CSV headers under `docs/benches/`.
     cause: a kill that finishes three missions at once probably wants
     one callout with a count.
   Not a plan, and nothing here blocks anything.
+- **A carrier's real inventory needs CAPI** (2026-09-16, ruled). The
+  Ships tab listed what the commander had personally moved aboard,
+  summed from `CargoTransfer` over all time, which reads like current
+  stock and is not: the journal never sees the carrier's own market
+  sales, another commander's transfers, or services consuming cargo, so
+  the figure drifts further from the truth the longer the carrier
+  trades. Removed rather than relabelled (maintainer: "if we can't show
+  a carrier's *current* inventory we shouldn't show the inventory at
+  all"). `carrier_hold` is still derived and still returned by `status`
+  — it costs nothing and is the basis for a diff when the real figures
+  arrive. Frontier's CAPI `/fleetcarrier` returns actual cargo; the
+  spike in `src-tauri/src/capi_spike.rs` already probes that endpoint
+  (204 at the time, no carrier owned). Wiring it is the work, and the
+  display should not come back before it.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
