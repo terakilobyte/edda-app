@@ -10,20 +10,28 @@
 # progress names the nearest mission 273 of 273 times. One defect found by the replay: a plural pass whose
 # redirects carry different hand-ins (ids 1066168667 / 1066169080 at 17:33Z) named only the first destination.
 # The "88 repeats" measured earlier belong to the pre-#69 acceptance order and are not reproducible at bc69f69.
-metric,before bc69f69,after d2a3c3d
-passes (gap <= 1 s),1049,1048
-kill events,968,967
-kills credited to a live mission,636,635
-kills after the last Active mission for that faction went ready,362,362
-utterances on those kills,362,0
-completion wording produced by a kill,362,0
-progress lines,274,273
-progress lines naming the mission nearest to done,137,273
-MissionRedirected events,41,41
-redirects announced with the giver named from the store,0,41
-redirects announced with the game's fallback wording,0,0
-repeat announcements of one mission,0,0
-plural passes (several redirects in one pass),0,2
-plural passes naming only the first hand-in when they differed,n/a,1
-callouts by kind: mission,636,273
-callouts by kind: mission_complete,0,38
+# c63f290 re-run (no time shift; each event's own timestamp is its clock) verified both defects the first replay
+# found: plural passes now name every hand-in, and a giver ending in a full stop no longer doubles it. The
+# journal grew between runs, so the raw counts moved (passes 1052, kills 971, credited 638) - the d2a3c3d column
+# is the run that found the defects and is kept as recorded. In 31 of the 38 completions the crediting kill is
+# in the same pass, and those passes spoke 18 progress lines about a DIFFERENT mission (the crossing mission is
+# already ready by then). effac7b drops those; that last row is unit-tested but was not part of either replay.
+metric,before bc69f69,after d2a3c3d,after c63f290
+passes (gap <= 1 s),1049,1048,1052
+kill events,968,967,971
+kills credited to a live mission,636,635,638
+kills after the last Active mission for that faction went ready,362,362,362
+utterances on those kills,362,0,0
+completion wording produced by a kill,362,0,0
+progress lines,274,273,276
+progress lines naming the mission nearest to done,137,273,276
+MissionRedirected events,41,41,41
+redirects announced with the giver named from the store,0,41,41
+redirects announced with the game's fallback wording,0,0,0
+repeat announcements of one mission,0,0,0
+plural passes (several redirects in one pass),0,2,2
+plural passes naming only the first hand-in when they differed,n/a,1,0
+callouts by kind: mission,636,273,276
+callouts by kind: mission_complete,0,38,38
+redirect passes that also hold a credited kill,n/a,31 (49 lines spoken),31
+progress lines in those passes about a different mission,n/a,18,0 (effac7b - unit-tested; not replayed)
