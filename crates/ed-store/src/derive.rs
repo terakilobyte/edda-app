@@ -4,10 +4,17 @@
 //! rows already in the database, which is what makes a derivation bug cheap:
 //! fix the logic, re-derive, done -- no re-reading the journal folder.
 //!
-//! Ordering is `(file, offset)`, not `ts`. Journal file names sort
-//! chronologically, and offsets within a file increase, so this is a true
-//! replay order. Sorting by `ts` would interleave files that overlap in
-//! time, which would corrupt the snapshot-then-deltas materials replay.
+//! Replay order is `(ts, file, offset)` -- time first, then the file and
+//! the offset within it to break ties -- the same order every other
+//! reader of the log uses (`session::events_after`, `carrier`). It is NOT
+//! file order: the game has written two file-name formats side by side
+//! since Odyssey Update 11 (March 2022), and as strings every old
+//! `Journal.YYMMDD…` name sorts after every new `Journal.YYYY-MM-DD…`
+//! one. An earlier version of this comment claimed file order was the
+//! true replay order; the resume range built on that claim replayed a
+//! veteran's 2019–2021 history over their current state on every launch
+//! (found 2026-09-16, see `watermark`). Offsets within one file still
+//! increase with time, so ties in `ts` resolve correctly.
 
 use anyhow::Result;
 use rusqlite::{params, Connection};
@@ -100,24 +107,34 @@ fn f(v: &Value, k: &str) -> Option<f64> {
 }
 
 /// How far derivation has consumed the event log, as `(file, offset)`.
-fn watermark(conn: &Connection) -> Option<(String, i64)> {
-    let file: String = conn
-        .query_row("SELECT value FROM meta WHERE key='derived_file'", [], |r| {
-            r.get(0)
-        })
-        .ok()?;
-    let offset: String = conn
-        .query_row(
-            "SELECT value FROM meta WHERE key='derived_offset'",
-            [],
-            |r| r.get(0),
-        )
-        .ok()?;
-    Some((file, offset.parse().ok()?))
+/// Where the last derivation stopped: the `(ts, file, offset)` of the
+/// last event applied.
+///
+/// Until 2026-09-16 this was `(file, offset)` alone and the resume range
+/// compared file names as strings. The game's two file-name formats do
+/// not sort that way: every old `Journal.YYMMDD…` file is "greater" than
+/// every new `Journal.YYYY-MM-DD…` one, so each incremental pass took a
+/// veteran's whole 2019–2021 history as "after" today's watermark and
+/// re-applied it on top of the current state. Measured on a donated
+/// seven-year journal: a fresh store's location read HIP 90112 after the
+/// full derive and Parutis (2021-02-13) after the first no-change sync --
+/// the "still in flight / old ship" report. The range now runs by time
+/// first, as `session::events_after` does. A store whose watermark has no
+/// timestamp (written by an older EDDA, and possibly already corrupted
+/// this way) re-derives in full once.
+fn watermark(conn: &Connection) -> Option<(String, String, i64)> {
+    let get = |key: &str| -> Option<String> {
+        conn.query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0)).ok()
+    };
+    let ts = get("derived_ts")?;
+    let file = get("derived_file")?;
+    let offset = get("derived_offset")?.parse().ok()?;
+    Some((ts, file, offset))
 }
 
-fn set_watermark(conn: &Connection, file: &str, offset: i64) -> Result<()> {
+fn set_watermark(conn: &Connection, ts: &str, file: &str, offset: i64) -> Result<()> {
     for (k, v) in [
+        ("derived_ts", ts.to_string()),
         ("derived_file", file.to_string()),
         ("derived_offset", offset.to_string()),
     ] {
@@ -153,7 +170,7 @@ pub fn derive_incremental(conn: &Connection) -> Result<DeriveStats> {
     derive_from(conn, mark)
 }
 
-fn derive_from(conn: &Connection, after: Option<(String, i64)>) -> Result<DeriveStats> {
+fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Result<DeriveStats> {
     let tx = conn.unchecked_transaction()?;
     let resuming = after.is_some();
 
@@ -177,19 +194,24 @@ fn derive_from(conn: &Connection, after: Option<(String, i64)>) -> Result<Derive
         .collect::<Vec<_>>()
         .join(",");
     let (sql, params): (String, Vec<rusqlite::types::Value>) = match &after {
-        Some((file, offset)) => (
+        // Strictly after the watermark in (ts, file, offset) order -- the
+        // order the rows are applied in, so nothing is applied twice and
+        // nothing is skipped whichever file-name format it came from.
+        Some((ts, file, offset)) => (
             format!(
                 "SELECT file, offset, ts, event, raw FROM events
                  WHERE event IN ({placeholders})
-                   AND (file > ?{a} OR (file = ?{a} AND offset > ?{b}))
+                   AND (ts > ?{t} OR (ts = ?{t} AND (file > ?{a} OR (file = ?{a} AND offset > ?{b}))))
                  ORDER BY ts, file, offset",
-                a = DERIVED_FROM.len() + 1,
-                b = DERIVED_FROM.len() + 2
+                t = DERIVED_FROM.len() + 1,
+                a = DERIVED_FROM.len() + 2,
+                b = DERIVED_FROM.len() + 3
             ),
             DERIVED_FROM
                 .iter()
                 .map(|s| rusqlite::types::Value::from(s.to_string()))
                 .chain([
+                    rusqlite::types::Value::from(ts.clone()),
                     rusqlite::types::Value::from(file.clone()),
                     rusqlite::types::Value::from(*offset),
                 ])
@@ -580,8 +602,8 @@ fn derive_from(conn: &Connection, after: Option<(String, i64)>) -> Result<Derive
     // reads the carrier's current system).
     crate::ship_locations::rebuild(&tx)?;
 
-    if let Some((file, offset, ..)) = rows.last() {
-        set_watermark(&tx, file, *offset)?;
+    if let Some((file, offset, ts, ..)) = rows.last() {
+        set_watermark(&tx, ts, file, *offset)?;
     }
 
     tx.commit()?;
@@ -653,6 +675,77 @@ pub fn owned_ships(conn: &Connection) -> Result<std::collections::HashSet<i64>> 
         }
     }
     Ok(owned)
+}
+
+#[cfg(test)]
+mod resume_tests {
+    use super::*;
+
+    fn db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn
+    }
+
+    fn jump(conn: &Connection, file: &str, offset: i64, ts: &str, system: &str) {
+        conn.execute(
+            "INSERT INTO events (file, offset, ts, event, raw) VALUES (?1, ?2, ?3, 'FSDJump', ?4)",
+            params![
+                file,
+                offset,
+                ts,
+                format!(r#"{{"timestamp":"{ts}","event":"FSDJump","StarSystem":"{system}","SystemAddress":1,"SystemSecurity":"$SYSTEM_SECURITY_medium;","SystemAllegiance":"Independent","Population":10}}"#)
+            ],
+        )
+        .unwrap();
+    }
+
+    fn location(conn: &Connection) -> (String, String) {
+        conn.query_row("SELECT ts, system_name FROM location WHERE id = 1", [], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+    }
+
+    /// The veteran's folder: an old-format 2021 file and a new-format 2026
+    /// file. Lexically the 2021 name is the greater, which is how every
+    /// incremental pass used to re-apply 2021 on top of 2026.
+    const OLD: &str = "Journal.210213193049.01.log";
+    const NEW: &str = "Journal.2026-09-16T055300.01.log";
+
+    #[test]
+    fn a_no_change_sync_leaves_a_veteran_where_the_journal_left_them() {
+        let conn = db();
+        jump(&conn, OLD, 1, "2021-02-13T19:30:49Z", "Parutis");
+        jump(&conn, NEW, 1, "2026-09-16T05:53:00Z", "HIP 90112");
+        derive_all(&conn).unwrap();
+        assert_eq!(location(&conn).1, "HIP 90112");
+        // The pass every launch makes, with nothing new in the journal.
+        let again = derive_incremental(&conn).unwrap();
+        assert_eq!(again.events_read, 0, "nothing is after the watermark");
+        assert_eq!(location(&conn), ("2026-09-16T05:53:00Z".into(), "HIP 90112".into()), "2021 must not be re-applied");
+        // A new jump in the new file is applied; the old file stays quiet.
+        jump(&conn, NEW, 2, "2026-09-16T06:10:00Z", "Ahayan");
+        let next = derive_incremental(&conn).unwrap();
+        assert_eq!(next.events_read, 1);
+        assert_eq!(location(&conn).1, "Ahayan");
+    }
+
+    /// A store written by an older EDDA has a file/offset watermark and no
+    /// timestamp -- and may already carry a 2021 location. It re-derives
+    /// in full once and comes out right.
+    #[test]
+    fn a_watermark_without_a_timestamp_forces_one_full_rebuild() {
+        let conn = db();
+        jump(&conn, OLD, 1, "2021-02-13T19:30:49Z", "Parutis");
+        jump(&conn, NEW, 1, "2026-09-16T05:53:00Z", "HIP 90112");
+        derive_all(&conn).unwrap();
+        conn.execute("DELETE FROM meta WHERE key = 'derived_ts'", []).unwrap();
+        conn.execute("UPDATE location SET system_name = 'Parutis', ts = '2021-02-13T19:30:49Z' WHERE id = 1", []).unwrap();
+        let pass = derive_incremental(&conn).unwrap();
+        assert_eq!(pass.events_read, 2, "no timestamp on the watermark: everything is re-read");
+        assert_eq!(location(&conn).1, "HIP 90112");
+        assert!(watermark(&conn).is_some(), "and the watermark is complete from now on");
+    }
 }
 
 #[cfg(test)]
