@@ -231,7 +231,12 @@ pub fn capture(conn: &Connection, seen: &mut HashSet<String>) -> usize {
             _ => None,
         };
 
-        tracing::info!(
+        // Trace, not info (maintainer, 2026-09-16: "noisy as all hell"):
+        // this fires once per merit award, and a first sync over a long
+        // journal attributes thousands of them in one pass. Same rule as
+        // the per-sync line in Store::sync -- RUST_LOG=ed_store=trace
+        // brings it back when the attribution itself is in question.
+        tracing::trace!(
             source = best.source.as_str(),
             label = best.label.as_deref().unwrap_or("?"),
             credits = best.credits.unwrap_or(0),
