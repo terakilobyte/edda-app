@@ -367,9 +367,17 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                             watermark = Some(mark);
                                         }
                                         // One completion line for the pass, from the game's
-                                        // own signal rather than from our kill count.
+                                        // own signal rather than from our kill count — and it
+                                        // REPLACES the pass's progress line. The store is
+                                        // synced before this loop, so by the time the crossing
+                                        // kill is handled its mission is already ready and the
+                                        // progress line names the NEXT nearest one: without
+                                        // this the commander hears "30 of 48" immediately
+                                        // before "complete: 30 kills", two numbers about two
+                                        // different missions. Same shape as the fuel caution
+                                        // dropped by a trap warning above.
                                         if let Some(c) = mission_redirected(conn, &crate::commands::now_iso(), &pass_events) {
-                                            out.push((c, None));
+                                            supersede_progress(&mut out, c);
                                         }
                                     }
                                     // The pass's watched signals, spoken as one counted
@@ -724,6 +732,20 @@ fn mission_redirected(conn: &rusqlite::Connection, now: &str, events: &[Value]) 
     Some(Callout { kind: "mission_complete", text, priority: 1, speak: true, ts: ts.to_string() })
 }
 
+/// A completion supersedes the pass's progress line.
+///
+/// The store is synced before the event loop, so by the time the
+/// crossing kill is handled its mission is already ready to turn in and
+/// the progress line names the NEXT nearest mission. Kept, the pass
+/// would say "Mission progress: 30 of 48" and then "Mission complete: 30
+/// kills for Labour Union of Ahayan" — two numbers, two different
+/// missions, the wrong one first. The next kill reports progress again
+/// anyway. Same shape as a trap warning dropping the fuel caution.
+fn supersede_progress(out: &mut Vec<Sourced>, completion: Callout) {
+    out.retain(|(c, _)| !(c.kind == "mission" && c.text.starts_with("Mission progress")));
+    out.push((completion, None));
+}
+
 /// "Goeppert-Mayer Vision, Ahayan", or just the station, or nothing.
 fn destination_of(redirect: &Value) -> String {
     let station = redirect
@@ -751,7 +773,7 @@ fn trailer(destination: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{mission_progress, mission_redirected, stale_for_speech};
+    use super::{mission_progress, mission_redirected, stale_for_speech, Callout};
     use serde_json::{json, Value};
 
     /// A stack part-way through: two massacres against the same faction
@@ -846,6 +868,41 @@ mod tests {
         assert!(c.text.starts_with("2 missions complete:"), "{}", c.text);
         assert!(c.text.contains("Ahayan Defence Party"), "{}", c.text);
         assert!(c.text.contains("Labour Union of Ahayan"), "{}", c.text);
+    }
+
+    /// A completion supersedes the pass's progress line. The crossing
+    /// kill's mission is already ready by the time the kill is handled,
+    /// so the progress line in that pass is about a DIFFERENT mission
+    /// and arrives before the completion it appears to belong to.
+    #[test]
+    fn a_completion_drops_the_progress_line_from_its_pass() {
+        let progress = Callout {
+            kind: "mission",
+            text: "Mission progress: 30 of 48 Anana Brotherhood kills.".into(),
+            priority: 0,
+            speak: true,
+            ts: "2026-09-16T12:30:00Z".into(),
+        };
+        let target = Callout {
+            kind: "mission",
+            text: "Target down: Saintmaur.".into(),
+            priority: 1,
+            speak: true,
+            ts: "2026-09-16T12:30:00Z".into(),
+        };
+        let completion = Callout {
+            kind: "mission_complete",
+            text: "Mission complete: 30 kills.".into(),
+            priority: 1,
+            speak: true,
+            ts: "2026-09-16T12:30:00Z".into(),
+        };
+        let mut out: Vec<super::Sourced> = vec![(progress, None), (target.clone(), None)];
+        super::supersede_progress(&mut out, completion);
+        let texts: Vec<&str> = out.iter().map(|(c, _)| c.text.as_str()).collect();
+        assert!(!texts.iter().any(|t| t.starts_with("Mission progress")), "{texts:?}");
+        assert!(texts.contains(&"Target down: Saintmaur."), "an unrelated mission line survives: {texts:?}");
+        assert_eq!(texts.last(), Some(&"Mission complete: 30 kills."), "{texts:?}");
     }
 
     /// Missions that finish together need not share a hand-in. Measured
