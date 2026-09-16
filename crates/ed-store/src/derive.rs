@@ -36,6 +36,13 @@ pub(crate) const DERIVED_FROM: &[&str] = &[
     "EngineerProgress",
     "Location",
     "FSDJump",
+    // the ships table: which ships exist, and which are still owned
+    "StoredShips",
+    "ShipyardNew",
+    "ShipyardBuy",
+    "ShipyardSell",
+    "ShipyardSwap",
+    "SellShipOnRebuy",
     "CarrierJump",
     "Docked",
     "Undocked",
@@ -184,7 +191,8 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
              DELETE FROM engineers;
              DELETE FROM loadout;
              DELETE FROM location;
-             DELETE FROM nav;",
+             DELETE FROM nav;
+             DELETE FROM ships;",
         )?;
     }
 
@@ -283,6 +291,10 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
     let mut engineers_json: Option<(String, Value)> = None;
     let mut loadout: Option<(String, Value)> = None;
     let mut nav: Option<(String, Value)> = None;
+    // Ownership is re-read from the whole log only when a pass carried an
+    // event that can change it -- a Loadout, a StoredShips, a Shipyard
+    // sale or purchase -- never on the ordinary sync of a flight.
+    let mut ship_events = false;
 
     for (file, offset, ts, event, raw) in &rows {
         let Ok(v) = serde_json::from_str::<Value>(raw) else {
@@ -362,7 +374,41 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
                 loc.station_type = None;
             }
 
-            "Loadout" => loadout = Some((ts.clone(), v.clone())),
+            "Loadout" => {
+                loadout = Some((ts.clone(), v.clone()));
+                ship_events = true;
+                if let Some(ship_id) = i(&v, "ShipID") {
+                    // Latest wins: rows arrive in (ts, file, offset) order,
+                    // so a plain replace is the newest Loadout per ship.
+                    tx.execute(
+                        "INSERT INTO ships
+                             (ship_id, ship, ship_name, ship_ident, loadout_ts, unladen_mass,
+                              max_jump_range, cargo_capacity, fuel_main, owned, raw)
+                         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,
+                                 COALESCE((SELECT owned FROM ships WHERE ship_id = ?1), 1), ?10)
+                         ON CONFLICT(ship_id) DO UPDATE SET
+                             ship = excluded.ship, ship_name = excluded.ship_name,
+                             ship_ident = excluded.ship_ident, loadout_ts = excluded.loadout_ts,
+                             unladen_mass = excluded.unladen_mass, max_jump_range = excluded.max_jump_range,
+                             cargo_capacity = excluded.cargo_capacity, fuel_main = excluded.fuel_main,
+                             raw = excluded.raw",
+                        params![
+                            ship_id,
+                            s(&v, "Ship"),
+                            s(&v, "ShipName").map(|x| x.trim().to_string()).filter(|x| !x.is_empty()),
+                            s(&v, "ShipIdent").map(|x| x.trim().to_string()).filter(|x| !x.is_empty()),
+                            ts,
+                            f(&v, "UnladenMass"),
+                            f(&v, "MaxJumpRange"),
+                            i(&v, "CargoCapacity"),
+                            v.pointer("/FuelCapacity/Main").and_then(Value::as_f64),
+                            raw,
+                        ],
+                    )?;
+                }
+            }
+            "StoredShips" | "ShipyardNew" | "ShipyardBuy" | "ShipyardSell" | "ShipyardSwap"
+            | "SellShipOnRebuy" => ship_events = true,
             "FSDTarget" => nav = Some((ts.clone(), v.clone())),
 
             "MarketSell" => {
@@ -515,6 +561,15 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
                 ])?;
                 stats.engineers += 1;
             }
+        }
+    }
+
+    if ship_events {
+        let owned = owned_ships(&tx)?;
+        tx.execute("UPDATE ships SET owned = 0", [])?;
+        let mut mark = tx.prepare("UPDATE ships SET owned = 1 WHERE ship_id = ?1")?;
+        for ship_id in owned {
+            mark.execute([ship_id])?;
         }
     }
 
@@ -728,6 +783,66 @@ mod resume_tests {
         let next = derive_incremental(&conn).unwrap();
         assert_eq!(next.events_read, 1);
         assert_eq!(location(&conn).1, "Ahayan");
+    }
+
+    fn loadout(conn: &Connection, offset: i64, ts: &str, ship_id: i64, ship: &str, name: &str) {
+        conn.execute(
+            "INSERT INTO events (file, offset, ts, event, raw) VALUES (?1, ?2, ?3, 'Loadout', ?4)",
+            params![
+                NEW,
+                offset,
+                ts,
+                format!(r#"{{"timestamp":"{ts}","event":"Loadout","Ship":"{ship}","ShipID":{ship_id},"ShipName":"{name}","ShipIdent":"ID-{ship_id}","UnladenMass":400.5,"MaxJumpRange":60.25,"CargoCapacity":64,"FuelCapacity":{{"Main":32.0,"Reserve":1.0}},"Modules":[]}}"#)
+            ],
+        )
+        .unwrap();
+    }
+
+    fn ships(conn: &Connection) -> Vec<(i64, String, Option<String>, String, i64, Option<f64>)> {
+        let mut st = conn
+            .prepare("SELECT ship_id, ship, ship_name, loadout_ts, owned, fuel_main FROM ships ORDER BY ship_id")
+            .unwrap();
+        st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    /// The ships table: one row per ShipID holding the LATEST Loadout, with
+    /// ownership following StoredShips and the shipyard, kept current by the
+    /// incremental pass -- so no reader has to find "the latest Loadout per
+    /// ship" by parsing every Loadout ever written.
+    #[test]
+    fn the_ships_table_keeps_the_latest_loadout_per_ship_and_who_still_owns_it() {
+        let conn = db();
+        loadout(&conn, 1, "2026-09-01T10:00:00Z", 91, "explorer_nx", "Old Name");
+        loadout(&conn, 2, "2026-09-02T10:00:00Z", 14, "type8", "Hauler");
+        loadout(&conn, 3, "2026-09-03T10:00:00Z", 91, "explorer_nx", "New Name");
+        conn.execute(
+            "INSERT INTO events (file, offset, ts, event, raw) VALUES (?1, 4, '2026-09-04T10:00:00Z', 'StoredShips', ?2)",
+            params![NEW, r#"{"timestamp":"2026-09-04T10:00:00Z","event":"StoredShips","ShipsHere":[],"ShipsRemote":[]}"#],
+        )
+        .unwrap();
+        derive_all(&conn).unwrap();
+        assert_eq!(
+            ships(&conn),
+            [
+                (14, "type8".into(), Some("Hauler".into()), "2026-09-02T10:00:00Z".into(), 0, Some(32.0)),
+                (91, "explorer_nx".into(), Some("New Name".into()), "2026-09-03T10:00:00Z".into(), 1, Some(32.0)),
+            ],
+            "the latest Loadout per ship; the Type-8 is not in StoredShips and not being flown, so it is history"
+        );
+        // Flying the Type-8 again: the incremental pass updates its row and its ownership.
+        loadout(&conn, 5, "2026-09-05T10:00:00Z", 14, "type8", "Hauler Again");
+        let pass = derive_incremental(&conn).unwrap();
+        assert_eq!(pass.events_read, 1);
+        let rows = ships(&conn);
+        assert_eq!((rows[0].2.as_deref(), rows[0].4), (Some("Hauler Again"), 1));
+        assert_eq!(rows[1].4, 1, "the Explorer stays owned");
+        // A pass with nothing ship-shaped in it leaves ownership alone.
+        jump(&conn, NEW, 6, "2026-09-06T10:00:00Z", "Ahayan");
+        derive_incremental(&conn).unwrap();
+        assert_eq!(ships(&conn).iter().map(|r| r.4).collect::<Vec<_>>(), [1, 1]);
     }
 
     /// A store written by an older EDDA has a file/offset watermark and no

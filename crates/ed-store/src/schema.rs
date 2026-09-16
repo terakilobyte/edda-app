@@ -19,7 +19,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 /// A bump triggers a rebuild of the derived tables from `events`; it does NOT
 /// require re-reading the journal files, which is the whole point of keeping
 /// the event log.
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 const DDL: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -335,6 +335,28 @@ CREATE TABLE IF NOT EXISTS ship_locations (
     in_transit   INTEGER NOT NULL DEFAULT 0,
     arrival_ts   TEXT,
     as_of        TEXT NOT NULL
+);
+
+-- Every ship the journal has shown a Loadout for, one row per ShipID with
+-- the latest one (maintainer, 2026-09-16: "we should just have the ships
+-- in the db -- why are we even parsing json?"). Until then the Ships tab
+-- found each ship's latest Loadout with a correlated json_extract over
+-- every other Loadout: O(n^2) parses, five minutes and counting on a
+-- seven-year journal. `owned` follows StoredShips and the Shipyard
+-- events (derive::owned_ships); `raw` is the Loadout itself, for the
+-- module list and the SLEF export.
+CREATE TABLE IF NOT EXISTS ships (
+    ship_id        INTEGER PRIMARY KEY,
+    ship           TEXT,
+    ship_name      TEXT,
+    ship_ident     TEXT,
+    loadout_ts     TEXT    NOT NULL,
+    unladen_mass   REAL,
+    max_jump_range REAL,
+    cargo_capacity INTEGER,
+    fuel_main      REAL,
+    owned          INTEGER NOT NULL DEFAULT 1,
+    raw            TEXT    NOT NULL
 );
 
 -- What the COMMANDER moved aboard (CargoTransfer tocarrier minus
@@ -1091,7 +1113,7 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             // Force a rebuild of derived state on next sync. The event log
             // is untouched, so this costs a re-derive and not a re-ingest.
             conn.execute(
-                "DELETE FROM meta WHERE key IN ('derived_file', 'derived_offset')",
+                "DELETE FROM meta WHERE key IN ('derived_ts', 'derived_file', 'derived_offset')",
                 [],
             )?;
         }

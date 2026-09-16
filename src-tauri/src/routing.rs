@@ -665,7 +665,7 @@ pub fn effort_budget_ms(effort: Option<&str>) -> u64 {
 /// jump after the ship's first Loadout once credited the Mandalay with a
 /// Panther's 13 t hops and planned it as if it could barely jump twice.)
 fn observed_max_fuel(conn: &rusqlite::Connection, ship: &str) -> Option<f32> {
-    let mut st = conn.prepare("SELECT event, json_extract(raw,'$.Ship'), json_extract(raw,'$.FuelUsed') FROM events WHERE event IN ('Loadout','FSDJump') ORDER BY file, offset").ok()?;
+    let mut st = conn.prepare("SELECT event, json_extract(raw,'$.Ship'), json_extract(raw,'$.FuelUsed') FROM events WHERE event IN ('Loadout','FSDJump') ORDER BY ts, file, offset").ok()?;
     let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, Option<f64>>(2)?))).ok()?;
     let mut current: Option<String> = None;
     let mut best: Option<f32> = None;
@@ -748,9 +748,19 @@ pub async fn injections_available(state: State<'_, AppState>) -> Result<Vec<Inje
     Ok(injections_status(&state))
 }
 
-/// The journal ShipID of the ship being flown (latest Loadout).
+/// The journal ShipID of the ship being flown: the newest row of the
+/// derived `ships` table.
+///
+/// Until 2026-09-16 every Loadout read in this file took "the latest" as
+/// the last row in FILE order. The game has written two file-name
+/// formats side by side since 2022 and the old one sorts after the new
+/// one as text, so on a veteran's journal the router planned with a 2021
+/// ship's physics (maintainer, flying a donated seven-year journal: a
+/// Caspian Explorer to Colonia in 365 plain jumps, no drive model). The
+/// `ships` table holds one row per ship, newest Loadout by time, and
+/// every reader below asks it instead.
 pub fn current_ship_id(conn: &rusqlite::Connection) -> Option<i64> {
-    let raw: String = conn.query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()?;
+    let raw: String = conn.query_row("SELECT raw FROM ships ORDER BY loadout_ts DESC LIMIT 1", [], |r| r.get(0)).ok()?;
     serde_json::from_str::<serde_json::Value>(&raw).ok()?.get("ShipID")?.as_i64()
 }
 
@@ -774,9 +784,9 @@ fn latest_loadout(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Option<s
     let current = current_ship_id(conn);
     let raw: String = match ship_id {
         Some(id) if Some(id) != current => conn
-            .query_row("SELECT raw FROM events WHERE event = 'Loadout' AND json_extract(raw, '$.ShipID') = ?1 ORDER BY file DESC, offset DESC LIMIT 1", [id], |r| r.get(0))
+            .query_row("SELECT raw FROM ships WHERE ship_id = ?1", [id], |r| r.get(0))
             .ok()?,
-        _ => conn.query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()?,
+        _ => conn.query_row("SELECT raw FROM ships ORDER BY loadout_ts DESC LIMIT 1", [], |r| r.get(0)).ok()?,
     };
     serde_json::from_str(&raw).ok()
 }
@@ -895,9 +905,9 @@ pub fn ship_has_fuel_scoop(conn: &rusqlite::Connection, ship_id: Option<i64>) ->
     let current = current_ship_id(conn);
     let raw: String = match ship_id {
         Some(id) if Some(id) != current => conn
-            .query_row("SELECT raw FROM events WHERE event = 'Loadout' AND json_extract(raw, '$.ShipID') = ?1 ORDER BY file DESC, offset DESC LIMIT 1", [id], |r| r.get(0))
+            .query_row("SELECT raw FROM ships WHERE ship_id = ?1", [id], |r| r.get(0))
             .ok()?,
-        _ => conn.query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()?,
+        _ => conn.query_row("SELECT raw FROM ships ORDER BY loadout_ts DESC LIMIT 1", [], |r| r.get(0)).ok()?,
     };
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
     Some(loadout_has_fuel_scoop(&v))
@@ -926,9 +936,9 @@ pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Optio
     let current = current_ship_id(conn);
     let raw: String = match ship_id {
         Some(id) if Some(id) != current => conn
-            .query_row("SELECT raw FROM events WHERE event = 'Loadout' AND json_extract(raw, '$.ShipID') = ?1 ORDER BY file DESC, offset DESC LIMIT 1", [id], |r| r.get(0))
+            .query_row("SELECT raw FROM ships WHERE ship_id = ?1", [id], |r| r.get(0))
             .ok()?,
-        _ => conn.query_row("SELECT raw FROM events WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()?,
+        _ => conn.query_row("SELECT raw FROM ships ORDER BY loadout_ts DESC LIMIT 1", [], |r| r.get(0)).ok()?,
     };
     let other_ship = matches!(ship_id, Some(id) if Some(id) != current);
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;

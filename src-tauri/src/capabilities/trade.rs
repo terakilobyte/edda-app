@@ -19,8 +19,7 @@ pub fn ship_for(conn: &Connection, req: &ProfitRequest) -> LoadoutShip {
     if let Some(id) = req.ship_id {
         let raw: Option<String> = conn
             .query_row(
-                "SELECT raw FROM events WHERE event = 'Loadout' AND json_extract(raw, '$.ShipID') = ?1 \
-                 ORDER BY ts DESC LIMIT 1",
+                "SELECT raw FROM ships WHERE ship_id = ?1",
                 [id],
                 |r| r.get(0),
             )
