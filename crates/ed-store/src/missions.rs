@@ -232,9 +232,11 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
     Ok(out)
 }
 
-/// Only what is still in play.
+/// Only what is still in play -- finished missions leave the HUD rather
+/// than sinking to the bottom of it (maintainer, 2026-09-16) -- in HUD
+/// order (see [`in_hud_order`]).
 pub fn active(conn: &Connection, now: &str) -> Result<Vec<Mission>> {
-    Ok(missions(conn, "", now)?
+    let mut live: Vec<Mission> = missions(conn, "", now)?
         .into_iter()
         .filter(|m| {
             matches!(
@@ -242,7 +244,61 @@ pub fn active(conn: &Connection, now: &str) -> Result<Vec<Mission>> {
                 MissionStatus::Active | MissionStatus::ReadyToTurnIn
             )
         })
-        .collect())
+        .collect();
+    in_hud_order(&mut live);
+    Ok(live)
+}
+
+/// The order missions are shown in, as the maintainer stated it
+/// (2026-09-16, flying a twenty-mission massacre stack whose three HUD
+/// slots were all taken by finished missions):
+/// `sort(incomplete, time_remaining, remaining_kills)`. Work that still
+/// needs doing comes first, soonest expiry next, then the fewest kills
+/// left; what remains tied falls to acceptance order, so two reads give
+/// the same list. The keys are the fields already tracked -- the status
+/// enum says whether a mission is complete, and kills remaining is the
+/// target less the kills counted -- not a parallel flag.
+///
+/// Mission type is deliberately not a key (maintainer: "not until we
+/// properly take on mission stacking"), so a mission with no kill target
+/// must not smuggle one in by sorting as if it had no kills left: it
+/// takes the last place on that key instead. A holding position until
+/// stacking is designed properly.
+pub fn in_hud_order(missions: &mut [Mission]) {
+    missions.sort_by_key(|m| {
+        (
+            status_rank(&m.status),
+            // A mission with no expiry sorts after every dated one.
+            m.expiry.is_none(),
+            m.expiry.clone(),
+            kills_remaining(m).unwrap_or(i64::MAX),
+            m.accepted.clone(),
+            m.id,
+        )
+    });
+}
+
+/// Where a status sits on the HUD: active work first, ready to turn in
+/// after it. The terminal states are never shown (`active()` drops them);
+/// they rank last only so the order is defined for any list. The
+/// direction is the bug to watch for here -- "incomplete first" sorted on
+/// a boolean the other way round would restore exactly the display that
+/// was complained about -- so it is pinned by its own test.
+fn status_rank(status: &MissionStatus) -> u8 {
+    match status {
+        MissionStatus::Active => 0,
+        MissionStatus::ReadyToTurnIn => 1,
+        MissionStatus::Completed
+        | MissionStatus::Failed
+        | MissionStatus::Abandoned
+        | MissionStatus::Expired => 2,
+    }
+}
+
+/// Kills still owed on a massacre, or None when the mission has no kill
+/// target at all.
+pub fn kills_remaining(m: &Mission) -> Option<i64> {
+    m.kill_count.map(|k| (k - m.kills_done).max(0))
 }
 
 #[cfg(test)]
@@ -310,6 +366,148 @@ mod tests {
             MissionStatus::Expired
         );
         assert!(active(&conn, "2026-08-29T00:00:00Z").unwrap().is_empty());
+    }
+
+    #[test]
+    fn active_work_ranks_before_hand_ins_and_terminal_states_last() {
+        assert!(status_rank(&MissionStatus::Active) < status_rank(&MissionStatus::ReadyToTurnIn));
+        for done in [
+            MissionStatus::Completed,
+            MissionStatus::Failed,
+            MissionStatus::Abandoned,
+            MissionStatus::Expired,
+        ] {
+            assert!(status_rank(&MissionStatus::ReadyToTurnIn) < status_rank(&done), "{done:?}");
+        }
+    }
+
+    /// A massacre mission as the stack holds it: id, accepted, giver,
+    /// target, kills counted, expiry, status. Everything else is the same
+    /// across the stack and does not enter the order.
+    fn m(id: i64, accepted: &str, faction: &str, target: Option<i64>, done: i64, expiry: Option<&str>, status: MissionStatus) -> Mission {
+        Mission {
+            id,
+            accepted: accepted.into(),
+            name: "Mission_MassacreWing".into(),
+            title: "Massacre Anana Brotherhood pirates".into(),
+            faction: faction.into(),
+            kind: "massacrewing".into(),
+            target_faction: Some("Anana Brotherhood".into()),
+            target: None,
+            target_type: None,
+            kill_count: target,
+            kills_done: done,
+            commodity: None,
+            count: None,
+            items_collected: 0,
+            items_delivered: 0,
+            total_items_to_deliver: None,
+            destination_system: None,
+            destination_station: None,
+            expiry: expiry.map(str::to_string),
+            reward: None,
+            wing: true,
+            status,
+            ended: None,
+        }
+    }
+
+    /// The maintainer's stack as it stood on 2026-09-16 17:20Z (twenty
+    /// wing massacres against Anana Brotherhood from twelve givers; twelve
+    /// ready to turn in, eight still active; 28 kills counted against every
+    /// active one). In acceptance order the HUD's three slots went to
+    /// finished missions. Under the stated rule the three slots hold the
+    /// mission two kills from paying out and expiring tomorrow, then the
+    /// two soonest-expiring of the rest by fewest kills left; the tie
+    /// between two 72-kill missions sharing an expiry to the second falls
+    /// to which was accepted first.
+    fn the_stack() -> Vec<Mission> {
+        use MissionStatus::*;
+        vec![
+            m(1066077652, "2026-09-15T12:18:01Z", "HIP 90112 Jet Central Corp.", Some(72), 72, Some("2026-09-22T12:16:26Z"), ReadyToTurnIn),
+            m(1066132317, "2026-09-16T03:17:41Z", "HIP 96854 Empire League", Some(54), 54, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132330, "2026-09-16T03:18:04Z", "Labour Union of Ahayan", Some(36), 36, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132341, "2026-09-16T03:18:15Z", "Ahayan Gold Creative Co", Some(30), 30, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132348, "2026-09-16T03:18:34Z", "Ahayan Defence Party", Some(25), 25, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132366, "2026-09-16T03:18:55Z", "Liberals of Ahayan", Some(15), 15, Some("2026-09-17T22:25:27Z"), ReadyToTurnIn),
+            m(1066136753, "2026-09-16T05:18:19Z", "United Tagii League", Some(40), 40, Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
+            m(1066136777, "2026-09-16T05:18:57Z", "Crimson Armada", Some(40), 40, Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
+            m(1066136793, "2026-09-16T05:19:23Z", "HR 7169 Union Party", Some(56), 56, Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
+            m(1066136797, "2026-09-16T05:19:38Z", "Puneith Values Party", Some(40), 40, Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
+            m(1066167981, "2026-09-16T15:56:34Z", "HIP 90112 Jet Central Corp.", Some(48), 28, Some("2026-09-23T15:56:02Z"), Active),
+            m(1066167987, "2026-09-16T15:56:42Z", "Pilots Trade Network", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active),
+            m(1066168007, "2026-09-16T15:57:08Z", "Natural HIP 90112 Party", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active),
+            m(1066168268, "2026-09-16T16:01:36Z", "Labour Union of Ahayan", Some(30), 28, Some("2026-09-17T23:16:53Z"), Active),
+            m(1066168637, "2026-09-16T16:07:15Z", "Workers of Dimocorna Union", Some(25), 25, Some("2026-09-23T16:06:52Z"), ReadyToTurnIn),
+            m(1066168655, "2026-09-16T16:07:26Z", "Crimson Armada", Some(54), 28, Some("2026-09-23T16:06:52Z"), Active),
+            m(1066168667, "2026-09-16T16:07:35Z", "HR 7169 Union Party", Some(35), 28, Some("2026-09-23T16:06:52Z"), Active),
+            m(1066168696, "2026-09-16T16:07:52Z", "United Tagii League", Some(40), 28, Some("2026-09-23T16:06:52Z"), Active),
+            m(1066169021, "2026-09-16T16:12:29Z", "HIP 96854 Empire League", Some(5), 5, Some("2026-09-18T05:09:38Z"), ReadyToTurnIn),
+            m(1066169080, "2026-09-16T16:13:29Z", "Ahayan Defence Party", Some(35), 28, Some("2026-09-23T16:12:06Z"), Active),
+        ]
+    }
+
+    #[test]
+    fn the_maintainers_stack_shows_work_first_then_soonest_expiry_then_fewest_kills() {
+        let mut stack = the_stack();
+        in_hud_order(&mut stack);
+        let top: Vec<(&str, Option<i64>)> = stack.iter().take(3).map(|m| (m.faction.as_str(), kills_remaining(m))).collect();
+        assert_eq!(
+            top,
+            [
+                ("Labour Union of Ahayan", Some(2)),       // 30 kills, expires 09-17
+                ("HIP 90112 Jet Central Corp.", Some(20)), // 48 kills, expires 09-23 15:56
+                ("Pilots Trade Network", Some(44)),        // 72 kills, same expiry, accepted before Natural
+            ]
+        );
+        // The eight active missions fill the list before any hand-in.
+        assert!(stack[..8].iter().all(|m| m.status == MissionStatus::Active));
+        assert!(stack[8..].iter().all(|m| m.status == MissionStatus::ReadyToTurnIn));
+        // The tie pinned: same expiry to the second, same kills left, acceptance order.
+        assert_eq!(stack[3].faction, "Natural HIP 90112 Party");
+        // The hand-ins go soonest expiry first, so the one to turn in tomorrow leads them.
+        assert_eq!(stack[8].faction, "Liberals of Ahayan");
+        // The same stack read in any order gives the same list.
+        let mut again = the_stack();
+        again.reverse();
+        in_hud_order(&mut again);
+        let ids = |v: &[Mission]| v.iter().map(|m| m.id).collect::<Vec<_>>();
+        assert_eq!(ids(&again), ids(&stack));
+    }
+
+    #[test]
+    fn missions_without_a_kill_target_or_an_expiry_do_not_jump_the_queue() {
+        use MissionStatus::*;
+        let mut courier = m(3, "2026-09-16T10:00:00Z", "A", None, 0, Some("2026-09-23T15:56:02Z"), Active);
+        courier.kind = "courier".into();
+        courier.target_faction = None;
+        let undated = m(4, "2026-09-16T09:00:00Z", "B", Some(10), 1, None, Active);
+        let massacre = m(5, "2026-09-16T11:00:00Z", "C", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active);
+        let mut list = vec![courier, undated, massacre];
+        in_hud_order(&mut list);
+        assert_eq!(
+            list.iter().map(|m| m.id).collect::<Vec<_>>(),
+            [5, 3, 4],
+            "the massacre with 44 to go leads the courier it ties with on expiry; the undated one is last"
+        );
+        assert_eq!(kills_remaining(&list[1]), None);
+    }
+
+    /// `active()` drops finished missions and returns the rest in HUD
+    /// order: a massacre accepted first but already met no longer takes the
+    /// first slot, and a turned-in one is not listed at all.
+    #[test]
+    fn active_missions_drop_the_finished_and_lead_with_the_unfinished() {
+        let conn = db();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',6,'2026-08-26T13:05:00Z','Bounty','{"timestamp":"2026-08-26T13:05:00Z","event":"Bounty","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1}'),
+            ('J',7,'2026-08-26T13:10:00Z','MissionAccepted','{"timestamp":"2026-08-26T13:10:00Z","event":"MissionAccepted","Faction":"Later Giver","Name":"Mission_Massacre","TargetFaction":"Kulkan Lung Blue Ring","KillCount":9,"Expiry":"2026-08-28T05:31:15Z","MissionID":9}'),
+            ('J',8,'2026-08-26T13:30:00Z','MissionCompleted','{"timestamp":"2026-08-26T13:30:00Z","event":"MissionCompleted","MissionID":2,"Reward":389952}');
+        "#).unwrap();
+        let live = active(&conn, "2026-08-26T14:00:00Z").unwrap();
+        let order: Vec<(i64, MissionStatus)> = live.iter().map(|m| (m.id, m.status.clone())).collect();
+        assert_eq!(order, [(9, MissionStatus::Active), (1, MissionStatus::ReadyToTurnIn)]);
     }
 
     #[test]
