@@ -24,7 +24,7 @@ pub fn witnessed_sources(conn: &Connection, material: &str) -> Result<Vec<Witnes
     let mut stmt = conn.prepare(
         "SELECT event, raw FROM events
          WHERE event IN ('FSDJump','Location','CarrierJump','ApproachBody','LeaveBody','Touchdown','Liftoff','SupercruiseEntry','MaterialCollected')
-         ORDER BY file, offset",
+         ORDER BY ts, file, offset",
     )?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
 

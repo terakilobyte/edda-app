@@ -83,7 +83,7 @@ fn f(v: &Value, k: &str) -> Option<f64> {
 pub fn rebuild(conn: &Connection) -> Result<usize> {
     let placeholders = EVENTS.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let mut stmt = conn.prepare(&format!(
-        "SELECT ts, event, raw FROM events WHERE event IN ({placeholders}) ORDER BY file, offset"
+        "SELECT ts, event, raw FROM events WHERE event IN ({placeholders}) ORDER BY ts, file, offset"
     ))?;
     let rows: Vec<(String, String, String)> = stmt
         .query_map(rusqlite::params_from_iter(EVENTS.iter()), |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
@@ -580,10 +580,16 @@ mod tests {
         let c = one(&conn);
         let tank = c.tank_tritium_t.unwrap();
         assert_eq!((tank.value, tank.as_of.as_str()), (484, "2026-01-15T23:06:00Z"));
-        // A stats row from before the deposit, replayed later in file order, must not win.
+        // A stats row from BEFORE the deposit, sitting later in the file, must
+        // not win: replay is in time order, not file order. (Until 2026-09-15
+        // this test asserted the opposite — "newest in journal order" — on the
+        // premise that file order is time order. It is not across the game's
+        // two file-name formats, and that premise had veterans' 2022 state
+        // replayed after 2026. A real journal never writes an older timestamp
+        // at a later offset, so this fixture only ever described the bug.)
         ev(&conn, 4, &STATS.replace("22:22:00Z", "22:00:00Z").replace("\"FuelLevel\":500", "\"FuelLevel\":999"));
         let c = one(&conn);
-        assert_eq!(c.tank_tritium_t.unwrap().value, 999, "CarrierStats is authoritative when it lands (it is the newest observation in journal order)");
+        assert_eq!(c.tank_tritium_t.unwrap().value, 484, "the 23:06 deposit is newer than a 22:00 stats row wherever it sits in the file");
     }
 
     #[test]

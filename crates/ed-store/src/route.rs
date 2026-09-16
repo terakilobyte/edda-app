@@ -169,7 +169,7 @@ pub fn current(conn: &Connection) -> Result<Option<RouteBrief>> {
     // A clear after the plot means no route, even though the file lingers.
     let cleared: Option<String> = conn
         .query_row(
-            "SELECT ts FROM events WHERE event = 'NavRouteClear' ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT ts FROM events WHERE event = 'NavRouteClear' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get(0),
         )

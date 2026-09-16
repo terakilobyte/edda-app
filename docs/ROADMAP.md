@@ -202,6 +202,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   table against a real list on every dock and say when they disagree.
   Sparsity measured in `docs/benches/2026-09-12-discount-coverage.csv`.
 
+- **A veteran's journal read as 2022** (2026-09-15, fixed). A tester with
+  a years-long journal saw a stale ship and "still in flight": the game's
+  file names changed format in late 2022, and as plain strings
+  `Journal.22...` sorts after `Journal.2026-...`, so every "latest" and
+  every replay keyed on `(file, offset)` put 2021–2022 after today. Now
+  files list by `ed_journal::journal_file::sort_key` and every time-order
+  query orders by `ts` first; the tailer's watermark carries `ts`. Still
+  open from the same report, **first-sync cost on a large journal**: we
+  store every event kind with its raw JSON forever (179 kinds here, 24 MB
+  for 51k events; 100 kinds and 22% of those bytes are never named by any
+  reader), and a first run parses every line of every file. Measure a
+  real multi-year journal before choosing between an allowlist at ingest,
+  a shorter retention for unread kinds, and a first-pass that skips what
+  no derived table needs.
+
 ## Data and licensing
 
 - **cargo-deny in CI** (2026-09-09): the job is in `ci.yml`; the first

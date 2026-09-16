@@ -182,7 +182,7 @@ fn derive_from(conn: &Connection, after: Option<(String, i64)>) -> Result<Derive
                 "SELECT file, offset, ts, event, raw FROM events
                  WHERE event IN ({placeholders})
                    AND (file > ?{a} OR (file = ?{a} AND offset > ?{b}))
-                 ORDER BY file, offset",
+                 ORDER BY ts, file, offset",
                 a = DERIVED_FROM.len() + 1,
                 b = DERIVED_FROM.len() + 2
             ),
@@ -199,7 +199,7 @@ fn derive_from(conn: &Connection, after: Option<(String, i64)>) -> Result<Derive
             format!(
                 "SELECT file, offset, ts, event, raw FROM events
                  WHERE event IN ({placeholders})
-                 ORDER BY file, offset"
+                 ORDER BY ts, file, offset"
             ),
             DERIVED_FROM
                 .iter()
@@ -602,7 +602,7 @@ pub fn owned_ships(conn: &Connection) -> Result<std::collections::HashSet<i64>> 
     let mut st = conn.prepare(
         "SELECT event, raw FROM events
          WHERE event IN ('Loadout','StoredShips','ShipyardNew','ShipyardBuy','ShipyardSell','ShipyardSwap','SellShipOnRebuy')
-         ORDER BY file, offset",
+         ORDER BY ts, file, offset",
     )?;
     let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     for row in rows {

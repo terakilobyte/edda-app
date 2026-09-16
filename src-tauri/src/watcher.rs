@@ -124,7 +124,7 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                         watermark.as_ref(),
                                         MAX_EVENTS_PER_PASS,
                                     ) {
-                                        for (file, offset, raw) in rows {
+                                        for (mark, raw) in rows {
                                             if let Ok(v) = serde_json::from_str::<Value>(&raw) {
                                                 // Item 43: a real supercharge lights the HUD's
                                                 // next-target box; the journal is the truth.
@@ -358,7 +358,7 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     _ => {}
                                                 }
                                             }
-                                            watermark = Some((file, offset));
+                                            watermark = Some(mark);
                                         }
                                     }
                                     // The pass's watched signals, spoken as one counted

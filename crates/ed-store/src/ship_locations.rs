@@ -62,7 +62,7 @@ fn station_for(conn: &Connection, market_id: i64) -> (Option<String>, Option<Str
 /// Replay both feeds. Idempotent.
 pub fn rebuild(conn: &Connection) -> Result<usize> {
     let mut stmt = conn.prepare(
-        "SELECT ts, event, raw FROM events WHERE event IN ('StoredShips', 'ShipyardTransfer') ORDER BY file, offset",
+        "SELECT ts, event, raw FROM events WHERE event IN ('StoredShips', 'ShipyardTransfer') ORDER BY ts, file, offset",
     )?;
     let rows: Vec<(String, String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?

@@ -57,7 +57,7 @@ pub fn commander_name(conn: &Connection) -> Result<Option<String>> {
     Ok(conn
         .query_row(
             "SELECT json_extract(raw, '$.Name') FROM events WHERE event = 'Commander'
-             ORDER BY file DESC, offset DESC LIMIT 1",
+             ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get::<_, Option<String>>(0),
         )
@@ -69,7 +69,7 @@ pub fn commander_name(conn: &Connection) -> Result<Option<String>> {
 pub fn latest_event_raw(conn: &Connection, event: &str) -> Result<Option<String>> {
     Ok(conn
         .query_row(
-            "SELECT raw FROM events WHERE event = ?1 ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT raw FROM events WHERE event = ?1 ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [event],
             |r| r.get(0),
         )
@@ -85,35 +85,54 @@ pub fn snapshot_raw(conn: &Connection, name: &str) -> Result<Option<String>> {
         .optional()?)
 }
 
-/// `(file, offset)` of the newest event -- the watermark a tailer starts at
-/// so that history is never replayed as if it were happening now.
-pub fn last_event_key(conn: &Connection) -> Result<Option<(String, i64)>> {
+/// Where a tailer is up to: the newest event it has seen, by TIME first.
+/// `(file, offset)` alone is not chronological across the game's two file
+/// name formats, so a tailer keyed on names alone would treat every new
+/// event in a 2026 file as history once it had seen a 2022 file
+/// (tester, 2026-09-15: stale ship, "still in flight", silent callouts).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Watermark {
+    pub ts: String,
+    pub file: String,
+    pub offset: i64,
+}
+
+impl Watermark {
+    pub fn into_file_offset(self) -> (String, i64) {
+        (self.file, self.offset)
+    }
+}
+
+/// The watermark a tailer starts at so that history is never replayed as
+/// if it were happening now: the newest event in time.
+pub fn last_event_key(conn: &Connection) -> Result<Option<Watermark>> {
     Ok(conn
         .query_row(
-            "SELECT file, offset FROM events ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT ts, file, offset FROM events ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok(Watermark { ts: r.get(0)?, file: r.get(1)?, offset: r.get(2)? }),
         )
         .optional()?)
 }
 
-/// Events strictly after a watermark, oldest first.
+/// Events strictly after a watermark, oldest first — in time, then by
+/// `(file, offset)` to break ties within a second.
 pub fn events_after(
     conn: &Connection,
-    after: Option<&(String, i64)>,
+    after: Option<&Watermark>,
     limit: usize,
-) -> Result<Vec<(String, i64, String)>> {
-    let (file, offset) = match after {
-        Some((f, o)) => (f.as_str(), *o),
-        None => ("", -1),
+) -> Result<Vec<(Watermark, String)>> {
+    let (ts, file, offset) = match after {
+        Some(w) => (w.ts.as_str(), w.file.as_str(), w.offset),
+        None => ("", "", -1),
     };
     let mut stmt = conn.prepare(
-        "SELECT file, offset, raw FROM events
-         WHERE file > ?1 OR (file = ?1 AND offset > ?2)
-         ORDER BY file, offset LIMIT ?3",
+        "SELECT ts, file, offset, raw FROM events
+         WHERE ts > ?1 OR (ts = ?1 AND (file > ?2 OR (file = ?2 AND offset > ?3)))
+         ORDER BY ts, file, offset LIMIT ?4",
     )?;
-    let rows = stmt.query_map(params![file, offset, limit as i64], |r| {
-        Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+    let rows = stmt.query_map(params![ts, file, offset, limit as i64], |r| {
+        Ok((Watermark { ts: r.get(0)?, file: r.get(1)?, offset: r.get(2)? }, r.get(3)?))
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
@@ -277,7 +296,7 @@ pub fn merits_since(conn: &Connection, since: &str) -> Result<(i64, i64)> {
 pub fn session_start(conn: &Connection) -> Result<Option<String>> {
     Ok(conn
         .query_row(
-            "SELECT ts FROM events WHERE event = 'LoadGame' ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT ts FROM events WHERE event = 'LoadGame' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
@@ -509,6 +528,44 @@ pub fn ranks(conn: &Connection) -> Result<Ranks> {
 
 #[cfg(test)]
 mod tests {
+
+    /// Two Loadouts: 2022 in an old-format file, 2026 in a new-format file.
+    /// The old name sorts AFTER the new one as a string, so anything that
+    /// picks "latest" by filename returns the 2022 ship. Latest is a matter
+    /// of time.
+    #[test]
+    fn latest_event_follows_time_not_filename_order() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('Journal.221231235959.01.log',1,'2022-12-31T23:59:59Z','Loadout','{"timestamp":"2022-12-31T23:59:59Z","event":"Loadout","Ship":"sidewinder","ShipID":1}'),
+            ('Journal.2026-09-15T090000.01.log',1,'2026-09-15T09:00:00Z','Loadout','{"timestamp":"2026-09-15T09:00:00Z","event":"Loadout","Ship":"panthermkii","ShipID":28}');
+        "#).unwrap();
+        let raw = latest_event_raw(&conn, "Loadout").unwrap().unwrap();
+        assert!(raw.contains("panthermkii"), "picked the 2022 ship: {raw}");
+        let (file, _) = last_event_key(&conn).unwrap().unwrap().into_file_offset();
+        assert_eq!(file, "Journal.2026-09-15T090000.01.log", "the watermark is the newest event in time");
+    }
+
+    /// A tailer that started at a 2022 watermark must still see the 2026
+    /// event as "after" it, even though its file name sorts before.
+    #[test]
+    fn events_after_the_watermark_follow_time_not_filename_order() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('Journal.221231235959.01.log',1,'2022-12-31T23:59:59Z','Docked','{"event":"Docked"}'),
+            ('Journal.2026-09-15T090000.01.log',1,'2026-09-15T09:00:00Z','Undocked','{"event":"Undocked"}');
+        "#).unwrap();
+        let mark = Watermark { ts: "2022-12-31T23:59:59Z".into(), file: "Journal.221231235959.01.log".into(), offset: 1 };
+        let rows = events_after(&conn, Some(&mark), 10).unwrap();
+        assert_eq!(rows.len(), 1, "the 2026 event is after a 2022 watermark: {rows:?}");
+        assert_eq!(rows[0].0.file, "Journal.2026-09-15T090000.01.log");
+    }
     use super::*;
 
     /// The one current-ship source: the swap-fed loadout row. A ship
@@ -584,13 +641,12 @@ mod tests {
                ('A.log',0,'t','X','{}'),('A.log',50,'t','Y','{}'),('B.log',0,'t','Z','{}');",
         )
         .unwrap();
-        assert_eq!(last_event_key(&conn).unwrap(), Some(("B.log".into(), 0)));
-        let after = events_after(&conn, Some(&("A.log".to_string(), 0)), 10).unwrap();
-        let names: Vec<_> = after.iter().map(|(f, o, _)| format!("{f}:{o}")).collect();
-        assert_eq!(names, ["A.log:50", "B.log:0"]);
-        assert!(events_after(&conn, Some(&("B.log".to_string(), 0)), 10)
-            .unwrap()
-            .is_empty());
+        let mark = |file: &str, offset: i64| Watermark { ts: "t".into(), file: file.into(), offset };
+        assert_eq!(last_event_key(&conn).unwrap(), Some(mark("B.log", 0)));
+        let after = events_after(&conn, Some(&mark("A.log", 0)), 10).unwrap();
+        let names: Vec<_> = after.iter().map(|(w, _)| format!("{}:{}", w.file, w.offset)).collect();
+        assert_eq!(names, ["A.log:50", "B.log:0"], "same second: file then offset breaks the tie");
+        assert!(events_after(&conn, Some(&mark("B.log", 0)), 10).unwrap().is_empty());
     }
 
     #[test]
