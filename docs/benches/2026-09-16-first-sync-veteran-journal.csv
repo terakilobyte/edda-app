@@ -1,0 +1,39 @@
+# First-sync cost on a real seven-year journal (maintainer's own, donated 2026-09-16): 831 files, 757 MB,
+# 985,651 lines, 2019-06 .. 2026-09, 57 old-format + 774 new-format names, 233 event kinds.
+# Harness: crates/ed-store/examples/first_sync.rs (release) against a fresh DB; inventory: knobs/journal_inventory.py.
+# Machine: the maintainer's desktop (NVMe). Peak-memory capture failed (Start-Process handle), not recorded.
+# VERDICT: the first sync itself is fast (25.4 s, 38.8k events/s, 30 MB/s) but writes a 1.05 GB store — larger than
+# the journal — of which 61% of rows / 52% of raw bytes are the four noise kinds (ShipLocker alone 296 MB raw, 39% of
+# the journal) that the hourly prune deletes after 24 h anyway; the prune then takes 6 s and frees no disk without a
+# 3.7 s VACUUM (-> 484 MB). Every launch pays 5.5 s, of which 5.1 s is merit_capture re-parsing ~80k earning events from
+# all history with a cold `seen` set (file scan 31 ms, derive 0.4 s), and the watcher's last_event_key is a 0.45-0.57 s
+# full scan with a temp sort (idx_events_ts unused; `WHERE ts = (SELECT MAX(ts))` answers in 0 ms).
+# Knobs, in order: (1) do not insert noise older than the grace window at ingest; (2) watermark merit_capture;
+# (3) rewrite last_event_key. Post-sync reads are fine (missions::active 91-97 ms over 2,320 missions).
+# Open: the derived `location` row read HIP 90112 after the full derive and Parutis after an incremental pass over the
+# same files (0 events read) — reproducible on this DB, not yet explained.
+metric,value
+journal files,831
+journal MB,757.5
+journal lines,985651
+event kinds,233
+ShipLocker share of journal bytes,39.1%
+noise kinds (FSSSignalDiscovered+Music+ReceiveText+ShipLocker) share of rows,61%
+noise kinds share of raw bytes,52%
+first sync wall s,25.4
+first sync events/s,38764
+first sync MB/s,29.8
+store size after first sync MB,1046.9
+store bytes per event,1077
+no-change sync wall s,5.5
+no-change sync: ingest_all ms,31
+no-change sync: derive ms,388
+no-change sync: merit_capture ms (cold seen set; 3520 observations),5112
+last_event_key ms (SCAN + TEMP B-TREE),442-567
+last_event_key ms with WHERE ts = (SELECT MAX(ts)),0
+prune of 24h-old noise: rows deleted,600287
+prune s,6.0
+store size after prune without VACUUM MB,1047
+VACUUM s,3.7
+store size after VACUUM MB,484
+missions::active ms (2320 missions),91-97
