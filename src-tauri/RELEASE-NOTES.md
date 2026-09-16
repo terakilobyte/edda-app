@@ -7,6 +7,48 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.3
+
+A veteran's journal reads correctly again: EDDA no longer shows a 2022
+ship and "still in flight" to a commander who played through the game's
+2022 journal rename. Mute and a hidden HUD survive a restart. Material
+traders come back typed as raw, manufactured and encoded. A Coriolis
+paste on the route page says what it lacks and where to type the range.
+A dependency security advisory is fixed and the release now checks for
+them.
+
+**Your journal in the right order.** In late 2022 the game changed how
+it names journal files, and the two names do not sort together as
+plain text: 2021 and 2022 files land after 2026. EDDA trusted that
+order, so a commander with years of history saw their 2022 ship as
+current, had materials rebuilt with 2022 changes applied after today's,
+and could have lost live callouts. Every read that means "in time
+order" now goes by the events' own timestamps, and both file listings
+sort the two name formats on one clock.
+
+**Mute means mute.** "Mute all callouts" only lasted until the next
+launch, and the greeting spoke to commanders who had asked for silence.
+It is remembered now, and applied before anything can speak. A hidden
+HUD is remembered the same way, whether hidden with Ctrl+Shift+H or from
+Settings.
+
+**Material traders by kind.** The community data now carries each
+station's economy, so the Engineering tab's nearest raw, manufactured
+and encoded traders are typed again instead of "kind unknown". When the
+community API cannot be reached, EDDA says so rather than reporting an
+empty galaxy.
+
+**Route page and Coriolis.** Coriolis's export carries the ship and its
+modules but not the mass, tank or range the physics needs. The page now
+says exactly that, names the missing numbers, and puts the cursor in the
+jump-range box so the plot can still run. EDSY's export works as before.
+
+**Under the hood.** rustls updated for RUSTSEC-2026-0285, and the
+release itself now runs the licence and advisory check that only CI ran
+before. The server reads station rows by name rather than position, the
+change that briefly took station lookups down after 0.3.2, and its
+database integration tests now run in CI.
+
 ## 0.3.2
 
 The Engineering tab is back, and the searches that quietly returned
