@@ -15,11 +15,6 @@ pub fn module_types(state: &AppState) -> Vec<String> {
 }
 
 /// How far apart a sale and its merit event may be and still be paired.
-pub const MERIT_MODEL_WINDOW_SECS: i64 = 5;
-
-pub fn merit_model(state: &AppState) -> CapResult<ed_store::merits::MeritModel> {
-    state.with_read(|s| Ok(ed_store::merits::calibrate(s.conn(), MERIT_MODEL_WINDOW_SECS)?))
-}
 
 pub fn powerplay_seen(state: &AppState) -> CapResult<Vec<query::PowerplayState>> {
     state.with_read(|s| Ok(query::powerplay_all(s.conn())?))

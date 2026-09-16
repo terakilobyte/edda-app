@@ -496,7 +496,6 @@ pub fn run() {
             commands::stations_in_system,
             commands::find_station,
             commands::nearest_service,
-            commands::merit_model,
             commands::powerplay_seen,
             commands::sync_now,
             commands::ai_ask,

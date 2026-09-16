@@ -1067,11 +1067,6 @@ pub async fn nearest_service(
 // ── Powerplay & merits ───────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn merit_model(state: State<'_, AppState>) -> Result<ed_store::merits::MeritModel, CapError> {
-    commander::merit_model(&state)
-}
-
-#[tauri::command]
 pub async fn powerplay_seen(state: State<'_, AppState>) -> Result<Vec<ed_store::query::PowerplayState>, CapError> {
     commander::powerplay_seen(&state)
 }

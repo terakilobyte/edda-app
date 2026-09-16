@@ -179,7 +179,6 @@ export const COMMANDS = {
   nameComplete: ["name_complete", ["kind", "prefix"]],
   serviceOptions: ["service_options"],
   // Powerplay & merits
-  meritModel: ["merit_model"],
   powerplaySeen: ["powerplay_seen"],
   meritTimeline: ["merit_timeline", ["since", "bucket"], { bucket: "day" }],
   // Combat
@@ -275,7 +274,7 @@ export const {
   targetMacroEnabledGet, targetMacroEnabledSet, gameRouteMaxGet, gameRouteMaxSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest,
   routePlotTest, mapSetupTest, mapSetupSay, mapSetupCancel, mapSetupTarget, routePlotInGame, targetKeyStatus, targetTriggerCapture, targetTriggerClear, mapPointCapture, mapPointsGet, mapDelaySet, mapPointsClear, macroRecordStart, macroRecordStop,
   galaxyNear, nameComplete, serviceOptions,
-  meritModel, powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions,
+  powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
   getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, setOverlayInteractive, overlayVisible, aiAsk, aiReset,

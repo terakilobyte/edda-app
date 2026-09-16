@@ -108,57 +108,10 @@ fn main() -> Result<()> {
         }
     }
 
-    let joined = query::sales_with_merits(conn, 5)?;
-    let earning: Vec<_> = joined.iter().filter(|s| s.merits > 0).collect();
-    println!("\n─ sales joined to merits ─────────────────");
-    println!("  {} sales, {} earned merits", joined.len(), earning.len());
-    println!(
-        "  {:<20} {:>6} {:>14} {:>8} {:>4} {:>10}",
-        "commodity", "tons", "profit", "merits", "evts", "cr/merit"
-    );
-    for s in earning.iter().rev().take(15) {
-        let profit = s.profit.or(s.total_sale).unwrap_or(0);
-        println!(
-            "  {:<20} {:>6} {:>14} {:>8} {:>4} {:>10.1}",
-            s.commodity,
-            s.count,
-            profit,
-            s.merits,
-            s.merit_events,
-            profit as f64 / s.merits as f64
-        );
-    }
-
-    print_merit_model(conn)?;
-
     println!("\n─ top event types ────────────────────────");
     for (event, n) in store.event_histogram()?.into_iter().take(12) {
         println!("  {n:>7}  {event}");
     }
 
-    Ok(())
-}
-
-// Appended: Phase 1 merit calibration report.
-fn print_merit_model(conn: &rusqlite::Connection) -> Result<()> {
-    let model = ed_store::merits::calibrate(conn, 5)?;
-    println!("\n─ merit calibration ──────────────────────");
-    for s in &model.stations {
-        let k = match s.k() {
-            Some(k) => format!(
-                "K = {k:.2}  (±{:.3}%)",
-                s.precision().unwrap_or(0.0) * 100.0
-            ),
-            None => "NO SINGLE K — observations contradict".to_string(),
-        };
-        println!(
-            "  {:<18} {:<28} {:<12} n={:<3} {}",
-            s.station.as_deref().unwrap_or("?"),
-            s.system.as_deref().unwrap_or("?"),
-            s.powerplay_state.as_deref().unwrap_or("-"),
-            s.samples,
-            k
-        );
-    }
     Ok(())
 }
