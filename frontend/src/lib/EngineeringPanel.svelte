@@ -5,7 +5,7 @@
   import { onMount } from "svelte";
   // Per-module engineering lives on the Ships tab; "Plan" there lands here.
   import { requestRoute } from "./route.svelte.js";
-  import { eng } from "./engineering.svelte.js";
+  import { eng, traderStatus } from "./engineering.svelte.js";
   import { listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, checkExperimental, listEngineers, materialShopping, shipSlef } from "./api.js";
 
   let error = $state("");
@@ -252,9 +252,10 @@
         <p class="ok small">Everything covered by trading what you carry.</p>
       {/if}
       {#each eng.shopping.traders.filter((t) => neededKinds.has(t.kind)) as t}
+        {@const status = traderStatus(t, eng.shopping.origin_system)}
         <div class="small" style="margin:0.3rem 0">
           <strong>Nearest {t.kind_known === false ? "material" : t.kind} traders</strong>{eng.shopping.origin_system ? ` from ${eng.shopping.origin_system}` : ""}:
-          {#if t.kind_known === false && t.nearest.length}<span class="muted" title="A trader's kind follows its station's economy, which the community API does not publish yet. These are every material trader in range.">(kind unknown — all traders shown)</span>{/if}
+          {#if status.text && t.nearest.length}<span class={status.tone} title={status.title ?? ""}>{status.text}</span>{/if}
           {#if t.nearest.length}
             <div class="row small" style="margin-top:0.2rem">
               {#each t.nearest as n}
@@ -263,7 +264,7 @@
               {/each}
             </div>
           {:else}
-            <span class="muted">none known within 300 ly{eng.shopping.origin_system ? "" : " (position unknown)"}</span>
+            <span class={status.tone} title={status.title ?? ""}>{status.text}</span>
           {/if}
         </div>
       {/each}

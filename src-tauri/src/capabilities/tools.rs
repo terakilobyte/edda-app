@@ -1014,6 +1014,9 @@ fn nearest_service(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     if let Some(kind) = service.strip_suffix("_material_trader").or_else(|| service.strip_suffix("_trader")) {
         if matches!(kind, "raw" | "manufactured" | "encoded") {
             let system = ctx.state.with_read(|s| galaxy::system_or_current(s.conn(), req.system.as_deref()))?;
+            // An unreachable API is an error, never an empty result: the
+            // model must not tell a commander there are no traders when
+            // what happened is that we could not ask (2026-09-15).
             let hits = tauri::async_runtime::block_on(crate::remote_lookup::nearest_material_traders(ctx.state, &system, kind, req.radius_ly.max(300.0), 10))
                 .ok_or_else(|| crate::remote_lookup::api_down("material traders"))?;
             // Say so when the kind could not be told: the answer is every
