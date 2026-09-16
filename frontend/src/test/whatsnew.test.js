@@ -19,9 +19,19 @@ describe("WhatsNew against the shipped RELEASE-NOTES.md", () => {
   it("the post-update splash renders the newest section's summary and folds the rest", () => {
     const { body } = render(WhatsNew, { props: { notes: { version: latest.version, markdown, unseen: true }, latestOnly: true } });
     expect(body).toContain(`New in EDDA ${latest.version}`);
-    // The first sentence of the blurb, whatever the version.
+    // The first words of the blurb, whatever the version — compared as
+    // TEXT, not as a guess at Svelte's entity spelling. 0.3.3's blurb opened
+    // "A veteran's journal..." and the old assertion expected `&#39;` where
+    // the renderer wrote something else, which failed the release run on
+    // the notes alone.
     const firstWords = latest.summary.split(/\s+/).slice(0, 4).join(" ");
-    expect(body).toContain(firstWords.replace(/&/g, "&amp;").replace(/'/g, "&#39;").slice(0, 12));
+    const text = body
+      .replace(/<[^>]+>/g, "")
+      .replace(/&#39;|&#x27;|&apos;/g, "'")
+      .replace(/&quot;/g, "\"")
+      .replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ");
+    expect(text).toContain(firstWords);
     // A fix-only release honestly has nothing to fold (0.2.7 is one
     // line, maintainer's call), so the fold and the bold-lead rendering are
     // only asserted when the section actually carries details.
