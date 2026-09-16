@@ -155,6 +155,44 @@ verdicts live in the CSV headers under `docs/benches/`.
   dated file, and the obvious "fix" is to match them the way
   EDMarketConnector does. When we bring up a new game version, add
   support in dev builds behind its own switch.
+- **Mission stacking: the mechanic, and three things that do not model
+  it** (2026-09-16, maintainer). Domain knowledge first, because it is
+  not derivable from the journal and it governs everything below.
+  Kill credit is CONCURRENT across missions from DIFFERENT source
+  factions that share one target faction — a single kill advances all of
+  them — and CONSECUTIVE between missions from the SAME source faction,
+  which queue. The maintainer: "ideally I accept as many as I can
+  against the same target from multiple factions so I get simultaneous
+  credit. If I accept multiple missions from the same faction against
+  the same target, progress is consecutive and not concurrent." So the
+  stack worth flying is many givers, one target, and the unit of
+  estimation is the pair (source faction, target faction): within one
+  source faction remainders ADD, across source factions they take the
+  MAXIMUM.
+  Three consequences, none of them fixed, none urgent:
+  1. Any "kills to go" that sums per-mission remainders is wrong by
+     roughly the stack size, and wrong in the direction that makes a
+     nearly-finished grind look untouched. A stack needing 4, 7 and 12
+     clears in 12 kills, not 23.
+  2. `kills_done` is inferred by crediting every active mission whose
+     target faction matches each Bounty/FactionKillBond, same-giver
+     duplicates included — so it can over-count exactly where the game
+     queues. Measured on the maintainer's 2026-09-16 stack: seven
+     same-giver pairs, every later one showing 28 done. Probably honest
+     that day because the earlier of each pair had already redirected
+     before the later was accepted, but the rule is not modelled. The
+     module docs already label the field "inferred".
+  3. The kill callout (`mission_progress`, watcher.rs) emits for the
+     FIRST matching mission in list order only. Under concurrent credit
+     the mission that actually crosses its threshold is usually not that
+     one, so completions inside a stack pass unannounced. Settle it by
+     replaying the maintainer's journal, which holds a real stack, and
+     printing what would have been said kill by kill; a kill that
+     completes several missions at once probably wants one callout with
+     a count rather than several.
+  Not a plan. Written down so that whoever takes stacking on starts from
+  the mechanic instead of inventing one, and so nobody re-derives it the
+  expensive way.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
