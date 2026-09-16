@@ -79,14 +79,29 @@ pub fn find_journal_dir(explicit: Option<&Path>) -> Option<PathBuf> {
 /// string sort: the game's two file-name formats do not interleave that
 /// way (`journal_file::sort_key`), and "recent" taken from a plain sort
 /// handed a veteran their 2022 files as the newest.
+/// A live-client journal file name. `JournalAlpha.*` and `JournalBeta.*`
+/// are excluded on purpose; see [`journal_files`].
+pub fn is_live_journal_name(name: &str) -> bool {
+    name.starts_with("Journal.") && name.ends_with(".log")
+}
+
 pub fn journal_files(journal_dir: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(journal_dir)?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
+        // Live-client journals only. The alpha and beta clients write
+        // `JournalAlpha.*` and `JournalBeta.*` into this same folder, and
+        // a release build must NOT read them (maintainer, 2026-09-16):
+        // they come from a test server, so they can carry a ship, a
+        // location or materials that do not exist in the live galaxy, and
+        // replaying one would teach EDDA a commander it does not have.
+        // This exclusion is deliberate, not an oversight — support for
+        // them belongs in dev builds when we are bringing up a new game
+        // version, behind its own switch.
         .filter(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
-                .is_some_and(|n| n.starts_with("Journal.") && n.ends_with(".log"))
+                .is_some_and(is_live_journal_name)
         })
         .collect();
     files.sort_by_cached_key(|p| {
@@ -107,6 +122,38 @@ pub fn recent_journal_files(journal_dir: &Path, count: usize) -> std::io::Result
 
 #[cfg(test)]
 mod tests {
+    use super::is_live_journal_name;
+
+    /// A release build reads the live client's journals and nothing
+    /// else. This is a RULING, not an accident of the prefix check
+    /// (maintainer, 2026-09-16: "release edda should not read alpha and
+    /// beta journals"). An alpha journal comes from a test server, so
+    /// replaying one can teach a ship, a location or materials that do
+    /// not exist in the live galaxy.
+    ///
+    /// Pinned because the exclusion LOOKS like the bug we fixed the same
+    /// day, where unrecognised names sorted after every dated file — a
+    /// reasonable reader, me included, reaches for `Journal(Alpha|Beta)?`
+    /// the way EDMarketConnector matches it. Support belongs in dev
+    /// builds when bringing up a new game version, behind its own
+    /// switch.
+    #[test]
+    fn a_release_build_reads_live_journals_only() {
+        assert!(is_live_journal_name("Journal.2026-09-15T090000.01.log"));
+        assert!(is_live_journal_name("Journal.220315152335.01.log"));
+        assert!(is_live_journal_name("Journal.2026-09-15T090000.01.a.log"), "our truncation archive");
+        for excluded in [
+            "JournalAlpha.210615080000.01.log",
+            "JournalBeta.2021-06-15T080000.01.log",
+            "JournalAlpha.2026-09-15T090000.01.log",
+        ] {
+            assert!(!is_live_journal_name(excluded), "{excluded} must not be read by a release build");
+        }
+        // Not journals at all.
+        assert!(!is_live_journal_name("Status.json"));
+        assert!(!is_live_journal_name("Journal.2026-09-15T090000.01.log.bak"));
+    }
+
     use super::*;
 
     #[test]

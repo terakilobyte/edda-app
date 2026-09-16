@@ -23,6 +23,8 @@
 /// `Journal.X.NN.a.log` and relies on the archive sorting BEFORE the
 /// original; the key keeps that (`.a` before `.z`).
 pub fn sort_key(name: &str) -> String {
+    // Only the live client's names. JournalAlpha./JournalBeta. are
+    // deliberately NOT recognised here — see `journal_files`.
     let Some(stem) = name.strip_prefix("Journal.").and_then(|s| s.strip_suffix(".log")) else {
         return format!("~{name}");
     };
@@ -40,7 +42,11 @@ pub fn sort_key(name: &str) -> String {
     } else {
         return format!("~{name}");
     };
-    format!("{canonical}.{part}.{suffix}")
+    // The part number is a counter, so it must compare as a number and
+    // not as text: unpadded, "100" sorts before "99". The game has only
+    // ever been seen to write two digits (EDMC's regex requires exactly
+    // two), so this is belt and braces rather than an observed failure.
+    format!("{canonical}.{:0>4}.{suffix}", part)
 }
 
 /// `YYYY-MM-DDTHHMMSS`, digits and separators in the right places.
@@ -135,6 +141,27 @@ mod tests {
         );
     }
 
+    /// A counter compares as a number, not as text: unpadded, 100 would
+    /// sort before 99. Not observed from the game, which writes two
+    /// digits, but free to get right.
+    #[test]
+    fn the_part_number_compares_as_a_number() {
+        let mut names = vec![
+            "Journal.2026-09-15T090000.99.log",
+            "Journal.2026-09-15T090000.100.log",
+            "Journal.2026-09-15T090000.02.log",
+        ];
+        names.sort_by_key(|n| sort_key(n));
+        assert_eq!(
+            names,
+            vec![
+                "Journal.2026-09-15T090000.02.log",
+                "Journal.2026-09-15T090000.99.log",
+                "Journal.2026-09-15T090000.100.log",
+            ]
+        );
+    }
+
     /// The truncation archive must still land before the file it was cut from.
     #[test]
     fn an_archived_file_sorts_before_its_original() {
@@ -149,6 +176,9 @@ mod tests {
         assert!(sort_key("Journal.weird.log") > sort_key("Journal.2026-09-15T090000.01.log"));
         assert!(sort_key("Journal.weird.log") > sort_key("Journal.221231235959.01.log"));
         assert!(sort_key("Journal.a.log") < sort_key("Journal.b.log"));
-        assert_eq!(sort_key("Journal.221231235959.01.log"), "2022-12-31T235959.01.z");
+        // The canonical form, spelled out: normalised date, the part
+        // zero-padded so it compares as a number, and `z` standing in for
+        // the absent archive suffix so a real one sorts first.
+        assert_eq!(sort_key("Journal.221231235959.01.log"), "2022-12-31T235959.0001.z");
     }
 }

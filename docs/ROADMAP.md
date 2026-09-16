@@ -144,6 +144,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   stations the dump barely describes in any field, which reads as
   absence at the source rather than a gap in ingest. Recorded with the
   numbers so it is not re-investigated as a loss.
+- **Alpha and beta journals, for dev builds only** (2026-09-16, ruled).
+  The alpha and beta clients write `JournalAlpha.*` / `JournalBeta.*`
+  into the same folder. A RELEASE build must not read them (maintainer:
+  "release edda should not read alpha and beta journals") — they come
+  from a test server, so one can carry a ship, a location or materials
+  that do not exist in the live galaxy. The exclusion is now explicit
+  and pinned (`is_live_journal_name`), because it looks exactly like the
+  bug fixed the same day, where unrecognised names sorted after every
+  dated file, and the obvious "fix" is to match them the way
+  EDMarketConnector does. When we bring up a new game version, add
+  support in dev builds behind its own switch.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
