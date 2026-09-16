@@ -165,7 +165,7 @@ async fn exchange_and_probe(
     // Journal FID for the wrong-account check ("F1234..." → "1234...").
     let journal_fid: Option<String> = state.read_conn().ok().and_then(|conn| {
         conn.query_row(
-            "SELECT json_extract(raw, '$.FID') FROM events WHERE event = 'Commander' ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT json_extract(raw, '$.FID') FROM events WHERE event = 'Commander' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get::<_, Option<String>>(0),
         )

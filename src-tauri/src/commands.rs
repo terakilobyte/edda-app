@@ -59,8 +59,7 @@ pub async fn get_status(state: State<'_, AppState>) -> Result<ShipStatus, String
             .flatten();
         let fuel_capacity = conn
             .query_row(
-                "SELECT json_extract(raw, '$.FuelCapacity.Main') FROM events
-                 WHERE event = 'Loadout' ORDER BY file DESC, offset DESC LIMIT 1",
+                "SELECT fuel_main FROM ships ORDER BY loadout_ts DESC LIMIT 1",
                 [],
                 |r| r.get::<_, Option<f64>>(0),
             )
@@ -709,7 +708,7 @@ fn loadout_raw(state: &AppState, ship_id: Option<i64>) -> Result<String, String>
         Some(id) => state
             .with_read(|s| {
                 s.conn()
-                    .query_row("SELECT raw FROM events WHERE event = 'Loadout' AND json_extract(raw, '$.ShipID') = ?1 ORDER BY ts DESC LIMIT 1", [id], |r| r.get::<_, String>(0))
+                    .query_row("SELECT raw FROM ships WHERE ship_id = ?1", [id], |r| r.get::<_, String>(0))
                     .map_err(|e| e.to_string())
             })
             .map_err(|_| format!("no Loadout for ship {id}")),

@@ -161,10 +161,6 @@ pub fn inventory(state: &AppState) -> CapResult<Vec<Value>> {
 }
 
 /// Ship ids the commander owns now, replayed from shipyard events.
-pub fn owned_ship_ids(state: &AppState) -> CapResult<std::collections::HashSet<i64>> {
-    state.with_read(|s| Ok(ed_store::derive::owned_ships(s.conn())?))
-}
-
 /// A ship the commander owns or has owned, from its latest Loadout.
 #[derive(Debug, Serialize)]
 pub struct ShipSummary {
@@ -195,25 +191,24 @@ pub struct ShipsListRequest {
 
 /// Ships with a Loadout in the journal, currently owned by default.
 pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<ShipSummary>> {
-    let owned = owned_ship_ids(state)?;
-    let current: Option<i64> = state
-        .with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout").ok().flatten())
-        .and_then(|r| serde_json::from_str::<Value>(&r).ok())
-        .and_then(|v| v.get("ShipID").and_then(Value::as_i64));
-    // Newest first; the loop below keeps the first Loadout it meets per
-    // ShipID. Until 2026-09-16 this was a correlated subquery that
-    // json_extract-ed the ShipID out of every other Loadout for every
-    // Loadout -- O(n²) parses. On a seven-year journal (4,143 Loadouts)
-    // it had not returned after five minutes, and the Ships tab said
-    // "0 in your fleet" the whole time. One ordered scan is ~1 s in
-    // Python on the same store, less here.
-    let rows: Vec<String> = state.with_read(|s| -> CapResult<Vec<String>> {
-        let mut st = s.conn().prepare(
-            "SELECT raw FROM events WHERE event = 'Loadout' ORDER BY ts DESC, file DESC, offset DESC",
-        )?;
-        let rows: Vec<String> = st.query_map([], |r| r.get::<_, String>(0))?.flatten().collect();
+    // The derived `ships` table: one row per ShipID with its latest Loadout
+    // and whether it is still owned. Until 2026-09-16 this walked every
+    // Loadout ever written with a correlated json_extract subquery --
+    // O(n²) parses; on a seven-year journal (4,143 Loadouts) it had not
+    // returned after five minutes and the tab read "0 in your fleet".
+    let rows: Vec<(String, bool)> = state.with_read(|s| -> CapResult<Vec<(String, bool)>> {
+        let mut st = s.conn().prepare("SELECT raw, owned FROM ships ORDER BY loadout_ts DESC")?;
+        let rows = st
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? != 0)))?
+            .flatten()
+            .collect();
         Ok(rows)
     })?;
+    // The ship being flown is the one with the newest Loadout of all.
+    let current: Option<i64> = rows
+        .first()
+        .and_then(|(raw, _)| serde_json::from_str::<Value>(raw).ok())
+        .and_then(|v| v.get("ShipID").and_then(Value::as_i64));
     // Item 53: every stored ship's whereabouts, keyed by ShipID.
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let mut locations: std::collections::HashMap<i64, ed_store::ship_locations::ShipLocation> = state
@@ -223,7 +218,7 @@ pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<Shi
         .collect();
     let mut out = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();
-    for raw in rows {
+    for (raw, owned) in rows {
         let Ok(v) = serde_json::from_str::<Value>(&raw) else { continue };
         let Some(id) = v.get("ShipID").and_then(Value::as_i64) else { continue };
         if !seen_ids.insert(id) {
@@ -232,7 +227,7 @@ pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<Shi
         let s = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
         let f = |k: &str| v.get(k).and_then(Value::as_f64).unwrap_or(0.0);
         let i = |k: &str| v.get(k).and_then(Value::as_i64).unwrap_or(0);
-        let historical = !owned.contains(&id);
+        let historical = !owned;
         if historical && !req.include_historical {
             continue;
         }
