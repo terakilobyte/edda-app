@@ -1,18 +1,20 @@
 <script>
-  // Powerplay: your own merit history, the per-station K model, and every
-  // system you have seen control recorded in.
-  import { meritModel, powerplaySeen, meritTimeline } from "./api.js";
+  // Powerplay: your own merit history and every system you have seen
+  // control recorded in. The per-station "profit per merit" table that sat
+  // between them is gone (maintainer, 2026-09-16: "we shouldn't try
+  // projecting what we don't know") -- and it was the tab's whole load
+  // time, a sales-by-merits pairing that grew with the journal.
+  import { powerplaySeen, meritTimeline } from "./api.js";
   import { openHelp } from "./help.svelte.js";
   import { fmtInt, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
 
-  let model = $state(null);
   let seen = $state([]);
   let timeline = $state([]);
 
   const res = journalResource(async () => {
     const since = new Date(Date.now() - 30 * 86400e3).toISOString().replace(/\.\d+Z$/, "Z");
-    [model, seen, timeline] = await Promise.all([meritModel(), powerplaySeen(), meritTimeline(since, "day")]);
+    [seen, timeline] = await Promise.all([powerplaySeen(), meritTimeline(since, "day")]);
   });
   const error = $derived(res.error);
 
@@ -29,7 +31,6 @@
     <div class="stat"><div class="label">Total merits</div><div class="value">{fmtInt(total)}</div></div>
     <div class="stat"><div class="label">Last 30 days</div><div class="value">{fmtInt(last30)}</div></div>
     <div class="stat"><div class="label">Awards</div><div class="value">{fmtInt(timeline.reduce((a, b) => a + b.awards, 0))}</div></div>
-    <div class="stat"><div class="label">Stations calibrated</div><div class="value">{model?.stations?.length ?? 0}</div></div>
   </div>
 
   {#if timeline.length}
@@ -41,30 +42,6 @@
       {/each}
     </div>
     <div class="row small muted" style="justify-content:space-between"><span>{timeline[0].bucket}</span><span>merits per day</span><span>{timeline[timeline.length - 1].bucket}</span></div>
-  {/if}
-
-  <h3>Merit rate <span class="muted">profit needed per merit</span></h3>
-  <p class="muted small">Learned per station from your own sales: sell 100,000 Cr of profit where the rate is 4,100 Cr/merit and you earn 24 merits. Stations you have not sold at have no estimate.</p>
-  {#if model?.stations?.length}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Station</th><th>System</th><th>State</th><th class="r">Sales</th><th class="r">Cr / merit</th><th></th></tr></thead>
-        <tbody>
-          {#each model.stations as s}
-            <tr>
-              <td>{s.station ?? s.market_id}</td>
-              <td>{s.system ?? "—"}</td>
-              <td class="small">{s.controlling_power ?? ""} {s.powerplay_state ?? ""}</td>
-              <td class="r num">{s.samples}</td>
-              <td class="r num">{s.k_lo.toFixed(0) === s.k_hi.toFixed(0) ? s.k_lo.toFixed(0) : `${s.k_lo.toFixed(0)} – ${s.k_hi.toFixed(0)}`}</td>
-              <td>{#if !s.consistent}<span class="pill bad">inconsistent</span>{:else}<span class="pill ok">fits</span>{/if}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {:else}
-    <p class="muted">No calibrated stations yet — sell something for a Power and the model starts learning.</p>
   {/if}
 
   <h3>Control state you have witnessed</h3>

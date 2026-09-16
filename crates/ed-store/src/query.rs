@@ -60,26 +60,6 @@ pub struct PowerplayState {
     pub undermining: Option<i64>,
 }
 
-/// One sale joined to the merits it actually earned.
-#[derive(Debug, Clone, Serialize)]
-pub struct SaleWithMerits {
-    pub ts: String,
-    pub market_id: Option<i64>,
-    pub commodity: String,
-    pub count: i64,
-    pub sell_price: Option<i64>,
-    pub total_sale: Option<i64>,
-    pub avg_price_paid: Option<i64>,
-    /// Sum of every merit event attributed to this sale, not just the first.
-    pub merits: i64,
-    /// How many merit events were attributed. More than one means the game
-    /// split the award, which the single-match approach silently dropped.
-    pub merit_events: usize,
-    pub profit: Option<i64>,
-    pub system_name: Option<String>,
-    pub powerplay_state: Option<String>,
-}
-
 pub fn engineers(conn: &Connection) -> Result<Vec<Engineer>> {
     let mut stmt =
         conn.prepare("SELECT name, progress, rank, rank_progress FROM engineers ORDER BY name")?;
@@ -263,96 +243,6 @@ pub fn powerplay_all(conn: &Connection) -> Result<Vec<PowerplayState>> {
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-}
-
-/// Join every sale to the merits it earned.
-///
-/// The naive version of this -- take the first `PowerplayMerits` event after
-/// each sale -- undercounts whenever the game splits an award across several
-/// events, and double-counts when two sales land within the window of one
-/// another. This assigns each merit event to the nearest *preceding* sale
-/// inside `window_secs`, so every merit is attributed exactly once.
-pub fn sales_with_merits(conn: &Connection, window_secs: i64) -> Result<Vec<SaleWithMerits>> {
-    #[derive(Clone)]
-    struct Sale {
-        ts: String,
-        market_id: Option<i64>,
-        commodity: String,
-        count: i64,
-        sell_price: Option<i64>,
-        total_sale: Option<i64>,
-        avg_price_paid: Option<i64>,
-    }
-
-    let sales: Vec<Sale> = {
-        let mut stmt = conn.prepare(
-            "SELECT ts, market_id, commodity, count, sell_price, total_sale, avg_price_paid
-             FROM sales ORDER BY ts, file, offset",
-        )?;
-        let rows = stmt.query_map([], |r| {
-            Ok(Sale {
-                ts: r.get(0)?,
-                market_id: r.get(1)?,
-                commodity: r.get(2)?,
-                count: r.get(3)?,
-                sell_price: r.get(4)?,
-                total_sale: r.get(5)?,
-                avg_price_paid: r.get(6)?,
-            })
-        })?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()?
-    };
-
-    let merits: Vec<(String, i64)> = {
-        let mut stmt = conn.prepare(
-            "SELECT ts, COALESCE(merits_gained, 0) FROM merit_events ORDER BY ts, file, offset",
-        )?;
-        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        rows.collect::<rusqlite::Result<Vec<_>>>()?
-    };
-
-    let mut totals = vec![(0i64, 0usize); sales.len()];
-    for (mts, gained) in &merits {
-        // Nearest preceding sale within the window.
-        let mut best: Option<usize> = None;
-        for (idx, sale) in sales.iter().enumerate() {
-            if sale.ts.as_str() > mts.as_str() {
-                break;
-            }
-            if seconds_between(&sale.ts, mts).is_some_and(|d| d >= 0 && d <= window_secs) {
-                best = Some(idx);
-            }
-        }
-        if let Some(idx) = best {
-            totals[idx].0 += gained;
-            totals[idx].1 += 1;
-        }
-    }
-
-    Ok(sales
-        .into_iter()
-        .zip(totals)
-        .map(|(s, (merits, n))| {
-            let profit = match (s.total_sale, s.avg_price_paid) {
-                (Some(total), Some(paid)) => Some(total - paid * s.count),
-                _ => None,
-            };
-            SaleWithMerits {
-                ts: s.ts,
-                market_id: s.market_id,
-                commodity: s.commodity,
-                count: s.count,
-                sell_price: s.sell_price,
-                total_sale: s.total_sale,
-                avg_price_paid: s.avg_price_paid,
-                merits,
-                merit_events: n,
-                profit,
-                system_name: None,
-                powerplay_state: None,
-            }
-        })
-        .collect())
 }
 
 /// Sales that are byte-distinct but otherwise identical. Answers the

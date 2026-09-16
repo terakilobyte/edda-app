@@ -36,7 +36,6 @@ pub static REGISTRY: &[ToolSpec] = &[
     ToolSpec { name: "stations_in_system", description: "Stations in a system, ranked by kind (starports first) then distance from arrival, with largest landing pad and services. By default returns only places a ship can dock, excluding fleet carriers and surface settlements -- a developed system has hundreds of settlements and dozens of parked carriers, which bury the handful of real stations. Set include_carriers or include_minor to see them. A null landing pad means unrecorded, not small.", schema: stations_in_system_schema, run: stations_in_system },
     ToolSpec { name: "find_station", description: "Find stations by name across the galaxy, with their system and services.", schema: find_station_schema, run: find_station },
     ToolSpec { name: "nearest_service", description: "Nearest stations offering a service, searching outward from a system (default: where the commander is). Services: market, outfitting, shipyard, raw_material_trader, manufactured_material_trader, encoded_material_trader, interstellar_factors, technology_broker, universal_cartographics, black_market, search_and_rescue, refuel, repair, restock, vista_genomics, crew_lounge, fleet_carrier_vendor, redemption_office, pioneer_supplies, missions. Results carry distance_ly (light-years from the origin system; 0 = same system) and distance_to_arrival (light-SECONDS from the star, inside the system) -- never confuse the two. Filters by minimum landing pad size and can exclude fleet carriers (which move). Use for 'nearest X', 'where can I ...'.", schema: nearest_service_schema, run: nearest_service },
-    ToolSpec { name: "get_merit_model", description: "Powerplay merit model calibrated from the commander's OWN sales. Merits are linear in credit profit -- floor(profit / K) -- and K varies by station. Returns per-station K intervals with sample counts. A station with no observations, or with contradictory ones, reports no K rather than an estimate: published formulas (both 70*sqrt(tons) and the community 0.375219*sqrt(profit)) were tested against real sales and do not fit. Never estimate merits for a station this does not cover.", schema: no_args, run: get_merit_model },
     ToolSpec { name: "powerplay_seen", description: "Every system the commander has personally visited where Powerplay control was recorded, with power, state, control progress, reinforcement and undermining figures, and when it was seen. First-hand data, more precise than any external site shows.", schema: no_args, run: powerplay_seen },
     ToolSpec { name: "find_profit", description: "The profit finder: best trades near a system, ranked by credits PER HOUR (not per ton), using community market prices with their age. Uses the commander's live ship (cargo capacity, jump range, landing pad from the hull) unless overridden; if the hull's pad size is unknown the search refuses and says so -- pass min_pad. With from_current_station=true it answers 'I'm docked, what should I fill up with'; otherwise it searches every station in range as a source. Returns single legs, A-to-B round trips, and multi-stop rings (3+ stations, every leg loaded, closed back to the start -- often the best rate), plus counts of stations excluded and why (carriers, pad too small/unknown, stale prices). Time estimates are labelled 'estimated' -- compare legs with them, never quote an ETA as fact.", schema: find_profit_schema, run: find_profit },
     ToolSpec { name: "combat_stats", description: "The commander's combat record from their own journal: kills, bounty and bond credits, deaths, interdictions, most-killed ship types and best-paying factions, plus a timeline bucketed by day/week/hour. Pass `since` (ISO timestamp) to scope to a session or period. First-hand and exact.", schema: combat_stats_schema, run: combat_stats },
@@ -200,15 +199,6 @@ fn get_inventory(ctx: &Ctx, _: &Value) -> CapResult<Value> {
 
 fn list_engineers(ctx: &Ctx, _: &Value) -> CapResult<Value> {
     Ok(json!({ "engineers": commander::engineers(ctx.state)?, "provenance": "journal" }))
-}
-
-fn get_merit_model(ctx: &Ctx, _: &Value) -> CapResult<Value> {
-    let m = commander::merit_model(ctx.state)?;
-    Ok(json!({
-        "stations": m.stations,
-        "model": "merits = floor(profit / K); K is per-station and its driver is unknown",
-        "warning": "Do not estimate merits for a station absent from this list.",
-    }))
 }
 
 fn powerplay_seen(ctx: &Ctx, _: &Value) -> CapResult<Value> {
