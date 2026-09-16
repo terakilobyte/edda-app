@@ -1,6 +1,5 @@
 <script>
-  import { ownCarriers, holdSummary } from "./carriers.js";
-  import { SvelteSet } from "svelte/reactivity";
+  import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
@@ -21,15 +20,6 @@
   // Strangers' carriers are in the store because docking at one creates a
   // row; they do not belong on the commander's Ships tab.
   const mine = $derived(ownCarriers(carriers));
-  // Which carriers' holds are open. Panel-local and per carrier: the
-  // maintainer asked to click a carrier open, not to have it remembered
-  // (2026-09-16, "clicking a carrier should it expand it so I can see
-  // the full inventory").
-  let expanded = $state(new SvelteSet());
-  function toggleHold(id) {
-    if (expanded.has(id)) expanded.delete(id);
-    else expanded.add(id);
-  }
   async function loadCarriers() {
     try { carriers = (await carrierStatus()).carriers ?? []; } catch { carriers = []; }
   }
@@ -94,28 +84,16 @@
       {#if c.capacity}<div class="muted small">Capacity: {fmtInt(c.capacity.value.used_t ?? 0)} t used, {fmtInt(c.capacity.value.free_t ?? 0)} t free of {fmtInt(c.capacity.value.total_t)} t · as of {fmtAge(c.capacity.age_hours)}</div>{/if}
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
       {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
-      {#if c.hold_moved.length}
-        {@const open = expanded.has(c.carrier_id)}
-        {@const hold = holdSummary(c.hold_moved, open ? Infinity : 8)}
-        <button
-          class="holdToggle muted small"
-          aria-expanded={open}
-          onclick={() => toggleHold(c.carrier_id)}
-          title={open ? "Collapse the hold" : "Show every commodity aboard"}
-        >{open ? "▾" : "▸"} Moved aboard by you · {c.hold_moved.length} commodit{c.hold_moved.length === 1 ? "y" : "ies"}</button>
-        <div class="row small hold">
-          {#each hold.shown as h}
-            <span class="pill"><b>{fmtInt(h.tons)} t</b> {h.label}</span>
-          {/each}
-          {#if hold.more}
-            <button class="pill asButton" onclick={() => toggleHold(c.carrier_id)}
-              title="Show every commodity aboard">Show all {c.hold_moved.length} · +{fmtInt(hold.moreTons)} t more</button>
-          {:else if open && c.hold_moved.length > 8}
-            <button class="pill asButton" onclick={() => toggleHold(c.carrier_id)}
-              title="Show only the largest lots">Show less</button>
-          {/if}
-        </div>
-      {/if}
+      <!-- No hold listing here on purpose. The journal only records the
+           transfers the commander made themselves, so a running total of
+           those is not the carrier's inventory: it cannot see the
+           carrier's own market sales, another commander's transfers, or
+           services consuming cargo, and it drifts further from the truth
+           the longer the carrier trades. Showing it looked like current
+           stock and was not (maintainer, 2026-09-16: "if we can't show a
+           carrier's *current* inventory we shouldn't show the inventory
+           at all"). Frontier's CAPI /fleetcarrier returns the real
+           thing; until that is wired, nothing is shown. -->
     </div>
   {/each}
 </section>
@@ -178,23 +156,6 @@
 {/if}
 
 <style>
-  /* The hold's expand/collapse: a control, not a paragraph that happens
-     to be clickable (maintainer, 2026-09-16: "expand/collapse button or
-     something"). */
-  .holdToggle {
-    display: block;
-    margin: 0.3rem 0 0.1rem;
-    padding: 0;
-    background: none;
-    border: 0;
-    font: inherit;
-    color: var(--muted);
-    cursor: pointer;
-    text-align: left;
-  }
-  .holdToggle:hover { color: var(--fg); }
-  .pill.asButton { font: inherit; cursor: pointer; border: 1px solid var(--muted); background: none; color: inherit; }
-  .pill.asButton:hover { border-color: var(--fg); }
 
   .ships { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.5rem; }
   .card { width: 100%; text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
