@@ -1,8 +1,13 @@
 //! Journal file names, and the order they belong in.
 //!
-//! The game has used two name formats. Until late 2022 a file was
-//! `Journal.YYMMDDHHMMSS.NN.log`; since then it is
-//! `Journal.YYYY-MM-DDTHHMMSS.NN.log`. Compared as plain strings the two
+//! The game has used two name formats: `Journal.YYMMDDHHMMSS.NN.log`
+//! and `Journal.YYYY-MM-DDTHHMMSS.NN.log`. The four-digit form arrived
+//! with Odyssey Update 11 in March 2022, and the two did NOT change over
+//! on a date — they ran side by side, the name following which client
+//! the commander launched. EDMarketConnector's monitor.py records the
+//! pair from the same day: "Odyssey Update 11 has, e.g.
+//! Journal.2022-03-15T152503.01.log; Horizons Update 11 equivalent:
+//! Journal.220315152335.01.log; So we can no longer use a naive sort." Compared as plain strings the two
 //! do not interleave chronologically: `Journal.22...` sorts after
 //! `Journal.2026-...` because `'2' > '0'` at the ninth character. A
 //! commander who played through the change therefore had 2021 and 2022
@@ -76,6 +81,56 @@ mod tests {
                 "Journal.221231235959.01.log",
                 "Journal.2024-01-01T120000.01.log",
                 "Journal.2026-09-15T090000.01.log",
+            ]
+        );
+    }
+
+    /// The two formats OVERLAP in time, so the key must interleave them
+    /// rather than segregate them.
+    ///
+    /// Sourced, not assumed: EDMarketConnector's monitor.py carries the
+    /// pair as a comment — "Odyssey Update 11 has, e.g.
+    /// Journal.2022-03-15T152503.01.log; Horizons Update 11 equivalent:
+    /// Journal.220315152335.01.log; So we can no longer use a naive
+    /// sort." Both were current on the same day in March 2022: the
+    /// format followed which CLIENT the commander launched, not the
+    /// date. Anything that merely put every two-digit-year name before
+    /// every four-digit one would order this pair correctly by luck and
+    /// the reverse pair wrongly, so the key normalises instead. (EDMC
+    /// sidesteps the question by sorting on file ctime; we cannot,
+    /// because we replay archived folders where ctime is the copy date.)
+    #[test]
+    fn the_two_formats_interleave_within_one_day() {
+        // Horizons 15:23:35, then Odyssey 15:25:03, same afternoon.
+        let horizons = "Journal.220315152335.01.log";
+        let odyssey = "Journal.2022-03-15T152503.01.log";
+        assert!(
+            sort_key(horizons) < sort_key(odyssey),
+            "the earlier file must sort first regardless of which format it is: {} vs {}",
+            sort_key(horizons),
+            sort_key(odyssey)
+        );
+        // And the other way round: an Odyssey file from the morning
+        // precedes a Horizons file from the evening of the same day.
+        assert!(
+            sort_key("Journal.2022-03-15T090000.01.log") < sort_key("Journal.220315210000.01.log"),
+            "a two-digit-year name is not automatically older"
+        );
+        // A whole day of mixed clients lands in clock order.
+        let mut names = vec![
+            "Journal.220315210000.01.log",
+            "Journal.2022-03-15T152503.01.log",
+            "Journal.220315152335.01.log",
+            "Journal.2022-03-15T090000.01.log",
+        ];
+        names.sort_by_key(|n| sort_key(n));
+        assert_eq!(
+            names,
+            vec![
+                "Journal.2022-03-15T090000.01.log",
+                "Journal.220315152335.01.log",
+                "Journal.2022-03-15T152503.01.log",
+                "Journal.220315210000.01.log",
             ]
         );
     }
