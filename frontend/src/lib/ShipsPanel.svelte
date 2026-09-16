@@ -1,4 +1,5 @@
 <script>
+  import { ownCarriers, holdSummary } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
@@ -16,6 +17,9 @@
   // Item 52 A: the commander's carrier from the journal — a card, not a
   // ship (a carrier has no ShipID and never appears in StoredShips).
   let carriers = $state([]);
+  // Strangers' carriers are in the store because docking at one creates a
+  // row; they do not belong on the commander's Ships tab.
+  const mine = $derived(ownCarriers(carriers));
   async function loadCarriers() {
     try { carriers = (await carrierStatus()).carriers ?? []; } catch { carriers = []; }
   }
@@ -66,13 +70,13 @@
   const cr = (n) => `${fmtInt(n)} cr`;
 </script>
 
-{#if carriers.length}
+{#if mine.length}
 <section class="panel">
-  <h2>Carrier{carriers.length > 1 ? "s" : ""} <span class="sub">from your journal — every figure carries its age</span></h2>
-  {#each carriers as c}
+  <h2>Carrier{mine.length > 1 ? "s" : ""} <span class="sub">from your journal — every figure carries its age</span></h2>
+  {#each mine as c}
     <div class="carrier">
       <div class="name">{c.name ?? c.callsign} <span class="muted small">{c.callsign}</span>
-        {#if c.owned}<span class="pill ok">yours</span>{:else}<span class="pill">{c.carrier_type === "SquadronCarrier" ? "squadron" : "seen"}</span>{/if}
+        {#if c.owned}<span class="pill ok">yours</span>{:else}<span class="pill">squadron</span>{/if}
         {#if c.decommissioned}<span class="pill warn">decommissioning</span>{/if}
       </div>
       <div class="muted small">Location: {aged(c.location)}{c.body ? ` (${c.body})` : ""}</div>
@@ -80,7 +84,16 @@
       {#if c.capacity}<div class="muted small">Capacity: {fmtInt(c.capacity.value.used_t ?? 0)} t used, {fmtInt(c.capacity.value.free_t ?? 0)} t free of {fmtInt(c.capacity.value.total_t)} t · as of {fmtAge(c.capacity.age_hours)}</div>{/if}
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
       {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
-      {#if c.hold_moved.length}<div class="muted small">Moved aboard by you: {c.hold_moved.map((h) => `${fmtInt(h.tons)} t ${h.commodity}`).join(", ")}</div>{/if}
+      {#if c.hold_moved.length}
+        {@const hold = holdSummary(c.hold_moved)}
+        <div class="muted small" style="margin-top:0.2rem">Moved aboard by you</div>
+        <div class="row small hold">
+          {#each hold.shown as h}
+            <span class="pill"><b>{fmtInt(h.tons)} t</b> {h.label}</span>
+          {/each}
+          {#if hold.more}<span class="pill muted" title="Smaller lots, hidden to keep this readable">+{hold.more} more · {fmtInt(hold.moreTons)} t</span>{/if}
+        </div>
+      {/if}
     </div>
   {/each}
 </section>

@@ -306,10 +306,30 @@ pub struct Aged<T: Serialize> {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct HoldLine {
+    /// The journal's symbol ("cmmcomposite"), kept because it is the key.
     pub commodity: String,
+    /// What to show a commander: the market catalogue's name where we
+    /// have one ("CMM Composite"), otherwise the symbol tidied up. The
+    /// panel used to print the raw symbols in a run-on sentence
+    /// (maintainer, 2026-09-16: "not displaying names properly").
+    pub name: String,
     pub tons: i64,
     pub as_of: String,
     pub age_hours: f64,
+}
+
+/// A commodity symbol the catalogue does not know, made readable:
+/// "liquidoxygen" -> "Liquidoxygen". Not clever — it cannot split a
+/// run-together symbol into the right words ("cmmcomposite" is "CMM
+/// Composite" to the game and nothing here can know that) — but it is
+/// better than shouting the raw key at a commander, and any market we
+/// visit replaces it with the real name.
+fn tidy_symbol(symbol: &str) -> String {
+    let mut chars = symbol.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -407,12 +427,34 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
             body: pj_body,
             departure: pj_departure,
         });
-        let mut hold_stmt = conn.prepare("SELECT commodity, count, ts FROM carrier_hold WHERE carrier_id = ?1 ORDER BY count DESC")?;
+        // The catalogue lives in the attached galaxy database and is
+        // filled by any market we have seen; a commodity it does not
+        // know still shows, as a tidied symbol rather than a raw one.
+        let mut hold_stmt = conn.prepare(
+            "SELECT h.commodity, h.count, h.ts, c.name
+               FROM carrier_hold h
+               LEFT JOIN galaxy.sys_commodities c ON LOWER(c.symbol) = h.commodity
+              WHERE h.carrier_id = ?1
+              ORDER BY h.count DESC",
+        )?;
         let hold_moved = hold_stmt
-            .query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, String>(2)?)))?
+            .query_map([id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<String>>(3)?,
+                ))
+            })?
             .collect::<rusqlite::Result<Vec<_>>>()?
             .into_iter()
-            .map(|(commodity, tons, ts)| HoldLine { age_hours: (age_hours(now, &ts) * 10.0).round() / 10.0, commodity, tons, as_of: ts })
+            .map(|(commodity, tons, ts, catalogue)| HoldLine {
+                age_hours: (age_hours(now, &ts) * 10.0).round() / 10.0,
+                name: catalogue.unwrap_or_else(|| tidy_symbol(&commodity)),
+                commodity,
+                tons,
+                as_of: ts,
+            })
             .collect();
         out.push(CarrierStatus {
             carrier_id: id,
@@ -441,8 +483,12 @@ mod tests {
     use super::*;
 
     fn db() -> Connection {
+        // The commodity catalogue lives in the attached galaxy database
+        // and the hold read joins it for display names, so a test store
+        // needs it attached exactly as a real one does.
         let conn = Connection::open_in_memory().unwrap();
         crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
         conn
     }
 
@@ -590,6 +636,36 @@ mod tests {
         ev(&conn, 4, &STATS.replace("22:22:00Z", "22:00:00Z").replace("\"FuelLevel\":500", "\"FuelLevel\":999"));
         let c = one(&conn);
         assert_eq!(c.tank_tritium_t.unwrap().value, 484, "the 23:06 deposit is newer than a 22:00 stats row wherever it sits in the file");
+    }
+
+    /// The panel printed raw symbols in a run-on sentence — "24,773 t
+    /// liquidoxygen, 12,753 t cmmcomposite, …" across 48 entries
+    /// (maintainer, 2026-09-16: "not displaying names properly"). Each
+    /// line now carries a display name: the market catalogue's where we
+    /// have one, a tidied symbol where we do not, and never a blank.
+    #[test]
+    fn hold_lines_carry_a_display_name() {
+        let conn = db();
+        conn.execute_batch(
+            "INSERT INTO galaxy.sys_commodities (symbol, name, category)
+             VALUES ('CMMComposite', 'CMM Composite', 'Industrial Materials');",
+        )
+        .unwrap();
+        ev(&conn, 1, r#"{"timestamp":"2026-01-15T22:00:00Z","event":"CarrierBuy","CarrierID":3700000001,"Callsign":"X1X-11X","BoughtAtMarket":0,"Location":"Sol","SystemAddress":10477373803,"Price":5000000000,"Variant":"Drake"}"#);
+        ev(&conn, 2, r#"{"timestamp":"2026-01-15T23:10:00Z","event":"CargoTransfer","Transfers":[{"Type":"cmmcomposite","Count":12753,"Direction":"tocarrier"},{"Type":"liquidoxygen","Count":24773,"Direction":"tocarrier"}]}"#);
+        rebuild(&conn).unwrap();
+        let c = status(&conn, "2026-01-16T00:00:00Z").unwrap();
+        let by_name: Vec<(&str, &str)> =
+            c[0].hold_moved.iter().map(|h| (h.commodity.as_str(), h.name.as_str())).collect();
+        assert!(
+            by_name.contains(&("cmmcomposite", "CMM Composite")),
+            "the catalogue's name, which no amount of string tidying could produce: {by_name:?}"
+        );
+        assert!(
+            by_name.contains(&("liquidoxygen", "Liquidoxygen")),
+            "unknown to the catalogue, so tidied rather than shouted: {by_name:?}"
+        );
+        assert!(c[0].hold_moved.iter().all(|h| !h.name.is_empty()), "never blank");
     }
 
     #[test]
