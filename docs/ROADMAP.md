@@ -155,6 +155,56 @@ verdicts live in the CSV headers under `docs/benches/`.
   dated file, and the obvious "fix" is to match them the way
   EDMarketConnector does. When we bring up a new game version, add
   support in dev builds behind its own switch.
+- **Mission stacking: the mechanic, and three things that do not model
+  it** (2026-09-16, maintainer). Domain knowledge first, because it is
+  not derivable from the journal and it governs everything below.
+  Kill credit is CONCURRENT across missions from DIFFERENT source
+  factions that share one target faction — a single kill advances all of
+  them — and CONSECUTIVE between missions from the SAME source faction,
+  which queue. The maintainer: "ideally I accept as many as I can
+  against the same target from multiple factions so I get simultaneous
+  credit. If I accept multiple missions from the same faction against
+  the same target, progress is consecutive and not concurrent." So the
+  stack worth flying is many givers, one target, and the unit of
+  estimation is the pair (source faction, target faction): within one
+  source faction remainders ADD, across source factions they take the
+  MAXIMUM.
+  **Modelling this is explicitly NOT wanted** (maintainer, 2026-09-16:
+  "I don't think we need strong modeling, the hud and mission tracker is
+  working correctly as far as concurrent tracking"). The rule is written
+  down because it is expensive to re-derive and easy to get backwards,
+  not because anything is waiting on it. Two observations from the same
+  conversation, recorded as behaviour rather than as defects:
+  - `kills_done` is an ESTIMATE, and now a measured one. Replaying the
+    maintainer's journal from 2026-09-09 (262 credited kills, 42
+    missions) against the game's own `MissionRedirected`: 18 were
+    inferred complete EARLIER than the game said, by 20 minutes to 14
+    hours, and every one of those was a same-giver duplicate — the
+    consecutive rule above, showing up as an over-count exactly where
+    predicted. Another 19 redirected without ever being inferred, an
+    under-count of roughly 7% whose cause is not established (in one
+    window the game credited 40 where the journal holds 37 Anana
+    Brotherhood bounty events and nothing else kill-shaped). Exactly one
+    of the 42 matched to the second. So `MissionRedirected` is the only
+    trustworthy completion signal, and the count beside it is an
+    approximation that overshoots on same-giver stacks and undershoots
+    slightly otherwise. This does not disturb what the HUD does: status
+    comes from the redirect, so ordering and completion are right; it is
+    the displayed number that is soft. Recorded as fact, not as work —
+    the maintainer has ruled the tracker correct for his use.
+  - The kill callout (`mission_progress`, watcher.rs) emits for the
+    FIRST matching mission in list order only, and the same replay
+    measured what that costs. Of 18 kills that completed something (23
+    completions, up to 3 on a single kill): the OLD acceptance order
+    said "Mission complete" 88 times, the same already-finished mission
+    repeating across some 80 consecutive kills, and named the mission
+    that actually completed on 2 of 18. The NEW order says it twice,
+    both for the wrong mission, and names the right one 0 times. Loud
+    and wrong became quiet and silent; neither announces a completion.
+    The remaining question for the maintainer is the shape, not the
+    cause: a kill that finishes three missions at once probably wants
+    one callout with a count.
+  Not a plan, and nothing here blocks anything.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
