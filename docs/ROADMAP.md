@@ -111,6 +111,39 @@ verdicts live in the CSV headers under `docs/benches/`.
   shipped carrying RUSTSEC-2026-0285 (rustls 0.23.43) for that reason —
   the advisory landed in the database after the tag, and nothing on the
   release path would have caught it either way.
+- ~~**`redemption_office` returns nothing**~~ (reported 2026-09-13,
+  closed 2026-09-15). Not a bug, and the answer is worth keeping so it
+  is not re-opened. The key was never wrong: `station_services` holds
+  15,875 rows under `voucherredemption`, which is what both the dump
+  parser and the query parameter map to. The split is the whole story
+  and it is absolute — galaxy-wide, all 15,875 are on fleet carriers and
+  ZERO on static stations, against `materialtrader`'s 1,638 which are
+  all static and none carrier. Within 200 ly of Sol there are 10,618,
+  every one a carrier; `/v1/stations` excludes carriers unless asked, so
+  the default query is right to answer nothing, and
+  `include_carriers=true` returns them at once. Confirmed independently
+  from the dump (first 20,000 systems of galaxy_populated: Redemption
+  Office 1,786, all Drake-Class Carrier, 0 static; Material Trader 161,
+  all static). The original report counted a service without its type
+  split, which made a carrier-only service look like one the API was
+  losing.
+- **A service search that finds only carriers should say so**
+  (2026-09-15). Falls out of the above: a commander asking for
+  redemption offices sees an empty list with no hint that every match
+  was a carrier their default filter removed. The same "an empty result
+  that is not empty" shape as the trader panel, one layer over. When a
+  service search returns nothing with carriers excluded, ask again with
+  them included and say "none at a station within N ly; M on fleet
+  carriers". Client-side, second session.
+- **The 43,252 stations with no economy are the dump being honest**
+  (2026-09-15, a reading and not a proof). After the full backfill,
+  799,028 of 842,280 stations carry an economy. The remainder break
+  down as 39,691 with no known station type at all, then Outpost 438,
+  Planetary Outpost 270, Planetary Construction Depot 172,
+  SurfaceStation 115, Settlement 108 and a long tail. Dominated by
+  stations the dump barely describes in any field, which reads as
+  absence at the source rather than a gap in ingest. Recorded with the
+  numbers so it is not re-investigated as a loss.
 - **Ingest unit restart gap** (2026-09-09). First time `edda-eddn.service`
   restarts alone, measure the gap in `edda_eddn_last_apply_unix_seconds`;
   pre-registered under 5 s.
