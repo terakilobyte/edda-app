@@ -7,6 +7,73 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.4
+
+For commanders with years of history: EDDA was rewriting your current
+location and ship from your oldest journals on every launch, and the
+route planner was sizing jumps from a loadout that could be years out of
+date — one 22,000 light-year route dropped from 365 plain jumps to 51
+once it read the right ship. Mission completions are now announced by
+the game rather than guessed, and announced once. Your Ships tab shows
+your carriers instead of every carrier you have ever docked at.
+
+**Your location, from today's journal.** EDDA reads your journal in
+passes, and the bookmark for "where did I get to" compared file names as
+text. The game has used two naming formats since 2022 and they do not
+sort together: a 2026 file compares as older than a 2021 one. So every
+launch after the first replayed a veteran's earliest history on top of
+their current state — the "still in flight, old ship" report. The
+bookmark now runs by the events' own timestamps. An affected install
+re-reads once on the first launch after updating, about two seconds,
+and corrects itself.
+
+0.3.3 said this was fixed. It was not: that release fixed the order
+files are *read* in, which was a real bug, but not the bookmark that
+sent the app back through them. This is the fix.
+
+**The route planner had the wrong ship.** Six reads that meant "your
+current loadout" also went by file name, so on a long journal the
+planner could size every jump from a ship you flew years ago. A
+Caspian-to-Colonia plot came back with 365 plain jumps; with the
+current loadout it is 51. Ships are now derived into a table once and
+every reader asks that, so the planner, the Ships tab and the ship
+computer cannot disagree about what you fly.
+
+**Mission completions, from the game.** The kill callout announced
+completions from its own count of your kills, and it was wrong in both
+directions: on a finished stack it re-announced a completion on every
+later kill — 362 times across two overnight sessions on one commander's
+journal — while the mission that actually finished was named twice out
+of eighteen. Completion now comes from the game's own signal, once per
+pass, with a count when several finish together, and it can be silenced
+separately from the progress line. Progress names the mission nearest to
+done.
+
+**Missions in a useful order.** The HUD showed the three oldest
+missions, which on a stack of twenty meant three already finished while
+the one four kills from done was invisible. Finished missions leave the
+HUD; the rest are ordered by what is still running, then soonest expiry,
+then fewest kills left.
+
+**Your carriers, not everyone's.** Docking at someone's carrier put it
+on your Ships tab. It now lists your own and your squadron's. The "moved
+aboard" list is gone: it summed only the transfers you made yourself,
+for ever, so it could not see your carrier's own market or anyone else's
+transfers and drifted further from the truth the longer the carrier
+traded. Frontier's API can report a carrier's real cargo; until that is
+wired, EDDA shows nothing rather than something that looks current and
+is not.
+
+**Alpha and beta journals are left alone.** A release build reads the
+live game's journals only. An alpha journal comes from a test server and
+can describe a ship or a place that does not exist in the live galaxy.
+
+**Under the hood.** The Powerplay tab's projected profit-per-merit table
+is gone — it estimated what we cannot know. Ship lookups no longer
+rescan every Loadout in the journal, and per-award merit lines dropped
+to trace, which together took about five and a half seconds off each
+launch on a large journal.
+
 ## 0.3.3
 
 A veteran's journal reads correctly again: EDDA no longer shows a 2022
