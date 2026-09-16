@@ -39,9 +39,10 @@ pub struct IngestStats {
     pub snapshots_updated: usize,
 }
 
-/// `Journal.*.log` names in the folder, oldest first. The timestamped names
-/// sort chronologically as plain strings, which is what makes ordering by
-/// `(file, offset)` a chronological replay.
+/// `Journal.*.log` names in the folder, oldest first. NOT a plain string
+/// sort: the game's two name formats do not interleave chronologically
+/// (see `ed_journal::journal_file`), which is why every query that means
+/// "in time order" orders by `ts` and only then by `(file, offset)`.
 pub fn journal_file_names(dir: &Path) -> Result<Vec<String>> {
     let mut names: Vec<String> = std::fs::read_dir(dir)
         .with_context(|| format!("reading journal dir {}", dir.display()))?
@@ -49,7 +50,7 @@ pub fn journal_file_names(dir: &Path) -> Result<Vec<String>> {
         .filter_map(|e| e.file_name().into_string().ok())
         .filter(|n| n.starts_with("Journal.") && n.ends_with(".log"))
         .collect();
-    names.sort();
+    names.sort_by_key(|n| ed_journal::journal_file::sort_key(n));
     Ok(names)
 }
 
@@ -296,6 +297,38 @@ pub fn ingest_all(
 
 #[cfg(test)]
 mod tests {
+
+    /// The game renamed its journals in late 2022: `Journal.YYMMDDHHMMSS.NN.log`
+    /// became `Journal.YYYY-MM-DDTHHMMSS.NN.log`. As plain strings the 2021
+    /// and 2022 files sort AFTER every 2023+ file, so a commander who played
+    /// through the change had their oldest history replayed LAST and read as
+    /// "latest": a 2022 ship, still in flight (tester, 2026-09-15).
+    #[test]
+    fn journal_files_list_chronologically_across_both_name_formats() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [
+            "Journal.2026-09-15T090000.01.log",
+            "Journal.221231235959.01.log",
+            "Journal.2024-01-01T120000.01.log",
+            "Journal.200101000000.01.log",
+            "Journal.210615080000.02.log",
+            "Journal.210615080000.01.log",
+        ] {
+            std::fs::File::create(dir.path().join(name)).unwrap();
+        }
+        let names = journal_file_names(dir.path()).unwrap();
+        assert_eq!(
+            names,
+            vec![
+                "Journal.200101000000.01.log",
+                "Journal.210615080000.01.log",
+                "Journal.210615080000.02.log",
+                "Journal.221231235959.01.log",
+                "Journal.2024-01-01T120000.01.log",
+                "Journal.2026-09-15T090000.01.log",
+            ]
+        );
+    }
     use super::*;
     use std::io::Write;
 

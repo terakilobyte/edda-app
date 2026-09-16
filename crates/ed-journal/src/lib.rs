@@ -4,6 +4,7 @@ pub mod catalog;
 pub mod ships;
 pub mod inventory;
 pub mod journal;
+pub mod journal_file;
 pub mod status;
 
 pub use catalog::{Catalog, Item, Kind};

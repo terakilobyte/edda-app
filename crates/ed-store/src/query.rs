@@ -167,7 +167,7 @@ pub fn nav_target(conn: &Connection) -> Result<Option<NavTarget>> {
     // else; without this the HUD kept showing the old next star.
     let cleared: Option<String> = conn
         .query_row(
-            "SELECT ts FROM events WHERE event = 'NavRouteClear' ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT ts FROM events WHERE event = 'NavRouteClear' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
@@ -207,7 +207,7 @@ pub fn nav_target(conn: &Connection) -> Result<Option<NavTarget>> {
 pub fn latest_fsd_target_name(conn: &Connection) -> Result<Option<String>> {
     let raw: Option<String> = conn
         .query_row(
-            "SELECT raw FROM events WHERE event = 'FSDTarget' ORDER BY file DESC, offset DESC LIMIT 1",
+            "SELECT raw FROM events WHERE event = 'FSDTarget' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
             [],
             |r| r.get(0),
         )

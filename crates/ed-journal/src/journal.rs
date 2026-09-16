@@ -75,8 +75,10 @@ pub fn find_journal_dir(explicit: Option<&Path>) -> Option<PathBuf> {
     candidate_journal_dirs().into_iter().find(|p| p.is_dir())
 }
 
-/// All `Journal.*.log` files in the folder, oldest first (the timestamped
-/// filenames sort chronologically as plain strings).
+/// All `Journal.*.log` files in the folder, oldest first. Not a plain
+/// string sort: the game's two file-name formats do not interleave that
+/// way (`journal_file::sort_key`), and "recent" taken from a plain sort
+/// handed a veteran their 2022 files as the newest.
 pub fn journal_files(journal_dir: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(journal_dir)?
         .filter_map(|e| e.ok())
@@ -87,7 +89,9 @@ pub fn journal_files(journal_dir: &Path) -> std::io::Result<Vec<PathBuf>> {
                 .is_some_and(|n| n.starts_with("Journal.") && n.ends_with(".log"))
         })
         .collect();
-    files.sort();
+    files.sort_by_cached_key(|p| {
+        crate::journal_file::sort_key(p.file_name().and_then(|n| n.to_str()).unwrap_or_default())
+    });
     Ok(files)
 }
 

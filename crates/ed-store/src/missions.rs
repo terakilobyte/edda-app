@@ -90,7 +90,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                          'MissionAbandoned','MissionRedirected','CargoDepot',
                          'Bounty','FactionKillBond')
            AND ts >= ?1
-         ORDER BY file, offset",
+         ORDER BY ts, file, offset",
     )?;
     let rows: Vec<(String, String, String)> = stmt
         .query_map([since], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?

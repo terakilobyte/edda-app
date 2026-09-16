@@ -157,7 +157,7 @@ pub fn capture(conn: &Connection, seen: &mut HashSet<String>) -> usize {
         .collect::<Vec<_>>()
         .join(",");
     let sql = format!(
-        "SELECT event, raw FROM events WHERE event IN ({placeholders}) ORDER BY file, offset"
+        "SELECT event, raw FROM events WHERE event IN ({placeholders}) ORDER BY ts, file, offset"
     );
 
     let mut candidates: Vec<Candidate> = Vec::new();
