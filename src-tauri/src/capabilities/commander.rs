@@ -200,9 +200,16 @@ pub fn ships_list(state: &AppState, req: &ShipsListRequest) -> CapResult<Vec<Shi
         .with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout").ok().flatten())
         .and_then(|r| serde_json::from_str::<Value>(&r).ok())
         .and_then(|v| v.get("ShipID").and_then(Value::as_i64));
+    // Newest first; the loop below keeps the first Loadout it meets per
+    // ShipID. Until 2026-09-16 this was a correlated subquery that
+    // json_extract-ed the ShipID out of every other Loadout for every
+    // Loadout -- O(n²) parses. On a seven-year journal (4,143 Loadouts)
+    // it had not returned after five minutes, and the Ships tab said
+    // "0 in your fleet" the whole time. One ordered scan is ~1 s in
+    // Python on the same store, less here.
     let rows: Vec<String> = state.with_read(|s| -> CapResult<Vec<String>> {
         let mut st = s.conn().prepare(
-            "SELECT raw FROM events WHERE event = 'Loadout' AND ts = (SELECT max(ts) FROM events e2 WHERE e2.event = 'Loadout' AND json_extract(e2.raw, '$.ShipID') = json_extract(events.raw, '$.ShipID')) ORDER BY ts DESC",
+            "SELECT raw FROM events WHERE event = 'Loadout' ORDER BY ts DESC, file DESC, offset DESC",
         )?;
         let rows: Vec<String> = st.query_map([], |r| r.get::<_, String>(0))?.flatten().collect();
         Ok(rows)
