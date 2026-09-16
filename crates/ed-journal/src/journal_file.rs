@@ -23,17 +23,9 @@
 /// `Journal.X.NN.a.log` and relies on the archive sorting BEFORE the
 /// original; the key keeps that (`.a` before `.z`).
 pub fn sort_key(name: &str) -> String {
-    // The alpha and beta clients write JournalAlpha./JournalBeta. — a
-    // commander who took part in an Odyssey alpha has them in the same
-    // folder. Unrecognised names sort after every dated one, so leaving
-    // these out replayed a 2021 alpha as the newest flight: the same
-    // failure the two name formats caused, wearing a different prefix.
-    // EDMarketConnector matches `Journal(Alpha|Beta)?` for this reason.
-    let stem = ["Journal.", "JournalAlpha.", "JournalBeta."]
-        .iter()
-        .find_map(|p| name.strip_prefix(p))
-        .and_then(|s| s.strip_suffix(".log"));
-    let Some(stem) = stem else {
+    // Only the live client's names. JournalAlpha./JournalBeta. are
+    // deliberately NOT recognised here — see `journal_files`.
+    let Some(stem) = name.strip_prefix("Journal.").and_then(|s| s.strip_suffix(".log")) else {
         return format!("~{name}");
     };
     let mut parts = stem.splitn(3, '.');
@@ -145,41 +137,6 @@ mod tests {
                 "Journal.220315152335.01.log",
                 "Journal.2022-03-15T152503.01.log",
                 "Journal.220315210000.01.log",
-            ]
-        );
-    }
-
-    /// The alpha and beta clients write their own prefix, and a
-    /// commander who flew an Odyssey alpha still has those files. They
-    /// were falling into the unknown-name bucket, which sorts after
-    /// every dated file — so a 2021 alpha replayed as the newest
-    /// flight, the same failure the two date formats caused.
-    #[test]
-    fn alpha_and_beta_journals_sort_by_their_date_too() {
-        for name in [
-            "JournalAlpha.210615080000.01.log",
-            "JournalBeta.2021-06-15T080000.01.log",
-        ] {
-            assert!(
-                sort_key(name) < sort_key("Journal.2026-09-15T090000.01.log"),
-                "{name} must not sort after a 2026 flight: {}",
-                sort_key(name)
-            );
-        }
-        let mut names = vec![
-            "Journal.2026-09-15T090000.01.log",
-            "JournalBeta.2021-06-15T080000.01.log",
-            "Journal.220315152335.01.log",
-            "JournalAlpha.210101000000.01.log",
-        ];
-        names.sort_by_key(|n| sort_key(n));
-        assert_eq!(
-            names,
-            vec![
-                "JournalAlpha.210101000000.01.log",
-                "JournalBeta.2021-06-15T080000.01.log",
-                "Journal.220315152335.01.log",
-                "Journal.2026-09-15T090000.01.log",
             ]
         );
     }
