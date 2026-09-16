@@ -19,8 +19,9 @@ your carriers instead of every carrier you have ever docked at.
 
 **Your location, from today's journal.** EDDA reads your journal in
 passes, and the bookmark for "where did I get to" compared file names as
-text. The game has used two naming formats since 2022 and they do not
-sort together: a 2026 file compares as older than a 2021 one. So every
+text. The game has used two naming formats since Odyssey Update 11 in
+March 2022, and they do not sort together: a 2026 file compares as
+older than a 2021 one. So every
 launch after the first replayed a veteran's earliest history on top of
 their current state — the "still in flight, old ship" report. The
 bookmark now runs by the events' own timestamps. An affected install
@@ -69,10 +70,11 @@ live game's journals only. An alpha journal comes from a test server and
 can describe a ship or a place that does not exist in the live galaxy.
 
 **Under the hood.** The Powerplay tab's projected profit-per-merit table
-is gone — it estimated what we cannot know. Ship lookups no longer
-rescan every Loadout in the journal, and per-award merit lines dropped
-to trace, which together took about five and a half seconds off each
-launch on a large journal.
+is gone — it estimated what we cannot know. The Ships tab no longer
+rescans every Loadout in the journal to find each ship's latest: on a
+seven-year journal with 4,143 of them it had not finished after five
+minutes and read "0 in your fleet" the whole time. The per-award merit
+line is out of the log.
 
 ## 0.3.3
 
