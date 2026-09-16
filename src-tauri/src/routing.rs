@@ -1885,6 +1885,8 @@ mod scoop_rate_tests {
                 [loadout.to_string()],
             )
             .unwrap();
+        // Readers go through the derived ships table, not the raw Loadout.
+        ed_store::derive::derive_all(store.conn()).unwrap();
         let (model, _, _, _) = super::ship_fuel_for(store.conn(), None).expect("model from loadout");
         assert!((model.scoop_rate - 0.577).abs() < 1e-4, "5A scoop: {}", model.scoop_rate);
     }
@@ -1906,6 +1908,8 @@ mod scoop_rate_tests {
             "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-09-03T08:00:00Z', 'Loadout', ?1)",
             [loadout.to_string()],
         ).unwrap();
+        // Readers go through the derived ships table, not the raw Loadout.
+        ed_store::derive::derive_all(store.conn()).unwrap();
         let fuel_now = || super::ship_fuel_for(store.conn(), None).expect("model").2;
         assert!((fuel_now() - 32.0).abs() < 1e-4, "no reading anywhere: capacity is all we have");
         store.conn().execute(

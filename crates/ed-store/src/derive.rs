@@ -798,7 +798,10 @@ mod resume_tests {
         .unwrap();
     }
 
-    fn ships(conn: &Connection) -> Vec<(i64, String, Option<String>, String, i64, Option<f64>)> {
+    /// (ship_id, ship, ship_name, loadout_ts, owned, fuel_main)
+    type ShipRow = (i64, String, Option<String>, String, i64, Option<f64>);
+
+    fn ships(conn: &Connection) -> Vec<ShipRow> {
         let mut st = conn
             .prepare("SELECT ship_id, ship, ship_name, loadout_ts, owned, fuel_main FROM ships ORDER BY ship_id")
             .unwrap();
