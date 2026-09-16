@@ -57,8 +57,29 @@ impl LoadoutPhysics {
 pub enum LoadoutError {
     NotJson(String),
     NotALoadout,
-    Missing(&'static str),
+    /// A loadout was found but lacks the numbers the physics needs. Every
+    /// missing one is named, because "no UnladenMass" sent a commander
+    /// hunting for a single field when their whole export lacked three
+    /// (maintainer, 2026-09-15: a Coriolis SLEF paste — Coriolis writes
+    /// only `Ship` and `Modules`; EDSY's export carries the rest).
+    Missing(Vec<&'static str>),
     NoDrive,
+}
+
+/// The three numbers a paste must carry for the physics to be derived,
+/// in the order the message names them.
+pub const REQUIRED: [&str; 3] = ["UnladenMass", "FuelCapacity.Main", "MaxJumpRange"];
+
+/// Which app wrote a SLEF paste, from its header — `"EDSY"`, `"Coriolis"`
+/// — or None for a bare journal `Loadout` or anything without a header.
+pub fn paste_app_name(text: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(text.trim()).ok()?;
+    let header = match &value {
+        Value::Array(items) => items.iter().find_map(|i| i.get("header")),
+        Value::Object(_) => value.get("header"),
+        _ => None,
+    }?;
+    header.get("appName").and_then(Value::as_str).map(|s| s.trim().to_owned()).filter(|s| !s.is_empty())
 }
 
 impl std::fmt::Display for LoadoutError {
@@ -68,7 +89,14 @@ impl std::fmt::Display for LoadoutError {
             LoadoutError::NotALoadout => {
                 write!(f, "not a Loadout: expected a journal Loadout event or a SLEF export ([{{\"header\", \"data\"}}])")
             }
-            LoadoutError::Missing(what) => write!(f, "the Loadout has no {what}"),
+            LoadoutError::Missing(keys) => {
+                let list = match keys.as_slice() {
+                    [] => String::from("the numbers the physics needs"),
+                    [one] => (*one).to_string(),
+                    [head @ .., last] => format!("{} or {last}", head.join(", ")),
+                };
+                write!(f, "the loadout has no {list}")
+            }
             LoadoutError::NoDrive => write!(f, "no frame shift drive in the Loadout's modules"),
         }
     }
@@ -107,13 +135,18 @@ pub fn loadout_from_paste(text: &str) -> Result<Value, LoadoutError> {
 /// desktop's first-hand figure); it can only raise the drive cap.
 pub fn physics_from_loadout(v: &Value, cargo: f32, observed_cap: Option<f32>) -> Result<LoadoutPhysics, LoadoutError> {
     let f = |k: &str| v.get(k).and_then(Value::as_f64).map(|x| x as f32);
-    let unladen = f("UnladenMass").ok_or(LoadoutError::Missing("UnladenMass"))?;
-    let capacity = v
-        .pointer("/FuelCapacity/Main")
-        .and_then(Value::as_f64)
-        .map(|x| x as f32)
-        .ok_or(LoadoutError::Missing("FuelCapacity.Main"))?;
-    let max_range = f("MaxJumpRange").ok_or(LoadoutError::Missing("MaxJumpRange"))?;
+    let unladen = f("UnladenMass");
+    let capacity = v.pointer("/FuelCapacity/Main").and_then(Value::as_f64).map(|x| x as f32);
+    let max_range = f("MaxJumpRange");
+    let missing: Vec<&'static str> = [unladen.is_none(), capacity.is_none(), max_range.is_none()]
+        .iter()
+        .zip(REQUIRED)
+        .filter_map(|(absent, key)| absent.then_some(key))
+        .collect();
+    if !missing.is_empty() {
+        return Err(LoadoutError::Missing(missing));
+    }
+    let (unladen, capacity, max_range) = (unladen.unwrap_or(0.0), capacity.unwrap_or(0.0), max_range.unwrap_or(0.0));
     let ship = v.get("Ship").and_then(Value::as_str).unwrap_or("").trim().to_ascii_lowercase();
     let ship_name = v.get("ShipName").and_then(Value::as_str).map(|s| s.trim().to_owned()).filter(|s| !s.is_empty());
     let modules = v.get("Modules").and_then(Value::as_array);
@@ -188,6 +221,25 @@ mod tests {
 
     /// An EDSY-style SLEF export: a Cutter with an engineered 7A, a
     /// size-5 Guardian booster and a scoop.
+    /// What Coriolis actually exports (2026-09-15, a Caspian Explorer): a
+    /// header naming the app, then `Ship` and `Modules` — no mass, no tank,
+    /// no range. Trimmed to the modules that matter.
+    const CORIOLIS: &str = r#"[{"header":{"appName":"Coriolis","appVersion":"4.0","appURL":"https://coriolis.io/outfit/explorer_nx?code=x"},"data":{"Ship":"Explorer_NX","Modules":[{"Slot":"FrameShiftDrive","Item":"Int_Hyperdrive_Overcharge_Size8_Class5_Overchargebooster_MkII","On":true,"Engineering":{"BlueprintName":"FSD_LongRange","Level":5,"Modifiers":[{"Label":"EngineOptimalMass","Value":7528.04,"OriginalValue":4670}]}},{"Slot":"FuelTank","Item":"Int_FuelTank_Size7_Class3","On":true},{"Slot":"Slot04_Size5","Item":"Int_GuardianFSDBooster_Size5","On":true}]}}]"#;
+
+    /// A Coriolis paste IS a loadout, and the error says everything it lacks
+    /// in one breath — not the first missing field alone.
+    #[test]
+    fn a_coriolis_export_is_a_loadout_missing_all_three_numbers() {
+        let v = loadout_from_paste(CORIOLIS).expect("Ship + Modules is a loadout");
+        assert_eq!(v["Ship"], "Explorer_NX");
+        let err = physics_from_loadout(&v, 0.0, None).unwrap_err();
+        assert_eq!(err, LoadoutError::Missing(vec!["UnladenMass", "FuelCapacity.Main", "MaxJumpRange"]));
+        assert_eq!(err.to_string(), "the loadout has no UnladenMass, FuelCapacity.Main or MaxJumpRange");
+        assert_eq!(paste_app_name(CORIOLIS).as_deref(), Some("Coriolis"));
+        assert_eq!(paste_app_name(SLEF).as_deref(), Some("EDSY"));
+        assert_eq!(paste_app_name(r#"{"event":"Loadout","Ship":"asp","Modules":[]}"#), None, "a bare journal event names no app");
+    }
+
     const SLEF: &str = r#"[{"header":{"appName":"EDSY","appVersion":"4.0"},"data":{"event":"Loadout","Ship":"Cutter","ShipName":"Treasure Goblin","UnladenMass":1163.6,"CargoCapacity":720,"MaxJumpRange":25.83,"FuelCapacity":{"Main":32,"Reserve":1.16},"Modules":[{"Slot":"FrameShiftDrive","Item":"Int_Hyperdrive_Size7_Class5","On":true,"Engineering":{"BlueprintName":"FSD_LongRange","Level":5,"Modifiers":[{"Label":"FSDOptimalMass","Value":2902.4,"OriginalValue":1800},{"Label":"MaxFuelPerJump","Value":12.8,"OriginalValue":12.8}]}},{"Slot":"Slot01_Size6","Item":"Int_GuardianFSDBooster_Size5","On":true},{"Slot":"Slot02_Size6","Item":"Int_FuelScoop_Size6_Class5","On":true}]}}]"#;
 
     #[test]
@@ -222,8 +274,11 @@ mod tests {
         assert_eq!(loadout_from_paste(r#"[{"header":{},"data":{"event":"Shipyard"}}]"#), Err(LoadoutError::NotALoadout));
         let no_drive = serde_json::json!({"event":"Loadout","Ship":"sidewinder","UnladenMass":25.0,"MaxJumpRange":7.5,"FuelCapacity":{"Main":2},"Modules":[]});
         assert_eq!(physics_from_loadout(&no_drive, 0.0, None), Err(LoadoutError::NoDrive));
-        let no_mass = serde_json::json!({"event":"Loadout","Ship":"sidewinder","Modules":[{"Item":"int_hyperdrive_size2_class1"}]});
-        assert_eq!(physics_from_loadout(&no_mass, 0.0, None), Err(LoadoutError::Missing("UnladenMass")));
+        // Only the mass missing: named alone. All three missing: all named.
+        let no_mass = serde_json::json!({"event":"Loadout","Ship":"sidewinder","MaxJumpRange":7.5,"FuelCapacity":{"Main":2},"Modules":[{"Item":"int_hyperdrive_size2_class1"}]});
+        assert_eq!(physics_from_loadout(&no_mass, 0.0, None), Err(LoadoutError::Missing(vec!["UnladenMass"])));
+        let bare = serde_json::json!({"event":"Loadout","Ship":"sidewinder","Modules":[{"Item":"int_hyperdrive_size2_class1"}]});
+        assert_eq!(physics_from_loadout(&bare, 0.0, None), Err(LoadoutError::Missing(vec!["UnladenMass", "FuelCapacity.Main", "MaxJumpRange"])));
     }
 
     /// The Mk II SCO drive takes its own cap and the six-times neutron

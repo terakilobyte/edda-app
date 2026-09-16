@@ -24,16 +24,53 @@ pub struct PhysicsRequest {
 /// At most this many bytes of paste: a SLEF export is a few KB.
 pub const MAX_PASTE_BYTES: usize = 256 * 1024;
 
-pub fn physics(body: &serde_json::Value) -> Result<serde_json::Value, String> {
+/// Why a paste yielded no physics: the message a page shows, the fields
+/// it lacked (so the page can point at the jump-range box when the range
+/// is one of them), and the app that wrote it when the paste said.
+#[derive(Debug, serde::Serialize, PartialEq)]
+pub struct Refused {
+    pub error: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub missing: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+}
+
+impl From<String> for Refused {
+    fn from(error: String) -> Self {
+        Refused { error, missing: Vec::new(), source: None }
+    }
+}
+
+pub fn physics(body: &serde_json::Value) -> Result<serde_json::Value, Refused> {
     let (text, cargo) = match serde_json::from_value::<PhysicsRequest>(body.clone()) {
         Ok(PhysicsRequest { paste: Some(paste), cargo_t }) => (paste, cargo_t),
         _ => (body.to_string(), 0.0),
     };
     if text.len() > MAX_PASTE_BYTES {
-        return Err(format!("paste is {} bytes; at most {MAX_PASTE_BYTES}", text.len()));
+        return Err(format!("paste is {} bytes; at most {MAX_PASTE_BYTES}", text.len()).into());
     }
-    let loadout = ed_galaxy::loadout::loadout_from_paste(&text).map_err(|e| e.to_string())?;
-    let p = ed_galaxy::loadout::physics_from_loadout(&loadout, cargo.max(0.0), None).map_err(|e| e.to_string())?;
+    let source = ed_galaxy::loadout::paste_app_name(&text);
+    let loadout = ed_galaxy::loadout::loadout_from_paste(&text).map_err(|e| Refused::from(e.to_string()))?;
+    let p = ed_galaxy::loadout::physics_from_loadout(&loadout, cargo.max(0.0), None).map_err(|e| match e {
+        ed_galaxy::loadout::LoadoutError::Missing(missing) => {
+            let said = ed_galaxy::loadout::LoadoutError::Missing(missing.clone()).to_string();
+            // Say what to do, not just what is wrong. Coriolis's export is
+            // the case we have seen (2026-09-15): it writes only the ship
+            // and its modules, so this cannot be computed from it.
+            let who = match source.as_deref() {
+                Some(app) if app.eq_ignore_ascii_case("coriolis") => "Coriolis's export leaves these out".to_string(),
+                Some(app) => format!("this {app} export leaves these out"),
+                None => "this paste leaves these out".to_string(),
+            };
+            Refused {
+                error: format!("{said}: {who}. Paste EDSY's export instead (it carries them), or type the jump range and plot without a ship."),
+                missing,
+                source: source.clone(),
+            }
+        }
+        other => Refused::from(other.to_string()),
+    })?;
     let full_tank = p.model.range_at(p.model.capacity);
     let one_jump = p.model.range_at(p.model.max_fuel_per_jump);
     Ok(serde_json::json!({
@@ -62,9 +99,9 @@ pub async fn handler(State(_state): State<AppState>, axum::Json(body): axum::Jso
             counter("ok");
             axum::Json(value).into_response()
         }
-        Err(message) => {
+        Err(refused) => {
             counter("invalid");
-            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": message}))).into_response()
+            (StatusCode::BAD_REQUEST, axum::Json(refused)).into_response()
         }
     }
 }
@@ -89,9 +126,26 @@ mod tests {
         assert_eq!(wrapped["booster_ly"], 10.5);
         assert!(wrapped["full_tank_range_ly"].as_f64().unwrap() < wrapped["one_jump_range_ly"].as_f64().unwrap());
         assert!(direct["summary"].as_str().unwrap().contains("size 7A"));
-        assert!(physics(&serde_json::json!({"paste": "not json"})).unwrap_err().contains("not JSON"));
-        assert!(physics(&serde_json::json!({"event": "Docked"})).unwrap_err().contains("not a Loadout"));
+        assert!(physics(&serde_json::json!({"paste": "not json"})).unwrap_err().error.contains("not JSON"));
+        assert!(physics(&serde_json::json!({"event": "Docked"})).unwrap_err().error.contains("not a Loadout"));
+    }
+
+    /// The report (2026-09-15): "the website isn't parsing this output from
+    /// coriolis". It parses fine; Coriolis writes no mass, tank or range.
+    /// The refusal names all three, names Coriolis, and says what to do.
+    #[test]
+    fn a_coriolis_paste_is_refused_with_every_missing_field_and_a_way_out() {
+        const CORIOLIS: &str = r#"[{"header":{"appName":"Coriolis","appVersion":"4.0"},"data":{"Ship":"Explorer_NX","Modules":[{"Slot":"FrameShiftDrive","Item":"Int_Hyperdrive_Overcharge_Size8_Class5_Overchargebooster_MkII","On":true},{"Slot":"FuelTank","Item":"Int_FuelTank_Size7_Class3","On":true}]}}]"#;
+        let refused = physics(&serde_json::json!({"paste": CORIOLIS})).unwrap_err();
+        assert_eq!(refused.missing, vec!["UnladenMass", "FuelCapacity.Main", "MaxJumpRange"]);
+        assert_eq!(refused.source.as_deref(), Some("Coriolis"));
+        assert!(refused.error.contains("Coriolis's export leaves these out"), "{}", refused.error);
+        assert!(refused.error.contains("type the jump range"), "{}", refused.error);
+        // On the wire: the page reads `missing` to point at the range box.
+        let wire = serde_json::to_value(&refused).unwrap();
+        assert_eq!(wire["missing"][2], "MaxJumpRange");
+        assert_eq!(wire["source"], "Coriolis");
         let huge = serde_json::json!({"paste": "x".repeat(MAX_PASTE_BYTES + 1)});
-        assert!(physics(&huge).unwrap_err().contains("at most"));
+        assert!(physics(&huge).unwrap_err().error.contains("at most"));
     }
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>EDDA · Route planner</title>
-<meta name="description" content="Plot a galaxy-spanning Elite Dangerous route in your browser: paste your ship from EDSY or Coriolis, pick origin and destination, get the jumps and the map. No install.">
+<meta name="description" content="Plot a galaxy-spanning Elite Dangerous route in your browser: paste your ship from EDSY, or give a jump range, pick origin and destination, get the jumps and the map. No install.">
 <link rel="icon" href="../assets/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -91,7 +91,7 @@
     <h1 id="plan">Route planner</h1>
     <p class="sub">The desktop app's router, in a tab. Paste your ship, name two systems, plot.</p>
 
-    <label for="paste">Ship — paste an SLEF export from <a href="https://edsy.org" rel="noopener">EDSY</a> or <a href="https://coriolis.io" rel="noopener">Coriolis</a> (or a journal Loadout event)</label>
+    <label for="paste">Ship — paste an SLEF export from <a href="https://edsy.org" rel="noopener">EDSY</a> or a journal Loadout event. <a href="https://coriolis.io" rel="noopener">Coriolis</a>'s export leaves out the mass, tank and range, so for a Coriolis build type its jump range below instead.</label>
     <textarea id="paste" spellcheck="false" placeholder='[{"header": {...}, "data": {"event": "Loadout", ...}}]'></textarea>
     <div class="ship" id="ship">No ship yet. Without one the plot uses a plain jump range.</div>
 
@@ -165,7 +165,18 @@ async function derive() {
     const cargo = parseFloat($("cargo").value) || 0;
     const r = await fetch(API + "/v1/loadout/physics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paste: text, cargo_t: cargo }) });
     const v = await r.json();
-    if (!r.ok) { physics = null; $("ship").innerHTML = "<b>Not a loadout:</b> " + esc(v.error || r.status); return; }
+    if (!r.ok) {
+      physics = null;
+      // A loadout that lacks its numbers is not "not a loadout": Coriolis's
+      // export has the ship and modules and nothing else (2026-09-15). Say
+      // so, and if the range is one of the missing numbers, hand the
+      // commander the box that takes it.
+      const missing = Array.isArray(v.missing) ? v.missing : [];
+      const label = missing.length ? "Can't derive the physics" : "Not a loadout";
+      $("ship").innerHTML = "<b>" + label + ":</b> " + esc(v.error || r.status);
+      if (missing.includes("MaxJumpRange")) { $("range").focus(); $("range").placeholder = "jump range from " + (v.source ? esc(v.source) : "your build"); }
+      return;
+    }
     physics = v;
     const name = v.ship_name ? esc(v.ship_name) + " · " : "";
     $("ship").innerHTML = "<b>" + name + esc(v.ship) + "</b>\n" + esc(v.summary) + "\nfull tank " + v.full_tank_range_ly.toFixed(2) + " ly · one jump's fuel " + v.one_jump_range_ly.toFixed(2) + " ly" + (cargo ? " · with " + cargo + " t aboard" : "");
