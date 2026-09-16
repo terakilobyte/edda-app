@@ -2124,6 +2124,21 @@ pub async fn missions(
         .map_err(err)
 }
 
+/// Stacking mode's board view: every giver already holding a massacre
+/// against the target, listed until turn-in (maintainer, 2026-09-16).
+#[tauri::command]
+pub async fn mission_stack(
+    state: State<'_, AppState>,
+) -> Result<Option<ed_store::missions::Stack>, String> {
+    let now = now_iso();
+    state
+        .with_read(|s| {
+            ed_store::missions::active(s.conn(), &now)
+                .map(|live| ed_store::missions::stacking_givers(&live))
+        })
+        .map_err(err)
+}
+
 // ── Ship computer configuration ──────────────────────────────────────
 
 #[derive(Debug, Serialize)]

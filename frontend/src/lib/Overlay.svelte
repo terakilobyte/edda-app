@@ -13,8 +13,10 @@
     onOverlayInteractive,
     setOverlayInteractive,
     missions,
+    missionStack,
     currentRoute,
   } from "./api.js";
+  import { giverLabel, giverTitle, stackSummary } from "./stacking.js";
   import { fmtInt } from "./format.js";
   import { prioClass, fuelPct, fuelLabel } from "./ui.js";
   import { KEYS, persisted } from "./storage.svelte.js";
@@ -29,6 +31,13 @@
   let callouts = $state([]);
   let interactive = $state(false);
   let activeMissions = $state([]);
+  // Stacking mode (maintainer, 2026-09-16): the Missions tab's checkbox,
+  // storage as the bus like the HUD sliders. On, the missions line lists
+  // every giver already holding a massacre against the target -- all of
+  // them, because a giver hidden behind "+9" is how a duplicate gets
+  // accepted, and same-giver missions progress one after another.
+  const stackingMode = persisted(KEYS.stackingMode, false, { sync: true });
+  let stack = $state(null);
   let route = $state(null);
   // Item 39: game-route fuel marks — the burn model's "you need fuel by
   // here, and here has it". Icons come from these, never from mere
@@ -58,6 +67,7 @@
   journalResource(async () => {
     status = await getStatus();
     activeMissions = await missions(true);
+    stack = await missionStack();
     const rv = await currentRoute();
     route = rv.route;
     fuelMarks = rv.fuel_marks ?? [];
@@ -85,7 +95,7 @@
     listeners.add(onOverlayInteractive((e) => { interactive = !!e.payload; }));
     pruneTimer = setInterval(prune, 5000);
   });
-  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); stopFollow(); stopTradeFollow(); });
+  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); stackingMode.dispose(); stopFollow(); stopTradeFollow(); });
 
   function startDrag(e) {
     if (!interactive) return;
@@ -209,7 +219,18 @@
     </div>
   {/if}
 
-  {#if activeMissions.length}
+  {#if stackingMode.value && stack}
+    <div class="line missions">
+      <span class="lbl">Stack</span>
+      <span class="pill accent">{stack.target_faction}</span>
+      <span class="muted small">{stackSummary(stack)}</span>
+    </div>
+    <div class="line givers">
+      {#each stack.givers as g (g.faction)}
+        <span class="giver {g.duplicate ? 'dup' : ''} {g.ready === g.missions ? 'done' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
+      {/each}
+    </div>
+  {:else if activeMissions.length}
     <div class="line missions">
       <span class="lbl">Missions</span>
       {#each activeMissions.slice(0, 3) as m}
@@ -322,5 +343,10 @@
   .route.follow .hop.now { outline: 1px solid var(--accent, #f07b05); border-radius: 3px; padding: 0 0.2rem; }
   .route.follow .hop.cyan { color: #7ec8ff; }
   .callouts li.you { color: #57c66d; }
+  /* Stacking mode: a board of giver names, wrapped, never truncated. */
+  .givers { gap: 0.25rem 0.35rem; }
+  .giver { padding: 0.02rem 0.4rem; border: 1px solid #ffffff22; border-radius: 4px; font-size: 0.74rem; white-space: nowrap; }
+  .giver.dup { border-color: #ffb300aa; color: var(--warn); }
+  .giver.done { opacity: 0.6; }
   .callouts li.you.live { font-style: italic; opacity: 0.85; }
 </style>

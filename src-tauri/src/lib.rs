@@ -526,6 +526,7 @@ pub fn run() {
             commands::db_stats,
             commands::vacuum,
             commands::missions,
+            commands::mission_stack,
             commands::voice_models,
             commands::voice_use_windows,
             commands::voice_catalog,
