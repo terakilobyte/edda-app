@@ -5,6 +5,7 @@
   import { onDestroy, onMount } from "svelte";
   import { fmtInt, fmtLs, fmtLy, fmtTs } from "./format.js";
   import { mergeSystem } from "./galaxyMerge.js";
+  import { emptyServiceHint } from "./serviceHint.js";
   import { KEYS, persisted } from "./storage.svelte.js";
   import Autocomplete from "./Autocomplete.svelte";
   import GalaxyView from "./GalaxyView.svelte";
@@ -26,6 +27,8 @@
   let market = $state(null);
   let marketFor = $state(null);
   let error = $state("");
+  // What an empty services search means, in words (see serviceHint.js).
+  let notice = $state("");
   let loading = $state(false);
   const reducedMotion = (() => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } })();
   const suspendAnimations = persisted(KEYS.galaxySuspendAnimations, reducedMotion);
@@ -77,6 +80,7 @@
     if (!name && mode !== "service") return;
     loading = true;
     error = "";
+    notice = "";
     market = null;
     try {
       if (mode === "system") {
@@ -97,6 +101,17 @@
         results = await nearestService(name, service, minPad || null, Number(radius), carriers);
         system = null;
         stations = [];
+        if (results.length === 0) {
+          // An empty list is not always empty: some services exist only on
+          // fleet carriers, which the default search leaves out. Ask once
+          // more with them in, and say what that found.
+          const label = (services.find((s) => s.key === service)?.label ?? service).toLowerCase();
+          let onCarriers = 0;
+          if (!carriers) {
+            try { onCarriers = (await nearestService(name, service, minPad || null, Number(radius), true)).length; } catch { onCarriers = 0; }
+          }
+          notice = emptyServiceHint({ label, radius, carriersIncluded: carriers, onCarriers });
+        }
       }
     } catch (e) {
       error = String(e);
@@ -167,6 +182,7 @@
   {/if}
 
   {#if error}<p class="error">{error}</p>{/if}
+  {#if notice}<p class="muted">{notice}</p>{/if}
 
   {#if system}
     <div class="sysbox">
