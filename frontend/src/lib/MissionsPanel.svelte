@@ -1,13 +1,22 @@
 <script>
   // Missions from the journal, including game-reported cargo-depot progress.
-  import { missions } from "./api.js";
+  import { onDestroy } from "svelte";
+  import { missions, missionStack } from "./api.js";
   import { fmtCr, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
+  import { KEYS, persisted } from "./storage.svelte.js";
+  import { giverLabel, giverTitle, stackSummary } from "./stacking.js";
 
   let list = $state([]);
   let showAll = $state(false);
+  // Stacking mode (maintainer, 2026-09-16): the HUD lists every giver
+  // already holding a massacre against the target. Storage is the bus to
+  // the HUD window; the board is shown here too, where the box is ticked.
+  const stackingMode = persisted(KEYS.stackingMode, false, { sync: true });
+  let stack = $state(null);
+  onDestroy(() => stackingMode.dispose());
 
-  const res = journalResource(async () => { list = await missions(!showAll); });
+  const res = journalResource(async () => { list = await missions(!showAll); stack = await missionStack(); });
   const refresh = res.refresh;
   const error = $derived(res.error);
 
@@ -26,6 +35,7 @@
 
 <section class="panel">
   <h2>Missions <span class="sub">from the journal · delivery progress direct from the game</span>
+    <label class="tog" title="On the HUD, list every faction you already hold a massacre from against this target, so you never accept a second from the same giver: those progress one after another, not together."><input type="checkbox" checked={stackingMode.value} onchange={(e) => (stackingMode.value = e.currentTarget.checked)} /> stacking mode</label>
     <label class="tog"><input type="checkbox" bind:checked={showAll} onchange={refresh} /> history</label>
   </h2>
   {#if error}<p class="error">{error}</p>{/if}
@@ -35,6 +45,20 @@
       <div class="stat"><div class="label">In play</div><div class="value">{list.length}</div></div>
       <div class="stat"><div class="label">Ready to turn in</div><div class="value ok">{list.filter((m) => m.status === "ready_to_turn_in").length}</div></div>
       <div class="stat"><div class="label">Rewards pending</div><div class="value">{fmtCr(rewardTotal)}</div></div>
+    </div>
+  {/if}
+
+  {#if stackingMode.value}
+    <div class="board">
+      {#if stack}
+        <span class="pill accent">{stack.target_faction}</span>
+        <span class="muted small">{stackSummary(stack)}</span>
+        {#each stack.givers as g (g.faction)}
+          <span class="pill {g.duplicate ? 'warn' : g.ready === g.missions ? 'ok' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
+        {/each}
+      {:else}
+        <span class="muted small">No massacre missions in play — the board fills as you accept them.</span>
+      {/if}
     </div>
   {/if}
 
@@ -80,5 +104,6 @@
 </section>
 
 <style>
+  .board { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.4rem; margin-bottom: 0.7rem; }
   .tog { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); display: inline-flex; gap: 0.3rem; align-items: center; }
 </style>
