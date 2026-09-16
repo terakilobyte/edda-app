@@ -18,6 +18,8 @@
 //! comes first.
 
 use anyhow::Result;
+use std::collections::BTreeMap;
+
 use rusqlite::Connection;
 use serde::Serialize;
 use serde_json::Value;
@@ -297,6 +299,86 @@ fn status_rank(status: &MissionStatus) -> u8 {
 
 /// Kills still owed on a massacre, or None when the mission has no kill
 /// target at all.
+/// One mission giver in stacking mode: a faction the commander already
+/// holds a massacre from against the chosen target.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StackGiver {
+    pub faction: String,
+    /// How many live missions this giver has against the target.
+    pub missions: usize,
+    /// How many of those are waiting to be handed in.
+    pub ready: usize,
+    /// Two or more against the SAME target: the game queues those, so
+    /// the second one is not earning while the first is unfinished.
+    pub duplicate: bool,
+}
+
+/// The board view for stacking mode.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct Stack {
+    pub target_faction: String,
+    pub givers: Vec<StackGiver>,
+    /// Live massacres against some OTHER target, so the display can say
+    /// they exist rather than silently omit them.
+    pub other_targets: usize,
+}
+
+/// Every giver the commander already holds a massacre from against one
+/// target, for reading at a mission board.
+///
+/// Kill credit is concurrent across DIFFERENT givers sharing a target
+/// and consecutive within one giver (maintainer, 2026-09-16), so the
+/// stack worth flying is many givers and one target, and a second
+/// mission from a giver you already hold is not earning. That is what
+/// `duplicate` marks. A giver stays listed until TURN-IN, not until the
+/// objective is met: `active()` drops Completed, and both Active and
+/// ReadyToTurnIn keep the giver's board spent.
+///
+/// The list must be COMPLETE. Truncating it is how a commander accepts
+/// the duplicate it exists to prevent, which is why the caller renders
+/// all of them however long the names are.
+///
+/// Alphabetical by faction, because this is read by scanning for a name
+/// at a board, not by urgency. `None` when no massacre is live.
+pub fn stacking_givers(live: &[Mission]) -> Option<Stack> {
+    let massacres: Vec<&Mission> = live
+        .iter()
+        .filter(|m| m.kill_count.is_some() && m.target_faction.is_some())
+        .collect();
+    if massacres.is_empty() {
+        return None;
+    }
+
+    // The target the commander is actually stacking: the one with the
+    // most live missions. Ties break alphabetically so the choice is
+    // stable rather than dependent on row order.
+    let mut per_target: BTreeMap<&str, usize> = BTreeMap::new();
+    for m in &massacres {
+        *per_target.entry(m.target_faction.as_deref().unwrap_or_default()).or_default() += 1;
+    }
+    let target = per_target.iter().max_by_key(|(name, n)| (**n, std::cmp::Reverse(**name)))?.0.to_string();
+
+    let mut by_giver: BTreeMap<String, (String, usize, usize)> = BTreeMap::new();
+    for m in massacres.iter().filter(|m| m.target_faction.as_deref() == Some(target.as_str())) {
+        let entry = by_giver
+            .entry(m.faction.to_lowercase())
+            .or_insert_with(|| (m.faction.clone(), 0, 0));
+        entry.1 += 1;
+        if m.status == MissionStatus::ReadyToTurnIn {
+            entry.2 += 1;
+        }
+    }
+    let givers: Vec<StackGiver> = by_giver
+        .into_values()
+        .map(|(faction, missions, ready)| StackGiver { faction, missions, ready, duplicate: missions > 1 })
+        .collect();
+    let other_targets = massacres
+        .iter()
+        .filter(|m| m.target_faction.as_deref() != Some(target.as_str()))
+        .count();
+    Some(Stack { target_faction: target, givers, other_targets })
+}
+
 pub fn kills_remaining(m: &Mission) -> Option<i64> {
     m.kill_count.map(|k| (k - m.kills_done).max(0))
 }
@@ -384,6 +466,85 @@ mod tests {
     /// A massacre mission as the stack holds it: id, accepted, giver,
     /// target, kills counted, expiry, status. Everything else is the same
     /// across the stack and does not enter the order.
+    /// Stacking mode reads the maintainer's real stack: every giver he
+    /// already holds a massacre from against one target, complete, with
+    /// the wasted duplicates marked.
+    #[test]
+    fn the_stack_lists_every_giver_and_flags_the_duplicates() {
+        let missions = the_stack();
+        let stack = stacking_givers(&missions).expect("a live stack");
+        assert_eq!(stack.target_faction, "Anana Brotherhood");
+        assert_eq!(stack.other_targets, 0, "every mission in the stack shares one target");
+
+        // Complete: the count of givers must equal the distinct factions
+        // in the fixture. Truncation is the defect this exists to stop.
+        let distinct: std::collections::BTreeSet<&str> =
+            missions.iter().map(|m| m.faction.as_str()).collect();
+        assert_eq!(stack.givers.len(), distinct.len(), "every giver is listed: {:?}", stack.givers);
+
+        // Alphabetical, because it is read by scanning for a name.
+        let names: Vec<&str> = stack.givers.iter().map(|g| g.faction.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort_by_key(|n| n.to_lowercase());
+        assert_eq!(names, sorted, "read at a board, so ordered by name");
+
+        // The seven givers he took twice from, each wasting a mission.
+        let flagged: Vec<&str> =
+            stack.givers.iter().filter(|g| g.duplicate).map(|g| g.faction.as_str()).collect();
+        assert_eq!(
+            flagged,
+            vec![
+                "Ahayan Defence Party",
+                "Crimson Armada",
+                "HIP 90112 Jet Central Corp.",
+                "HIP 96854 Empire League",
+                "HR 7169 Union Party",
+                "Labour Union of Ahayan",
+                "United Tagii League",
+            ]
+        );
+        let jet = stack.givers.iter().find(|g| g.faction.starts_with("HIP 90112")).unwrap();
+        assert_eq!((jet.missions, jet.ready), (2, 1), "one done, one still running");
+        let solo = stack.givers.iter().find(|g| g.faction == "Pilots Trade Network").unwrap();
+        assert_eq!((solo.missions, solo.ready, solo.duplicate), (1, 0, false));
+    }
+
+    /// The same giver against a DIFFERENT target is a second earning
+    /// mission, not a wasted one (maintainer, 2026-09-16: "If it's
+    /// against a different target, it's not a duplicate even if from the
+    /// same faction"). It is counted as another target, never hidden.
+    #[test]
+    fn the_same_giver_against_another_target_is_not_a_duplicate() {
+        let mut missions = the_stack();
+        let mut elsewhere = m(
+            9001,
+            "2026-09-16T17:00:00Z",
+            "Pilots Trade Network",
+            Some(20),
+            0,
+            Some("2026-09-23T17:00:00Z"),
+            MissionStatus::Active,
+        );
+        elsewhere.target_faction = Some("Kulkan Lung Blue Ring".into());
+        missions.push(elsewhere);
+
+        let stack = stacking_givers(&missions).expect("a live stack");
+        assert_eq!(stack.target_faction, "Anana Brotherhood", "the bigger stack wins");
+        assert_eq!(stack.other_targets, 1, "said out loud, not hidden");
+        let ptn = stack.givers.iter().find(|g| g.faction == "Pilots Trade Network").unwrap();
+        assert!(!ptn.duplicate, "a different target is not a duplicate");
+        assert_eq!(ptn.missions, 1, "only this target's missions are counted");
+    }
+
+    /// A courier-only board, or nothing live at all, has no stack.
+    #[test]
+    fn a_stack_needs_a_massacre() {
+        assert!(stacking_givers(&[]).is_none());
+        let mut courier = m(1, "2026-09-16T10:00:00Z", "Someone", None, 0, None, MissionStatus::Active);
+        courier.target_faction = None;
+        assert!(stacking_givers(&[courier]).is_none(), "no kill target, no stack");
+    }
+
     fn m(id: i64, accepted: &str, faction: &str, target: Option<i64>, done: i64, expiry: Option<&str>, status: MissionStatus) -> Mission {
         Mission {
             id,
