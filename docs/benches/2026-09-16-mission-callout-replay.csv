@@ -1,0 +1,29 @@
+# Mission callout replay: the maintainer's journal (2026-09-09 .. 2026-09-16 18:02Z) fed through the real
+# watcher functions one pass at a time (events <= 1 s apart = one pass; timestamps shifted so active()
+# sees every mission as live). Harness: knobs/mission_callout_replay_harness.rs appended to
+# src-tauri/src/watcher.rs, run with EDDA_REPLAY_DB=<edda.sqlite3> cargo test -p edda replay_journal -- --ignored --nocapture.
+# Python cross-check of the same journal: knobs/mission_callout_replay.py.
+# VERDICT: before (main bc69f69) every kill after the stack was finished spoke a completion that had happened
+# hours earlier (362 of 362), no MissionRedirected was ever announced, and the progress line named the mission
+# nearest to done only half the time. After (feat/mission-completion-callout d2a3c3d) those 362 are silent,
+# no kill can claim a completion, all 41 redirects are announced with the giver named, once per pass, and
+# progress names the nearest mission 273 of 273 times. One defect found by the replay: a plural pass whose
+# redirects carry different hand-ins (ids 1066168667 / 1066169080 at 17:33Z) named only the first destination.
+# The "88 repeats" measured earlier belong to the pre-#69 acceptance order and are not reproducible at bc69f69.
+metric,before bc69f69,after d2a3c3d
+passes (gap <= 1 s),1049,1048
+kill events,968,967
+kills credited to a live mission,636,635
+kills after the last Active mission for that faction went ready,362,362
+utterances on those kills,362,0
+completion wording produced by a kill,362,0
+progress lines,274,273
+progress lines naming the mission nearest to done,137,273
+MissionRedirected events,41,41
+redirects announced with the giver named from the store,0,41
+redirects announced with the game's fallback wording,0,0
+repeat announcements of one mission,0,0
+plural passes (several redirects in one pass),0,2
+plural passes naming only the first hand-in when they differed,n/a,1
+callouts by kind: mission,636,273
+callouts by kind: mission_complete,0,38
