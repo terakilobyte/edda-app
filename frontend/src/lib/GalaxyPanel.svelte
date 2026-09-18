@@ -7,6 +7,7 @@
   import { mergeSystem } from "./galaxyMerge.js";
   import { emptyServiceHint } from "./serviceHint.js";
   import { KEYS, persisted } from "./storage.svelte.js";
+  import { requestRoute } from "./route.svelte.js";
   import Autocomplete from "./Autocomplete.svelte";
   import GalaxyView from "./GalaxyView.svelte";
 
@@ -222,7 +223,14 @@
             {@const st = row.station ?? row}
             <tr>
               <td><strong>{st.name}</strong>{#if st.is_carrier}<span class="pill" style="margin-left:0.3rem">carrier</span>{/if}</td>
-              {#if results.length}<td>{st.system_name ?? "—"}</td>{/if}
+              {#if results.length}
+                <td>{st.system_name ?? "—"}{#if st.system_name}
+                  <!-- Same control the Market and Engineering tabs have: the
+                       services results never got it (maintainer, 2026-09-18:
+                       "why can't I click a system name to navigate to it?"). -->
+                  <button class="route-icon" onclick={() => requestRoute(st.system_name)}
+                    title="Plot a route to {st.name}, {st.system_name}" aria-label="Plot a route to {st.name}, {st.system_name}">➤</button>{/if}</td>
+              {/if}
               <td class="small">{st.kind ?? st.class}</td>
               <td class="r num">{fmtLs(st.distance_to_arrival)}</td>
               {#if mode === "service"}<td class="r num">{fmtLy(row.distance_ly)}</td>{/if}
@@ -271,4 +279,6 @@
   .sysname { font-size: 1.2rem; font-weight: 600; color: var(--accent-2); margin-bottom: 0.2rem; }
   h3 { font-size: 0.85rem; margin: 0.8rem 0 0.3rem; color: var(--accent); }
   .tiny { padding: 0.05rem 0.45rem; font-size: 0.72rem; }
+  button.route-icon { appearance: none; border: 0; background: transparent; color: var(--accent); padding: 0 0.2rem; margin-left: 0.2rem; cursor: pointer; font-size: 0.9rem; line-height: 1; }
+  button.route-icon:hover { color: var(--accent-2); filter: none; transform: translateX(1px); }
 </style>
