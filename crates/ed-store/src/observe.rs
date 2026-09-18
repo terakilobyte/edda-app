@@ -336,9 +336,9 @@ mod tests {
         )
         .unwrap();
 
-        let mut seen = std::collections::HashSet::new();
-        assert_eq!(crate::merit_capture::capture(&conn, &mut seen), 1);
-        assert_eq!(crate::merit_capture::capture(&conn, &mut seen), 0);
+        let mut state = crate::merit_capture::CaptureState::default();
+        assert_eq!(crate::merit_capture::capture(&conn, &mut state), 1);
+        assert_eq!(crate::merit_capture::capture(&conn, &mut state), 0);
     }
 }
 

@@ -150,34 +150,112 @@ fn candidate_from(event: &str, v: &Value, system: Option<String>) -> Option<Cand
 ///
 /// Idempotent: `seen` keys each award by timestamp and amount, so repeated
 /// syncs over a live session never duplicate a row.
-pub fn capture(conn: &Connection, seen: &mut HashSet<String>) -> usize {
+/// What capture carries from one sync to the next.
+///
+/// Until 2026-09-17 every sync re-read and re-parsed every earning
+/// event in the store — no bound, `seen` consulted only after the parse
+/// — and the watcher syncs at least every five seconds. On a seven-year
+/// journal that was 5.1 s of JSON parsing per wake, so the process
+/// finished each pass just as the next was due and pinned a core for
+/// as long as the app ran: the "burning down his CPU" report on 0.3.4.
+/// The bench that measured it is docs/benches/2026-09-16-first-sync-
+/// veteran-journal.csv; it was on the roadmap when the release shipped.
+///
+/// Now the scan resumes from the last earning event it read, by time
+/// then file then offset — the same shape as the derive bookmark fixed
+/// in 0.3.4 — and the candidates it has already parsed are kept, pruned
+/// to the window an award could still reach. The first capture in a
+/// process is still a full scan; the ones after it read only what is new.
+pub struct CaptureState {
+    /// Award keys already written to the observation journal. Sync runs
+    /// on every journal write, so without this one award would be
+    /// recorded dozens of times over a session.
+    pub seen: HashSet<String>,
+    candidates: Vec<Candidate>,
+    /// `(ts, file, offset)` of the last earning event scanned.
+    mark: Option<(String, String, i64)>,
+    /// Earning events read by the most recent capture. On a quiet sync
+    /// this is the number that must be zero.
+    pub last_scanned: usize,
+}
+
+impl CaptureState {
+    pub fn new(seen: HashSet<String>) -> Self {
+        CaptureState { seen, candidates: Vec::new(), mark: None, last_scanned: 0 }
+    }
+}
+
+#[cfg(test)]
+impl CaptureState {
+    fn retained(&self) -> usize {
+        self.candidates.len()
+    }
+}
+
+impl Default for CaptureState {
+    fn default() -> Self {
+        Self::new(HashSet::new())
+    }
+}
+
+pub fn capture(conn: &Connection, state: &mut CaptureState) -> usize {
     let placeholders = EARNING_EVENTS
         .iter()
         .map(|_| "?")
         .collect::<Vec<_>>()
         .join(",");
+    // Numbered placeholders after the event list: 7 events, then the mark.
+    let n = EARNING_EVENTS.len();
+    let range = match state.mark {
+        Some(_) => format!(
+            " AND (ts > ?{t} OR (ts = ?{t} AND (file > ?{f} OR (file = ?{f} AND offset > ?{o}))))",
+            t = n + 1,
+            f = n + 2,
+            o = n + 3
+        ),
+        None => String::new(),
+    };
     let sql = format!(
-        "SELECT event, raw FROM events WHERE event IN ({placeholders}) ORDER BY ts, file, offset"
+        "SELECT event, raw, ts, file, offset FROM events WHERE event IN ({placeholders}){range} \
+         ORDER BY ts, file, offset"
     );
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> =
+        EARNING_EVENTS.iter().map(|e| Box::new(*e) as Box<dyn rusqlite::ToSql>).collect();
+    if let Some((ts, file, offset)) = &state.mark {
+        params.push(Box::new(ts.clone()));
+        params.push(Box::new(file.clone()));
+        params.push(Box::new(*offset));
+    }
 
-    let mut candidates: Vec<Candidate> = Vec::new();
+    state.last_scanned = 0;
     {
         let Ok(mut stmt) = conn.prepare(&sql) else {
             return 0;
         };
-        let rows = stmt.query_map(rusqlite::params_from_iter(EARNING_EVENTS.iter()), |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())), |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, i64>(4)?,
+            ))
         });
         let Ok(rows) = rows else { return 0 };
-        for (event, raw) in rows.flatten() {
+        for (event, raw, ts, file, offset) in rows.flatten() {
+            state.last_scanned += 1;
+            state.mark = Some((ts, file, offset));
             let Ok(v) = serde_json::from_str::<Value>(&raw) else {
                 continue;
             };
             if let Some(c) = candidate_from(&event, &v, None) {
-                candidates.push(c);
+                state.candidates.push(c);
             }
         }
     }
+    tracing::trace!(scanned = state.last_scanned, retained = state.candidates.len(), "merit capture scan");
+    let candidates = &state.candidates;
+    let seen = &mut state.seen;
 
     let awards: Vec<(String, i64, Option<String>)> = {
         let mut stmt = match conn
@@ -262,6 +340,19 @@ pub fn capture(conn: &Connection, seen: &mut HashSet<String>) -> usize {
         recorded += 1;
     }
 
+    // Keep only candidates an award could still reach. Awards arrive in
+    // time order (events are applied by timestamp since 0.3.4), so
+    // anything older than the newest award's window is done with.
+    let newest_award: Option<String> = conn
+        .query_row("SELECT MAX(ts) FROM merit_events", [], |r| r.get(0))
+        .ok()
+        .flatten();
+    if let Some(newest) = newest_award {
+        state.candidates.retain(|c| {
+            crate::query::seconds_between_ts(&c.ts, &newest).is_none_or(|d| d <= WINDOW_SECS)
+        });
+    }
+
     recorded
 }
 
@@ -300,6 +391,89 @@ mod tests {
             c.credits, None,
             "a scan earns a flat award, not a scaled one"
         );
+    }
+
+    fn db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn
+    }
+
+    fn sale(conn: &Connection, offset: i64, ts: &str) {
+        conn.execute(
+            "INSERT INTO events (file,offset,ts,event,raw) VALUES ('J.log',?1,?2,'MarketSell',?3)",
+            rusqlite::params![
+                offset,
+                ts,
+                format!(r#"{{"timestamp":"{ts}","event":"MarketSell","Type":"gold","Count":10,"TotalSale":1000,"AvgPricePaid":0}}"#)
+            ],
+        )
+        .unwrap();
+    }
+
+    fn award(conn: &Connection, offset: i64, ts: &str) {
+        conn.execute(
+            "INSERT INTO merit_events (file,offset,ts,power,merits_gained,total_merits) VALUES ('J.log',?1,?2,'Aisling Duval',7,7)",
+            rusqlite::params![offset, ts],
+        )
+        .unwrap();
+    }
+
+    /// The defect: every sync re-read and re-parsed every earning event in
+    /// the store, so a quiet sync on a seven-year journal cost the whole
+    /// scan again. A second capture over an unchanged store must read
+    /// nothing at all.
+    #[test]
+    fn a_quiet_capture_reads_no_events() {
+        let conn = db();
+        sale(&conn, 0, "2026-08-25T10:00:00Z");
+        award(&conn, 1, "2026-08-25T10:00:01Z");
+        let mut state = CaptureState::default();
+        assert_eq!(capture(&conn, &mut state), 1);
+        assert_eq!(state.last_scanned, 1, "the first capture reads the store");
+        assert_eq!(capture(&conn, &mut state), 0);
+        assert_eq!(state.last_scanned, 0, "nothing changed, so nothing is read");
+    }
+
+    /// Only what arrived after the mark is read, and it is read.
+    #[test]
+    fn a_new_earning_event_after_the_mark_is_read() {
+        let conn = db();
+        sale(&conn, 0, "2026-08-25T10:00:00Z");
+        award(&conn, 1, "2026-08-25T10:00:01Z");
+        let mut state = CaptureState::default();
+        capture(&conn, &mut state);
+        sale(&conn, 2, "2026-08-25T11:00:00Z");
+        award(&conn, 3, "2026-08-25T11:00:01Z");
+        assert_eq!(capture(&conn, &mut state), 1, "the new award is attributed");
+        assert_eq!(state.last_scanned, 1, "one new event, not a rescan of two");
+    }
+
+    /// A sale scanned in one sync must still be there when its award lands
+    /// in the next: the retained tail is consulted, not a fresh scan.
+    #[test]
+    fn a_retained_candidate_serves_an_award_that_arrives_later() {
+        let conn = db();
+        sale(&conn, 0, "2026-08-25T10:00:00Z");
+        let mut state = CaptureState::default();
+        assert_eq!(capture(&conn, &mut state), 0, "no award yet");
+        assert_eq!(state.retained(), 1, "the sale is kept for the award to come");
+        award(&conn, 1, "2026-08-25T10:00:01Z");
+        assert_eq!(capture(&conn, &mut state), 1);
+        assert_eq!(state.last_scanned, 0, "served from the tail; no rescan");
+    }
+
+    /// Candidates an award can no longer reach are let go, so the tail
+    /// does not grow for the life of the process.
+    #[test]
+    fn the_tail_is_pruned_to_the_window() {
+        let conn = db();
+        sale(&conn, 0, "2026-08-25T10:00:00Z");
+        award(&conn, 1, "2026-08-25T10:00:30Z");
+        let mut state = CaptureState::default();
+        capture(&conn, &mut state);
+        assert_eq!(state.retained(), 0, "30 s before the newest award is outside the 5 s window");
     }
 
     #[test]

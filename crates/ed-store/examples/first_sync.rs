@@ -70,10 +70,17 @@ fn main() -> Result<()> {
     let t = Instant::now();
     let der = ed_store::derive::derive_incremental(conn)?;
     println!("  derive           {} ms ({} events read)", t.elapsed().as_millis(), der.events_read);
+    // Cold, then warm twice: a running app keeps this state across syncs,
+    // so the warm figure is what each wake actually costs.
+    let mut state = ed_store::merit_capture::CaptureState::default();
     let t = Instant::now();
-    let mut seen = std::collections::HashSet::new();
-    let obs = ed_store::merit_capture::capture(conn, &mut seen);
-    println!("  merit_capture    {} ms ({obs} observations)", t.elapsed().as_millis());
+    let obs = ed_store::merit_capture::capture(conn, &mut state);
+    println!("  merit_capture    {} ms cold ({obs} observations, {} events scanned)", t.elapsed().as_millis(), state.last_scanned);
+    for _ in 0..2 {
+        let t = Instant::now();
+        let obs = ed_store::merit_capture::capture(conn, &mut state);
+        println!("  merit_capture    {} ms warm ({obs} new, {} events scanned)", t.elapsed().as_millis(), state.last_scanned);
+    }
 
     println!("\n─ reads after sync ───────────────────────");
     let now = "2026-12-31T00:00:00Z";
