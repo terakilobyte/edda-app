@@ -175,11 +175,35 @@ pub struct MaterialEntry {
 
 /// The laser-mined goods the ring-type hint knows, for the client's
 /// autocomplete; kept in step with `ed_store::mining::ring_type_for`.
-pub const LASER_GOODS: [&str; 15] = [
+pub const LASER_GOODS: [&str; 20] = [
     "Gold", "Silver", "Palladium", "Osmium", "Bertrandite", "Indite", "Gallite",
-    "Praseodymium", "Samarium", "Bauxite", "Cobalt", "Rutile", "Water",
-    "Liquid Oxygen", "Lithium Hydroxide",
+    "Praseodymium", "Samarium", "Thorium", "Bauxite", "Cobalt", "Rutile", "Coltan",
+    "Lepidolite", "Water", "Liquid Oxygen", "Lithium Hydroxide", "Methane Clathrate",
+    "Methanol Monohydrate Crystals",
 ];
+
+/// Goods mined on planet surfaces with the Rhino SRV (the September 2026
+/// mining update), not from rings -- so no hotspot and no ring type can
+/// answer for them, and the page must say so instead of "not mapped"
+/// (maintainer, 2026-09-18: "we're missing the recently added
+/// minerals/metals like uranium from our search on the mining tab").
+/// Origin per the community catalogue that classifies every mineable
+/// commodity as surface / asteroid / both against EDCD's FDevIDs
+/// (Faber38/CMDRHelper, docs/mining-catalog-sources.md); these are the
+/// surface-only ones. EDDA does not chart surface sites yet.
+pub const RHINO_GOODS: [&str; 22] = [
+    "Bastnasite", "Copper", "Deuterium", "Diamond", "Haematite", "Helium", "Helium-3",
+    "Iridium", "Jadeite", "Lithium", "Magnesite", "Moissanite", "Olivine",
+    "Periclase Dunite", "Quartz Pyroxenite", "Ruby", "Sapphire", "Tantalum", "Taaffeite",
+    "Thortveitite", "Titanium", "Uranium",
+];
+
+/// Whether a typed name is one of the Rhino surface goods (case- and
+/// space-blind, like every other match here).
+pub fn rhino_good(text: &str) -> Option<&'static str> {
+    let key = ed_store::mining::material_key(text);
+    RHINO_GOODS.iter().copied().find(|g| ed_store::mining::material_key(g) == key)
+}
 
 /// The stored vocabulary: distinct hotspot materials and surface
 /// materials. A loose index scan (recursive CTE) walks each material
@@ -239,6 +263,7 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
     let vocab = vocabulary(pool).await?;
     let (hotspot_name, surface_name) = resolve_material(&vocab, text);
     let ring_hint = ed_store::mining::ring_type_for(text);
+    let rhino = rhino_good(text);
 
     let hotspots = match hotspot_name {
         Some(material) => hotspots_near(pool, origin, material, radius, limit).await?,
@@ -266,6 +291,10 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
         "known_hotspot": hotspot_name.is_some(),
         "known_surface": surface_name.is_some(),
         "ring_hint": ring_hint.map(|(t, why)| serde_json::json!({"type": t, "why": why})),
+        // A Rhino surface good: the page says how it is mined rather than
+        // "not mapped" (unless the data also knows it as a hotspot or a
+        // surface raw material, which then answer first).
+        "rhino": rhino,
         "data_installed": true,
         "radius_ly": radius,
         "ms": ms,
@@ -469,5 +498,24 @@ mod tests {
         assert_eq!(resolve_material(&vocab, "iron"), (None, Some("Iron")));
         assert_eq!(resolve_material(&vocab, "gold"), (None, None), "laser goods are the ring hint's");
         assert_eq!(ed_store::mining::ring_type_for("gold").map(|(t, _)| t), Some("Metallic"));
+    }
+
+    /// The September 2026 surface goods: not hotspots, not ring goods, and
+    /// not "unmapped" either -- the page needs to know they are Rhino work.
+    #[test]
+    fn surface_goods_are_recognised_and_ring_goods_keep_their_ring() {
+        for typed in ["uranium", "Uranium", "URANIUM", "magnesite", "ruby", "periclase dunite", "PericlaseDunite", "helium-3"] {
+            assert!(rhino_good(typed).is_some(), "{typed} is a Rhino surface good");
+            assert!(ed_store::mining::ring_type_for(typed).is_none(), "{typed} has no ring type");
+        }
+        assert_eq!(rhino_good("platinum"), None, "a hotspot mineral is not a surface-only good");
+        assert_eq!(rhino_good("gold"), None, "a laser good is not a surface-only good");
+        // The ring goods a commander's own prospecting showed the table lacked.
+        assert_eq!(ed_store::mining::ring_type_for("lepidolite").map(|(t, _)| t), Some("Rocky"));
+        assert_eq!(ed_store::mining::ring_type_for("coltan").map(|(t, _)| t), Some("Rocky"));
+        assert_eq!(ed_store::mining::ring_type_for("Methane Clathrate").map(|(t, _)| t), Some("Icy"));
+        // Every laser good the autocomplete offers resolves to a ring type, and every Rhino good to none.
+        for g in LASER_GOODS { assert!(ed_store::mining::ring_type_for(g).is_some(), "{g}"); }
+        for g in RHINO_GOODS { assert!(ed_store::mining::ring_type_for(g).is_none(), "{g}"); }
     }
 }

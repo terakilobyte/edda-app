@@ -485,6 +485,7 @@ async fn mining_materials(State(state): State<AppState>) -> impl IntoResponse {
         Ok(entries) => axum::Json(serde_json::json!({
             "entries": entries,
             "laser": crate::mining::LASER_GOODS,
+            "rhino": crate::mining::RHINO_GOODS,
         }))
         .into_response(),
         Err(error) => {

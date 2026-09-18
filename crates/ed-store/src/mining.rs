@@ -197,15 +197,22 @@ pub fn material_key(name: &str) -> String {
 }
 
 /// Laser-mined goods with no hotspot mechanic, and the ring type that
-/// carries them. Deliberately small and well-known; anything not here
-/// and not in the vocabulary gets the honest "can't map this" copy.
+/// carries them. Well-known and kept small; anything not here, not in
+/// the hotspot vocabulary and not a Rhino surface good gets the honest
+/// "can't map this" copy. Extended 2026-09-18 with the ring goods a
+/// commander's own ProspectedAsteroid events showed the table lacked
+/// (lepidolite, coltan) and the Icy ices; a good that also has a hotspot
+/// (Liquid Oxygen, Hydrogen Peroxide, Uraninite) is answered by the
+/// hotspot search first, so this is its fallback.
 pub fn ring_type_for(name: &str) -> Option<(&'static str, &'static str)> {
     match material_key(name).as_str() {
         "gold" | "silver" | "palladium" | "osmium" | "bertrandite" | "indite" | "gallite"
-        | "praseodymium" | "samarium" => Some(("Metallic", "laser-mined from Metallic rings")),
-        "bauxite" | "cobalt" | "rutile" => Some(("Rocky", "laser-mined from Rocky rings")),
-        "hydrogenperoxide" | "liquidoxygen" | "methanolmonohydratecrystal"
-        | "lithiumhydroxide" | "water" => Some(("Icy", "mined from Icy rings")),
+        | "praseodymium" | "samarium" | "thorium" => Some(("Metallic", "laser-mined from Metallic rings")),
+        "bauxite" | "cobalt" | "rutile" | "coltan" | "lepidolite" | "uraninite" => {
+            Some(("Rocky", "laser-mined from Rocky (and Metal Rich) rings"))
+        }
+        "hydrogenperoxide" | "liquidoxygen" | "methanolmonohydratecrystal" | "methanolmonohydratecrystals"
+        | "methaneclathrate" | "lithiumhydroxide" | "water" => Some(("Icy", "mined from Icy rings")),
         _ => None,
     }
 }
