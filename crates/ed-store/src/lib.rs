@@ -64,7 +64,7 @@ pub struct Store {
     /// Sale keys already written to the observation journal. Sync runs on
     /// every journal write, so without this a single sale would be recorded
     /// dozens of times over a session.
-    observed: std::sync::Mutex<std::collections::HashSet<String>>,
+    observed: std::sync::Mutex<merit_capture::CaptureState>,
 }
 
 /// With more than one writer per file, a lock collision must wait, not
@@ -85,7 +85,7 @@ impl Store {
             conn,
             db_path: Some(db_path.to_path_buf()),
             journal_dir: journal_dir.to_path_buf(),
-            observed: std::sync::Mutex::new(observe::seen_award_keys()),
+            observed: std::sync::Mutex::new(merit_capture::CaptureState::new(observe::seen_award_keys())),
         })
     }
 
@@ -193,8 +193,8 @@ impl Store {
 
         // Capture anything newly measurable while the commander is flying.
         let observed = {
-            let mut seen = self.observed.lock().unwrap_or_else(|e| e.into_inner());
-            merit_capture::capture(&self.conn, &mut seen)
+            let mut state = self.observed.lock().unwrap_or_else(|e| e.into_inner());
+            merit_capture::capture(&self.conn, &mut state)
         };
 
         let elapsed_ms = started.elapsed().as_millis() as u64;

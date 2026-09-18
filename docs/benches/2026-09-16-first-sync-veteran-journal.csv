@@ -37,3 +37,7 @@ store size after prune without VACUUM MB,1047
 VACUUM s,3.7
 store size after VACUUM MB,484
 missions::active ms (2320 missions),91-97
+# 2026-09-17, knob 2 built (#84): capture resumes from the last earning event read. Same store, release build, first_sync
+# example: cold 7,299 ms (3,520 observations, 53,041 events scanned) - unchanged; warm 3 ms then 2 ms, 0 events scanned,
+# against 295-357 ms before with the full 53k-row scan each wake. Per five-second wake: ~300 ms -> ~2 ms. Cold is next.
+no-change sync: merit_capture ms (warm; before #84 / after #84),300 / 2
