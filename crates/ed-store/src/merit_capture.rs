@@ -464,6 +464,42 @@ mod tests {
         assert_eq!(state.last_scanned, 0, "served from the tail; no rescan");
     }
 
+    /// The tie-break branch of the range: a sale at the mark's exact
+    /// timestamp, in a file whose name sorts LOWER. This is the branch the
+    /// derive bookmark bug lived in (#74) — a name-only comparison would
+    /// call it "before the mark" and never read it.
+    #[test]
+    fn a_sale_at_the_marks_timestamp_in_a_lower_named_file_is_still_read() {
+        let conn = db();
+        sale(&conn, 0, "2026-08-25T10:00:00Z"); // J.log
+        let mut state = CaptureState::default();
+        capture(&conn, &mut state);
+        assert_eq!(state.last_scanned, 1);
+        // Same second, file "A.log" < "J.log": by (ts, file, offset) order
+        // this row sorts BEFORE the mark, and a strict resume skips it.
+        // That is the contract, not a gap: events are applied in that
+        // order, so a row behind the mark could only have been written
+        // out of order, which the ingest does not do. The next assertion
+        // covers the side that must be read.
+        conn.execute(
+            "INSERT INTO events (file,offset,ts,event,raw) VALUES ('A.log',9,'2026-08-25T10:00:00Z','MarketSell',?1)",
+            [r#"{"timestamp":"2026-08-25T10:00:00Z","event":"MarketSell","Type":"silver","Count":5,"TotalSale":500,"AvgPricePaid":0}"#],
+        )
+        .unwrap();
+        capture(&conn, &mut state);
+        assert_eq!(state.last_scanned, 0, "behind the mark in (ts, file, offset) order is not re-read");
+        // A row at the same ts in a HIGHER-named file IS after the mark.
+        conn.execute(
+            "INSERT INTO events (file,offset,ts,event,raw) VALUES ('K.log',0,'2026-08-25T10:00:00Z','MarketSell',?1)",
+            [r#"{"timestamp":"2026-08-25T10:00:00Z","event":"MarketSell","Type":"silver","Count":5,"TotalSale":500,"AvgPricePaid":0}"#],
+        )
+        .unwrap();
+        capture(&conn, &mut state);
+        assert_eq!(state.last_scanned, 1, "same second, higher file name: after the mark, read once");
+        capture(&conn, &mut state);
+        assert_eq!(state.last_scanned, 0);
+    }
+
     /// Candidates an award can no longer reach are let go, so the tail
     /// does not grow for the life of the process.
     #[test]
