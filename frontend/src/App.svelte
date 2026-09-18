@@ -7,6 +7,7 @@
   import { useListeners } from "./lib/lifecycle.svelte.js";
   import StatusPanel from "./lib/StatusPanel.svelte";
   import CalloutFeed from "./lib/CalloutFeed.svelte";
+  import TabHost from "./lib/TabHost.svelte";
   import TradePanel from "./lib/TradePanel.svelte";
   import MarketPanel from "./lib/MarketPanel.svelte";
   import MiningPanel from "./lib/MiningPanel.svelte";
@@ -54,6 +55,9 @@
     ["help", "Help"],
   ];
   let tab = $state("trade");
+  // Tabs seen this session stay mounted (hidden, not destroyed) so their
+  // tables, toggles and scroll survive a switch; see TabHost.svelte.
+  let visited = $state(new Set());
   let setupVisible = $state(true);
   const visibleTabs = $derived(tabs.filter(([k]) => k !== "setup" || setupVisible));
   // Other tabs can ask for the Route tab (e.g. "route to this trader").
@@ -107,6 +111,7 @@
     tab = k;
     writeKey(KEYS.tab, k);
   }
+  $effect(() => { if (!visited.has(tab)) visited = new Set([...visited, tab]); });
 
   function finishOnboarding() {
     writeKey(KEYS.onboardingComplete, true); removeKey(KEYS.onboardingStep);
@@ -228,24 +233,29 @@
     </aside>
 
     <section class="center">
-      {#if tab === "setup"}<Onboarding open={pick} finish={finishOnboarding} />
-      {:else if tab === "trade"}<TradePanel />
-      {:else if tab === "market"}<MarketPanel />
-      {:else if tab === "mining"}<MiningPanel />
-      {:else if tab === "combat"}<CombatPanel />
-      {:else if tab === "missions"}<MissionsPanel />
-      {:else if tab === "route"}<RoutePanel />
-      {:else if tab === "galaxy"}<GalaxyPanel />
-      {:else if tab === "powerplay"}<PowerplayPanel />
-      {:else if tab === "engineering"}<EngineeringPanel />
-      {:else if tab === "inventory"}<InventoryPanel />
-      {:else if tab === "ships"}<ShipsPanel />
-      {:else if tab === "voice"}<VoiceSettings />
-      {:else if tab === "settings"}<SystemSettings onSetup={repeatOnboarding} />
-      {:else if tab === "report"}<ReportPanel />
-    {:else if tab === "help"}
-      <HelpPanel open={pick} />
-      {/if}
+      <!-- Setup is a one-off flow and is rebuilt each time; every other
+           tab, once visited, stays mounted and is hidden between visits. -->
+      {#if tab === "setup"}<Onboarding open={pick} finish={finishOnboarding} />{/if}
+      {#each [...visited].filter((k) => k !== "setup") as k (k)}
+        <TabHost active={tab === k}>
+          {#if k === "trade"}<TradePanel />
+          {:else if k === "market"}<MarketPanel />
+          {:else if k === "mining"}<MiningPanel />
+          {:else if k === "combat"}<CombatPanel />
+          {:else if k === "missions"}<MissionsPanel />
+          {:else if k === "route"}<RoutePanel />
+          {:else if k === "galaxy"}<GalaxyPanel />
+          {:else if k === "powerplay"}<PowerplayPanel />
+          {:else if k === "engineering"}<EngineeringPanel />
+          {:else if k === "inventory"}<InventoryPanel />
+          {:else if k === "ships"}<ShipsPanel />
+          {:else if k === "voice"}<VoiceSettings />
+          {:else if k === "settings"}<SystemSettings onSetup={repeatOnboarding} />
+          {:else if k === "report"}<ReportPanel />
+          {:else if k === "help"}<HelpPanel open={pick} />
+          {/if}
+        </TabHost>
+      {/each}
     </section>
 
     <aside class="right">

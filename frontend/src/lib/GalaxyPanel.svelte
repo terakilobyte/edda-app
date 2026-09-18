@@ -8,6 +8,7 @@
   import { emptyServiceHint } from "./serviceHint.js";
   import { KEYS, persisted } from "./storage.svelte.js";
   import { requestRoute } from "./route.svelte.js";
+  import { useTabActive } from "./lifecycle.svelte.js";
   import Autocomplete from "./Autocomplete.svelte";
   import GalaxyView from "./GalaxyView.svelte";
 
@@ -60,8 +61,9 @@
       };
     } catch {}
   }
+  const tabActive = useTabActive();
   $effect(() => {
-    if (mode === "activity") {
+    if (mode === "activity" && tabActive()) {
       pollHeat();
       heatTimer = setInterval(pollHeat, 2000);
     } else {
