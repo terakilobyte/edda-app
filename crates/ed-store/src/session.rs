@@ -106,9 +106,17 @@ impl Watermark {
 /// The watermark a tailer starts at so that history is never replayed as
 /// if it were happening now: the newest event in time.
 pub fn last_event_key(conn: &Connection) -> Result<Option<Watermark>> {
+    // Two steps on purpose. `ORDER BY ts DESC, file DESC, offset DESC
+    // LIMIT 1` cannot be served by idx_events_ts alone -- SQLite plans a
+    // full SCAN with a temp B-tree for the three-column sort -- which on a
+    // seven-year store (986k rows) was 0.45-0.67 s warm and 4.8 s on a
+    // cold page cache, paid at every launch. MAX(ts) is an index seek,
+    // and the tie-break then sorts only the rows sharing that second.
     Ok(conn
         .query_row(
-            "SELECT ts, file, offset FROM events ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
+            "SELECT ts, file, offset FROM events
+             WHERE ts = (SELECT MAX(ts) FROM events)
+             ORDER BY file DESC, offset DESC LIMIT 1",
             [],
             |r| Ok(Watermark { ts: r.get(0)?, file: r.get(1)?, offset: r.get(2)? }),
         )
