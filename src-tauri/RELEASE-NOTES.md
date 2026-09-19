@@ -7,6 +7,81 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.5
+
+Missions now hand in where you took them, kill counts are labelled the
+estimates they are, and a completion is announced once, by the game's
+own signal. Your fleet carrier's real hold, tank and balance come from
+Frontier's API once you link your account. The Mining tab knows where
+to surface-mine the Rhino goods, uranium included. The web planner takes
+a Coriolis JSON export. And two launch-time scans that cost a
+seven-year journal seconds at every start and on every wake are gone.
+
+**Missions: hand in where you took the mission.** The Missions tab's
+"Hand in" column showed the station the game lists as the mission's
+destination, which for a kill mission is a station in the *target*
+system, where the kills happen, not where you turn in. Measured on the
+maintainer's own journal: 74 of 74 massacre missions named a station he
+never docked at. The hand-in is now the station you accepted the
+mission at, and it moves only when the game redirects you. The target
+system is shown under the kill count instead. A tester's report ("EDDA
+keeps saying Yamazaki Port") found this; thank you.
+
+**Kill counts are estimates. Completions come from the game, once.**
+The journal records every kill but never says which missions it counted
+for, so EDDA counts kills of the target faction itself, now only in the
+mission's system. Checked against the game at the instant of 65
+redirects on the maintainer's journal: the game's tally ran ahead of
+ours on 46 of them, by 2 to 23 kills, and nothing in the journal
+explains the gap. So the count is labelled as counted from your kill
+events, and a mission completes on the game's redirect, never on our
+count. That completion was also being spoken twice, once per event and
+once per pass; it is spoken once now. A delivery or courier mission the
+game redirects to a new drop-off is announced as a reroute, not a
+completion.
+
+**Your carrier's real hold, from Frontier.** Settings → Frontier
+account links EDDA to your Frontier account (the standard Frontier
+sign-in, in your browser, back to the app). Once linked, the carrier
+card on the Ships tab shows what Frontier reports: the hold per
+commodity, the tank, the balance, reserved upkeep and open orders, with
+the time it was fetched. It refreshes when the journal shows carrier
+activity and on demand, at most every fifteen minutes otherwise. This
+runs entirely in the app: EDDA's server never sees your token or a byte
+of the data. Without a link the card says so, and no all-time figure
+stands in for the real hold.
+
+**Where to surface-mine.** The September mining update's 22
+Rhino-mined goods, uranium among them, were missing from the Mining
+tab's search because no hotspot or ring answers for them. They are in
+the search now, and a search for one lists bodies with surveyed mining
+locations near you: the count of locations comes from detailed surface
+scans shared on EDDN and from the nightly galaxy data, and the share of
+each good per body class comes from the community's own refinery
+survey, labelled as such. The list fills from scans made since
+2026-09-19 plus the survey, so it grows over the coming weeks.
+
+**The web planner takes Coriolis JSON.** A Coriolis SLEF export carries
+only the ship and its modules, and the planner was quietly plotting on
+a plain jump range when given one. It now accepts Coriolis's JSON export
+(Export → JSON), EDSY's SLEF or EDDA's own SLEF from the Ships tab, and
+refuses to plot on a rejected paste. Checked on a Caspian Explorer
+build: our full-tank range 72.13 ly against Coriolis's 72.14.
+
+**Launch and idle cost.** Two scans measured on a donated seven-year
+journal: the watcher's first read at every launch sorted the whole
+event log (0.67 s warm, 4.8 s on a cold cache) and now seeks the last
+event directly (0 ms); the merit-capture pass re-read every earning
+event on every five-second wake (about 0.3 s each time) and now resumes
+from where it left off (about 2 ms). Both were on the roadmap when
+0.3.4 shipped; the second may be part of what one tester saw as CPU
+use at idle.
+
+**Smaller.** A system in the Galaxy tab's services results plots a
+route, like everywhere else. The Rhino's Large and Mk II Large
+Planetary Vehicle Hangars are named like outfitting. The "What's new"
+sheet closes when you click outside it.
+
 ## 0.3.4
 
 For commanders with years of history: EDDA was rewriting your current
