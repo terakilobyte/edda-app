@@ -41,17 +41,6 @@ once per pass; it is spoken once now. A delivery or courier mission the
 game redirects to a new drop-off is announced as a reroute, not a
 completion.
 
-**Engineers: everyone who can do the job, with how far they go.** The
-Engineering tab listed only the engineers who offer the grade you
-asked for, and it asks for the top grade by default, so an engineer
-who stops one grade short vanished: The Dweller takes pulse lasers to
-grade 4 and was not shown for them. Every engineer who works the
-blueprint is now listed with the grade they reach. The engineer table
-was audited against Inara and the wiki at the same time; two entries
-were wrong and are fixed (Lori Jameson, Life Support to grade 4; Juri
-Ishmaak, wake, kill warrant and manifest scanners to grade 3), and a
-test now holds the data to the audited table.
-
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
 sign-in, in your browser, back to the app). Once linked, the carrier
@@ -89,8 +78,14 @@ from where it left off (about 2 ms). Both were on the roadmap when
 0.3.4 shipped; the second may be part of what one tester saw as CPU
 use at idle.
 
-**Smaller.** A system in the Galaxy tab's services results plots a
-route, like everywhere else. The Rhino's Large and Mk II Large
+**Smaller.** The Engineering tab lists every engineer who works a
+blueprint with the grade they reach, not just those offering the grade
+you asked for (The Dweller takes pulse lasers to grade 4 and was not
+shown for them); the engineer table was audited against Inara and the
+wiki, two entries corrected (Lori Jameson, Life Support to grade 4;
+Juri Ishmaak, the three scanners to grade 3) and a test now holds it. A
+system in the Galaxy tab's services results plots a route, like
+everywhere else. The Rhino's Large and Mk II Large
 Planetary Vehicle Hangars are named like outfitting. The "What's new"
 sheet closes when you click outside it.
 
