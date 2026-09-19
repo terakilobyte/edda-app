@@ -37,7 +37,7 @@ export function planRows(modules, saved = {}) {
 export function sameForAll(rows, row) {
   return rows.map((r) =>
     r.module_type === row.module_type
-      ? { ...r, blueprint: row.blueprint, target_grade: row.target_grade, experimental: row.experimental, include: row.include && (!row.blueprint || r.from_grade < Number(row.target_grade)) }
+      ? { ...r, blueprint: row.blueprint, target_grade: row.target_grade, experimental: row.experimental, include: row.include && hasWork({ ...r, blueprint: row.blueprint, target_grade: row.target_grade, experimental: row.experimental }) }
       : r,
   );
 }
@@ -49,11 +49,19 @@ export function groupCounts(rows) {
   return counts;
 }
 
-/** A row is planned when it is included and asks for something the module does not have. */
+/** The blueprint still has grades to roll (a module at the top grade has none). */
+export function rollsLeft(row) {
+  return Boolean(row.blueprint) && Number(row.target_grade) > row.from_grade;
+}
+
+/** Something to do: grades to roll, or an experimental to apply (a top-grade module can still take one). */
+export function hasWork(row) {
+  return rollsLeft(row) || Boolean(row.experimental);
+}
+
+/** A row is planned when it is included and has work. */
 export function isPlanned(row) {
-  if (!row.include) return false;
-  if (row.blueprint) return Number(row.target_grade) > row.from_grade;
-  return Boolean(row.experimental);
+  return Boolean(row.include) && hasWork(row);
 }
 
 /** What the backend is asked for: the planned rows, shaped as PlanItem. */
@@ -61,7 +69,8 @@ export function planRequest(rows) {
   return rows.filter(isPlanned).map((r) => ({
     slot: r.slot,
     module_type: r.module_type,
-    blueprint: r.blueprint || null,
+    // A top-grade module with only an experimental planned sends no blueprint: nothing to roll.
+    blueprint: rollsLeft(r) ? r.blueprint : null,
     from_grade: r.from_grade,
     target_grade: Number(r.target_grade),
     experimental: r.experimental || null,
@@ -71,7 +80,7 @@ export function planRequest(rows) {
 /** The planned blueprints at their target grade, for the SLEF export. */
 export function proposedFor(rows) {
   return rows
-    .filter((r) => isPlanned(r) && r.blueprint)
+    .filter((r) => isPlanned(r) && rollsLeft(r))
     .map((r) => ({ slot: r.slot, module_type: r.module_type, blueprint: r.blueprint, grade: Number(r.target_grade) }));
 }
 
