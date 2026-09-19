@@ -188,10 +188,33 @@
       <p class="muted small">The community API didn’t answer the hotspot search; your marks are always here. Try again in a moment.</p>
     {:else if report && report.ring_hint}
       <p class="muted small">{report.searched} has no hotspot mechanic — it is {report.ring_hint.why}; the nearest suitable rings are listed below.</p>
+    {:else if report?.rhino && !report?.sites?.length}
+      <p class="muted small">{report.rhino} is mined on planet surfaces with the Rhino SRV, not from rings. No body with mining locations known within {radius} ly yet — the count comes from commanders' DSS scans since 2026-09-19 (via EDDN and the Spansh dump), so it fills in over time. Mark the patches you find and they stay here.</p>
     {:else if report?.rhino}
-      <p class="muted small">{report.rhino} is mined on planet surfaces with the Rhino SRV, not from rings — no hotspot or ring type applies. EDDA does not chart surface mining sites yet; mark the patches you find and they stay here.</p>
+      <p class="muted small">{report.rhino} is mined on planet surfaces with the Rhino SRV. Bodies below have mining locations from DSS scans; the share is the community survey's ({report.survey?.source}, {report.survey?.generated}, {fmtInt(report.survey?.locations_surveyed)} locations): how many of that ground's surveyed locations carried {report.rhino}.</p>
     {:else if report}
       <p class="muted small">“{report.searched}” isn’t a hotspot mineral, a ring good or a Rhino surface good this page knows. Mark the ones you find.</p>
+    {/if}
+
+    {#if report?.sites?.length}
+      <h3 style="margin-top:1.1rem">Surface mining sites <span class="muted small">({report.sites.length})</span></h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>System</th><th>Body</th><th>Ground</th><th class="num">Sites</th><th class="num">Carried {report.rhino}</th><th class="num">Distance</th><th class="num">Arrival</th><th class="num">Gravity</th></tr></thead>
+        <tbody>
+          {#each report.sites as b}
+            <tr>
+              <td>{b.system}</td>
+              <td>{b.body ?? "?"}{#if !b.is_landable}<span class="pill warn" style="margin-left:0.3rem" title="The scan did not mark this body landable">not landable?</span>{/if}</td>
+              <td class="muted">{b.ground ?? (b.sub_type ?? "?")}{#if b.volcanism}<div class="small">{b.volcanism}</div>{/if}</td>
+              <td class="num">{b.mining_locations}</td>
+              <td class="num">{b.share_pct != null ? b.share_pct.toFixed(0) + "%" : "unsurveyed"}</td>
+              <td class="num">{fmtLy(b.distance_ly)}</td>
+              <td class="num">{b.distance_to_arrival != null ? fmtLs(b.distance_to_arrival) : "—"}</td>
+              <td class="num">{b.gravity != null ? b.gravity.toFixed(2) + "g" : "—"}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table></div>
     {/if}
 
     {#if report?.rings?.length}

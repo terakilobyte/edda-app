@@ -328,6 +328,77 @@ async fn mining_search_answers_from_hydrated_bodies() {
     reset_database(&pool).await;
 }
 
+/// A Rhino surface good (maintainer's ruling 2026-09-19: uranium is
+/// surface): the search lists bodies with mining locations in range, each
+/// with the community survey's share for the good, nearest first. A body
+/// whose ground the survey says never carried it is dropped; a body whose
+/// ground the survey has no column for is kept with no share.
+#[tokio::test]
+#[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
+async fn surface_sites_answer_for_a_rhino_good() {
+    use ed_api::mining::{search, MiningSearchRequest};
+
+    let _serial = DATABASE.lock().await;
+    let database_url = std::env::var("EDDA_API_TEST_DATABASE_URL")
+        .expect("EDDA_API_TEST_DATABASE_URL must be set for this ignored test");
+    let config = ServiceConfig {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        database_url,
+        artifact_dir: std::env::temp_dir(),
+        eddn_relay: ed_eddn::EDDN_RELAY.to_owned(),
+        eddn_queue_capacity: 100, ingest_bind: "127.0.0.1:0".parse().unwrap(), eddn_in_serve: true,
+    };
+    let pool = database_pool(&config).await.unwrap();
+    reset_database(&pool).await;
+    sqlx::raw_sql(
+        "INSERT INTO systems (address, name, x, y, z, provenance) VALUES \
+             (30001, 'Deciat', 0, 0, 0, 'test'), (30002, 'Near', 20, 0, 0, 'test'), (30003, 'Far', 400, 0, 0, 'test'); \
+         INSERT INTO bodies (id64, system_address, body_id, name, type, sub_type, is_landable, distance_to_arrival, gravity, volcanism, mining_locations, observed_at, provenance) VALUES \
+             (300101, 30001, 1, 'Deciat 1',  'Planet', 'High metal content body', true,  300,  0.4, NULL,                          5,    now(), 'test'), \
+             (300102, 30001, 2, 'Deciat 2',  'Planet', 'Icy body',                true,  900,  0.2, NULL,                          7,    now(), 'test'), \
+             (300103, 30001, 3, 'Deciat 3',  'Planet', 'Rocky body',              true,  1200, 0.3, 'minor water magma volcanism', 2,    now(), 'test'), \
+             (300104, 30001, 4, 'Deciat 4',  'Planet', 'Metal rich body',         true,  1500, 0.9, NULL,                          NULL, now(), 'test'), \
+             (300201, 30002, 1, 'Near 1',    'Planet', 'Metal rich body',         true,  50,   1.1, 'major rocky magma volcanism', 3,    now(), 'test'), \
+             (300301, 30003, 1, 'Far 1',     'Planet', 'High metal content body', true,  50,   0.5, NULL,                          9,    now(), 'test');",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let req = MiningSearchRequest { text: "uranium".into(), system: Some("Deciat".into()), coords: None, radius_ly: Some(100.0), limit: None };
+    let answer = search(&pool, &req).await.unwrap();
+    assert_eq!(answer["rhino"], "Uranium", "{answer}");
+    assert_eq!(answer["known_hotspot"], false);
+    assert!(answer["survey"]["source"].as_str().unwrap().contains("EDIntel"), "{answer}");
+    let sites = answer["sites"].as_array().unwrap();
+    let listed: Vec<(&str, i64, Option<f64>)> = sites
+        .iter()
+        .map(|s| (s["body"].as_str().unwrap(), s["mining_locations"].as_i64().unwrap(), s["share_pct"].as_f64()))
+        .collect();
+    assert_eq!(
+        listed,
+        vec![
+            ("Deciat 1", 5, Some(38.9)),  // high-metal-content: the survey's 38.9% for uranium
+            ("Deciat 3", 2, None),        // rocky with water magma: the survey has no such column, kept without a share
+            ("Near 1", 3, Some(22.8)),    // metal-rich (magma on a metal body counts under the class): 22.8%
+        ],
+        "{answer}"
+    );
+    // Not listed: the Icy body (surveyed, never carried uranium), the metal-rich
+    // body with no known count (NULL is unknown, not zero), and Far at 400 ly.
+    assert!(sites.iter().all(|s| s["body"] != "Deciat 2" && s["body"] != "Deciat 4" && s["body"] != "Far 1"), "{answer}");
+    assert_eq!(sites[0]["ground"], "high-metal-content");
+    assert_eq!(sites[0]["is_landable"], true);
+    assert_eq!(sites[0]["distance_to_arrival"], 300.0);
+
+    // A hotspot mineral is not a Rhino good: no sites list, no survey.
+    let req = MiningSearchRequest { text: "platinum".into(), system: Some("Deciat".into()), coords: None, radius_ly: Some(100.0), limit: None };
+    let answer = search(&pool, &req).await.unwrap();
+    assert!(answer["rhino"].is_null(), "{answer}");
+    assert_eq!(answer["sites"].as_array().unwrap().len(), 0);
+    reset_database(&pool).await;
+}
+
 async fn reset_database(pool: &PgPool) {
     sqlx::raw_sql(
         "TRUNCATE market, outfitting, shipyard, stations, commodities, modules, ships, \
