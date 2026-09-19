@@ -178,7 +178,7 @@ async fn feed_scans_teach_stars_bodies_and_hotspots() {
         Operation::Body(BodyTeaching {
             id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), kind: Some("Planet".into()),
             sub_type: Some("Rocky body".into()), is_landable: true, distance_to_arrival: Some(1510.0), gravity: Some(0.12), atmosphere: None, volcanism: None,
-            bio_signals: None, geo_signals: None, observed_at: at(3), provenance: "eddn:scan".into(),
+            bio_signals: None, geo_signals: None, mining_locations: None, observed_at: at(3), provenance: "eddn:scan".into(),
             materials: vec![("Iron".into(), 21.3)], rings: vec![RingTeaching { name: "Deciat 6 a A Ring".into(), kind: Some("Metallic".into()), mass: None, inner_radius: None, outer_radius: None }], hotspots: Vec::new(),
         }),
         Operation::RingHotspots(RingHotspots { system_address: address, ring_name: "Deciat 6 a A Ring".into(), signals: vec![("Painite".into(), 2), ("Platinum".into(), 1)], observed_at: at(4) }),
@@ -253,12 +253,20 @@ async fn mining_search_answers_from_hydrated_bodies() {
         r#"{"id64":506,"bodyId":6,"name":"Deciat 6","type":"Planet","subType":"Class II gas giant","distanceToArrival":1500,"updateTime":"2026-08-25 00:00:00+00","rings":[{"name":"Deciat 6 A Ring","type":"Metallic","signals":{"signals":{"Platinum":2,"Painite":1}}}]},"#,
         r#"{"id64":507,"bodyId":7,"name":"Deciat 6 a","type":"Planet","subType":"Rocky body","isLandable":true,"gravity":0.1,"distanceToArrival":1510,"materials":{"Iron":21.3}}]},"#,
         "\n",
-        r#"{"id64":6,"name":"Far","coords":{"x":400,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[],"bodies":[{"id64":600,"bodyId":1,"name":"Far 1","type":"Planet","subType":"Class I gas giant","rings":[{"name":"Far 1 A Ring","type":"Metallic","signals":{"signals":{"Platinum":3}}}]}]}"#,
+        r#"{"id64":6,"name":"Far","coords":{"x":400,"y":0,"z":0},"date":"2026-08-25 00:00:00+00","stations":[],"bodies":[{"id64":600,"bodyId":1,"name":"Far 1","type":"Planet","subType":"Class I gas giant","rings":[{"name":"Far 1 A Ring","type":"Metallic","signals":{"signals":{"Platinum":3}}}]},{"id64":601,"bodyId":2,"name":"Far 2","type":"Planet","subType":"Rocky body","isLandable":true,"signals":{"signals":{"$PlanetaryMiningLocation_Name;":7}}}]}"#,
         "\n]\n",
     );
     let result = hydrate_spansh(&pool, &write_dump("galaxy_1day.json.gz", DUMP)).await.unwrap();
+    // The dump's DSS mining-location count lands in the column the feed
+    // also writes — the backfill path for bodies scanned before today.
+    let mined: Option<i32> = sqlx::query_scalar("SELECT mining_locations FROM bodies WHERE id64 = 601")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(mined, Some(7), "Far 2 carries $PlanetaryMiningLocation_Name; in the dump");
+    assert_eq!(result.parse_errors, 0, "a fixture line the hydrate cannot parse is counted, not raised");
     assert_eq!(result.systems_applied, 2);
-    assert_eq!(result.bodies_applied, 3, "the two giants and the rock; the bare star is the stars table's");
+    assert_eq!(result.bodies_applied, 4, "the two giants and two rocks; the bare star is the stars table's");
     assert_eq!(result.hotspots_applied, 3);
     assert_eq!(result.stars_taught, 1, "the main star still reaches the routing teacher");
 

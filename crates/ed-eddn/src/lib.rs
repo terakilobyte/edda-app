@@ -559,6 +559,7 @@ fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
                             volcanism: message.volcanism.clone().filter(|v| !v.is_empty()),
                             bio_signals: None,
                             geo_signals: None,
+                            mining_locations: None, // a Scan never carries it; SAASignalsFound does
                             observed_at: observed.clone(),
                             provenance: "eddn:scan".into(),
                             materials,

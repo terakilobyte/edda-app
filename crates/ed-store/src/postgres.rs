@@ -864,16 +864,16 @@ pub async fn apply_bodies(
     let written: Vec<(i64,)> = sqlx::query_as(
         "INSERT INTO bodies (id64, system_address, body_id, name, type, sub_type, is_landable, \
                              distance_to_arrival, gravity, atmosphere, volcanism, bio_signals, \
-                             geo_signals, observed_at, provenance) \
+                             geo_signals, observed_at, provenance, mining_locations) \
          SELECT u.id64, u.system_address, u.body_id, u.name, u.type, u.sub_type, u.is_landable, \
                 u.distance_to_arrival, u.gravity, u.atmosphere, u.volcanism, u.bio_signals, \
-                u.geo_signals, to_timestamp(u.observed_epoch), u.provenance \
+                u.geo_signals, to_timestamp(u.observed_epoch), u.provenance, u.mining_locations \
          FROM UNNEST($1::bigint[], $2::bigint[], $3::int[], $4::text[], $5::text[], $6::text[], \
                      $7::bool[], $8::float8[], $9::float8[], $10::text[], $11::text[], \
-                     $12::int[], $13::int[], $14::bigint[], $15::text[]) \
+                     $12::int[], $13::int[], $14::bigint[], $15::text[], $16::int[]) \
               AS u(id64, system_address, body_id, name, type, sub_type, is_landable, \
                    distance_to_arrival, gravity, atmosphere, volcanism, bio_signals, \
-                   geo_signals, observed_epoch, provenance) \
+                   geo_signals, observed_epoch, provenance, mining_locations) \
          ON CONFLICT (id64) DO UPDATE SET \
              system_address = EXCLUDED.system_address, body_id = EXCLUDED.body_id, \
              name = EXCLUDED.name, type = EXCLUDED.type, sub_type = EXCLUDED.sub_type, \
@@ -881,6 +881,7 @@ pub async fn apply_bodies(
              gravity = EXCLUDED.gravity, atmosphere = EXCLUDED.atmosphere, volcanism = EXCLUDED.volcanism, \
              bio_signals = COALESCE(EXCLUDED.bio_signals, bodies.bio_signals), \
              geo_signals = COALESCE(EXCLUDED.geo_signals, bodies.geo_signals), \
+             mining_locations = COALESCE(EXCLUDED.mining_locations, bodies.mining_locations), \
              observed_at = EXCLUDED.observed_at, provenance = EXCLUDED.provenance \
          WHERE bodies.observed_at <= EXCLUDED.observed_at \
          RETURNING id64",
@@ -900,6 +901,7 @@ pub async fn apply_bodies(
     .bind(rows.iter().map(|r| r.geo_signals).collect::<Vec<Option<i32>>>())
     .bind(rows.iter().map(|r| r.observed_at.epoch_seconds).collect::<Vec<i64>>())
     .bind(rows.iter().map(|r| r.provenance.clone()).collect::<Vec<String>>())
+    .bind(rows.iter().map(|r| r.mining_locations).collect::<Vec<Option<i32>>>())
     .fetch_all(&mut **transaction)
     .await?;
     let written: std::collections::HashSet<i64> = written.into_iter().map(|(id,)| id).collect();
