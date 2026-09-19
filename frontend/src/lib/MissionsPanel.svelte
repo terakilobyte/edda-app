@@ -72,7 +72,7 @@
           {#each list as m}
             {@const hl = hoursLeft(m.expiry)}
             <tr>
-              <td><strong>{m.title}</strong>
+              <td><strong>{m.title}</strong>{#if m.wing}<span class="pill wing" title="Wing mission: kills by any wing member count">wing</span>{/if}
                 {#if m.target_faction}<div class="muted small">target: {m.target ?? m.target_faction}{m.target && m.target_faction ? ` (${m.target_faction})` : ""}</div>{/if}
                 {#if m.commodity}<div class="muted small">{m.count ?? ""} {m.commodity}</div>{/if}
               </td>
@@ -105,6 +105,8 @@
 </section>
 
 <style>
+  /* The game's blue wing triangle, as a word. */
+  .pill.wing { margin-left: 0.35rem; color: #7ec8ff; border-color: #7ec8ff66; }
   .board { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.4rem; margin-bottom: 0.7rem; }
   .tog { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); display: inline-flex; gap: 0.3rem; align-items: center; }
 </style>
