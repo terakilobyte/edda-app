@@ -2,11 +2,80 @@
   import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
-  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus } from "./api.js";
+  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { fmtInt, fmtTs, fmtAge } from "./format.js";
   import { requestPlan } from "./engineering.svelte.js";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { KEYS, readKey, writeKey } from "./storage.svelte.js";
+  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned } from "./buildplan.js";
+  import ShoppingReport from "./ShoppingReport.svelte";
+
+  // Plan the whole build at once (maintainer, 2026-09-19: "my type 10 has 9
+  // weapon hardpoints — I'd like to be able to plan out all 9 at once and
+  // get the list"). Rows live per ship in storage; the report is one
+  // material list, one shopping list and the fewest engineers to visit.
+  let planning = $state(false);
+  let rows = $state([]);
+  let bpOptions = $state({});      // module type → [{name, grades}]
+  let planReport = $state(null);
+  let planBusy = $state(false);
+  let planMsg = $state("");
+  let planPicked = $state(new Set());
+  const planKey = (id) => `${KEYS.buildPlan}.${id}`;
+  const counts = $derived(groupCounts(rows));
+  const plannedCount = $derived(rows.filter(isPlanned).length);
+  const blueprintsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length > 0);
+  const experimentalsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length === 0);
+  const gradesFor = (row) => (blueprintsFor(row.module_type).find((b) => b.name === row.blueprint)?.grades ?? [1, 2, 3, 4, 5]).filter((g) => g > row.from_grade);
+
+  async function startPlanning() {
+    if (!selected || !build) return;
+    rows = planRows(build.modules, readKey(planKey(selected.ship_id), {}, { json: true }) ?? {});
+    planReport = null; planMsg = "";
+    const types = [...new Set(rows.map((r) => r.module_type))].filter((t) => !bpOptions[t]);
+    try {
+      const got = await Promise.all(types.map((t) => listBlueprintNames(t)));
+      const next = { ...bpOptions };
+      types.forEach((t, i) => { next[t] = got[i]; });
+      bpOptions = next;
+    } catch (e) { planMsg = String(e); }
+    planning = true;
+  }
+  function savePlan() { if (selected) writeKey(planKey(selected.ship_id), savedFrom(rows), { json: true }); }
+  function update(i, patch) {
+    const r = { ...rows[i], ...patch };
+    if ("blueprint" in patch) {
+      // A fresh pick is meant; the grade list follows the blueprint.
+      r.include = Boolean(r.blueprint) || Boolean(r.experimental);
+      const gs = gradesFor(r);
+      if (!gs.includes(Number(r.target_grade))) r.target_grade = gs[gs.length - 1] ?? 5;
+    }
+    if ("experimental" in patch && r.experimental && !r.blueprint) r.include = true;
+    rows = rows.map((x, j) => (j === i ? r : x));
+    planReport = null;
+    savePlan();
+  }
+  function copyToAll(i) { rows = sameForAll(rows, rows[i]); planReport = null; savePlan(); }
+  function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && (Boolean(r.blueprint) || Boolean(r.experimental)) })); planReport = null; savePlan(); }
+  function togglePlanPick(i) { const s = new Set(planPicked); s.has(i) ? s.delete(i) : s.add(i); planPicked = s; }
+
+  async function runPlan() {
+    if (!selected) return;
+    planBusy = true; planMsg = "";
+    try {
+      planReport = await buildPlanReport({ shipId: selected.ship_id, items: planRequest(rows) });
+      planPicked = new Set((planReport.shopping?.list?.trades ?? []).map((_, i) => i));
+    } catch (e) { planReport = null; planMsg = String(e); } finally { planBusy = false; }
+  }
+  async function copyPlannedBuild() {
+    if (!selected) return;
+    try {
+      const slef = await shipSlef(selected.ship_id, null, proposedFor(rows));
+      await navigator.clipboard.writeText(slef);
+      planMsg = "Planned build copied as SLEF — paste into EDSY or Coriolis (Import).";
+    } catch (e) { planMsg = String(e); }
+  }
 
   let ships = $state([]);
   let selected = $state(null);
@@ -51,7 +120,10 @@
 
   async function pick(s) {
     selected = s; build = null; msg = "";
+    planReport = null; planMsg = "";
     try { build = await shipModules(s.ship_id); } catch (e) { msg = String(e); }
+    // The plan follows the ship: each has its own.
+    if (planning && build) await startPlanning();
   }
 
   async function copyBuild() {
@@ -151,9 +223,10 @@
     <button onclick={copyBuild} disabled={busy}>Copy build (SLEF)</button>
     <button class="quiet" onclick={() => openIn("edsy")}>Open in EDSY</button>
     <button class="quiet" onclick={() => openIn("coriolis")}>Open in Coriolis</button>
+    {#if build}<button class={planning ? "" : "quiet"} onclick={() => (planning ? (planning = false) : startPlanning())} title="Choose a blueprint, grade and experimental for every module and get one material list for the whole build">{planning ? "Done planning" : "Plan build"}</button>{/if}
     {#if msg}<span class="muted small">{msg}</span>{/if}
   </div>
-  {#if build}
+  {#if build && !planning}
     <div class="table-wrap" style="margin-top:0.6rem">
       <table>
         <thead><tr><th>Slot</th><th>Module</th><th>Engineering</th><th class="r">Grade</th><th>Engineer</th><th>Experimental</th><th></th></tr></thead>
@@ -172,6 +245,94 @@
         </tbody>
       </table>
     </div>
+  {/if}
+
+  {#if build && planning}
+    <!-- The whole build: a blueprint, grade and experimental per module.
+         "Same for all N" copies one row onto every module of its type, so
+         nine lasers are planned in one click. Saved per ship. -->
+    <div class="row small" style="margin-top:0.6rem; gap:0.6rem; flex-wrap:wrap">
+      <span class="muted">{plannedCount} of {rows.length} modules planned · fitted engineering continues to the top grade unless you change it</span>
+      <button class="mini" onclick={() => includeAll(true)}>include all chosen</button>
+      <button class="mini" onclick={() => includeAll(false)}>include none</button>
+    </div>
+    <div class="table-wrap" style="margin-top:0.4rem">
+      <table>
+        <thead><tr><th></th><th>Slot</th><th>Module</th><th>Fitted</th><th>Blueprint</th><th>To grade</th><th>Experimental</th><th></th></tr></thead>
+        <tbody>
+          {#each rows as r, i (r.slot)}
+            <tr class={isPlanned(r) ? "eng" : ""}>
+              <td><input type="checkbox" checked={r.include} onchange={(e) => update(i, { include: e.currentTarget.checked })} title="Include this module in the plan" /></td>
+              <td class="small muted">{r.slot_name}</td>
+              <td>{r.item_name}</td>
+              <td class="small muted">{r.from_grade ? `G${r.from_grade}` : "—"}</td>
+              <td>
+                <select value={r.blueprint} onchange={(e) => update(i, { blueprint: e.currentTarget.value })}>
+                  <option value="">none</option>
+                  {#each blueprintsFor(r.module_type) as b}<option value={b.name}>{b.name}</option>{/each}
+                </select>
+              </td>
+              <td>
+                {#if r.blueprint}
+                  <select value={String(r.target_grade)} onchange={(e) => update(i, { target_grade: Number(e.currentTarget.value) })} disabled={gradesFor(r).length === 0}>
+                    {#each gradesFor(r) as g}<option value={String(g)}>G{g}</option>{/each}
+                  </select>
+                  {#if gradesFor(r).length === 0}<span class="muted small">at the top</span>{/if}
+                {:else}<span class="muted">—</span>{/if}
+              </td>
+              <td>
+                <select value={r.experimental} onchange={(e) => update(i, { experimental: e.currentTarget.value })}>
+                  <option value="">none</option>
+                  {#each experimentalsFor(r.module_type) as x}<option value={x.name}>{x.name}</option>{/each}
+                </select>
+              </td>
+              <td>{#if (counts.get(r.module_type) ?? 0) > 1}<button class="mini" onclick={() => copyToAll(i)} title="Give every {r.module_type} on this ship the same plan">same for all {counts.get(r.module_type)}</button>{/if}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:0.6rem">
+      <button onclick={runPlan} disabled={planBusy || plannedCount === 0}>Materials for this build</button>
+      <button class="quiet" onclick={copyPlannedBuild} disabled={plannedCount === 0} title="The build with every planned blueprint at its target grade, for EDSY or Coriolis">Copy planned build (SLEF)</button>
+      {#if planMsg}<span class="muted small">{planMsg}</span>{/if}
+    </div>
+
+    {#if planReport}
+      <h3 style="margin-top:0.8rem">
+        {planReport.items.length} module{planReport.items.length === 1 ? "" : "s"} · {planReport.materials.length} materials
+        <span class={planReport.fully_met ? "ok" : "warn"}>{planReport.fully_met ? "all materials in hand" : `${planReport.materials.filter((l) => l.have < l.need).length} short`}</span>
+        {#if planReport.unassigned.length}<span class="bad">{planReport.unassigned.length} no unlocked engineer can do</span>{/if}
+      </h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Material</th><th class="r">Need</th><th class="r">Have</th><th>Short</th></tr></thead>
+          <tbody>
+            {#each planReport.materials as line}
+              <tr>
+                <td>{line.material}</td>
+                <td class="r num">{line.need}</td>
+                <td class="r num">{line.have}</td>
+                <td class={line.have >= line.need ? "ok" : "warn"}>{line.have >= line.need ? "✓" : `${line.need - line.have} more`}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:0.8rem">Engineers to visit <span class="muted">fewest stops that cover the plan</span></h3>
+      {#each planReport.engineers as stop}
+        <div class="small" style="margin:0.3rem 0"><strong>{stop.engineer}</strong>{stop.rank ? ` · rank ${stop.rank}` : ""}: {stop.jobs.join("; ")}</div>
+      {/each}
+      {#each planReport.unassigned as job}
+        <div class="small bad" style="margin:0.3rem 0">{job}: no unlocked engineer offers this grade.</div>
+      {/each}
+      {#each planReport.items.filter((it) => it.blueprint && !it.reachable) as it}
+        <div class="small muted">{it.slot_name}: {it.max_reachable_grade ? `highest you can apply today is grade ${it.max_reachable_grade}` : "no unlocked engineer works this blueprint"} — {it.engineers.map((e) => `${e.engineer} to G${e.max_grade} (${e.status})`).join(", ")}</div>
+      {/each}
+
+      <ShoppingReport shopping={planReport.shopping} picked={planPicked} onToggle={togglePlanPick} />
+    {/if}
   {/if}
 </section>
 {/if}

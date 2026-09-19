@@ -105,7 +105,7 @@ pub struct Catalog {
     synthesis_provenance: Provenance,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RequirementLine {
     pub material: String,
     pub need: i64,

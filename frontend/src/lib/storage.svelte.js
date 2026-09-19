@@ -23,6 +23,7 @@ export const KEYS = Object.freeze({
   galaxySuspendAnimations: "edda.galaxy.suspendAnimations",
   galaxyStarBrightness: "edda.galaxy.starBrightness",   // 0-100, all modes
   settingsSection: "edda.settings.section",         // last Settings-tab section
+  buildPlan: "edda.buildPlan",                      // Ships tab: the build plan per ship, suffixed ".<ShipID>" (JSON by slot)
 });
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
