@@ -11,9 +11,11 @@
   import { journalResource } from "./lifecycle.svelte.js";
 
   // Autocomplete over what the data can actually answer: hotspot
-  // minerals, surface raw materials, and the laser-mined goods that
-  // resolve to a ring type. Display puts spaces back into wire names.
-  let vocab = $state({ entries: [], laser: [] });
+  // minerals, surface raw materials, the laser-mined goods that resolve to
+  // a ring type, and the Rhino surface goods (the September 2026 mining
+  // update: uranium, magnesite, ruby...) which the page can only describe.
+  // Display puts spaces back into wire names.
+  let vocab = $state({ entries: [], laser: [], rhino: [] });
   const display = (stored) => stored.replace(/([a-z])([A-Z])/g, "$1 $2");
   const choices = $derived.by(() => {
     const seen = new Set();
@@ -26,6 +28,9 @@
     }
     for (const name of vocab.laser) {
       if (!seen.has(name)) { seen.add(name); out.push({ name, detail: "ring mining" }); }
+    }
+    for (const name of vocab.rhino ?? []) {
+      if (!seen.has(name)) { seen.add(name); out.push({ name, detail: "surface mining (Rhino)" }); }
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
   });
@@ -183,8 +188,10 @@
       <p class="muted small">The community API didn’t answer the hotspot search; your marks are always here. Try again in a moment.</p>
     {:else if report && report.ring_hint}
       <p class="muted small">{report.searched} has no hotspot mechanic — it is {report.ring_hint.why}; the nearest suitable rings are listed below.</p>
+    {:else if report?.rhino}
+      <p class="muted small">{report.rhino} is mined on planet surfaces with the Rhino SRV, not from rings — no hotspot or ring type applies. EDDA does not chart surface mining sites yet; mark the patches you find and they stay here.</p>
     {:else if report}
-      <p class="muted small">“{report.searched}” isn’t hotspot-mapped — mined commodities like iridium come from Rhino surface sites, which aren’t chartable from any data source yet. Mark the ones you find.</p>
+      <p class="muted small">“{report.searched}” isn’t a hotspot mineral, a ring good or a Rhino surface good this page knows. Mark the ones you find.</p>
     {/if}
 
     {#if report?.rings?.length}
