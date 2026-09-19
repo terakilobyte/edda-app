@@ -1,0 +1,18 @@
+# The Frontier link's 200 path, measured on the maintainer's own carrier (Tenzing Norgay, Q6Z-66L) the first time it was
+# linked in the dev build, 2026-09-19 14:53Z, Windows, over his connection. Statuses and durations from the app log (the
+# log carries no tokens or payloads); the cache row from the store, read-only. The 2026-09-06 spike had measured the
+# same path with no carrier (204); this is the missing half.
+# VERDICT: link and fetch complete in ~2.3 s end to end; /fleetcarrier answered in 348 ms with a 1.1 KB folded cache row.
+# One defect found by real data: cargo entries carry the STACK value on every one-unit entry (452 Tritium entries x 22.7 M),
+# so summing read 10.2 bn cr for 460 t. Ruled (maintainer): the value is not shown at all -- Frontier's snapshot of a moving
+# average tells the commander nothing. Verdict on the hold's correctness is the maintainer's comparison with Carrier
+# Management in-game.
+call,status,ms
+/token (authorization_code + PKCE),200,780
+/decode (customer_id == journal FID),200 match,198
+/profile,200,958
+/fleetcarrier,200,348
+cache row bytes,,1127
+hold commodities,,2
+hold tonnes,,460
+services reported ok,,12
