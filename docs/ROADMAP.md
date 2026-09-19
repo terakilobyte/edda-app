@@ -101,7 +101,7 @@ verdicts live in the CSV headers under `docs/benches/`.
   threads (`EDDA_API_PLANNER_THREADS`, to be added) on a Beagle Point plot
   before changing the default. Baseline: 39 s on the box vs 20 s on a
   desktop for the same 193-jump route.
-- **`rows_applied` does not count most of what a hydrate applies**
+- ~~**`rows_applied` does not count most of what a hydrate applies**
   (2026-09-15, measured). The 2026-09-15 stations backfill recorded
   `rows_applied = 0` in `service_hydrations` while its own summary line
   reported 799,068 identities applied, 1,242,732 bodies, 294,666
@@ -110,7 +110,8 @@ verdicts live in the CSV headers under `docs/benches/`.
   feed-vs-dump question below — is measuring a fraction of the work and
   calling it the whole. Fix the counter before drawing the curve, and
   persist the per-kind counts the item below actually asks for rather
-  than one aggregate.
+  than one aggregate.~~ Done 2026-09-16 (#58): thirteen per-kind counts persisted on
+  `service_hydrations`, and `rows_applied` now means rows written.
 - **The feed-vs-dump delta** (2026-09-09). The listener now parses scans,
   plotted routes and ring/body signals. Watch the nightly hydrate's
   `stars_taught`, `bodies_applied`, `hotspots_applied`, `systems_applied`
@@ -165,6 +166,8 @@ verdicts live in the CSV headers under `docs/benches/`.
   undocumented, and it cost two sessions an evening of comparing rows
   that were not the same request. Document it on the endpoint; decide
   whether the default should follow the app.
+  Documented on the endpoint in #45 (2026-09-16). Still open: whether
+  the default should follow the app and send the cheap plot unless asked.
 - **The stations outage** (2026-09-15, closed same night). `/v1/stations`
   returned 502 on every request for about twenty minutes after v0.3.2
   deployed. Chain, each link worth keeping: three columns added to a
@@ -186,18 +189,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   columns made an unconditional `is_carrier` write reachable, which
   would have un-carriered carriers. Caught in review, reproduced, fixed;
   live check found 55,029 carriers flagged and zero damaged rows.
-- **An unreachable API must not read as an empty result** (2026-09-15).
+- ~~**An unreachable API must not read as an empty result** (2026-09-15).
   `nearest_service` returns `None` on an API error and the callers fail
   closed, so the Engineering tab prints "none known within 300 ly"
   whether there are no traders, no economies, or no server. That is why
   a dead endpoint looked like the data gap we already knew about, and
   why 0.3.2 looked clean. The client should say it could not reach the
-  community API. Owned by the second session.
-- **The release path does not run `cargo deny`** (2026-09-15). It is in
+  community API. Owned by the second session.~~ Done 2026-09-15 (#59): `traderStatus` says which of the three
+  facts it is; a missing position is blamed on the position, never on
+  the API.
+- ~~**The release path does not run `cargo deny`** (2026-09-15). It is in
   `ci.yml` only, so a tag never checks licences or advisories. v0.3.2
   shipped carrying RUSTSEC-2026-0285 (rustls 0.23.43) for that reason —
   the advisory landed in the database after the tag, and nothing on the
-  release path would have caught it either way.
+  release path would have caught it either way.~~ Done 2026-09-15 (#55): the release workflow runs the same
+  licence and advisory check as CI, and rustls moved to 0.23.45.
 - ~~**`redemption_office` returns nothing**~~ (reported 2026-09-13,
   closed 2026-09-15). Not a bug, and the answer is worth keeping so it
   is not re-opened. The key was never wrong: `station_services` holds
@@ -214,14 +220,15 @@ verdicts live in the CSV headers under `docs/benches/`.
   all static). The original report counted a service without its type
   split, which made a carrier-only service look like one the API was
   losing.
-- **A service search that finds only carriers should say so**
+- ~~**A service search that finds only carriers should say so**
   (2026-09-15). Falls out of the above: a commander asking for
   redemption offices sees an empty list with no hint that every match
   was a carrier their default filter removed. The same "an empty result
   that is not empty" shape as the trader panel, one layer over. When a
   service search returns nothing with carriers excluded, ask again with
   them included and say "none at a station within N ly; M on fleet
-  carriers". Client-side, second session.
+  carriers". Client-side, second session.~~ Done 2026-09-16 (#66): an empty service search asks again with
+  carriers included and says how many it found there.
 - **The 43,252 stations with no economy are the dump being honest**
   (2026-09-15, a reading and not a proof). After the full backfill,
   799,028 of 842,280 stations carry an economy. The remainder break
@@ -333,14 +340,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   pre-registration. `routing` is the exception by design and was not
   pre-registered: 79 s on 2026-09-11 for an 11 GB adopt (validate,
   rename into the artifact tree, chunk, rewrite the manifest). Closed.
-- **A route that cannot exist should be refused fast** (2026-09-10). On a
+- ~~**A route that cannot exist should be refused fast** (2026-09-10). On a
   145k-system fixture with no path, the planner spent 161 s (weight 1.3)
   and over 240 s (exact) before saying no; galos's router answered in
   about a second in all three of its modes. A commander whose range is
   too small for a gap sits through that. Measure the reachable-component
   size first, then pick: a bounded frontier, a connectivity pre-check on
   the cell graph, or a wall-clock cap that returns NoRoute.
-  Numbers in `docs/benches/2026-09-09-galos-index-spike.csv`.
+  Numbers in `docs/benches/2026-09-09-galos-index-spike.csv`.~~ Done 2026-09-10 (#28): the search state carries the dry-jump
+  count only when fuel makes it matter, so an unreachable goal is refused
+  in one pass over the reachable systems instead of 7.25 M expansions.
 - **The bare exact mode does not finish at full scale** (2026-09-10).
   `thorough` (weight 1.0, admissible boost heuristic) over 199.6 M
   systems, Sol to Colonia at 50 ly, was killed after 2 h 08 min on a
@@ -398,7 +407,7 @@ verdicts live in the CSV headers under `docs/benches/`.
   table against a real list on every dock and say when they disagree.
   Sparsity measured in `docs/benches/2026-09-12-discount-coverage.csv`.
 
-- **A veteran's journal read as 2022** (2026-09-15, fixed). A tester with
+- ~~**A veteran's journal read as 2022** (2026-09-15, fixed). A tester with
   a years-long journal saw a stale ship and "still in flight": the game's
   file names changed format in late 2022, and as plain strings
   `Journal.22...` sorts after `Journal.2026-...`, so every "latest" and
@@ -411,7 +420,11 @@ verdicts live in the CSV headers under `docs/benches/`.
   reader), and a first run parses every line of every file. Measure a
   real multi-year journal before choosing between an allowlist at ingest,
   a shorter retention for unread kinds, and a first-pass that skips what
-  no derived table needs.
+  no derived table needs.~~ Done in two parts, and the first was not enough: #60 (0.3.3)
+  fixed the order files are read in, and #67 sourced the two-format
+  claim and pinned the same-day overlap; the symptom survived until #74
+  (0.3.4) fixed the derive bookmark that replayed the oldest history over
+  today on every launch. The 0.3.4 notes say so.
 
 ## Data and licensing
 
