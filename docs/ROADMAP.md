@@ -42,6 +42,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   spoken as "Mission redirected: …, now to …". Not measured yet: a
   callout replay on the maintainer's journal with the new rules
   (Waldorf's harness) — asked for.
+- **Ship pastes: Coriolis JSON, EDSY SLEF or EDDA SLEF** (2026-09-19,
+  maintainer). A Coriolis SLEF export carries only the ship and modules;
+  the route page refused its physics and then plotted on whatever jump
+  range was typed — no fuel model, boost or scoop stops — which gave a
+  wildly different route from the same build pasted from EDSY or read in
+  the app (58 jumps Sol → Colonia for both of those). Ruling: accept
+  Coriolis's own JSON export, EDSY's SLEF and EDDA's SLEF (Ships tab); a
+  refused paste blocks the plot until cleared; the message names the
+  three. Coriolis's JSON is reshaped into the journal Loadout: `dryMass`
+  (not `unladenMass`, which includes a full tank) → UnladenMass,
+  `fuelCapacity` → FuelCapacity.Main, `maxRange` → MaxJumpRange, the FSD
+  and Guardian booster synthesised as journal item names. Checked on the
+  maintainer's Caspian Explorer export: our full-tank range 72.13 ly
+  against Coriolis's 72.14 (fixture in `crates/ed-galaxy/tests/fixtures`).
 - **Planner threads on the box** (2026-09-09). The route planner runs on
   cores − 2 threads at low priority, a rule sized when the API process
   also ran the EDDN feed. Now that the feed is its own unit, sweep 2/3/4

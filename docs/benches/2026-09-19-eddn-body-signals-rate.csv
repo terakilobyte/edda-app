@@ -1,0 +1,33 @@
+# EDDN body-signal volume, to size charting Rhino surface-mining locations (boss ruling 2026-09-19: the September
+# 2026 update's goods are surface until proven otherwise). Scraped by Statler from the INGEST process's counters
+# (127.0.0.1:8788 on the box, not the API's 8787) — cumulative since edda-eddn started 2026-09-17 00:17:18Z, read
+# 2026-09-19 00:45:49Z, 48.5 h. Two-day averages over a window with a weekend evening; rescrape a week out for steady state.
+# VERDICT: ~39k SAASignalsFound/FSSBodySignals rows applied to bodies per day and ~10k ring hotspots per day arrive on
+# EDDN. The game's DSS scan carries surface-mining sites as "$PlanetaryMiningLocation_Name;" with a count per body and no
+# commodity; our ingest (ed-eddn lib.rs ~583) filters "$"-prefixed body signals, so those sites are dropped and — when a
+# scan carries only them — counted nowhere. One INT column on bodies + one ingest line + rows_total{kind="mining_locations"}
+# is the right size; the mining subset is a fraction of the 39k/day, not of the 1 M frames. MiningRefined (what a site
+# yields) is not on EDDN's journal/1 allowlist (Docked, FSDJump, Scan, Location, SAASignalsFound, CarrierJump, CodexEntry)
+# and never reaches any server; ground->commodity comes from the community survey (EDIntel via Fumlop/EDRhinoSpotter).
+# NOT an instrument: walking bodies.provenance by observed_at day (provenance records the first creator only — a signals
+# message on a Scan-created body stays "eddn:scan": 29–42/day by walk vs ~39k/day by counter; observed_at is game time).
+metric,value
+window hours,48.5
+edda_eddn_frames_received_total,2154816
+frames per day,1070000
+edda_eddn_messages_applied_total,1857131
+edda_eddn_messages_skipped_total (stale boards),668756
+rows_total kind=body_signals,79525
+body_signals rows per day,39400
+rows_total kind=hotspot,20621
+hotspot rows per day,10200
+rows_total kind=body,308072
+body rows per day,152600
+rows_total kind=star,85408
+rows_total kind=system,1136524
+rows_total kind=station,848
+rows_total kind=market,13500000
+rows_total kind=market_removed,13400000
+rows_total kind=outfitting,21100000
+rows_total kind=shipyard,709598
+mining-location signals dropped per day,unmeasurable until rows_total{kind="mining_locations"} exists

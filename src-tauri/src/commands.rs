@@ -722,6 +722,38 @@ pub async fn carrier_status(state: State<'_, AppState>) -> Result<serde_json::Va
     carrier::status(&state)
 }
 
+// ── The Frontier link (CAPI) ─────────────────────────────────────────
+
+#[tauri::command]
+pub async fn capi_status(state: State<'_, AppState>) -> Result<crate::capi::Status, String> {
+    Ok(crate::capi::status(&state))
+}
+
+#[tauri::command]
+pub async fn capi_link_start(app: tauri::AppHandle) -> Result<String, String> {
+    crate::capi::link_start(&app)
+}
+
+/// The paste box: the deep link's URL or its query, for a machine whose
+/// browser could not open EDDA.
+#[tauri::command]
+pub async fn capi_link_code(app: tauri::AppHandle, text: String) -> Result<crate::capi::Status, String> {
+    crate::capi::link_with_callback(&app, &text).await
+}
+
+#[tauri::command]
+pub async fn capi_unlink(app: tauri::AppHandle) -> Result<crate::capi::Status, String> {
+    crate::capi::unlink(&app)
+}
+
+/// The Refresh button: bypasses the cooldown, like a carrier event does.
+#[tauri::command]
+pub async fn capi_refresh_carrier(app: tauri::AppHandle) -> Result<crate::capi::Status, String> {
+    use tauri::Manager as _;
+    crate::capi::fetch_carrier(&app, true).await?;
+    Ok(crate::capi::status(&app.state::<AppState>()))
+}
+
 /// One service the station search understands: the key the wire wants and
 /// the label a commander reads. The list is the shared vocabulary, so the
 /// panel cannot drift from what the data knows (maintainer, 2026-09-13:

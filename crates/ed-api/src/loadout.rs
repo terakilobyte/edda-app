@@ -58,13 +58,18 @@ pub fn physics(body: &serde_json::Value) -> Result<serde_json::Value, Refused> {
             // Say what to do, not just what is wrong. Coriolis's export is
             // the case we have seen (2026-09-15): it writes only the ship
             // and its modules, so this cannot be computed from it.
+            // (maintainer, 2026-09-19: accept "coriolis json, edsy slef,
+            // or edda slef" — and say so when a paste is none of them.)
             let who = match source.as_deref() {
-                Some(app) if app.eq_ignore_ascii_case("coriolis") => "Coriolis's export leaves these out".to_string(),
+                Some(app) if app == ed_galaxy::loadout::CORIOLIS_JSON => {
+                    "this Coriolis JSON export has no stats block; export the build again from Coriolis's outfitting page".to_string()
+                }
+                Some(app) if app.eq_ignore_ascii_case("coriolis") => "Coriolis's SLEF export leaves these out".to_string(),
                 Some(app) => format!("this {app} export leaves these out"),
                 None => "this paste leaves these out".to_string(),
             };
             Refused {
-                error: format!("{said}: {who}. Paste EDSY's export instead (it carries them), or type the jump range and plot without a ship."),
+                error: format!("{said}: {who}. Paste Coriolis's JSON export (Export → JSON), EDSY's SLEF export, or EDDA's SLEF from the Ships tab."),
                 missing,
                 source: source.clone(),
             }
@@ -112,6 +117,21 @@ mod tests {
 
     const SLEF: &str = r#"[{"header":{"appName":"EDSY","appVersion":"4.0"},"data":{"event":"Loadout","Ship":"Cutter","ShipName":"Treasure Goblin","UnladenMass":1163.6,"CargoCapacity":720,"MaxJumpRange":25.83,"FuelCapacity":{"Main":32,"Reserve":1.16},"Modules":[{"Slot":"FrameShiftDrive","Item":"Int_Hyperdrive_Size7_Class5","Engineering":{"Modifiers":[{"Label":"MaxFuelPerJump","Value":12.8}]}},{"Slot":"Slot01_Size6","Item":"Int_GuardianFSDBooster_Size5"}]}}]"#;
 
+    /// A Coriolis JSON export answers with physics and names its source.
+    #[test]
+    fn a_coriolis_json_export_yields_route_physics() {
+        const EXPORT: &str = include_str!("../../ed-galaxy/tests/fixtures/coriolis-caspian-explorer.json");
+        let v = physics(&serde_json::json!({"paste": EXPORT})).unwrap();
+        assert_eq!(v["ship"], "explorer_nx");
+        assert_eq!(v["capacity"], 128.0);
+        assert_eq!(v["max_jump_range"], 77.75);
+        assert_eq!((v["fsd"]["size"].as_u64(), v["fsd"]["mk2"].as_bool()), (Some(8), Some(true)));
+        let full = v["full_tank_range_ly"].as_f64().unwrap();
+        assert!((full - 72.14).abs() < 0.05, "{full}");
+        let bare = physics(&serde_json::from_str::<serde_json::Value>(EXPORT).unwrap()).unwrap();
+        assert_eq!(bare["fuel_model"], v["fuel_model"], "the export pasted raw is the same build");
+    }
+
     /// Both body shapes work — the paste as a string field, or the SLEF
     /// itself — and the answer carries what /v1/route consumes verbatim
     /// (`fuel_model`, `boost`) plus the figures the page shows.
@@ -139,8 +159,9 @@ mod tests {
         let refused = physics(&serde_json::json!({"paste": CORIOLIS})).unwrap_err();
         assert_eq!(refused.missing, vec!["UnladenMass", "FuelCapacity.Main", "MaxJumpRange"]);
         assert_eq!(refused.source.as_deref(), Some("Coriolis"));
-        assert!(refused.error.contains("Coriolis's export leaves these out"), "{}", refused.error);
-        assert!(refused.error.contains("type the jump range"), "{}", refused.error);
+        assert!(refused.error.contains("Coriolis's SLEF export leaves these out"), "{}", refused.error);
+        assert!(refused.error.contains("Coriolis's JSON export"), "the three accepted formats are named: {}", refused.error);
+        assert!(!refused.error.contains("plot without a ship"), "no plain-range fallback is offered (maintainer, 2026-09-19)");
         // On the wire: the page reads `missing` to point at the range box.
         let wire = serde_json::to_value(&refused).unwrap();
         assert_eq!(wire["missing"][2], "MaxJumpRange");

@@ -20,6 +20,7 @@
 //! ```
 
 pub mod carrier;
+pub mod carrier_capi;
 pub mod derive;
 pub mod eddn;
 pub mod galaxy;

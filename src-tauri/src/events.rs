@@ -37,6 +37,8 @@ pub const CARRIER_ROUTE: &str = "carrier-route";
 pub const LISTEN_SETUP: &str = "listen-setup";
 pub const SPEECH_ENGINE_PROGRESS: &str = "speech-engine-progress";
 pub const APP_UPDATE: &str = "app-update";
+/// The Frontier link changed (linked, unlinked, expired, carrier fetched): payload is `capi::Status`.
+pub const CAPI_STATE: &str = "capi-state";
 
 /// Where events go. Object-safe on purpose: jobs hold `Arc<dyn Emitter>`.
 pub trait Emitter: Send + Sync {

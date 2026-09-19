@@ -64,10 +64,11 @@ static TIMINGS: OnceLock<Mutex<Vec<TimingRow>>> = OnceLock::new();
 static SEARCHES: OnceLock<Mutex<Vec<SearchRow>>> = OnceLock::new();
 
 /// Record one operation's duration. `kind` must be one of the contract's
-/// closed set (plot|trade|sync|hydrate) — a typo here would be rejected
-/// at the server boundary, which is the test's job to prevent.
+/// closed set (plot|trade|sync|hydrate|capi) — a typo here would be rejected
+/// at the server boundary, which is the test's job to prevent. `capi` is a
+/// Frontier call's duration and outcome, never its content.
 pub fn record_timing(kind: &'static str, ms: u128, ok: bool) {
-    debug_assert!(matches!(kind, "plot" | "trade" | "sync" | "hydrate"));
+    debug_assert!(matches!(kind, "plot" | "trade" | "sync" | "hydrate" | "capi"));
     let mut timings = TIMINGS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
     if timings.len() < MAX_TIMINGS {
         timings.push(TimingRow { kind, ms: ms.min(u128::from(u32::MAX)) as u32, ok });
@@ -157,6 +158,10 @@ pub fn feature_flags(config: &ConfigHandle) -> Vec<&'static str> {
         on.push("auto_update");
     }
     on.push(*VOICE_ENGINE.lock().unwrap_or_else(|e| e.into_inner()));
+    // The Frontier link exists (a flag, never who): the keychain slot is the truth.
+    if crate::state::secrets::get_key(crate::capi::REFRESH_SLOT).is_some() {
+        on.push("capi_linked");
+    }
     on
 }
 
