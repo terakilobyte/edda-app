@@ -140,6 +140,12 @@ pub struct BodySignals {
     pub name: Option<String>,
     pub bio_signals: Option<i32>,
     pub geo_signals: Option<i32>,
+    /// Surface mining locations the DSS found (`$PlanetaryMiningLocation_Name;`),
+    /// the September 2026 update's surface goods. Absent when the scan did
+    /// not report any; `Some(0)` would mean "scanned, none", which the game
+    /// does not send — it omits the type instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mining_locations: Option<i32>,
     pub observed_at: ObservedAt,
 }
 
@@ -229,6 +235,8 @@ pub struct ApplyStats {
     pub bodies: u64,
     pub hotspots: u64,
     pub body_signals: u64,
+    /// Bodies that learned a surface mining-location count.
+    pub mining_locations: u64,
 }
 
 impl std::ops::AddAssign for ApplyStats {
@@ -245,5 +253,6 @@ impl std::ops::AddAssign for ApplyStats {
         self.bodies += rhs.bodies;
         self.hotspots += rhs.hotspots;
         self.body_signals += rhs.body_signals;
+        self.mining_locations += rhs.mining_locations;
     }
 }

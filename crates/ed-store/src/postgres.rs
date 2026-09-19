@@ -254,6 +254,7 @@ fn record_apply_stats(stats: &ApplyStats) {
     metrics::counter!("edda_eddn_rows_total", "kind" => "body").increment(stats.bodies);
     metrics::counter!("edda_eddn_rows_total", "kind" => "hotspot").increment(stats.hotspots);
     metrics::counter!("edda_eddn_rows_total", "kind" => "body_signals").increment(stats.body_signals);
+    metrics::counter!("edda_eddn_rows_total", "kind" => "mining_locations").increment(stats.mining_locations);
 }
 
 async fn apply_one(
@@ -1039,18 +1040,20 @@ async fn apply_ring_hotspots(transaction: &mut Transaction<'_, Postgres>, h: &ed
 /// stub row (name, ids, signals) the Scan fills in later.
 async fn apply_body_signals(transaction: &mut Transaction<'_, Postgres>, s: &ed_domain::BodySignals) -> Result<Applied> {
     let updated = sqlx::query(
-        "UPDATE bodies SET bio_signals = COALESCE($2, bio_signals), geo_signals = COALESCE($3, geo_signals) WHERE id64 = $1",
+        "UPDATE bodies SET bio_signals = COALESCE($2, bio_signals), geo_signals = COALESCE($3, geo_signals), \
+             mining_locations = COALESCE($4, mining_locations) WHERE id64 = $1",
     )
     .bind(s.id64)
     .bind(s.bio_signals)
     .bind(s.geo_signals)
+    .bind(s.mining_locations)
     .execute(&mut **transaction)
     .await?
     .rows_affected();
     if updated == 0 {
         sqlx::query(
-            "INSERT INTO bodies (id64, system_address, body_id, name, is_landable, bio_signals, geo_signals, observed_at, provenance) \
-             VALUES ($1, $2, $3, $4, false, $5, $6, to_timestamp($7), 'eddn:signals') \
+            "INSERT INTO bodies (id64, system_address, body_id, name, is_landable, bio_signals, geo_signals, mining_locations, observed_at, provenance) \
+             VALUES ($1, $2, $3, $4, false, $5, $6, $7, to_timestamp($8), 'eddn:signals') \
              ON CONFLICT (id64) DO NOTHING",
         )
         .bind(s.id64)
@@ -1059,9 +1062,15 @@ async fn apply_body_signals(transaction: &mut Transaction<'_, Postgres>, s: &ed_
         .bind(&s.name)
         .bind(s.bio_signals)
         .bind(s.geo_signals)
+        .bind(s.mining_locations)
         .bind(s.observed_at.epoch_seconds)
         .execute(&mut **transaction)
         .await?;
     }
-    Ok(Applied { messages: 1, body_signals: 1, ..Applied::default() })
+    Ok(Applied {
+        messages: 1,
+        body_signals: 1,
+        mining_locations: u64::from(s.mining_locations.is_some()),
+        ..Applied::default()
+    })
 }
