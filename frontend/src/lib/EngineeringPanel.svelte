@@ -163,7 +163,7 @@
       {/if}
       <div class="row small" style="margin-top:0.3rem">
         {#each eng.access.engineers as e}
-          <span class="pill {e.unlocked ? 'ok' : e.status === 'Not known' ? 'bad' : 'warn'}">{e.engineer} · {e.status}{e.rank ? ` · rank ${e.rank}` : ""}</span>
+          <span class="pill {e.unlocked ? 'ok' : e.status === 'Not known' ? 'bad' : 'warn'} {e.max_grade < eng.access.grade ? 'dim' : ''}" title={e.max_grade < eng.access.grade ? `${e.engineer} stops at grade ${e.max_grade}` : `${e.engineer} offers this to grade ${e.max_grade}`}>{e.engineer} · {e.status}{e.rank ? ` · rank ${e.rank}` : ""} · to G{e.max_grade}</span>
         {/each}
       </div>
     </div>
@@ -304,6 +304,8 @@
 </section>
 
 <style>
+  /* An engineer who stops below the asked grade is still named, quietly. */
+  .pill.dim { opacity: 0.7; font-style: italic; }
   h3 { font-size: 0.9rem; margin: 0.6rem 0 0.3rem; display: flex; gap: 0.6rem; align-items: baseline; }
   h3 span { font-size: 0.78rem; }
   .ok-box { border-color: #57c66d55; background: #57c66d10; }

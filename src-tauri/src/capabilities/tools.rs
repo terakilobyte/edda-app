@@ -485,15 +485,18 @@ fn check_blueprint_access(ctx: &Ctx, input: &Value) -> CapResult<Value> {
             .hint("pick a blueprint from data.available")
             .data(json!({ "available": state.engineering.blueprint_names_for(module_type) })));
     };
-    let engineers_out: Vec<Value> = bp
-        .engineers
-        .iter()
-        .map(|e| {
-            let (status, rank, unlocked) = status_of(e);
-            json!({ "engineer": e, "status": status, "rank": rank, "unlocked": unlocked })
+    // Every engineer who works the blueprint at any grade, with their cap,
+    // so one who stops below the asked grade is still named.
+    let engineers_out: Vec<Value> = state
+        .engineering
+        .engineers_for(module_type, name)
+        .into_iter()
+        .map(|(e, max_grade)| {
+            let (status, rank, unlocked) = status_of(&e);
+            json!({ "engineer": e, "status": status, "rank": rank, "unlocked": unlocked, "max_grade": max_grade })
         })
         .collect();
-    let reachable = engineers_out.iter().any(|e| e.get("unlocked").and_then(Value::as_bool).unwrap_or(false));
+    let reachable = bp.engineers.iter().any(|e| status_of(e).2);
     let mut max_reachable = None;
     for g in 1..=5 {
         if let Some(b) = state.engineering.find(module_type, name, g) {

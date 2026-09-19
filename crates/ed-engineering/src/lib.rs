@@ -231,6 +231,28 @@ impl Catalog {
     }
 
     /// Looks up a graded blueprint (grades 1-5, e.g. "Frame Shift Drive" / "Increased FSD Range" / 5).
+    /// Every engineer who offers this blueprint at any grade, with the
+    /// highest grade each offers, alphabetical. This is what a commander
+    /// asking "who can do my pulse lasers" needs: the grade-5 list alone
+    /// hides an engineer who stops at grade 4 (maintainer, 2026-09-19: The
+    /// Dweller was missing from his Type-10's pulse lasers).
+    pub fn engineers_for(&self, module_type: &str, name: &str) -> Vec<(String, i64)> {
+        let mut out: Vec<(String, i64)> = Vec::new();
+        for b in self.blueprints.iter().filter(|b| {
+            b.module_type.eq_ignore_ascii_case(module_type) && b.name.eq_ignore_ascii_case(name) && b.grade.is_some()
+        }) {
+            let g = b.grade.unwrap_or(0);
+            for e in &b.engineers {
+                match out.iter_mut().find(|(n, _)| n == e) {
+                    Some(entry) => entry.1 = entry.1.max(g),
+                    None => out.push((e.clone(), g)),
+                }
+            }
+        }
+        out.sort();
+        out
+    }
+
     pub fn find(&self, module_type: &str, name: &str, grade: i64) -> Option<&Blueprint> {
         self.blueprints.iter().find(|b| {
             b.module_type.eq_ignore_ascii_case(module_type)
@@ -407,6 +429,61 @@ mod tests {
     fn loads_the_full_vendored_dataset() {
         let cat = Catalog::load();
         assert!(cat.len() > 1000, "expected the full EDEngineer blueprint set, got {}", cat.len());
+    }
+
+    /// The vendored data against the audited engineer table
+    /// (`data/engineer_grades.json`: Inara + the wiki, 2026-09-19). Every
+    /// (engineer, module type) pair must top out at the grade the game
+    /// offers, every grade below it must be present, and no engineer may
+    /// be offered for a module they do not work on. Two errors were found
+    /// by the audit and are fixed in the data: Lori Jameson does Life
+    /// Support to G4 (was G5) and Juri Ishmaak does the three scanners to
+    /// G3 (was absent).
+    #[test]
+    fn engineer_grades_match_the_audited_table() {
+        #[derive(Deserialize)]
+        struct Table {
+            engineers: std::collections::BTreeMap<String, std::collections::BTreeMap<String, i64>>,
+        }
+        let table: Table = serde_json::from_str(include_str!("../data/engineer_grades.json")).unwrap();
+        let lib = Catalog::load();
+        let mut ours: std::collections::BTreeMap<(String, String), std::collections::BTreeSet<i64>> = Default::default();
+        for b in lib.blueprints.iter().filter(|b| b.grade.is_some()) {
+            for e in b.engineers.iter().filter(|e| !e.starts_with('@')) {
+                ours.entry((e.clone(), b.module_type.clone())).or_default().insert(b.grade.unwrap());
+            }
+        }
+        let mut errors = Vec::new();
+        for (eng, types) in &table.engineers {
+            for (ty, max) in types {
+                match ours.get(&(eng.clone(), ty.clone())) {
+                    None => errors.push(format!("{eng} should offer {ty} to G{max} but is on no {ty} blueprint")),
+                    Some(gs) => {
+                        let want: std::collections::BTreeSet<i64> = (1..=*max).collect();
+                        if gs != &want {
+                            errors.push(format!("{eng} / {ty}: grades {gs:?}, the game offers 1..={max}"));
+                        }
+                    }
+                }
+            }
+        }
+        for ((eng, ty), _) in &ours {
+            if table.engineers.get(eng).and_then(|t| t.get(ty)).is_none() {
+                errors.push(format!("{eng} is offered for {ty}, which the game does not"));
+            }
+        }
+        assert!(errors.is_empty(), "{}", errors.join("\n"));
+        assert_eq!(table.engineers.len(), 25, "every ship engineer is in the table");
+    }
+
+    #[test]
+    fn the_dweller_is_listed_for_pulse_lasers_up_to_grade_four() {
+        let lib = Catalog::load();
+        let who = lib.engineers_for("Pulse Laser", "Focused Weapon");
+        assert_eq!(
+            who,
+            vec![("Broo Tarquin".to_string(), 5), ("Mel Brandon".to_string(), 5), ("The Dweller".to_string(), 4)]
+        );
     }
 
     #[test]

@@ -82,8 +82,14 @@ from where it left off (about 2 ms). Both were on the roadmap when
 0.3.4 shipped; the second may be part of what one tester saw as CPU
 use at idle.
 
-**Smaller.** A system in the Galaxy tab's services results plots a
-route, like everywhere else. The Rhino's Large and Mk II Large
+**Smaller.** The Engineering tab lists every engineer who works a
+blueprint with the grade they reach, not just those offering the grade
+you asked for (The Dweller takes pulse lasers to grade 4 and was not
+shown for them); the engineer table was audited against Inara and the
+wiki, two entries corrected (Lori Jameson, Life Support to grade 4;
+Juri Ishmaak, the three scanners to grade 3) and a test now holds it. A
+system in the Galaxy tab's services results plots a route, like
+everywhere else. The Rhino's Large and Mk II Large
 Planetary Vehicle Hangars are named like outfitting. The "What's new"
 sheet closes when you click outside it.
 
