@@ -1,0 +1,365 @@
+{
+  "$schema": "https://coriolis.io/schemas/ship-loadout/4.json#",
+  "name": "a",
+  "ship": "Caspian Explorer",
+  "references": [
+    {
+      "name": "Coriolis.io",
+      "url": "https://coriolis.io/outfit/explorer_nx?code=A0pktn6Qlndssxf7-------------3h4f111O-------2i3w3x4F.Iw18ZVA%3D.EwRgDBldMMw5Yog%3D.H4sIAAAAAAAAA2P%2BJ8XAwPCXFUgI7eBmYOBX%2BfX%2Fv8QdIF8kRoiB4f9%2FBgCpQfGUIgAAAA%3D%3D&bn=a",
+      "code": "A0pktn6Qlndssxf7-------------3h4f111O-------2i3w3x4F.Iw18ZVA=.EwRgDBldMMw5Yog=.H4sIAAAAAAAAA2P+J8XAwPCXFUgI7eBmYOBX+fX/v8QdIF8kRoiB4f9/BgCpQfGUIgAAAA==",
+      "shipId": "explorer_nx"
+    }
+  ],
+  "components": {
+    "standard": {
+      "bulkheads": {
+        "name": "Lightweight Alloy"
+      },
+      "cargoHatch": {
+        "enabled": true,
+        "priority": 3
+      },
+      "powerPlant": {
+        "class": 6,
+        "rating": "A",
+        "enabled": true,
+        "priority": 2
+      },
+      "thrusters": {
+        "class": 6,
+        "rating": "D",
+        "enabled": true,
+        "priority": 1
+      },
+      "frameShiftDrive": {
+        "class": 8,
+        "rating": "A",
+        "enabled": true,
+        "priority": 1,
+        "name": "Frame Shift Drive Mk II (SCO)",
+        "modifications": {
+          "mass": 3000,
+          "integrity": -1500,
+          "power": 1500,
+          "optmass": 4700
+        },
+        "blueprint": {
+          "fdname": "FSD_LongRange",
+          "grades": {
+            "1": {
+              "components": {
+                "Atypical Disrupted Wake Echoes": 1
+              },
+              "features": {
+                "integrity": [
+                  -0.03,
+                  -0.03
+                ],
+                "mass": [
+                  0.1,
+                  0.1
+                ],
+                "optmass": [
+                  0,
+                  0.15
+                ],
+                "power": [
+                  0.03,
+                  0.03
+                ]
+              },
+              "uuid": "bb67b1a2-7a5b-47bc-8ed8-e949b5e3fb16"
+            },
+            "2": {
+              "components": {
+                "Atypical Disrupted Wake Echoes": 1,
+                "Chemical Processors": 1
+              },
+              "features": {
+                "integrity": [
+                  -0.06,
+                  -0.06
+                ],
+                "mass": [
+                  0.15,
+                  0.15
+                ],
+                "optmass": [
+                  0.15,
+                  0.25
+                ],
+                "power": [
+                  0.06,
+                  0.06
+                ]
+              },
+              "uuid": "74045351-f348-45f5-8798-487211f19520"
+            },
+            "3": {
+              "components": {
+                "Chemical Processors": 1,
+                "Phosphorus": 1,
+                "Strange Wake Solutions": 1
+              },
+              "features": {
+                "integrity": [
+                  -0.09,
+                  -0.09
+                ],
+                "mass": [
+                  0.2,
+                  0.2
+                ],
+                "optmass": [
+                  0.25,
+                  0.35
+                ],
+                "power": [
+                  0.09,
+                  0.09
+                ]
+              },
+              "uuid": "cf196bb9-55a1-457f-893b-84ff2afd4db9"
+            },
+            "4": {
+              "components": {
+                "Chemical Distillery": 1,
+                "Eccentric Hyperspace Trajectories": 1,
+                "Manganese": 1
+              },
+              "features": {
+                "integrity": [
+                  -0.12,
+                  -0.12
+                ],
+                "mass": [
+                  0.25,
+                  0.25
+                ],
+                "optmass": [
+                  0.35,
+                  0.45
+                ],
+                "power": [
+                  0.12,
+                  0.12
+                ]
+              },
+              "uuid": "ecf49fec-32fd-4930-949d-a341bf0fd00c"
+            },
+            "5": {
+              "components": {
+                "Arsenic": 1,
+                "Chemical Manipulators": 1,
+                "Datamined Wake Exceptions": 1
+              },
+              "features": {
+                "integrity": [
+                  -0.15,
+                  -0.15
+                ],
+                "mass": [
+                  0.3,
+                  0.3
+                ],
+                "optmass": [
+                  0.45,
+                  0.55
+                ],
+                "power": [
+                  0.15,
+                  0.15
+                ]
+              },
+              "uuid": "dddd4fd3-bc9a-4c5b-8606-853c63d0f554"
+            }
+          },
+          "id": 26,
+          "modulename": [
+            "Frame shift drive",
+            "FSD"
+          ],
+          "name": "Increased range",
+          "grade": 5
+        }
+      },
+      "lifeSupport": {
+        "class": 5,
+        "rating": "D",
+        "enabled": true,
+        "priority": 1
+      },
+      "powerDistributor": {
+        "class": 6,
+        "rating": "D",
+        "enabled": true,
+        "priority": 1
+      },
+      "sensors": {
+        "class": 8,
+        "rating": "D",
+        "enabled": true,
+        "priority": 1
+      },
+      "fuelTank": {
+        "class": 7,
+        "rating": "C",
+        "enabled": true,
+        "priority": 1
+      }
+    },
+    "hardpoints": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "utility": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "internal": [
+      {
+        "class": 7,
+        "rating": "A",
+        "enabled": true,
+        "priority": 1,
+        "group": "Fuel Scoop"
+      },
+      {
+        "class": 6,
+        "rating": "A",
+        "enabled": true,
+        "priority": 1,
+        "group": "Shield Generator"
+      },
+      {
+        "class": 6,
+        "rating": "A",
+        "enabled": true,
+        "priority": 4,
+        "group": "Auto Field-Maintenance Unit"
+      },
+      {
+        "class": 5,
+        "rating": "H",
+        "enabled": true,
+        "priority": 1,
+        "group": "Guardian Frame Shift Drive Booster"
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "class": 1,
+        "rating": "I",
+        "enabled": true,
+        "priority": 1,
+        "group": "Surface Scanner",
+        "name": "Detailed Surface Scanner"
+      },
+      {
+        "class": 1,
+        "rating": "E",
+        "enabled": true,
+        "priority": 3,
+        "group": "Supercruise Assist",
+        "name": "Supercruise Assist"
+      },
+      {
+        "class": 1,
+        "rating": "E",
+        "enabled": true,
+        "priority": 3,
+        "group": "Docking Computer",
+        "name": "Advanced Docking Computer"
+      }
+    ]
+  },
+  "stats": {
+    "class": 3,
+    "hullCost": 189326510,
+    "speed": 210,
+    "heatCapacity": 250,
+    "boost": 290,
+    "minthrust": 76,
+    "boostEnergy": 25,
+    "boostInt": 5.5,
+    "baseShieldStrength": 500,
+    "baseArmour": 345,
+    "hardness": 60,
+    "hullMass": 950,
+    "masslock": 21,
+    "fighterHangars": 1,
+    "vesselHangarsMkII": 1,
+    "pipSpeed": 0.17,
+    "pitch": 30,
+    "roll": 75,
+    "yaw": 14,
+    "crew": 4,
+    "reserveFuelCapacity": 1.14,
+    "moduleCostMultiplier": 1,
+    "fuelCapacity": 128,
+    "cargoCapacity": 0,
+    "passengerCapacity": 0,
+    "ladenMass": 1451.3,
+    "armour": 621,
+    "shield": 395.67,
+    "shieldCells": 0,
+    "totalCost": 418187577,
+    "dryMass": 1323.3,
+    "unladenMass": 1451.3,
+    "totalDpe": 0,
+    "totalAbsDpe": 0,
+    "totalExplDpe": 0,
+    "totalKinDpe": 0,
+    "totalThermDpe": 0,
+    "totalDps": 0,
+    "totalAbsDps": 0,
+    "totalExplDps": 0,
+    "totalKinDps": 0,
+    "totalThermDps": 0,
+    "totalSDps": 0,
+    "totalAbsSDps": 0,
+    "totalExplSDps": 0,
+    "totalKinSDps": 0,
+    "totalThermSDps": 0,
+    "totalEps": 0,
+    "totalHps": 0,
+    "shieldExplRes": 0.5,
+    "shieldKinRes": 0.4,
+    "shieldThermRes": -0.2,
+    "hullExplRes": -0.4,
+    "hullKinRes": -0.2,
+    "hullThermRes": 0,
+    "powerAvailable": 25.2,
+    "powerRetracted": 20.81,
+    "powerDeployed": 20.81,
+    "unladenRange": 72.14,
+    "fullTankRange": 72.14,
+    "ladenRange": 72.14,
+    "unladenFastestRange": 1418.04,
+    "ladenFastestRange": 1418.04,
+    "maxJumpCount": 19,
+    "modulearmour": 0,
+    "moduleprotection": 0,
+    "hullCausRes": 0,
+    "topSpeed": 196.7,
+    "topBoost": 271.63,
+    "topPitch": 28.1,
+    "topRoll": 70.25,
+    "topYaw": 13.11,
+    "maxRange": 77.75
+  }
+}

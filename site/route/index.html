@@ -91,7 +91,7 @@
     <h1 id="plan">Route planner</h1>
     <p class="sub">The desktop app's router, in a tab. Paste your ship, name two systems, plot.</p>
 
-    <label for="paste">Ship — paste an SLEF export from <a href="https://edsy.org" rel="noopener">EDSY</a> or a journal Loadout event. <a href="https://coriolis.io" rel="noopener">Coriolis</a>'s export leaves out the mass, tank and range, so for a Coriolis build type its jump range below instead.</label>
+    <label for="paste">Ship — paste <a href="https://coriolis.io" rel="noopener">Coriolis</a>'s JSON export (Export → JSON; its SLEF leaves out the numbers), <a href="https://edsy.org" rel="noopener">EDSY</a>'s SLEF export, EDDA's SLEF from the Ships tab, or a journal Loadout event.</label>
     <textarea id="paste" spellcheck="false" placeholder='[{"header": {...}, "data": {"event": "Loadout", ...}}]'></textarea>
     <div class="ship" id="ship">No ship yet. Without one the plot uses a plain jump range.</div>
 
@@ -174,7 +174,9 @@ async function derive() {
       const missing = Array.isArray(v.missing) ? v.missing : [];
       const label = missing.length ? "Can't derive the physics" : "Not a loadout";
       $("ship").innerHTML = "<b>" + label + ":</b> " + esc(v.error || r.status);
-      if (missing.includes("MaxJumpRange")) { $("range").focus(); $("range").placeholder = "jump range from " + (v.source ? esc(v.source) : "your build"); }
+      // No fallback to the plain range while a refused paste sits in the
+      // box (maintainer, 2026-09-19: a Coriolis SLEF plotted on a typed
+      // range gave a wildly different route from the same build in EDSY).
       return;
     }
     physics = v;
@@ -209,6 +211,7 @@ complete("to", "to-names");
 async function plot() {
   const from = $("from").value.trim(), to = $("to").value.trim();
   if (!from || !to) { status("Origin and destination are both needed.", "bad"); return; }
+  if (!physics && $("paste").value.trim()) { status("The pasted build was refused (see the ship box). Paste Coriolis's JSON, EDSY's SLEF or EDDA's SLEF, or clear the box to plot on a plain jump range.", "bad"); return; }
   // Fewest scoop stops is the app's default and not a knob (maintainer, 2026-09-09).
   const body = { from, to, supercharge: $("supercharge").checked, white_dwarfs: $("white_dwarfs").checked, min_fuel: true };
   if (physics) {

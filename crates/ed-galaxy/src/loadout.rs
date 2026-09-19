@@ -74,6 +74,9 @@ pub const REQUIRED: [&str; 3] = ["UnladenMass", "FuelCapacity.Main", "MaxJumpRan
 /// — or None for a bare journal `Loadout` or anything without a header.
 pub fn paste_app_name(text: &str) -> Option<String> {
     let value: Value = serde_json::from_str(text.trim()).ok()?;
+    if is_coriolis_json(&value) {
+        return Some(CORIOLIS_JSON.to_owned());
+    }
     let header = match &value {
         Value::Array(items) => items.iter().find_map(|i| i.get("header")),
         Value::Object(_) => value.get("header"),
@@ -114,6 +117,7 @@ pub fn loadout_from_paste(text: &str) -> Result<Value, LoadoutError> {
             || (v.get("Modules").is_some() && v.get("Ship").is_some())
     };
     match &value {
+        Value::Object(_) if is_coriolis_json(&value) => loadout_from_coriolis_json(&value),
         Value::Array(items) => items
             .iter()
             .filter_map(|item| item.get("data"))
@@ -128,6 +132,99 @@ pub fn loadout_from_paste(text: &str) -> Result<Value, LoadoutError> {
             .ok_or(LoadoutError::NotALoadout),
         _ => Err(LoadoutError::NotALoadout),
     }
+}
+
+/// What `paste_app_name` says for Coriolis's own JSON export (the
+/// `ship-loadout` schema), as opposed to Coriolis's SLEF, which it names
+/// "Coriolis" from the header and which carries no numbers.
+pub const CORIOLIS_JSON: &str = "Coriolis JSON";
+
+/// A Coriolis JSON export: the `ship-loadout` schema, or the shape of one
+/// (`components` and `stats` objects) when the `$schema` line was cut.
+fn is_coriolis_json(v: &Value) -> bool {
+    v.get("$schema").and_then(Value::as_str).is_some_and(|s| s.contains("coriolis.io/schemas/ship-loadout"))
+        || (v.get("components").is_some_and(Value::is_object) && v.get("stats").is_some_and(Value::is_object))
+}
+
+/// A Coriolis JSON export reshaped into the journal `Loadout` the physics
+/// reads (maintainer, 2026-09-19: "coriolis json, edsy slef, or edda
+/// slef"). Coriolis's `stats` carry the numbers on its own definitions,
+/// checked against the maintainer's Caspian Explorer export and
+/// Coriolis's `Ship.js`:
+///
+/// * `dryMass` is hull + modules with no fuel — the journal's
+///   `UnladenMass` (`unladenMass` in Coriolis INCLUDES a full tank).
+/// * `fuelCapacity` is the main tank; `reserveFuelCapacity` the reserve.
+/// * `maxRange` is the range with one jump's fuel and no cargo — the
+///   journal's `MaxJumpRange`. Fed through `FuelModel::from_loadout`, the
+///   full-tank range comes back within 0.01 ly of Coriolis's own
+///   `fullTankRange` (72.13 vs 72.14 on the Explorer).
+///
+/// The drive and booster are synthesised as journal item names from the
+/// FSD's class, rating and name ("Mk II", "SCO") and the Guardian
+/// booster's class, since that is what `physics_from_loadout` keys on.
+fn loadout_from_coriolis_json(v: &Value) -> Result<Value, LoadoutError> {
+    let stats = v.get("stats").and_then(Value::as_object);
+    let stat = |k: &str| stats.and_then(|s| s.get(k)).and_then(Value::as_f64);
+    let (dry, tank, max_range) = (stat("dryMass"), stat("fuelCapacity"), stat("maxRange"));
+    let missing: Vec<&'static str> = [dry.is_none(), tank.is_none(), max_range.is_none()]
+        .iter()
+        .zip(REQUIRED)
+        .filter_map(|(absent, key)| absent.then_some(key))
+        .collect();
+    if !missing.is_empty() {
+        return Err(LoadoutError::Missing(missing));
+    }
+    let standard = v.pointer("/components/standard");
+    let fsd = standard.and_then(|s| s.get("frameShiftDrive")).ok_or(LoadoutError::NoDrive)?;
+    let class = fsd.get("class").and_then(Value::as_u64).ok_or(LoadoutError::NoDrive)?;
+    let rating = fsd.get("rating").and_then(Value::as_str).and_then(|r| r.chars().next()).unwrap_or('A');
+    let rating_class = match rating.to_ascii_uppercase() {
+        'A' => 5,
+        'B' => 4,
+        'C' => 3,
+        'D' => 2,
+        _ => 1,
+    };
+    let fsd_name = fsd.get("name").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+    let sco = fsd_name.contains("sco") || fsd_name.contains("overcharge");
+    let mk2 = fsd_name.contains("mk ii") || fsd_name.contains("mkii") || fsd_name.contains("mk2");
+    let fsd_item = format!(
+        "Int_Hyperdrive{}_Size{class}_Class{rating_class}{}",
+        if sco { "_Overcharge" } else { "" },
+        if mk2 { "_Overchargebooster_MkII" } else { "" }
+    );
+    let mut modules = vec![serde_json::json!({"Slot": "FrameShiftDrive", "Item": fsd_item, "On": true})];
+    if let Some(internal) = v.pointer("/components/internal").and_then(Value::as_array) {
+        for m in internal.iter().filter(|m| !m.is_null()) {
+            let group = m.get("group").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let on = m.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+            if group.contains("guardian") && group.contains("booster") && on {
+                if let Some(size) = m.get("class").and_then(Value::as_u64) {
+                    modules.push(serde_json::json!({"Slot": "Internal", "Item": format!("Int_GuardianFSDBooster_Size{size}"), "On": true}));
+                }
+            }
+        }
+    }
+    let ship = v
+        .pointer("/references/0/shipId")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .or_else(|| v.get("ship").and_then(Value::as_str).map(|s| s.to_ascii_lowercase().replace(' ', "_")))
+        .unwrap_or_default();
+    let mut out = serde_json::json!({
+        "event": "Loadout",
+        "Ship": ship,
+        "UnladenMass": dry,
+        "FuelCapacity": {"Main": tank, "Reserve": stat("reserveFuelCapacity").unwrap_or(0.0)},
+        "MaxJumpRange": max_range,
+        "CargoCapacity": stat("cargoCapacity").unwrap_or(0.0),
+        "Modules": modules,
+    });
+    if let Some(name) = v.get("name").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()) {
+        out["ShipName"] = Value::String(name.to_owned());
+    }
+    Ok(out)
 }
 
 /// The physics of a `Loadout`, with `cargo` tonnes aboard. `observed_cap`
@@ -238,6 +335,61 @@ mod tests {
         assert_eq!(paste_app_name(CORIOLIS).as_deref(), Some("Coriolis"));
         assert_eq!(paste_app_name(SLEF).as_deref(), Some("EDSY"));
         assert_eq!(paste_app_name(r#"{"event":"Loadout","Ship":"asp","Modules":[]}"#), None, "a bare journal event names no app");
+    }
+
+    /// The maintainer's Caspian Explorer, exported from Coriolis as JSON
+    /// (2026-09-19). Coriolis shows it as MAX 77.75 ly, full tank 72.14 ly,
+    /// 128 t tank, 1,323.3 t dry, 8A FSD Mk II (SCO), 5H Guardian booster.
+    const CORIOLIS_JSON_EXPORT: &str = include_str!("../tests/fixtures/coriolis-caspian-explorer.json");
+
+    #[test]
+    fn a_coriolis_json_export_is_the_journal_loadout_and_agrees_with_coriolis_to_the_hundredth() {
+        assert_eq!(paste_app_name(CORIOLIS_JSON_EXPORT).as_deref(), Some(CORIOLIS_JSON));
+        let loadout = loadout_from_paste(CORIOLIS_JSON_EXPORT).expect("a Coriolis JSON export is a loadout");
+        assert_eq!(loadout["Ship"], "explorer_nx");
+        assert_eq!(loadout["ShipName"], "a");
+        assert_eq!(loadout["UnladenMass"], 1323.3, "dryMass, not unladenMass (which includes the tank)");
+        assert_eq!(loadout["FuelCapacity"]["Main"], 128.0);
+        assert_eq!(loadout["FuelCapacity"]["Reserve"], 1.14);
+        assert_eq!(loadout["MaxJumpRange"], 77.75);
+        let p = physics_from_loadout(&loadout, 0.0, None).unwrap();
+        assert_eq!((p.fsd_size, p.fsd_rating, p.sco, p.mk2), (8, 'A', true, true));
+        assert_eq!(p.booster_ly, guardian_booster_ly(5));
+        assert_eq!(p.model.capacity, 128.0);
+        let full_tank = p.model.range_at(128.0);
+        assert!((full_tank - 72.14).abs() < 0.05, "Coriolis says 72.14 ly on a full tank; we derive {full_tank}");
+        let one_jump = p.model.range_at(p.model.max_fuel_per_jump);
+        assert!((one_jump - 77.75).abs() < 0.05, "Coriolis says 77.75 ly MAX; we derive {one_jump}");
+    }
+
+    /// A Coriolis JSON export whose `stats` block was cut is still a
+    /// Coriolis export — refused with every missing number named, not
+    /// "not a loadout".
+    #[test]
+    fn a_coriolis_json_export_without_its_stats_names_every_missing_number() {
+        let mut v: Value = serde_json::from_str(CORIOLIS_JSON_EXPORT).unwrap();
+        v["stats"] = serde_json::json!({"hullMass": 950});
+        let text = v.to_string();
+        assert_eq!(paste_app_name(&text).as_deref(), Some(CORIOLIS_JSON));
+        assert_eq!(loadout_from_paste(&text), Err(LoadoutError::Missing(REQUIRED.to_vec())));
+        v["stats"] = serde_json::json!({"dryMass": 1323.3, "fuelCapacity": 128});
+        assert_eq!(loadout_from_paste(&v.to_string()), Err(LoadoutError::Missing(vec!["MaxJumpRange"])));
+    }
+
+    /// A plain 5A drive with no booster synthesises the stock item name.
+    #[test]
+    fn a_stock_drive_in_a_coriolis_json_export_is_a_stock_hyperdrive() {
+        let v = serde_json::json!({
+            "$schema": "https://coriolis.io/schemas/ship-loadout/4.json#", "name": "", "ship": "Asp Explorer",
+            "components": {"standard": {"frameShiftDrive": {"class": 5, "rating": "A", "enabled": true}}, "internal": [null]},
+            "stats": {"dryMass": 280.0, "fuelCapacity": 32, "maxRange": 38.0}
+        });
+        let loadout = loadout_from_paste(&v.to_string()).unwrap();
+        assert_eq!(loadout["Ship"], "asp_explorer");
+        assert_eq!(loadout["Modules"][0]["Item"], "Int_Hyperdrive_Size5_Class5");
+        assert_eq!(loadout["Modules"].as_array().unwrap().len(), 1);
+        let p = physics_from_loadout(&loadout, 0.0, None).unwrap();
+        assert_eq!((p.fsd_size, p.fsd_rating, p.sco, p.mk2, p.booster_ly), (5, 'A', false, false, 0.0));
     }
 
     const SLEF: &str = r#"[{"header":{"appName":"EDSY","appVersion":"4.0"},"data":{"event":"Loadout","Ship":"Cutter","ShipName":"Treasure Goblin","UnladenMass":1163.6,"CargoCapacity":720,"MaxJumpRange":25.83,"FuelCapacity":{"Main":32,"Reserve":1.16},"Modules":[{"Slot":"FrameShiftDrive","Item":"Int_Hyperdrive_Size7_Class5","On":true,"Engineering":{"BlueprintName":"FSD_LongRange","Level":5,"Modifiers":[{"Label":"FSDOptimalMass","Value":2902.4,"OriginalValue":1800},{"Label":"MaxFuelPerJump","Value":12.8,"OriginalValue":12.8}]}},{"Slot":"Slot01_Size6","Item":"Int_GuardianFSDBooster_Size5","On":true},{"Slot":"Slot02_Size6","Item":"Int_FuelScoop_Size6_Class5","On":true}]}}]"#;
