@@ -1,0 +1,152 @@
+# First-reach vs redirect: WHEN the store first inferred a massacre complete (kills_done reached KillCount) against WHEN the
+# game said so (MissionRedirected), maintainer's store read-only, 66 redirected massacres 2026-09-09..19. This is the
+# instrument the capped counter could not be: a count capped at KillCount reads "exact" at the redirect whether it got
+# there on time or hours early. Harness: knobs/mission_first_reach_replay_harness_v3.rs (appended to src-tauri/src/watcher.rs,
+# EDDA_REPLAY_DB=... EDDA_REPLAY_OUT=... cargo test --release -p edda replay_journal_v3 -- --ignored). lead_seconds =
+# redirect - first_reach: positive = inferred EARLY (over-credit), negative = inferred LATE (under-count), |lead| <= 60 on time.
+# Two rule sets: CONSECUTIVE = missions/consecutive-kill-credit (#103, one mission per giver at a time, earliest first);
+# CONCURRENT = main a8a6390-era (every live mission of the target faction credited per kill).
+# VERDICT: CONSECUTIVE early=0 on_time=35 late=31 never=0; CONCURRENT early=15 on_time=25 late=26 never=0. Concurrent
+# over-credits 15 same-giver duplicates by a median 3.4 h (max 14.2 h) — the 2026-09-16 ruling "consecutive within a giver"
+# was RIGHT and the 2026-09-19 kill-credit-at-redirect verdict (1) that refuted it was an instrument error (retracted there).
+# The 31 late ones under BOTH rules (median 3 min, worst 7.4 h) are the under-count: kills the ship never scanned write no
+# Bounty (live the same day: 3 in game vs 1 in the journal, then 13 vs 9). Consequence: kill counting removed from EDDA
+# (maintainer ruling, 2026-09-19); this record is the why. Rows below: consecutive first, then concurrent.
+#rule=consecutive
+mission_id,giver,target,kill_count,accepted,first_reached,redirected,lead_seconds,verdict
+1065912132,"Labour Union of Ahayan","Anana Brotherhood",25,2026-09-13T14:56:14Z,2026-09-13T17:08:18Z,2026-09-13T17:07:36Z,-42,on time
+1065912168,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T14:56:38Z,2026-09-13T17:11:21Z,2026-09-13T17:10:55Z,-26,on time
+1065912182,"New HIP 90112 for Equality","Anana Brotherhood",45,2026-09-13T14:56:56Z,2026-09-13T17:43:16Z,2026-09-13T17:39:22Z,-234,late
+1065912450,"Natural HIP 90112 Party","Anana Brotherhood",35,2026-09-13T15:00:54Z,2026-09-13T17:25:49Z,2026-09-13T17:25:24Z,-25,on time
+1065912457,"Pilots Trade Network","Anana Brotherhood",56,2026-09-13T15:01:03Z,2026-09-13T18:04:13Z,2026-09-13T18:03:16Z,-57,on time
+1065942256,"New HIP 90112 for Equality","Anana Brotherhood",36,2026-09-13T19:47:10Z,2026-09-13T21:31:56Z,2026-09-13T21:31:37Z,-19,on time
+1065942276,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T19:47:20Z,2026-09-13T21:22:03Z,2026-09-13T21:18:34Z,-209,late
+1065942287,"HIP 90112 Jet Central Corp.","Anana Brotherhood",54,2026-09-13T19:47:33Z,2026-09-13T23:03:45Z,2026-09-13T23:00:30Z,-195,late
+1065942304,"New HIP 90112 for Equality","Anana Brotherhood",35,2026-09-13T19:47:45Z,2026-09-13T22:44:55Z,2026-09-13T22:40:46Z,-249,late
+1065942325,"HIP 90112 Jet Central Corp.","Anana Brotherhood",32,2026-09-13T19:48:03Z,2026-09-14T00:00:58Z,2026-09-14T00:00:48Z,-10,on time
+1065942355,"Labour Union of Ahayan","Anana Brotherhood",35,2026-09-13T19:48:23Z,2026-09-13T21:31:36Z,2026-09-13T21:31:04Z,-32,on time
+1065942829,"New HIP 90112 for Equality","Anana Brotherhood",36,2026-09-13T19:52:37Z,2026-09-13T23:52:31Z,2026-09-13T23:52:06Z,-25,on time
+1065942863,"HIP 90112 Jet Central Corp.","Anana Brotherhood",35,2026-09-13T19:53:00Z,2026-09-14T01:07:31Z,2026-09-14T01:06:05Z,-86,late
+1065942878,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T19:53:08Z,2026-09-14T01:45:16Z,2026-09-14T01:44:48Z,-28,on time
+1065942892,"HIP 90112 Jet Central Corp.","Anana Brotherhood",48,2026-09-13T19:53:15Z,2026-09-14T02:39:44Z,2026-09-14T02:39:20Z,-24,on time
+1065942908,"New HIP 90112 for Equality","Anana Brotherhood",20,2026-09-13T19:53:30Z,2026-09-14T00:27:14Z,2026-09-14T00:26:33Z,-41,on time
+1065942924,"Labour Union of Ahayan","Anana Brotherhood",30,2026-09-13T19:53:41Z,2026-09-13T22:26:23Z,2026-09-13T22:23:10Z,-193,late
+1065996875,"HIP 90112 Jet Central Corp.","Anana Brotherhood",54,2026-09-14T12:29:40Z,2026-09-14T14:43:40Z,2026-09-14T14:42:55Z,-45,on time
+1065996884,"HIP 90112 Jet Central Corp.","Anana Brotherhood",40,2026-09-14T12:29:46Z,2026-09-14T16:29:16Z,2026-09-14T16:28:52Z,-24,on time
+1065996890,"HIP 90112 Jet Central Corp.","Anana Brotherhood",36,2026-09-14T12:29:54Z,2026-09-14T18:06:43Z,2026-09-14T18:06:43Z,0,on time
+1065996896,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-14T12:29:59Z,2026-09-14T19:33:33Z,2026-09-14T19:33:34Z,1,on time
+1065997174,"HIP 90112 Jet Central Corp.","Anana Brotherhood",32,2026-09-14T12:34:53Z,2026-09-15T03:24:13Z,2026-09-15T03:23:38Z,-35,on time
+1065997178,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-14T12:34:58Z,2026-09-15T04:13:22Z,2026-09-15T04:13:17Z,-5,on time
+1065997190,"HIP 90112 Jet Central Corp.","Anana Brotherhood",64,2026-09-14T12:35:10Z,2026-09-15T06:30:28Z,2026-09-15T06:25:54Z,-274,late
+1066077652,"HIP 90112 Jet Central Corp.","Anana Brotherhood",72,2026-09-15T12:18:01Z,2026-09-16T15:46:04Z,2026-09-16T15:43:58Z,-126,late
+1066132317,"HIP 96854 Empire League","Anana Brotherhood",54,2026-09-16T03:17:41Z,2026-09-16T15:04:47Z,2026-09-16T14:58:56Z,-351,late
+1066132330,"Labour Union of Ahayan","Anana Brotherhood",36,2026-09-16T03:18:04Z,2026-09-16T14:24:23Z,2026-09-16T14:24:05Z,-18,on time
+1066132341,"Ahayan Gold Creative Co","Anana Brotherhood",30,2026-09-16T03:18:15Z,2026-09-16T14:12:57Z,2026-09-16T06:51:54Z,-26463,late
+1066132348,"Ahayan Defence Party","Anana Brotherhood",25,2026-09-16T03:18:34Z,2026-09-16T06:42:41Z,2026-09-16T06:41:27Z,-74,late
+1066132366,"Liberals of Ahayan","Anana Brotherhood",15,2026-09-16T03:18:55Z,2026-09-16T06:20:37Z,2026-09-16T06:20:38Z,1,on time
+1066136753,"United Tagii League","Anana Brotherhood",40,2026-09-16T05:18:19Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066136777,"Crimson Armada","Anana Brotherhood",40,2026-09-16T05:18:57Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066136793,"HR 7169 Union Party","Anana Brotherhood",56,2026-09-16T05:19:23Z,2026-09-16T15:04:47Z,2026-09-16T15:04:30Z,-17,on time
+1066136797,"Puneith Values Party","Anana Brotherhood",40,2026-09-16T05:19:38Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066167981,"HIP 90112 Jet Central Corp.","Anana Brotherhood",48,2026-09-16T15:56:34Z,2026-09-16T18:03:12Z,2026-09-16T18:02:10Z,-62,late
+1066167987,"Pilots Trade Network","Anana Brotherhood",72,2026-09-16T15:56:42Z,2026-09-16T18:40:39Z,2026-09-16T18:40:14Z,-25,on time
+1066168007,"Natural HIP 90112 Party","Anana Brotherhood",72,2026-09-16T15:57:08Z,2026-09-16T18:40:39Z,2026-09-16T18:40:14Z,-25,on time
+1066168268,"Labour Union of Ahayan","Anana Brotherhood",30,2026-09-16T16:01:36Z,2026-09-16T17:28:17Z,2026-09-16T17:28:17Z,0,on time
+1066168637,"Workers of Dimocorna Union","Anana Brotherhood",25,2026-09-16T16:07:15Z,2026-09-16T17:16:23Z,2026-09-16T17:16:24Z,1,on time
+1066168655,"Crimson Armada","Anana Brotherhood",54,2026-09-16T16:07:26Z,2026-09-16T18:14:46Z,2026-09-16T18:14:19Z,-27,on time
+1066168667,"HR 7169 Union Party","Anana Brotherhood",35,2026-09-16T16:07:35Z,2026-09-16T17:39:17Z,2026-09-16T17:33:03Z,-374,late
+1066168696,"United Tagii League","Anana Brotherhood",40,2026-09-16T16:07:52Z,2026-09-16T17:48:35Z,2026-09-16T17:48:16Z,-19,on time
+1066169021,"HIP 96854 Empire League","Anana Brotherhood",5,2026-09-16T16:12:29Z,2026-09-16T16:38:52Z,2026-09-16T16:38:53Z,1,on time
+1066169080,"Ahayan Defence Party","Anana Brotherhood",35,2026-09-16T16:13:29Z,2026-09-16T17:39:17Z,2026-09-16T17:33:04Z,-373,late
+1066215034,"Puneith Organisation","Anana Brotherhood",54,2026-09-17T05:17:24Z,2026-09-18T04:20:10Z,2026-09-18T04:19:54Z,-16,on time
+1066215041,"Workers of Dimocorna Union","Anana Brotherhood",40,2026-09-17T05:17:36Z,2026-09-18T03:53:37Z,2026-09-18T03:53:04Z,-33,on time
+1066215053,"Crimson Armada","Anana Brotherhood",56,2026-09-17T05:17:47Z,2026-09-18T04:25:30Z,2026-09-18T04:24:46Z,-44,on time
+1066215154,"United Tagii League","Anana Brotherhood",63,2026-09-17T05:19:42Z,2026-09-18T04:48:29Z,2026-09-18T04:45:28Z,-181,late
+1066215171,"Puneith Values Party","Anana Brotherhood",35,2026-09-17T05:19:55Z,2026-09-18T03:37:40Z,2026-09-18T03:35:45Z,-115,late
+1066225011,"HIP 96854 Empire League","Anana Brotherhood",72,2026-09-17T12:36:12Z,2026-09-18T05:28:08Z,2026-09-18T05:26:33Z,-95,late
+1066225027,"Labour Union of Ahayan","Anana Brotherhood",45,2026-09-17T12:36:26Z,2026-09-18T04:00:13Z,2026-09-18T03:57:13Z,-180,late
+1066225043,"Ahayan Gold Creative Co","Anana Brotherhood",72,2026-09-17T12:36:39Z,2026-09-18T05:28:08Z,2026-09-18T05:26:33Z,-95,late
+1066225072,"Liberals of Ahayan","Anana Brotherhood",48,2026-09-17T12:37:14Z,2026-09-18T04:12:14Z,2026-09-18T04:12:03Z,-11,on time
+1066225089,"Ahayan Defence Party","Anana Brotherhood",30,2026-09-17T12:37:31Z,2026-09-18T03:34:22Z,2026-09-18T03:32:10Z,-132,late
+1066310374,"Puneith Organisation","Anana Brotherhood",64,2026-09-18T13:55:39Z,2026-09-18T17:37:22Z,2026-09-18T17:29:29Z,-473,late
+1066310407,"HR 7169 Union Party","Anana Brotherhood",63,2026-09-18T13:55:59Z,2026-09-18T17:37:22Z,2026-09-18T17:29:10Z,-492,late
+1066310416,"Puneith Values Party","Anana Brotherhood",72,2026-09-18T13:56:07Z,2026-09-18T17:52:38Z,2026-09-18T17:52:02Z,-36,on time
+1066310845,"United Tagii League","Anana Brotherhood",72,2026-09-18T14:03:13Z,2026-09-18T17:52:38Z,2026-09-18T17:52:02Z,-36,on time
+1066313314,"HIP 96854 Empire League","Anana Brotherhood",54,2026-09-18T14:40:27Z,2026-09-18T17:11:38Z,2026-09-18T17:11:30Z,-8,on time
+1066313325,"Labour Union of Ahayan","Anana Brotherhood",36,2026-09-18T14:40:33Z,2026-09-18T16:47:46Z,2026-09-18T16:45:38Z,-128,late
+1066313361,"Ahayan Gold Creative Co","Anana Brotherhood",42,2026-09-18T14:40:50Z,2026-09-18T17:00:57Z,2026-09-18T16:59:06Z,-111,late
+1066313384,"Ahayan Defence Party","Anana Brotherhood",35,2026-09-18T14:41:00Z,2026-09-18T16:45:37Z,2026-09-18T16:44:17Z,-80,late
+1066316139,"HIP 90112 Jet Central Corp.","Anana Brotherhood",49,2026-09-18T15:21:47Z,2026-09-18T17:07:42Z,2026-09-18T17:07:28Z,-14,on time
+1066317095,"New HIP 90112 for Equality","Anana Brotherhood",30,2026-09-18T15:34:52Z,2026-09-18T16:35:47Z,2026-09-18T16:33:12Z,-155,late
+1066371223,"Puneith Organisation","Anana Brotherhood",48,2026-09-19T05:54:28Z,2026-09-19T08:52:24Z,2026-09-19T07:33:45Z,-4719,late
+1066371228,"United Tagii League","Anana Brotherhood",42,2026-09-19T05:54:35Z,2026-09-19T07:23:47Z,2026-09-19T07:22:11Z,-96,late
+#totals,redirected=66,early=0,on_time=35,late=31,never=0
+#rule=concurrent
+mission_id,giver,target,kill_count,accepted,first_reached,redirected,lead_seconds,verdict
+1065912132,"Labour Union of Ahayan","Anana Brotherhood",25,2026-09-13T14:56:14Z,2026-09-13T17:08:18Z,2026-09-13T17:07:36Z,-42,on time
+1065912168,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T14:56:38Z,2026-09-13T17:11:21Z,2026-09-13T17:10:55Z,-26,on time
+1065912182,"New HIP 90112 for Equality","Anana Brotherhood",45,2026-09-13T14:56:56Z,2026-09-13T17:43:16Z,2026-09-13T17:39:22Z,-234,late
+1065912450,"Natural HIP 90112 Party","Anana Brotherhood",35,2026-09-13T15:00:54Z,2026-09-13T17:25:49Z,2026-09-13T17:25:24Z,-25,on time
+1065912457,"Pilots Trade Network","Anana Brotherhood",56,2026-09-13T15:01:03Z,2026-09-13T18:04:13Z,2026-09-13T18:03:16Z,-57,on time
+1065942256,"New HIP 90112 for Equality","Anana Brotherhood",36,2026-09-13T19:47:10Z,2026-09-13T21:31:56Z,2026-09-13T21:31:37Z,-19,on time
+1065942276,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T19:47:20Z,2026-09-13T21:22:03Z,2026-09-13T21:18:34Z,-209,late
+1065942287,"HIP 90112 Jet Central Corp.","Anana Brotherhood",54,2026-09-13T19:47:33Z,2026-09-13T22:37:22Z,2026-09-13T23:00:30Z,1388,early (over-credit)
+1065942304,"New HIP 90112 for Equality","Anana Brotherhood",35,2026-09-13T19:47:45Z,2026-09-13T21:41:16Z,2026-09-13T22:40:46Z,3570,early (over-credit)
+1065942325,"HIP 90112 Jet Central Corp.","Anana Brotherhood",32,2026-09-13T19:48:03Z,2026-09-13T21:35:54Z,2026-09-14T00:00:48Z,8694,early (over-credit)
+1065942355,"Labour Union of Ahayan","Anana Brotherhood",35,2026-09-13T19:48:23Z,2026-09-13T21:31:36Z,2026-09-13T21:31:04Z,-32,on time
+1065942829,"New HIP 90112 for Equality","Anana Brotherhood",36,2026-09-13T19:52:37Z,2026-09-13T21:41:31Z,2026-09-13T23:52:06Z,7835,early (over-credit)
+1065942863,"HIP 90112 Jet Central Corp.","Anana Brotherhood",35,2026-09-13T19:53:00Z,2026-09-13T21:41:16Z,2026-09-14T01:06:05Z,12289,early (over-credit)
+1065942878,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-13T19:53:08Z,2026-09-13T21:31:56Z,2026-09-14T01:44:48Z,15172,early (over-credit)
+1065942892,"HIP 90112 Jet Central Corp.","Anana Brotherhood",48,2026-09-13T19:53:15Z,2026-09-13T22:10:51Z,2026-09-14T02:39:20Z,16109,early (over-credit)
+1065942908,"New HIP 90112 for Equality","Anana Brotherhood",20,2026-09-13T19:53:30Z,2026-09-13T21:08:15Z,2026-09-14T00:26:33Z,11898,early (over-credit)
+1065942924,"Labour Union of Ahayan","Anana Brotherhood",30,2026-09-13T19:53:41Z,2026-09-13T21:31:56Z,2026-09-13T22:23:10Z,3074,early (over-credit)
+1065996875,"HIP 90112 Jet Central Corp.","Anana Brotherhood",54,2026-09-14T12:29:40Z,2026-09-14T14:43:40Z,2026-09-14T14:42:55Z,-45,on time
+1065996884,"HIP 90112 Jet Central Corp.","Anana Brotherhood",40,2026-09-14T12:29:46Z,2026-09-14T14:50:47Z,2026-09-14T16:28:52Z,5885,early (over-credit)
+1065996890,"HIP 90112 Jet Central Corp.","Anana Brotherhood",36,2026-09-14T12:29:54Z,2026-09-14T14:37:15Z,2026-09-14T18:06:43Z,12568,early (over-credit)
+1065996896,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-14T12:29:59Z,2026-09-14T14:13:04Z,2026-09-14T19:33:34Z,19230,early (over-credit)
+1065997174,"HIP 90112 Jet Central Corp.","Anana Brotherhood",32,2026-09-14T12:34:53Z,2026-09-14T14:21:32Z,2026-09-15T03:23:38Z,46926,early (over-credit)
+1065997178,"HIP 90112 Jet Central Corp.","Anana Brotherhood",30,2026-09-14T12:34:58Z,2026-09-14T14:13:04Z,2026-09-15T04:13:17Z,50413,early (over-credit)
+1065997190,"HIP 90112 Jet Central Corp.","Anana Brotherhood",64,2026-09-14T12:35:10Z,2026-09-14T16:13:23Z,2026-09-15T06:25:54Z,51151,early (over-credit)
+1066077652,"HIP 90112 Jet Central Corp.","Anana Brotherhood",72,2026-09-15T12:18:01Z,2026-09-16T15:46:04Z,2026-09-16T15:43:58Z,-126,late
+1066132317,"HIP 96854 Empire League","Anana Brotherhood",54,2026-09-16T03:17:41Z,2026-09-16T15:04:47Z,2026-09-16T14:58:56Z,-351,late
+1066132330,"Labour Union of Ahayan","Anana Brotherhood",36,2026-09-16T03:18:04Z,2026-09-16T14:24:23Z,2026-09-16T14:24:05Z,-18,on time
+1066132341,"Ahayan Gold Creative Co","Anana Brotherhood",30,2026-09-16T03:18:15Z,2026-09-16T14:12:57Z,2026-09-16T06:51:54Z,-26463,late
+1066132348,"Ahayan Defence Party","Anana Brotherhood",25,2026-09-16T03:18:34Z,2026-09-16T06:42:41Z,2026-09-16T06:41:27Z,-74,late
+1066132366,"Liberals of Ahayan","Anana Brotherhood",15,2026-09-16T03:18:55Z,2026-09-16T06:20:37Z,2026-09-16T06:20:38Z,1,on time
+1066136753,"United Tagii League","Anana Brotherhood",40,2026-09-16T05:18:19Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066136777,"Crimson Armada","Anana Brotherhood",40,2026-09-16T05:18:57Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066136793,"HR 7169 Union Party","Anana Brotherhood",56,2026-09-16T05:19:23Z,2026-09-16T15:04:47Z,2026-09-16T15:04:30Z,-17,on time
+1066136797,"Puneith Values Party","Anana Brotherhood",40,2026-09-16T05:19:38Z,2026-09-16T14:30:35Z,2026-09-16T14:27:26Z,-189,late
+1066167981,"HIP 90112 Jet Central Corp.","Anana Brotherhood",48,2026-09-16T15:56:34Z,2026-09-16T18:03:12Z,2026-09-16T18:02:10Z,-62,late
+1066167987,"Pilots Trade Network","Anana Brotherhood",72,2026-09-16T15:56:42Z,2026-09-16T18:40:39Z,2026-09-16T18:40:14Z,-25,on time
+1066168007,"Natural HIP 90112 Party","Anana Brotherhood",72,2026-09-16T15:57:08Z,2026-09-16T18:40:39Z,2026-09-16T18:40:14Z,-25,on time
+1066168268,"Labour Union of Ahayan","Anana Brotherhood",30,2026-09-16T16:01:36Z,2026-09-16T17:28:17Z,2026-09-16T17:28:17Z,0,on time
+1066168637,"Workers of Dimocorna Union","Anana Brotherhood",25,2026-09-16T16:07:15Z,2026-09-16T17:16:23Z,2026-09-16T17:16:24Z,1,on time
+1066168655,"Crimson Armada","Anana Brotherhood",54,2026-09-16T16:07:26Z,2026-09-16T18:14:46Z,2026-09-16T18:14:19Z,-27,on time
+1066168667,"HR 7169 Union Party","Anana Brotherhood",35,2026-09-16T16:07:35Z,2026-09-16T17:39:17Z,2026-09-16T17:33:03Z,-374,late
+1066168696,"United Tagii League","Anana Brotherhood",40,2026-09-16T16:07:52Z,2026-09-16T17:48:35Z,2026-09-16T17:48:16Z,-19,on time
+1066169021,"HIP 96854 Empire League","Anana Brotherhood",5,2026-09-16T16:12:29Z,2026-09-16T16:38:52Z,2026-09-16T16:38:53Z,1,on time
+1066169080,"Ahayan Defence Party","Anana Brotherhood",35,2026-09-16T16:13:29Z,2026-09-16T17:39:17Z,2026-09-16T17:33:04Z,-373,late
+1066215034,"Puneith Organisation","Anana Brotherhood",54,2026-09-17T05:17:24Z,2026-09-18T04:20:10Z,2026-09-18T04:19:54Z,-16,on time
+1066215041,"Workers of Dimocorna Union","Anana Brotherhood",40,2026-09-17T05:17:36Z,2026-09-18T03:53:37Z,2026-09-18T03:53:04Z,-33,on time
+1066215053,"Crimson Armada","Anana Brotherhood",56,2026-09-17T05:17:47Z,2026-09-18T04:25:30Z,2026-09-18T04:24:46Z,-44,on time
+1066215154,"United Tagii League","Anana Brotherhood",63,2026-09-17T05:19:42Z,2026-09-18T04:48:29Z,2026-09-18T04:45:28Z,-181,late
+1066215171,"Puneith Values Party","Anana Brotherhood",35,2026-09-17T05:19:55Z,2026-09-18T03:37:40Z,2026-09-18T03:35:45Z,-115,late
+1066225011,"HIP 96854 Empire League","Anana Brotherhood",72,2026-09-17T12:36:12Z,2026-09-18T05:28:08Z,2026-09-18T05:26:33Z,-95,late
+1066225027,"Labour Union of Ahayan","Anana Brotherhood",45,2026-09-17T12:36:26Z,2026-09-18T04:00:13Z,2026-09-18T03:57:13Z,-180,late
+1066225043,"Ahayan Gold Creative Co","Anana Brotherhood",72,2026-09-17T12:36:39Z,2026-09-18T05:28:08Z,2026-09-18T05:26:33Z,-95,late
+1066225072,"Liberals of Ahayan","Anana Brotherhood",48,2026-09-17T12:37:14Z,2026-09-18T04:12:14Z,2026-09-18T04:12:03Z,-11,on time
+1066225089,"Ahayan Defence Party","Anana Brotherhood",30,2026-09-17T12:37:31Z,2026-09-18T03:34:22Z,2026-09-18T03:32:10Z,-132,late
+1066310374,"Puneith Organisation","Anana Brotherhood",64,2026-09-18T13:55:39Z,2026-09-18T17:37:22Z,2026-09-18T17:29:29Z,-473,late
+1066310407,"HR 7169 Union Party","Anana Brotherhood",63,2026-09-18T13:55:59Z,2026-09-18T17:37:22Z,2026-09-18T17:29:10Z,-492,late
+1066310416,"Puneith Values Party","Anana Brotherhood",72,2026-09-18T13:56:07Z,2026-09-18T17:52:38Z,2026-09-18T17:52:02Z,-36,on time
+1066310845,"United Tagii League","Anana Brotherhood",72,2026-09-18T14:03:13Z,2026-09-18T17:52:38Z,2026-09-18T17:52:02Z,-36,on time
+1066313314,"HIP 96854 Empire League","Anana Brotherhood",54,2026-09-18T14:40:27Z,2026-09-18T17:11:38Z,2026-09-18T17:11:30Z,-8,on time
+1066313325,"Labour Union of Ahayan","Anana Brotherhood",36,2026-09-18T14:40:33Z,2026-09-18T16:47:46Z,2026-09-18T16:45:38Z,-128,late
+1066313361,"Ahayan Gold Creative Co","Anana Brotherhood",42,2026-09-18T14:40:50Z,2026-09-18T17:00:57Z,2026-09-18T16:59:06Z,-111,late
+1066313384,"Ahayan Defence Party","Anana Brotherhood",35,2026-09-18T14:41:00Z,2026-09-18T16:45:37Z,2026-09-18T16:44:17Z,-80,late
+1066316139,"HIP 90112 Jet Central Corp.","Anana Brotherhood",49,2026-09-18T15:21:47Z,2026-09-18T17:07:42Z,2026-09-18T17:07:28Z,-14,on time
+1066317095,"New HIP 90112 for Equality","Anana Brotherhood",30,2026-09-18T15:34:52Z,2026-09-18T16:35:47Z,2026-09-18T16:33:12Z,-155,late
+1066371223,"Puneith Organisation","Anana Brotherhood",48,2026-09-19T05:54:28Z,2026-09-19T08:52:24Z,2026-09-19T07:33:45Z,-4719,late
+1066371228,"United Tagii League","Anana Brotherhood",42,2026-09-19T05:54:35Z,2026-09-19T07:23:47Z,2026-09-19T07:22:11Z,-96,late
+#totals,redirected=66,early=15,on_time=25,late=26,never=0

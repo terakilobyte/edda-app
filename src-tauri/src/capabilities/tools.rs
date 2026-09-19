@@ -230,7 +230,7 @@ fn missions(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let req: commander::MissionsRequest = parse(input)?;
     let (list, now) = commander::missions(ctx.state, &req)?;
     Ok(json!({ "missions": list, "now": now, "provenance": "journal",
-        "note": "kills_done is inferred from kill events by victim faction and may over-count kills made outside the destination system" }))
+        "note": "kill progress is not tracked: the journal has no per-kill mission counter and kills the ship never scanned leave no event. kill_count is the target; status becomes ready_to_turn_in on the game's own MissionRedirected." }))
 }
 
 fn missions_route_schema() -> Value {

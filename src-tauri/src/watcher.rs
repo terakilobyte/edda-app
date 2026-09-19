@@ -272,13 +272,6 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     {
                                                         crate::capi::on_carrier_event(&app, ev);
                                                     }
-                                                    Some("Bounty") | Some("FactionKillBond") => {
-                                                        out.extend(
-                                                            mission_progress(conn, &crate::commands::now_iso(), &v)
-                                                                .into_iter()
-                                                                .map(|c| (c, None)),
-                                                        );
-                                                    }
                                                     // A plotted route gets a briefing; each arrival
                                                     // gets the next star and the one after it.
                                                     Some("NavRoute") if !crate::follow::map_setup_testing() => {
@@ -374,17 +367,10 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                             watermark = Some(mark);
                                         }
                                         // One completion line for the pass, from the game's
-                                        // own signal rather than from our kill count — and it
-                                        // REPLACES the pass's progress line. The store is
-                                        // synced before this loop, so by the time the crossing
-                                        // kill is handled its mission is already ready and the
-                                        // progress line names the NEXT nearest one: without
-                                        // this the commander hears "30 of 48" immediately
-                                        // before "complete: 30 kills", two numbers about two
-                                        // different missions. Same shape as the fuel caution
-                                        // dropped by a trap warning above.
+                                        // own signal. Kills are not counted (2026-09-19), so
+                                        // this is the only thing a massacre ever says.
                                         if let Some(c) = mission_redirected(conn, &crate::commands::now_iso(), &pass_events) {
-                                            supersede_progress(&mut out, c);
+                                            out.push((c, None));
                                         }
                                         if let Some(c) = mission_rerouted(conn, &crate::commands::now_iso(), &pass_events) {
                                             out.push((c, None));
@@ -587,92 +573,16 @@ fn session_summary(conn: &rusqlite::Connection) -> Option<Callout> {
     })
 }
 
-/// "Mission progress: 3 of 5 Kulkan Lung Blue Ring kills." after a kill
-/// that counts toward an active massacre, or "Target down" for an
-/// assassination. Reads the derived mission state, so it lives here.
-/// What a kill says. Progress only, and only for a mission still ACTIVE.
-///
-/// Completion is NOT spoken here. It comes from `mission_redirected`,
-/// because the game states it outright and our own count does not agree
-/// with the game: replaying the maintainer's journal from 2026-09-09,
-/// of 42 missions only ONE matched `MissionRedirected` to the second —
-/// 18 were inferred early (every one a same-giver duplicate, which the
-/// game queues rather than running concurrently) and 19 redirected
-/// without ever being inferred.
-///
-/// Speaking completion from kills also made the app lie. `active()`
-/// includes ReadyToTurnIn, and this function used to report the FIRST
-/// matching mission, so once anything was finished every later kill
-/// re-announced it: 88 repeats of a completion that had happened, and
-/// 361 utterances across two overnight sessions announcing a stack that
-/// had been finished for hours. Restricting progress to Active missions
-/// is what silences those.
-fn mission_progress(conn: &rusqlite::Connection, now: &str, kill: &Value) -> Vec<Callout> {
-    use ed_store::missions::MissionStatus;
-    let ts = kill.get("timestamp").and_then(Value::as_str).unwrap_or("");
-    let victim = kill.get("VictimFaction").and_then(Value::as_str);
-    let pilot = kill
-        .get("PilotName_Localised")
-        .or_else(|| kill.get("PilotName"))
-        .and_then(Value::as_str);
-    let Ok(active) = ed_store::missions::active(conn, now) else { return Vec::new() };
-
-    let mut out = Vec::new();
-    // An assassination target dying is its own line and is not a count.
-    for m in active.iter().filter(|m| m.status == MissionStatus::Active) {
-        let is_target = m.kind == "assassinate"
-            && m.target.as_deref().zip(pilot).is_some_and(|(t, p)| t.eq_ignore_ascii_case(p));
-        if is_target {
-            out.push(Callout {
-                kind: "mission",
-                text: format!(
-                    "Target down: {}. {}",
-                    m.target.as_deref().unwrap_or("target"),
-                    m.hand_in_station
-                        .as_deref()
-                        .map(|s| format!("Return to {s}."))
-                        .unwrap_or_default()
-                ),
-                priority: 1,
-                speak: true,
-                ts: ts.to_string(),
-            });
-        }
-    }
-
-    // One progress line per kill, for the mission NEAREST to completing.
-    // On a concurrent stack every credited mission has the same count, so
-    // that is simply the smallest target still active — the number a
-    // commander is actually watching.
-    let nearest = active
-        .iter()
-        .filter(|m| m.status == MissionStatus::Active)
-        .filter(|m| m.kill_count.is_some() && victim.is_some() && m.target_faction.as_deref() == victim)
-        .min_by_key(|m| ed_store::missions::kills_remaining(m).unwrap_or(i64::MAX));
-    if let Some(m) = nearest {
-        let total = m.kill_count.unwrap_or(0);
-        let done = m.kills_done.min(total);
-        let faction = m.target_faction.as_deref().unwrap_or("target");
-        out.push(Callout {
-            kind: "mission",
-            text: format!("Mission progress: {done} of {total} {faction} kills."),
-            priority: 0,
-            speak: true,
-            ts: ts.to_string(),
-        });
-    }
-    out
-}
-
 /// What the game's own `MissionRedirected` says: this mission's objective
 /// is met, go and hand it in. One callout for the whole pass, because a
 /// concurrent stack finishes several at once — measured on the
 /// maintainer's journal, 39 redirects arrived as 36 singles and one
 /// triple, so the plural is real but rare.
 ///
-/// Carries its own callout kind so it can be silenced separately from
-/// the progress line, which fires every 80 seconds through an evening
-/// against 23 completions in a week.
+/// Carries its own callout kind (`mission_complete`) so it can be
+/// silenced on its own. There is no progress line any more: counting
+/// kills from the journal was measured wrong both ways and dropped
+/// (see `ed_store::missions`).
 fn mission_redirected(conn: &rusqlite::Connection, now: &str, events: &[Value]) -> Option<Callout> {
     let known = ed_store::missions::active(conn, now).unwrap_or_default();
     let redirects: Vec<&Value> = events
@@ -785,20 +695,6 @@ fn mission_rerouted(conn: &rusqlite::Connection, now: &str, events: &[Value]) ->
     Some(Callout { kind: "mission", text, priority: 1, speak: true, ts: ts.to_string() })
 }
 
-/// A completion supersedes the pass's progress line.
-///
-/// The store is synced before the event loop, so by the time the
-/// crossing kill is handled its mission is already ready to turn in and
-/// the progress line names the NEXT nearest mission. Kept, the pass
-/// would say "Mission progress: 30 of 48" and then "Mission complete: 30
-/// kills for Labour Union of Ahayan" — two numbers, two different
-/// missions, the wrong one first. The next kill reports progress again
-/// anyway. Same shape as a trap warning dropping the fuel caution.
-fn supersede_progress(out: &mut Vec<Sourced>, completion: Callout) {
-    out.retain(|(c, _)| !(c.kind == "mission" && c.text.starts_with("Mission progress")));
-    out.push((completion, None));
-}
-
 /// "Goeppert-Mayer Vision, Ahayan", or just the station, or nothing.
 fn destination_of(redirect: &Value) -> String {
     let station = redirect
@@ -826,11 +722,11 @@ fn trailer(destination: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{mission_progress, mission_redirected, mission_rerouted, stale_for_speech, Callout};
+    use super::{mission_redirected, mission_rerouted, stale_for_speech};
     use serde_json::{json, Value};
 
     /// A stack part-way through: two massacres against the same faction
-    /// from different givers (the concurrent case), one already finished.
+    /// from different givers.
     fn db() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         ed_store::schema::migrate(&conn).unwrap();
@@ -838,58 +734,9 @@ mod tests {
         conn.execute_batch(r#"
             INSERT INTO events (file,offset,ts,event,raw) VALUES
             ('J',1,'2026-09-16T10:00:00Z','MissionAccepted','{"timestamp":"2026-09-16T10:00:00Z","event":"MissionAccepted","Faction":"Ahayan Defence Party","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":9,"DestinationStation":"Goeppert-Mayer Vision","DestinationSystem":"Ahayan","Expiry":"2026-09-20T10:00:00Z","MissionID":11}'),
-            ('J',2,'2026-09-16T10:00:01Z','MissionAccepted','{"timestamp":"2026-09-16T10:00:01Z","event":"MissionAccepted","Faction":"Labour Union of Ahayan","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":3,"DestinationStation":"Goeppert-Mayer Vision","DestinationSystem":"Ahayan","Expiry":"2026-09-21T10:00:00Z","MissionID":12}'),
-            ('J',3,'2026-09-16T11:00:00Z','Bounty','{"timestamp":"2026-09-16T11:00:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
-            ('J',4,'2026-09-16T11:00:01Z','Bounty','{"timestamp":"2026-09-16T11:00:01Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}');
+            ('J',2,'2026-09-16T10:00:01Z','MissionAccepted','{"timestamp":"2026-09-16T10:00:01Z","event":"MissionAccepted","Faction":"Labour Union of Ahayan","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":3,"DestinationStation":"Goeppert-Mayer Vision","DestinationSystem":"Ahayan","Expiry":"2026-09-21T10:00:00Z","MissionID":12}');
         "#).unwrap();
         conn
-    }
-
-    fn kill(ts: &str) -> Value {
-        json!({"timestamp": ts, "event": "Bounty", "VictimFaction": "Anana Brotherhood"})
-    }
-
-    /// The progress line names the mission NEAREST to completing, not
-    /// whichever happens to sit first in the list.
-    #[test]
-    fn progress_names_the_mission_closest_to_done() {
-        let out = mission_progress(&db(), "2026-09-16T14:00:00Z", &kill("2026-09-16T11:00:01Z"));
-        let progress: Vec<&str> = out.iter().map(|c| c.text.as_str()).collect();
-        assert_eq!(progress.len(), 1, "one line per kill: {progress:?}");
-        // HUD order puts mission 11 first (it expires sooner) but it needs
-        // 9 kills; mission 12 needs 3. The line must name 12. Without
-        // this asymmetry the test passes against the old first-match
-        // code and proves nothing.
-        assert!(progress[0].contains("2 of 3"), "the nearest mission is named, not the first: {progress:?}");
-        assert!(out.iter().all(|c| c.kind == "mission"));
-    }
-
-    /// The defect that made the app lie: 361 utterances across two
-    /// overnight sessions announcing a stack finished hours earlier,
-    /// because a ready-to-turn-in mission stayed first in the list and
-    /// every later kill re-reported it. A kill can no longer say
-    /// "complete" at all, and a finished mission produces no line.
-    #[test]
-    fn a_kill_never_announces_a_completion() {
-        let conn = db();
-        // Finish both missions outright: 12 more kills, then the game's
-        // redirects. Any kill after this must be silent.
-        let mut sql = String::new();
-        for i in 0..12 {
-            sql.push_str(&format!(
-                "INSERT INTO events (file,offset,ts,event,raw) VALUES ('J',{},'2026-09-16T12:00:{:02}Z','Bounty','{{\"timestamp\":\"2026-09-16T12:00:{:02}Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Anana Brotherhood\",\"TotalReward\":1}}');",
-                100 + i, i, i
-            ));
-        }
-        conn.execute_batch(&sql).unwrap();
-        let out = mission_progress(&conn, "2026-09-16T14:00:00Z", &kill("2026-09-16T13:00:00Z"));
-        assert!(
-            !out.iter().any(|c| c.text.contains("complete")),
-            "a kill must never claim a completion: {:?}",
-            out.iter().map(|c| &c.text).collect::<Vec<_>>()
-        );
-        assert!(out.is_empty(), "nothing active remains, so the kill is silent: {:?}",
-            out.iter().map(|c| &c.text).collect::<Vec<_>>());
     }
 
     fn redirect(id: i64, station: &str, system: &str) -> Value {
@@ -921,41 +768,6 @@ mod tests {
         assert!(c.text.starts_with("2 missions complete:"), "{}", c.text);
         assert!(c.text.contains("Ahayan Defence Party"), "{}", c.text);
         assert!(c.text.contains("Labour Union of Ahayan"), "{}", c.text);
-    }
-
-    /// A completion supersedes the pass's progress line. The crossing
-    /// kill's mission is already ready by the time the kill is handled,
-    /// so the progress line in that pass is about a DIFFERENT mission
-    /// and arrives before the completion it appears to belong to.
-    #[test]
-    fn a_completion_drops_the_progress_line_from_its_pass() {
-        let progress = Callout {
-            kind: "mission",
-            text: "Mission progress: 30 of 48 Anana Brotherhood kills.".into(),
-            priority: 0,
-            speak: true,
-            ts: "2026-09-16T12:30:00Z".into(),
-        };
-        let target = Callout {
-            kind: "mission",
-            text: "Target down: Saintmaur.".into(),
-            priority: 1,
-            speak: true,
-            ts: "2026-09-16T12:30:00Z".into(),
-        };
-        let completion = Callout {
-            kind: "mission_complete",
-            text: "Mission complete: 30 kills.".into(),
-            priority: 1,
-            speak: true,
-            ts: "2026-09-16T12:30:00Z".into(),
-        };
-        let mut out: Vec<super::Sourced> = vec![(progress, None), (target.clone(), None)];
-        super::supersede_progress(&mut out, completion);
-        let texts: Vec<&str> = out.iter().map(|(c, _)| c.text.as_str()).collect();
-        assert!(!texts.iter().any(|t| t.starts_with("Mission progress")), "{texts:?}");
-        assert!(texts.contains(&"Target down: Saintmaur."), "an unrelated mission line survives: {texts:?}");
-        assert_eq!(texts.last(), Some(&"Mission complete: 30 kills."), "{texts:?}");
     }
 
     /// Missions that finish together need not share a hand-in. Measured
@@ -1041,7 +853,7 @@ mod tests {
 
     #[test]
     fn a_pass_without_a_redirect_is_silent() {
-        assert!(mission_redirected(&db(), "2026-09-16T14:00:00Z", &[kill("2026-09-16T11:00:00Z")]).is_none());
+        assert!(mission_redirected(&db(), "2026-09-16T14:00:00Z", &[json!({"timestamp": "2026-09-16T11:00:00Z", "event": "Bounty", "VictimFaction": "Anana Brotherhood"})]).is_none());
     }
 
 
