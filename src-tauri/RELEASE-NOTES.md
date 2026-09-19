@@ -45,6 +45,15 @@ redirects to a new drop-off is announced as a reroute, not a
 completion. Wing missions carry a wing marker on the Missions tab and
 the HUD.
 
+**Plan the whole build.** The Ships tab's "Plan build" lets you choose a
+blueprint, grade and experimental for every module on a ship — "same for
+all 9" copies one laser's plan onto the rest — and gives one answer for
+the lot: every material pooled against what you carry, one shopping list
+for the shortfall with the nearest traders and farm sites, and the fewest
+engineers you need to visit with what to bring each of them. The plan is
+saved per ship, and the planned build copies as SLEF for EDSY or
+Coriolis.
+
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
 sign-in, in your browser, back to the app). Once linked, the carrier

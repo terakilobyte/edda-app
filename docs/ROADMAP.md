@@ -370,6 +370,24 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Plan the whole build at once** (2026-09-19, maintainer: "my type 10
+  has 9 weapon hardpoints — I'd like to be able to plan out all 9 at once
+  and get the list. It should generalize to planning all hardpoints").
+  The Ships tab's "Plan build" turns the module table into a plan: a
+  blueprint, target grade and experimental per engineerable module,
+  "same for all N" copying one row onto every module of its type, the
+  fitted engineering continued to the top grade by default, saved per
+  ship. One report (`build_plan_report`): materials pooled by name
+  against the inventory (nine Focused lasers need nine times the iron),
+  one shopping list from the pooled shortfall (the per-module
+  `shopping_for` was split into `shopping_from_need` so both paths share
+  it), and the fewest engineers that cover the plan (greedy set cover
+  over unlocked engineers offering the target grade; slots nobody
+  unlocked can do are named, not dropped). The planned build exports as
+  SLEF with every planned slot at its target grade. The shopping-list
+  markup is one component (`ShoppingReport.svelte`) shared with the
+  Engineering tab. Pure shaping in `frontend/src/lib/buildplan.js`,
+  tested.
 - **Engineer audit** (2026-09-19, maintainer: "we need to do a clean
   sweep of engineers" — The Dweller was missing from his Type-10's pulse
   lasers). The vendored blueprint data (EDEngineer, byte-identical to

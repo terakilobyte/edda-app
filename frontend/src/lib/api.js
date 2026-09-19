@@ -90,7 +90,8 @@ export const COMMANDS = {
   capiLinkCode: ["capi_link_code", ["text"]],
   capiUnlink: ["capi_unlink"],
   capiRefreshCarrier: ["capi_refresh_carrier"],
-  shipSlef: ["ship_slef", ["shipId", "proposed"], { shipId: null, proposed: null }],
+  shipSlef: ["ship_slef", ["shipId", "proposed", "plan"], { shipId: null, proposed: null, plan: null }],
+  buildPlanReport: ["build_plan_report", "*"],
   shipLinks: ["ship_links", ["shipId"], { shipId: null }],
   materialShopping: ["material_shopping", "*"],
   // Galaxy
@@ -271,7 +272,7 @@ const listeners = Object.fromEntries(Object.entries(EVENTS).map(([k, ev]) => [k,
 // ── Named wrappers (generated) ─────────────────────────────────────
 export const {
   getStatus, getInventory, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
-  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping,
+  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport,
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,
   galaxyStatus, activityHeatmap, feedbackSend, telemetryPrefs, telemetryPrefsSet, shipScoopInfo, sellHoldSearch, miningSearch, miningMaterials, markAdd, markRemove, markHere, gameState,

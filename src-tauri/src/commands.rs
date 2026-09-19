@@ -252,7 +252,7 @@ pub async fn check_blueprint(
 }
 
 /// Live material inventory keyed by display name.
-fn material_inventory(conn: &rusqlite::Connection) -> std::collections::HashMap<String, i64> {
+pub(crate) fn material_inventory(conn: &rusqlite::Connection) -> std::collections::HashMap<String, i64> {
     let catalog = ed_journal::Catalog::load();
     let mut have = std::collections::HashMap::new();
     if let Ok(mut stmt) = conn.prepare("SELECT symbol, count FROM materials") {
@@ -342,6 +342,18 @@ pub fn shopping_for(
     if need.is_empty() {
         return Err("nothing selected to plan".into());
     }
+    shopping_from_need(conn, galaxy, need, have)
+}
+
+/// The shopping list for an already-pooled need (one module or a whole
+/// build): shortfall → surplus → trades → farm plans. Trader stops come
+/// back empty; `fill_traders` asks the API for them.
+pub(crate) fn shopping_from_need(
+    conn: &rusqlite::Connection,
+    galaxy: Option<&ed_galaxy::Galaxy>,
+    need: std::collections::HashMap<String, i64>,
+    have: std::collections::HashMap<String, i64>,
+) -> Result<ShoppingReport, String> {
     let mut short: Vec<(String, i64)> = need
         .iter()
         .filter_map(|(m, n)| {
@@ -623,6 +635,63 @@ pub struct BlueprintAccess {
     pub max_reachable_grade: Option<i64>,
 }
 
+/// Who works a blueprint and whether the commander has them: every
+/// engineer with their cap, whether someone unlocked offers `grade`, and
+/// the highest grade an unlocked engineer offers. None when the blueprint
+/// has no such grade. Shared by the command, the tool and the build plan.
+pub(crate) fn access_for(
+    engineers: &[query::Engineer],
+    engineering: &ed_engineering::Catalog,
+    module_type: &str,
+    name: &str,
+    grade: i64,
+) -> Option<(Vec<EngineerAccess>, bool, Option<i64>)> {
+    let status_of = |n: &str| -> (String, Option<i64>, bool) {
+        match engineers.iter().find(|e| e.name.eq_ignore_ascii_case(n)) {
+            Some(e) => (e.progress.clone().unwrap_or_else(|| "Unknown".into()), e.rank, e.is_unlocked()),
+            // Absent from the journal entirely is worse than "Known".
+            None => ("Not known".to_string(), None, false),
+        }
+    };
+    let bp = engineering.find(module_type, name, grade)?;
+    let access: Vec<EngineerAccess> = engineering
+        .engineers_for(module_type, name)
+        .into_iter()
+        .map(|(e, max_grade)| {
+            let (status, rank, unlocked) = status_of(&e);
+            EngineerAccess { engineer: e, status, rank, unlocked, max_grade }
+        })
+        .collect();
+    // Reachable means someone unlocked offers THIS grade.
+    let reachable = bp.engineers.iter().any(|e| status_of(e).2);
+    let mut max_reachable_grade = None;
+    for g in 1..=5 {
+        if let Some(b) = engineering.find(module_type, name, g) {
+            if b.engineers.iter().any(|e| status_of(e).2) {
+                max_reachable_grade = Some(g);
+            }
+        }
+    }
+    Some((access, reachable, max_reachable_grade))
+}
+
+/// The whole build's plan in one report: pooled materials, one shopping
+/// list, the fewest engineers to visit. See `build_plan`.
+#[tauri::command]
+pub async fn build_plan_report(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+    items: Vec<crate::build_plan::PlanItem>,
+    minimum: Option<bool>,
+    complete: Option<bool>,
+) -> Result<crate::build_plan::BuildPlanReport, String> {
+    let mut report = crate::build_plan::report(state.inner(), ship_id, &items, minimum.unwrap_or(false), complete.unwrap_or(true))?;
+    if let Some(shopping) = report.shopping.as_mut() {
+        fill_traders(&state, shopping).await;
+    }
+    Ok(report)
+}
+
 #[tauri::command]
 pub async fn blueprint_access(
     state: State<'_, AppState>,
@@ -633,43 +702,8 @@ pub async fn blueprint_access(
     let engineers = state
         .with_read(|s| query::engineers(s.conn()))
         .map_err(err)?;
-    let status_of = |n: &str| -> (String, Option<i64>, bool) {
-        match engineers.iter().find(|e| e.name.eq_ignore_ascii_case(n)) {
-            Some(e) => (
-                e.progress.clone().unwrap_or_else(|| "Unknown".into()),
-                e.rank,
-                e.is_unlocked(),
-            ),
-            // Absent from the journal entirely is worse than "Known".
-            None => ("Not known".to_string(), None, false),
-        }
-    };
-
-    let bp = state
-        .engineering
-        .find(&module_type, &name, grade)
+    let (access, reachable, max_reachable_grade) = access_for(&engineers, &state.engineering, &module_type, &name, grade)
         .ok_or_else(|| format!("no blueprint {name:?} grade {grade} for {module_type:?}"))?;
-
-    let access: Vec<EngineerAccess> = state
-        .engineering
-        .engineers_for(&module_type, &name)
-        .into_iter()
-        .map(|(e, max_grade)| {
-            let (status, rank, unlocked) = status_of(&e);
-            EngineerAccess { engineer: e, status, rank, unlocked, max_grade }
-        })
-        .collect();
-    // Reachable means someone unlocked offers THIS grade.
-    let reachable = bp.engineers.iter().any(|e| status_of(e).2);
-
-    let mut max_reachable_grade = None;
-    for g in 1..=5 {
-        if let Some(b) = state.engineering.find(&module_type, &name, g) {
-            if b.engineers.iter().any(|e| status_of(e).2) {
-                max_reachable_grade = Some(g);
-            }
-        }
-    }
 
     Ok(BlueprintAccess {
         module_type,
@@ -829,10 +863,19 @@ fn apply_proposed_engineering(data: &mut serde_json::Value, proposed: &ProposedE
 /// replaced by the plan (at nominal full-grade values) so the build can be
 /// theorycrafted before any materials are spent.
 #[tauri::command]
-pub async fn ship_slef(state: State<'_, AppState>, ship_id: Option<i64>, proposed: Option<ProposedEngineering>) -> Result<String, String> {
+pub async fn ship_slef(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+    proposed: Option<ProposedEngineering>,
+    plan: Option<Vec<ProposedEngineering>>,
+) -> Result<String, String> {
     let raw = loadout_raw(&state, ship_id)?;
     let mut data: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     if let Some(proposed) = &proposed {
+        apply_proposed_engineering(&mut data, proposed)?;
+    }
+    // A build plan: every planned slot at its target grade (Ships tab).
+    for proposed in plan.iter().flatten() {
         apply_proposed_engineering(&mut data, proposed)?;
     }
     let slef = serde_json::json!([{ "header": { "appName": "EDDA", "appVersion": env!("CARGO_PKG_VERSION"), "appURL": "https://edda-app.com/" }, "data": data }]);

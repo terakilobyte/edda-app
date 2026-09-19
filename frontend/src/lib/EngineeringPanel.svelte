@@ -4,19 +4,14 @@
   // live inventory and whether an unlocked engineer can apply it.
   import { onMount } from "svelte";
   // Per-module engineering lives on the Ships tab; "Plan" there lands here.
-  import { requestRoute } from "./route.svelte.js";
-  import { eng, traderStatus } from "./engineering.svelte.js";
+  import { eng } from "./engineering.svelte.js";
+  import ShoppingReport from "./ShoppingReport.svelte";
   import { listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, checkExperimental, listEngineers, materialShopping, shipSlef } from "./api.js";
 
   let error = $state("");
   let loading = $state(false);
   $effect(() => { if (eng.shopping?.list) eng.picked = new Set(eng.shopping.list.trades.map((_, i) => i)); });
   function togglePick(i) { const s = new Set(eng.picked); s.has(i) ? s.delete(i) : s.add(i); eng.picked = s; }
-  // Trader kinds needed by the selected trades plus any farm-then-trade plan.
-  const neededKinds = $derived(new Set([
-    ...(eng.shopping?.list?.trades ?? []).filter((_, i) => eng.picked.has(i)).map((t) => t.kind),
-    ...(eng.shopping?.farm ?? []).flatMap((p) => p.options.filter((o) => o.rate).map((o) => o.kind)),
-  ]));
 
   const blueprints = $derived(eng.options.filter((b) => b.grades.length > 0));
   const experimentals = $derived(eng.options.filter((b) => b.grades.length === 0));
@@ -223,77 +218,7 @@
     </div>
   {/if}
 
-  {#if eng.shopping}
-    <h3 style="margin-top:0.8rem">Shopping list <span class="muted">material traders · 6:1 per grade up, 3:1 per grade down, ×6 across groups</span></h3>
-    {#if eng.shopping.error}
-      <p class="error">{eng.shopping.error}</p>
-    {:else}
-      {#if eng.shopping.list.trades.length}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th></th><th>At</th><th class="r">Give</th><th></th><th class="r">Get</th><th></th><th>Rate</th></tr></thead>
-            <tbody>
-              {#each eng.shopping.list.trades as t, i}
-                <tr class={eng.picked.has(i) ? "" : "dim"}>
-                  <td><input type="checkbox" checked={eng.picked.has(i)} onchange={() => togglePick(i)} /></td>
-                  <td class="muted">{t.kind} trader</td>
-                  <td class="r num">{t.give}</td><td>{t.give_material}</td>
-                  <td class="r num">{t.get}</td><td>{t.get_material}</td>
-                  <td class="muted">{t.rate}{t.same_group ? "" : " (cross-group)"}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/if}
-      {#if eng.shopping.list.still_short.length}
-        <p class="warn small">Still short after trading: {eng.shopping.list.still_short.map(([m, n]) => `${n} ${m}`).join(", ")}.</p>
-      {:else if eng.shopping.list.trades.length}
-        <p class="ok small">Everything covered by trading what you carry.</p>
-      {/if}
-      {#each eng.shopping.traders.filter((t) => neededKinds.has(t.kind)) as t}
-        {@const status = traderStatus(t, eng.shopping.origin_system)}
-        <div class="small" style="margin:0.3rem 0">
-          <strong>Nearest {t.kind_known === false ? "material" : t.kind} traders</strong>{eng.shopping.origin_system ? ` from ${eng.shopping.origin_system}` : ""}:
-          {#if status.text && t.nearest.length}<span class={status.tone} title={status.title ?? ""}>{status.text}</span>{/if}
-          {#if t.nearest.length}
-            <div class="row small" style="margin-top:0.2rem">
-              {#each t.nearest as n}
-                <span class="pill">{n.station.name} · {n.station.system_name} · {n.distance_ly.toFixed(1)} ly{n.station.distance_to_arrival != null ? ` · ${Math.round(n.station.distance_to_arrival)} ls` : ""}
-                  <button class="mini" onclick={() => requestRoute(n.station.system_name)} title="Plot a route there in the Route tab">route</button></span>
-              {/each}
-            </div>
-          {:else}
-            <span class={status.tone} title={status.title ?? ""}>{status.text}</span>
-          {/if}
-        </div>
-      {/each}
-      {#each eng.shopping.farm as plan}
-        <div class="small" style="margin:0.4rem 0">
-          <strong>{plan.needed} {plan.material}</strong> — collect, or farm something and trade it in:
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Site</th><th class="r">Collect</th><th></th><th>Then</th><th class="r">ly</th><th></th></tr></thead>
-              <tbody>
-                {#each plan.options as o}
-                  <tr>
-                    <td>{o.site}{o.body ? ` · ${o.body}` : ""}</td>
-                    <td class="r num">{o.collect}</td><td>{o.farm_material}</td>
-                    <td class="muted">{o.rate ? `trade ${o.rate} → ${o.get} ${plan.material} at a ${o.kind} trader` : "use directly"}</td>
-                    <td class="r num">{o.distance_ly != null ? o.distance_ly.toFixed(0) : "?"}</td>
-                    <td>{#if o.system}<button class="mini" onclick={() => requestRoute(o.system)}>route</button>{/if}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      {/each}
-      {#each eng.shopping.list.still_short.filter(([m]) => !eng.shopping.farm.some((p) => p.material === m)) as [m, n]}
-        <p class="small muted">{n} {m}: no known farm site vendored — ask the ship computer where you've collected it before.</p>
-      {/each}
-    {/if}
-  {/if}
+  <ShoppingReport shopping={eng.shopping} picked={eng.picked} onToggle={togglePick} />
 
   <h3 style="margin-top:1rem">Engineers <span class="muted">({unlocked.length} unlocked of {eng.engineers.length} known)</span></h3>
   <div class="row small">
