@@ -29,13 +29,14 @@ keeps saying Yamazaki Port") found this; thank you.
 
 **Kill counts are estimates. Completions come from the game, once.**
 The journal records every kill but never says which missions it counted
-for, so EDDA counts kills of the target faction itself, now only in the
-mission's system. Checked against the game at the instant of 65
-redirects on the maintainer's journal: the game's tally ran ahead of
-ours on 46 of them, by 2 to 23 kills, and nothing in the journal
-explains the gap. So the count is labelled as counted from your kill
-events, and a mission completes on the game's redirect, never on our
-count. That completion was also being spoken twice, once per event and
+for, so EDDA counts kills of the target faction itself: now only in the
+mission's system, and, when you hold several missions from one faction
+against the same target, one mission at a time in the order you took
+them, which is how the game credits them. Even so, on the maintainer's
+own journal the game's tally runs ahead of ours on most missions and
+nothing in the journal explains the gap. So the count is labelled as
+counted from your kill events, and a mission completes on the game's
+redirect, never on our count. That completion was also being spoken twice, once per event and
 once per pass; it is spoken once now. A delivery or courier mission the
 game redirects to a new drop-off is announced as a reroute, not a
 completion.
