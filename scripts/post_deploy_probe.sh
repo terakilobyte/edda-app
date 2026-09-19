@@ -21,7 +21,11 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$API/v1/stations?near=Sol"); echo
 typed=$(curl -fsS "$API/v1/stations?near=Sol&service=material_trader" | py 'rows=d if isinstance(d,list) else d.get("stations",d.get("rows",[])); print(len(rows), sum(1 for r in rows if r.get("primary_economy")))')
 echo "material traders typed: $(echo $typed | awk '{print $1" rows, "$2" with economy"}')"; [ "$(echo $typed | awk '{print $2}')" -gt 0 ] || bad=1
 
-code=$(curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -d '{"from":"Sol","to":"Colonia","range_ly":60}' "$API/v1/route"); echo "route plot: $code"; [ "$code" = 200 ] || bad=1
+# The routing index is built lazily after a restart (#41 stopped caching it), so the first plot after a
+# deploy can 504 while it builds and succeed seconds later (2026-09-19). One retry before calling it red.
+route_probe() { curl -s -o /dev/null -w '%{http_code}' -H 'content-type: application/json' -d '{"from":"Sol","to":"Colonia","range_ly":60}' "$API/v1/route"; }
+code=$(route_probe); [ "$code" = 200 ] || { sleep 8; code="$(route_probe) (after one retry)"; }
+echo "route plot: $code"; [ "${code%% *}" = 200 ] || bad=1
 
 cor=$(curl -s -w '\n%{http_code}' -H 'content-type: application/json' -d "{\"paste\": $(python -c "import json,sys; print(json.dumps(open(sys.argv[1]).read()))" "$S/coriolis_paste.json")}" "$API/v1/loadout/physics")
 code=$(echo "$cor" | tail -1); body=$(echo "$cor" | head -n -1)
