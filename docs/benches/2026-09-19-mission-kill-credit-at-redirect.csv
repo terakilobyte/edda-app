@@ -4,6 +4,14 @@
 # src-tauri/src/watcher.rs, cargo test --release -p edda replay_journal_v2 -- --ignored). OLD = main a8a6390 (every live
 # mission of the target faction credited per kill, capped); NEW = missions/handin-kills-redirect b8d77be (kill only in
 # DestinationSystem; one mission per giver at a time, earliest first).
+# RETRACTED 2026-09-19 (Waldorf): verdict (1)'s claim that concurrent same-giver crediting "matched the game" is an
+# instrument error — kills_done is capped at KillCount, so a count that reached the target EARLY reads as exact here and
+# over-credit is invisible. The right instrument is the time the count first reaches KillCount vs the redirect time
+# (harness v3, replay_harness_v3.rs), under which same-giver duplicates complete 20 min–14 h early under concurrent
+# crediting. The maintainer's consecutive-within-a-giver rule was confirmed live the same day (two Ahayan Defence Party
+# massacres, one kill: the game credited one). Verdict (2)'s under-count is explained: a target that dies before the
+# ship's scan completes writes no Bounty yet counts for the mission (live: 3 in game vs 1 in the journal, then 13 vs 9).
+# Kill counting was removed from EDDA on the maintainer's ruling; these numbers are why.
 # VERDICT (1): neither rule reproduces the game. Exact at the redirect: OLD 19/65, NEW 6/65; under: OLD 46, NEW 59; over: 0
 # in both, by construction (kills_done is capped at KillCount, so "reached it early" reads as exact here). Every credited
 # kill was in Anana = DestinationSystem for all 65, so the system gate changed nothing; the per-giver consecutive rule is

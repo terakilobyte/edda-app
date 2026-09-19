@@ -235,7 +235,7 @@
       <span class="lbl">Missions</span>
       {#each activeMissions.slice(0, 3) as m}
         <span class="pill {m.status === 'ready_to_turn_in' ? 'ok' : ''}" title={m.title}>
-          {m.wing ? "▲ " : ""}{m.kill_count ? `${m.kills_done}/${m.kill_count} ${m.target_faction ?? ""}` : m.kind === "assassinate" ? `${m.target}${m.kills_done ? " ✓" : ""}` : m.title.slice(0, 28)}
+          {m.wing ? "▲ " : ""}{m.kill_count ? `${m.kill_count} ${m.target_faction ?? ""}` : m.kind === "assassinate" ? `${m.target}` : m.title.slice(0, 28)}{m.status === "ready_to_turn_in" ? " ✓" : ""}
         </span>
       {/each}
       {#if activeMissions.length > 3}<span class="muted small">+{activeMissions.length - 3}</span>{/if}

@@ -79,15 +79,14 @@
               <td class="small">{m.faction}</td>
               <td>
                 {#if m.kill_count}
-                  <div class="num" title="Counted from your kill events; the game's own tally can run ahead of this. The mission completes on the game's signal, not on this count.">{m.kills_done} / {m.kill_count}</div>
-                  <div class="bar" style="width:90px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.kills_done) / m.kill_count)}%"></div></div>
+                  <div class="num" title="The game's mission panel is the only kill tally there is: kills your ship never scanned leave no journal entry. The row turns ready when the game says so.">{m.kill_count} kills</div>
                   {#if m.destination_system}<div class="muted small">in {m.destination_system}</div>{/if}
                 {:else if m.total_items_to_deliver}
                   <div class="num">{m.items_delivered} / {m.total_items_to_deliver} delivered</div>
                   <div class="bar" style="width:110px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.items_delivered) / m.total_items_to_deliver)}%"></div></div>
                   <div class="muted small">{Math.max(0, m.items_collected - m.items_delivered)} aboard · {m.items_collected} collected</div>
                 {:else if m.kind === "assassinate"}
-                  {m.kills_done ? "target down" : "target alive"}
+                  {m.status === "ready_to_turn_in" ? "target down" : "target alive"}
                 {:else}
                   <span class="muted">—</span>
                 {/if}

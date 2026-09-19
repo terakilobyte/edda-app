@@ -8,6 +8,34 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Kill counts are gone from mission tracking** (2026-09-19, ruled:
+  "if there's no reliable way to read exact mission data at any given
+  time, I think we have to abandon kill count tracking"). The journal
+  has no per-kill mission counter, and every way of inferring one was
+  measured wrong: (a) a target that dies before the ship's scan
+  completes writes NO `Bounty`/`FactionKillBond` yet counts for the
+  mission — live on the maintainer's ship the same afternoon, 3 kills in
+  game against 1 in the journal, then 13 against 9 (the journal after
+  that one Bounty shows two Imperial Eagles targeted at scan stage 0 and
+  the lock dropping, nothing else); (b) same-giver missions credit one
+  after another, different givers together (the 2026-09-16 ruling,
+  CONFIRMED live: two Ahayan Defence Party massacres, one kill, the game
+  credited one, EDDA showed one on each), which the earlier "13/13
+  concurrent" bench had got backwards because a counter capped at
+  KillCount cannot see over-credit — that verdict is RETRACTED in the
+  CSV header; (c) 46 of 65 redirected massacres were 2–23 kills short
+  at the redirect. Frontier's API was probed the same day for a mission
+  or kill tally: none (`/profile`, `/journal`; the journal endpoint is
+  the same file). What remains is what the game states outright:
+  `KillCount` as the target, `MissionRedirected` as completion (status
+  → ready to turn in), `MissionCompleted` at hand-in, the wing flag,
+  expiry, reward and hand-in. Removed: `kills_done`, `kills_remaining`,
+  the Bounty/FactionKillBond replay with its system gate and per-giver
+  rule, assassination-by-pilot-name completion, the per-kill "Mission
+  progress" callout and the HUD's fewest-kills sort key (HUD order is
+  now status, expiry, acceptance). Statler's #103 (restore the
+  consecutive rule) is moot. Kill counting comes back only if a source
+  of exact mission state appears — none is known.
 - **Mission hand-ins, kill credit and completions** (2026-09-19, tester
   feedback 5 + measured on the maintainer's store, PR pending). Three
   defects, one report ("EDDA keeps saying Yamazaki Port"): (1) the
@@ -28,12 +56,9 @@ verdicts live in the CSV headers under `docs/benches/`.
   same-giver pairs matched the game under concurrent crediting (13/13)
   and fell short under consecutive (exact 19/65 → 6/65;
   `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`), so
-  every live mission with the target credits at once. Open: 46 of 65
-  missions were UNDER by 2–23 kills at the redirect and nothing in the
-  journal explains it (no murder of the target, no Bounty without a
-  faction, wing kills in other windows, PVPKill 0) — `kills_done` is an
-  estimate, labelled so on the page; the redirect stays the completion
-  signal. (3) Any
+  every live mission with the target credits at once. SUPERSEDED the
+  same day (see the entry above): the "refuted" reading was an
+  instrument error, and kill credit itself was removed. (3) Any
   `MissionRedirected` completed the mission and was spoken TWICE — a
   per-event "Objective complete" in callouts.rs and the per-pass
   "Mission complete" (18 seconds carried both in the maintainer's log,
@@ -221,8 +246,9 @@ verdicts live in the CSV headers under `docs/benches/`.
   "I don't think we need strong modeling, the hud and mission tracker is
   working correctly as far as concurrent tracking"). The rule is written
   down because it is expensive to re-derive and easy to get backwards,
-  not because anything is waiting on it. Two observations from the same
-  conversation, recorded as behaviour rather than as defects:
+  not because anything is waiting on it. (Kill counting was removed on
+  2026-09-19 — see the Server section — so the two observations below
+  describe code that no longer exists; kept for the numbers.)
   - `kills_done` is an ESTIMATE, and now a measured one. Replaying the
     maintainer's journal from 2026-09-09 (262 credited kills, 42
     missions) against the game's own `MissionRedirected`: 18 were

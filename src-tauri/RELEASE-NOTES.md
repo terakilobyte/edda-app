@@ -9,9 +9,9 @@ notes" in the app and on the site alike.
 
 ## 0.3.5
 
-Missions now hand in where you took them, kill counts are labelled the
-estimates they are, and a completion is announced once, by the game's
-own signal. Your fleet carrier's real hold, tank and balance come from
+Missions now hand in where you took them, kill counts are gone (the
+journal cannot see every kill the game credits), and a completion is
+announced once, by the game's own signal. Your fleet carrier's real hold, tank and balance come from
 Frontier's API once you link your account. The Mining tab knows where
 to surface-mine the Rhino goods, uranium included. The web planner takes
 a Coriolis JSON export. And two launch-time scans that cost a
@@ -24,21 +24,26 @@ system, where the kills happen, not where you turn in. Measured on the
 maintainer's own journal: 74 of 74 massacre missions named a station he
 never docked at. The hand-in is now the station you accepted the
 mission at, and it moves only when the game redirects you. The target
-system is shown under the kill count instead. A tester's report ("EDDA
+system is shown under the target count instead. A tester's report ("EDDA
 keeps saying Yamazaki Port") found this; thank you.
 
-**Kill counts are estimates. Completions come from the game, once.**
-The journal records every kill but never says which missions it counted
-for, so EDDA counts kills of the target faction itself, now only in the
-mission's system. Checked against the game at the instant of 65
-redirects on the maintainer's journal: the game's tally ran ahead of
-ours on 46 of them, by 2 to 23 kills, and nothing in the journal
-explains the gap. So the count is labelled as counted from your kill
-events, and a mission completes on the game's redirect, never on our
-count. That completion was also being spoken twice, once per event and
-once per pass; it is spoken once now. A delivery or courier mission the
-game redirects to a new drop-off is announced as a reroute, not a
-completion.
+**Kill counts are gone. Completions come from the game, once.** The
+journal records a kill only when your ship finished scanning the target
+before it died, and never says which missions a kill counted for. EDDA
+used to count kills of the target faction itself, and the game kept
+disagreeing: on the maintainer's journal 46 of 65 completed massacres
+were 2 to 23 kills short at the moment the game called them done, and
+in one afternoon's flying the game had 13 kills where the journal held
+9. Frontier's API offers no mission tally either. A wrong number on the
+HUD is worse than none, so a massacre now shows its target count and
+its status, and the status comes from the game: ready to turn in when
+the game redirects you to the hand-in, done when you hand it in. The
+per-kill "Mission progress" callout is gone with the count. The
+completion was also being spoken twice, once per event and once per
+pass; it is spoken once now. A delivery or courier mission the game
+redirects to a new drop-off is announced as a reroute, not a
+completion. Wing missions carry a wing marker on the Missions tab and
+the HUD.
 
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier

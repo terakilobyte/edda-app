@@ -4,22 +4,24 @@
 //! objective, `CargoDepot` with cumulative collection/delivery counts,
 //! `MissionRedirected` when the objective is met and the game
 //! points you at the hand-in, then `MissionCompleted` / `Failed` /
-//! `Abandoned`. What it does **not** give is a per-kill progress counter,
-//! so massacre progress is inferred: kills (`Bounty`, `FactionKillBond`)
-//! after acceptance whose `VictimFaction` is the mission's target faction.
-//! That is the game's rule, with one refinement: the kill must happen in
-//! the mission's system (`FSDJump` / `Location` / `Docked` say where the
-//! commander is, so a kill of the right faction elsewhere is not
-//! credited). Every mission with that target credits at once, same giver
-//! or not: the maintainer's ruling of 2026-09-16 ("consecutive within a
-//! faction") was tried and REFUTED on his own store — at the instant of
-//! each redirect, same-giver pairs matched the game's count under
-//! concurrent crediting and fell short under consecutive (13 of 13;
-//! `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`).
-//! `kills_done` is an ESTIMATE: on that journal 46 of 65 missions were
-//! short by 2–23 kills at the redirect and nothing in the journal
-//! explains the gap, so the redirect stays the completion signal and the
-//! count is labelled as inferred.
+//! `Abandoned`.
+//!
+//! What it does NOT give is kill progress, and we no longer guess at it
+//! (maintainer, 2026-09-19: "abandon kill count tracking"). Counting
+//! `Bounty` / `FactionKillBond` events was tried and measured: a target
+//! that dies before the ship's scan completes writes no journal event
+//! yet counts for the mission (live, 2026-09-19: three kills in game,
+//! one `Bounty` in the journal), same-giver missions credit one after
+//! another while different givers credit together, and only the system
+//! the mission names counts. On the maintainer's journal 46 of 65
+//! redirected massacres were 2-23 kills short at the redirect
+//! (`docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`).
+//! An estimate that is wrong on the HUD is worse than no number, so a
+//! massacre shows its target count and its status, and the status comes
+//! from the game: `MissionRedirected` is the completion signal for
+//! do-then-return missions, and nothing else moves one to
+//! ReadyToTurnIn. Frontier's API has no mission endpoint either
+//! (probed 2026-09-19).
 //!
 //! The hand-in is the station the mission was accepted at (the last
 //! `Docked` before `MissionAccepted`) until the game redirects it;
@@ -28,10 +30,6 @@
 //! completes a mission whose objective is done-then-return (kills,
 //! assassinations, salvage, scans); for deliveries, couriers and
 //! passengers it only moves the destination.
-//!
-//! Assassinations are done when the named target dies (the `Bounty`'s
-//! pilot name matches) or when the game redirects the mission, whichever
-//! comes first.
 
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -65,9 +63,9 @@ pub struct Mission {
     pub target_faction: Option<String>,
     pub target: Option<String>,
     pub target_type: Option<String>,
+    /// The target count the game stated at acceptance. Progress towards
+    /// it is not tracked (see module docs); the status says when it is met.
     pub kill_count: Option<i64>,
-    /// Inferred from kill events; see module docs.
-    pub kills_done: i64,
     pub commodity: Option<String>,
     pub count: Option<i64>,
     /// Cumulative delivery-depot counters reported directly by the game.
@@ -127,7 +125,6 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
         "SELECT ts, event, raw FROM events
          WHERE event IN ('MissionAccepted','MissionCompleted','MissionFailed',
                          'MissionAbandoned','MissionRedirected','CargoDepot',
-                         'Bounty','FactionKillBond',
                          'Docked','Location','FSDJump','CarrierJump')
            AND ts >= ?1
          ORDER BY ts, file, offset",
@@ -138,7 +135,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
 
     let mut out: Vec<Mission> = Vec::new();
     // Where the commander is, and where they are docked, as of the event
-    // being read: the system gates kill credit; the dock is the giver.
+    // being read: the dock at acceptance is the giver and first hand-in.
     let mut here: Option<String> = None;
     let mut docked: Option<(String, String)> = None;
     for (ts, event, raw) in rows {
@@ -177,7 +174,6 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                     target: loc(&v, "Target"),
                     target_type: loc(&v, "TargetType"),
                     kill_count: i(&v, "KillCount"),
-                    kills_done: 0,
                     commodity: loc(&v, "Commodity"),
                     count: i(&v, "Count"),
                     items_collected: 0,
@@ -227,9 +223,6 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                             // job done (tester report, 2026-09-19).
                             if m.status == MissionStatus::Active && redirect_completes(&m.kind) {
                                 m.status = MissionStatus::ReadyToTurnIn;
-                                if let Some(k) = m.kill_count {
-                                    m.kills_done = k;
-                                }
                             }
                             // The hand-in moves even if we already inferred completion.
                             if let Some(sys) = s(&v, "NewDestinationSystem") {
@@ -250,38 +243,6 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                         _ => {
                             m.status = MissionStatus::Abandoned;
                             m.ended = Some(ts.clone());
-                        }
-                    }
-                }
-            }
-            "Bounty" | "FactionKillBond" => {
-                let victim = s(&v, "VictimFaction");
-                let pilot = loc(&v, "PilotName");
-                // Every live mission with this target credits the kill, same
-                // giver or not (measured, see the module docs).
-                for m in out.iter_mut().filter(|m| m.status == MissionStatus::Active) {
-                    if m.kill_count.is_some()
-                        && m.target_faction.is_some()
-                        && m.target_faction == victim
-                    {
-                        // The game only counts kills in the mission's system.
-                        // Unknown whereabouts (no jump seen yet) still credit.
-                        if let (Some(h), Some(d)) = (&here, &m.destination_system) {
-                            if !h.eq_ignore_ascii_case(d) {
-                                continue;
-                            }
-                        }
-                        m.kills_done += 1;
-                        if let Some(k) = m.kill_count {
-                            if m.kills_done >= k {
-                                m.kills_done = k;
-                                m.status = MissionStatus::ReadyToTurnIn;
-                            }
-                        }
-                    } else if let (Some(t), Some(p)) = (&m.target, &pilot) {
-                        if m.kind == "assassinate" && p.eq_ignore_ascii_case(t) {
-                            m.kills_done = 1;
-                            m.status = MissionStatus::ReadyToTurnIn;
                         }
                     }
                 }
@@ -325,18 +286,14 @@ pub fn active(conn: &Connection, now: &str) -> Result<Vec<Mission>> {
 
 /// The order missions are shown in, as the maintainer stated it
 /// (2026-09-16, flying a twenty-mission massacre stack whose three HUD
-/// slots were all taken by finished missions):
-/// `sort(incomplete, time_remaining, remaining_kills)`. Work that still
-/// needs doing comes first, soonest expiry next, then the fewest kills
-/// left; what remains tied falls to acceptance order, so two reads give
-/// the same list. The keys are the fields already tracked -- the status
-/// enum says whether a mission is complete, and kills remaining is the
-/// target less the kills counted -- not a parallel flag.
+/// slots were all taken by finished missions): work that still needs
+/// doing comes first, soonest expiry next; what remains tied falls to
+/// acceptance order, so two reads give the same list. His third key,
+/// fewest kills left, went with kill counting (2026-09-19): the number
+/// was an estimate the game kept contradicting.
 ///
 /// Mission type is deliberately not a key (maintainer: "not until we
-/// properly take on mission stacking"), so a mission with no kill target
-/// must not smuggle one in by sorting as if it had no kills left: it
-/// takes the last place on that key instead. A holding position until
+/// properly take on mission stacking"). A holding position until
 /// stacking is designed properly.
 pub fn in_hud_order(missions: &mut [Mission]) {
     missions.sort_by_key(|m| {
@@ -345,7 +302,6 @@ pub fn in_hud_order(missions: &mut [Mission]) {
             // A mission with no expiry sorts after every dated one.
             m.expiry.is_none(),
             m.expiry.clone(),
-            kills_remaining(m).unwrap_or(i64::MAX),
             m.accepted.clone(),
             m.id,
         )
@@ -369,8 +325,6 @@ fn status_rank(status: &MissionStatus) -> u8 {
     }
 }
 
-/// Kills still owed on a massacre, or None when the mission has no kill
-/// target at all.
 /// One mission giver in stacking mode: a faction the commander already
 /// holds a massacre from against the chosen target.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -451,10 +405,6 @@ pub fn stacking_givers(live: &[Mission]) -> Option<Stack> {
     Some(Stack { target_faction: target, givers, other_targets })
 }
 
-pub fn kills_remaining(m: &Mission) -> Option<i64> {
-    m.kill_count.map(|k| (k - m.kills_done).max(0))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,28 +418,31 @@ mod tests {
             ('J',1,'2026-08-26T12:33:26Z','MissionAccepted','{"timestamp":"2026-08-26T12:33:26Z","event":"MissionAccepted","Faction":"Wongi General Corp.","Name":"Mission_Massacre","LocalisedName":"Kill Kulkan Lung Blue Ring faction Pirates","TargetFaction":"Kulkan Lung Blue Ring","KillCount":3,"DestinationSystem":"Crucis Sector WU-P b5-1","DestinationStation":"Fremion City","Expiry":"2026-08-28T05:31:15Z","Reward":2433946,"MissionID":1}'),
             ('J',2,'2026-08-26T12:33:47Z','MissionAccepted','{"timestamp":"2026-08-26T12:33:47Z","event":"MissionAccepted","Faction":"Wongi Defence Force","Name":"Mission_Assassinate","LocalisedName":"Assassinate Known Pirate: Saintmaur","TargetFaction":"Kulkan Lung Blue Ring","Target":"Saintmaur","Expiry":"2026-08-27T12:30:25Z","Reward":389952,"MissionID":2}'),
             ('J',3,'2026-08-26T13:00:00Z','Bounty','{"timestamp":"2026-08-26T13:00:00Z","event":"Bounty","Target":"eagle","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1000}'),
-            ('J',4,'2026-08-26T13:01:00Z','Bounty','{"timestamp":"2026-08-26T13:01:00Z","event":"Bounty","Target":"eagle","VictimFaction":"Someone Else","TotalReward":1000}'),
+            ('J',4,'2026-08-26T13:01:00Z','Bounty','{"timestamp":"2026-08-26T13:01:00Z","event":"Bounty","Target":"eagle","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1000}'),
             ('J',5,'2026-08-26T13:02:00Z','Bounty','{"timestamp":"2026-08-26T13:02:00Z","event":"Bounty","Target":"anaconda","VictimFaction":"Kulkan Lung Blue Ring","PilotName":"$npc_name_decorate:#name=Saintmaur;","PilotName_Localised":"Saintmaur","TotalReward":500000}');
         "#).unwrap();
         conn
     }
 
+    /// The decision of 2026-09-19: kills move nothing. Three target-faction
+    /// bounties, one of them the named assassination target, and both
+    /// missions are still Active -- only the game's redirect completes them.
     #[test]
-    fn massacre_progress_counts_only_the_target_faction() {
+    fn kills_do_not_advance_a_mission() {
         let conn = db();
         let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
         let massacre = ms.iter().find(|m| m.id == 1).unwrap();
-        assert_eq!(massacre.kills_done, 2, "one kill was another faction");
-        assert_eq!(massacre.status, MissionStatus::Active);
-    }
-
-    #[test]
-    fn assassination_completes_when_the_named_pilot_dies() {
-        let conn = db();
-        let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
+        assert_eq!(massacre.status, MissionStatus::Active, "three bounties, still the game's call");
+        assert_eq!(massacre.kill_count, Some(3), "the target count is still shown");
         let hit = ms.iter().find(|m| m.id == 2).unwrap();
-        assert_eq!(hit.status, MissionStatus::ReadyToTurnIn);
+        assert_eq!(hit.status, MissionStatus::Active, "the named pilot's bounty does not finish the hit");
         assert_eq!(hit.kind, "assassinate");
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',6,'2026-08-26T13:03:00Z','MissionRedirected','{"timestamp":"2026-08-26T13:03:00Z","event":"MissionRedirected","MissionID":2,"NewDestinationStation":"Fremion City","NewDestinationSystem":"Crucis Sector WU-P b5-1"}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
+        assert_eq!(ms.iter().find(|m| m.id == 2).unwrap().status, MissionStatus::ReadyToTurnIn, "the redirect does");
     }
 
     #[test]
@@ -497,14 +450,12 @@ mod tests {
         let conn = db();
         conn.execute_batch(r#"
             INSERT INTO events (file,offset,ts,event,raw) VALUES
-            ('J',6,'2026-08-26T13:05:00Z','Bounty','{"timestamp":"2026-08-26T13:05:00Z","event":"Bounty","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1}'),
             ('J',7,'2026-08-26T13:06:00Z','MissionRedirected','{"timestamp":"2026-08-26T13:06:00Z","event":"MissionRedirected","MissionID":1,"NewDestinationStation":"Schmitt Enterprise","NewDestinationSystem":"Wongi"}'),
             ('J',8,'2026-08-26T13:30:00Z','MissionCompleted','{"timestamp":"2026-08-26T13:30:00Z","event":"MissionCompleted","MissionID":2,"Reward":389952}');
         "#).unwrap();
         let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
         let massacre = ms.iter().find(|m| m.id == 1).unwrap();
         assert_eq!(massacre.status, MissionStatus::ReadyToTurnIn);
-        assert_eq!(massacre.kills_done, 3, "capped at the target");
         assert_eq!(massacre.hand_in_station.as_deref(), Some("Schmitt Enterprise"), "the redirect moves the hand-in");
         assert_eq!(
             massacre.destination_station.as_deref(),
@@ -595,7 +546,6 @@ mod tests {
             "2026-09-16T17:00:00Z",
             "Pilots Trade Network",
             Some(20),
-            0,
             Some("2026-09-23T17:00:00Z"),
             MissionStatus::Active,
         );
@@ -614,12 +564,12 @@ mod tests {
     #[test]
     fn a_stack_needs_a_massacre() {
         assert!(stacking_givers(&[]).is_none());
-        let mut courier = m(1, "2026-09-16T10:00:00Z", "Someone", None, 0, None, MissionStatus::Active);
+        let mut courier = m(1, "2026-09-16T10:00:00Z", "Someone", None, None, MissionStatus::Active);
         courier.target_faction = None;
         assert!(stacking_givers(&[courier]).is_none(), "no kill target, no stack");
     }
 
-    fn m(id: i64, accepted: &str, faction: &str, target: Option<i64>, done: i64, expiry: Option<&str>, status: MissionStatus) -> Mission {
+    fn m(id: i64, accepted: &str, faction: &str, target: Option<i64>, expiry: Option<&str>, status: MissionStatus) -> Mission {
         Mission {
             id,
             accepted: accepted.into(),
@@ -631,7 +581,6 @@ mod tests {
             target: None,
             target_type: None,
             kill_count: target,
-            kills_done: done,
             commodity: None,
             count: None,
             items_collected: 0,
@@ -653,56 +602,53 @@ mod tests {
 
     /// The maintainer's stack as it stood on 2026-09-16 17:20Z (twenty
     /// wing massacres against Anana Brotherhood from twelve givers; twelve
-    /// ready to turn in, eight still active; 28 kills counted against every
-    /// active one). In acceptance order the HUD's three slots went to
-    /// finished missions. Under the stated rule the three slots hold the
-    /// mission two kills from paying out and expiring tomorrow, then the
-    /// two soonest-expiring of the rest by fewest kills left; the tie
-    /// between two 72-kill missions sharing an expiry to the second falls
-    /// to which was accepted first.
+    /// ready to turn in, eight still active). In acceptance order the
+    /// HUD's three slots went to finished missions. Under the rule the
+    /// three slots hold the active mission expiring tomorrow, then the
+    /// soonest-expiring of the rest in acceptance order.
     fn the_stack() -> Vec<Mission> {
         use MissionStatus::*;
         vec![
-            m(1066077652, "2026-09-15T12:18:01Z", "HIP 90112 Jet Central Corp.", Some(72), 72, Some("2026-09-22T12:16:26Z"), ReadyToTurnIn),
-            m(1066132317, "2026-09-16T03:17:41Z", "HIP 96854 Empire League", Some(54), 54, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
-            m(1066132330, "2026-09-16T03:18:04Z", "Labour Union of Ahayan", Some(36), 36, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
-            m(1066132341, "2026-09-16T03:18:15Z", "Ahayan Gold Creative Co", Some(30), 30, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
-            m(1066132348, "2026-09-16T03:18:34Z", "Ahayan Defence Party", Some(25), 25, Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
-            m(1066132366, "2026-09-16T03:18:55Z", "Liberals of Ahayan", Some(15), 15, Some("2026-09-17T22:25:27Z"), ReadyToTurnIn),
-            m(1066136753, "2026-09-16T05:18:19Z", "United Tagii League", Some(40), 40, Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
-            m(1066136777, "2026-09-16T05:18:57Z", "Crimson Armada", Some(40), 40, Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
-            m(1066136793, "2026-09-16T05:19:23Z", "HR 7169 Union Party", Some(56), 56, Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
-            m(1066136797, "2026-09-16T05:19:38Z", "Puneith Values Party", Some(40), 40, Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
-            m(1066167981, "2026-09-16T15:56:34Z", "HIP 90112 Jet Central Corp.", Some(48), 28, Some("2026-09-23T15:56:02Z"), Active),
-            m(1066167987, "2026-09-16T15:56:42Z", "Pilots Trade Network", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active),
-            m(1066168007, "2026-09-16T15:57:08Z", "Natural HIP 90112 Party", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active),
-            m(1066168268, "2026-09-16T16:01:36Z", "Labour Union of Ahayan", Some(30), 28, Some("2026-09-17T23:16:53Z"), Active),
-            m(1066168637, "2026-09-16T16:07:15Z", "Workers of Dimocorna Union", Some(25), 25, Some("2026-09-23T16:06:52Z"), ReadyToTurnIn),
-            m(1066168655, "2026-09-16T16:07:26Z", "Crimson Armada", Some(54), 28, Some("2026-09-23T16:06:52Z"), Active),
-            m(1066168667, "2026-09-16T16:07:35Z", "HR 7169 Union Party", Some(35), 28, Some("2026-09-23T16:06:52Z"), Active),
-            m(1066168696, "2026-09-16T16:07:52Z", "United Tagii League", Some(40), 28, Some("2026-09-23T16:06:52Z"), Active),
-            m(1066169021, "2026-09-16T16:12:29Z", "HIP 96854 Empire League", Some(5), 5, Some("2026-09-18T05:09:38Z"), ReadyToTurnIn),
-            m(1066169080, "2026-09-16T16:13:29Z", "Ahayan Defence Party", Some(35), 28, Some("2026-09-23T16:12:06Z"), Active),
+            m(1066077652, "2026-09-15T12:18:01Z", "HIP 90112 Jet Central Corp.", Some(72), Some("2026-09-22T12:16:26Z"), ReadyToTurnIn),
+            m(1066132317, "2026-09-16T03:17:41Z", "HIP 96854 Empire League", Some(54), Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132330, "2026-09-16T03:18:04Z", "Labour Union of Ahayan", Some(36), Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132341, "2026-09-16T03:18:15Z", "Ahayan Gold Creative Co", Some(30), Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132348, "2026-09-16T03:18:34Z", "Ahayan Defence Party", Some(25), Some("2026-09-23T03:12:54Z"), ReadyToTurnIn),
+            m(1066132366, "2026-09-16T03:18:55Z", "Liberals of Ahayan", Some(15), Some("2026-09-17T22:25:27Z"), ReadyToTurnIn),
+            m(1066136753, "2026-09-16T05:18:19Z", "United Tagii League", Some(40), Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
+            m(1066136777, "2026-09-16T05:18:57Z", "Crimson Armada", Some(40), Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
+            m(1066136793, "2026-09-16T05:19:23Z", "HR 7169 Union Party", Some(56), Some("2026-09-23T05:17:39Z"), ReadyToTurnIn),
+            m(1066136797, "2026-09-16T05:19:38Z", "Puneith Values Party", Some(40), Some("2026-09-23T04:55:04Z"), ReadyToTurnIn),
+            m(1066167981, "2026-09-16T15:56:34Z", "HIP 90112 Jet Central Corp.", Some(48), Some("2026-09-23T15:56:02Z"), Active),
+            m(1066167987, "2026-09-16T15:56:42Z", "Pilots Trade Network", Some(72), Some("2026-09-23T15:56:02Z"), Active),
+            m(1066168007, "2026-09-16T15:57:08Z", "Natural HIP 90112 Party", Some(72), Some("2026-09-23T15:56:02Z"), Active),
+            m(1066168268, "2026-09-16T16:01:36Z", "Labour Union of Ahayan", Some(30), Some("2026-09-17T23:16:53Z"), Active),
+            m(1066168637, "2026-09-16T16:07:15Z", "Workers of Dimocorna Union", Some(25), Some("2026-09-23T16:06:52Z"), ReadyToTurnIn),
+            m(1066168655, "2026-09-16T16:07:26Z", "Crimson Armada", Some(54), Some("2026-09-23T16:06:52Z"), Active),
+            m(1066168667, "2026-09-16T16:07:35Z", "HR 7169 Union Party", Some(35), Some("2026-09-23T16:06:52Z"), Active),
+            m(1066168696, "2026-09-16T16:07:52Z", "United Tagii League", Some(40), Some("2026-09-23T16:06:52Z"), Active),
+            m(1066169021, "2026-09-16T16:12:29Z", "HIP 96854 Empire League", Some(5), Some("2026-09-18T05:09:38Z"), ReadyToTurnIn),
+            m(1066169080, "2026-09-16T16:13:29Z", "Ahayan Defence Party", Some(35), Some("2026-09-23T16:12:06Z"), Active),
         ]
     }
 
     #[test]
-    fn the_maintainers_stack_shows_work_first_then_soonest_expiry_then_fewest_kills() {
+    fn the_maintainers_stack_shows_work_first_then_soonest_expiry_then_acceptance() {
         let mut stack = the_stack();
         in_hud_order(&mut stack);
-        let top: Vec<(&str, Option<i64>)> = stack.iter().take(3).map(|m| (m.faction.as_str(), kills_remaining(m))).collect();
+        let top: Vec<&str> = stack.iter().take(3).map(|m| m.faction.as_str()).collect();
         assert_eq!(
             top,
             [
-                ("Labour Union of Ahayan", Some(2)),       // 30 kills, expires 09-17
-                ("HIP 90112 Jet Central Corp.", Some(20)), // 48 kills, expires 09-23 15:56
-                ("Pilots Trade Network", Some(44)),        // 72 kills, same expiry, accepted before Natural
+                "Labour Union of Ahayan",       // expires 09-17
+                "HIP 90112 Jet Central Corp.",  // expires 09-23 15:56, accepted 15:56:34
+                "Pilots Trade Network",         // same expiry, accepted 15:56:42, before Natural
             ]
         );
         // The eight active missions fill the list before any hand-in.
         assert!(stack[..8].iter().all(|m| m.status == MissionStatus::Active));
         assert!(stack[8..].iter().all(|m| m.status == MissionStatus::ReadyToTurnIn));
-        // The tie pinned: same expiry to the second, same kills left, acceptance order.
+        // The tie pinned: same expiry to the second, acceptance order.
         assert_eq!(stack[3].faction, "Natural HIP 90112 Party");
         // The hand-ins go soonest expiry first, so the one to turn in tomorrow leads them.
         assert_eq!(stack[8].faction, "Liberals of Ahayan");
@@ -715,32 +661,32 @@ mod tests {
     }
 
     #[test]
-    fn missions_without_a_kill_target_or_an_expiry_do_not_jump_the_queue() {
+    fn missions_without_an_expiry_do_not_jump_the_queue() {
         use MissionStatus::*;
-        let mut courier = m(3, "2026-09-16T10:00:00Z", "A", None, 0, Some("2026-09-23T15:56:02Z"), Active);
+        let mut courier = m(3, "2026-09-16T10:00:00Z", "A", None, Some("2026-09-23T15:56:02Z"), Active);
         courier.kind = "courier".into();
         courier.target_faction = None;
-        let undated = m(4, "2026-09-16T09:00:00Z", "B", Some(10), 1, None, Active);
-        let massacre = m(5, "2026-09-16T11:00:00Z", "C", Some(72), 28, Some("2026-09-23T15:56:02Z"), Active);
+        let undated = m(4, "2026-09-16T09:00:00Z", "B", Some(10), None, Active);
+        let massacre = m(5, "2026-09-16T11:00:00Z", "C", Some(72), Some("2026-09-23T15:56:02Z"), Active);
         let mut list = vec![courier, undated, massacre];
         in_hud_order(&mut list);
         assert_eq!(
             list.iter().map(|m| m.id).collect::<Vec<_>>(),
-            [5, 3, 4],
-            "the massacre with 44 to go leads the courier it ties with on expiry; the undated one is last"
+            [3, 5, 4],
+            "the courier and the massacre tie on expiry and fall to acceptance; the undated one, accepted first, is still last"
         );
-        assert_eq!(kills_remaining(&list[1]), None);
     }
 
     /// `active()` drops finished missions and returns the rest in HUD
-    /// order: a massacre accepted first but already met no longer takes the
-    /// first slot, and a turned-in one is not listed at all.
+    /// order: a massacre accepted first but already met (the game
+    /// redirected it) no longer takes the first slot, and a turned-in one
+    /// is not listed at all.
     #[test]
     fn active_missions_drop_the_finished_and_lead_with_the_unfinished() {
         let conn = db();
         conn.execute_batch(r#"
             INSERT INTO events (file,offset,ts,event,raw) VALUES
-            ('J',6,'2026-08-26T13:05:00Z','Bounty','{"timestamp":"2026-08-26T13:05:00Z","event":"Bounty","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1}'),
+            ('J',6,'2026-08-26T13:05:00Z','MissionRedirected','{"timestamp":"2026-08-26T13:05:00Z","event":"MissionRedirected","MissionID":1,"NewDestinationStation":"Schmitt Enterprise","NewDestinationSystem":"Wongi"}'),
             ('J',7,'2026-08-26T13:10:00Z','MissionAccepted','{"timestamp":"2026-08-26T13:10:00Z","event":"MissionAccepted","Faction":"Later Giver","Name":"Mission_Massacre","TargetFaction":"Kulkan Lung Blue Ring","KillCount":9,"Expiry":"2026-08-28T05:31:15Z","MissionID":9}'),
             ('J',8,'2026-08-26T13:30:00Z','MissionCompleted','{"timestamp":"2026-08-26T13:30:00Z","event":"MissionCompleted","MissionID":2,"Reward":389952}');
         "#).unwrap();
@@ -795,54 +741,6 @@ mod tests {
         let m = ms.iter().find(|m| m.id == 1).unwrap();
         assert_eq!(m.status, MissionStatus::ReadyToTurnIn);
         assert_eq!(m.hand_in_station.as_deref(), Some("Papin Works"));
-    }
-
-    /// A kill of the target faction in another system is the game's
-    /// "does not count" — and ours now.
-    #[test]
-    fn a_kill_outside_the_missions_system_is_not_credited() {
-        let conn = Connection::open_in_memory().unwrap();
-        crate::schema::migrate(&conn).unwrap();
-        crate::schema::attach_galaxy(&conn, None).unwrap();
-        conn.execute_batch(r#"
-            INSERT INTO events (file,offset,ts,event,raw) VALUES
-            ('J',1,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
-            ('J',2,'2026-09-19T05:10:00Z','FSDJump','{"timestamp":"2026-09-19T05:10:00Z","event":"FSDJump","StarSystem":"Urarina"}'),
-            ('J',3,'2026-09-19T05:11:00Z','Bounty','{"timestamp":"2026-09-19T05:11:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
-            ('J',4,'2026-09-19T05:12:00Z','Bounty','{"timestamp":"2026-09-19T05:12:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
-            ('J',5,'2026-09-19T05:20:00Z','FSDJump','{"timestamp":"2026-09-19T05:20:00Z","event":"FSDJump","StarSystem":"Anana"}'),
-            ('J',6,'2026-09-19T05:21:00Z','Bounty','{"timestamp":"2026-09-19T05:21:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}');
-        "#).unwrap();
-        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
-        let m = ms.iter().find(|m| m.id == 1).unwrap();
-        assert_eq!(m.kills_done, 1, "two kills in Urarina do not count; one in Anana does");
-        assert_eq!(m.status, MissionStatus::Active);
-    }
-
-    /// Measured 2026-09-19 on the maintainer's store: at each redirect,
-    /// same-giver pairs matched the game's count under CONCURRENT
-    /// crediting (13 of 13) and fell short under consecutive. His ruling
-    /// of 2026-09-16 said consecutive within a giver; the measurement
-    /// wins. Every live mission with the target credits the kill.
-    #[test]
-    fn every_live_mission_with_the_target_credits_a_kill_whatever_the_giver() {
-        let conn = Connection::open_in_memory().unwrap();
-        crate::schema::migrate(&conn).unwrap();
-        crate::schema::attach_galaxy(&conn, None).unwrap();
-        conn.execute_batch(r#"
-            INSERT INTO events (file,offset,ts,event,raw) VALUES
-            ('J',1,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
-            ('J',2,'2026-09-19T05:01:10Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:10Z","event":"MissionAccepted","MissionID":2,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
-            ('J',3,'2026-09-19T05:01:20Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:20Z","event":"MissionAccepted","MissionID":3,"Faction":"Puneith Jet Boys","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
-            ('J',4,'2026-09-19T05:11:00Z','Bounty','{"timestamp":"2026-09-19T05:11:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
-            ('J',5,'2026-09-19T05:12:00Z','Bounty','{"timestamp":"2026-09-19T05:12:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
-            ('J',6,'2026-09-19T05:13:00Z','Bounty','{"timestamp":"2026-09-19T05:13:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}');
-        "#).unwrap();
-        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
-        let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
-        for id in [1, 2, 3] {
-            assert_eq!((by(id).kills_done, by(id).status.clone()), (2, MissionStatus::ReadyToTurnIn), "mission {id}: both League missions and the Jet Boys' credit kills 1 and 2 together");
-        }
     }
 
     /// A courier's `MissionRedirected` is a new drop-off, not a delivery
