@@ -21,6 +21,7 @@ pub mod routing;
 pub mod snapshot;
 pub mod stars;
 pub mod stations;
+pub mod surface_mining;
 pub mod telemetry;
 pub mod trade_report;
 pub mod trade_search;

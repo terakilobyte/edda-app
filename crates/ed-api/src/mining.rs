@@ -277,9 +277,16 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
         Some(material) => body_candidates(pool, origin, material, radius, limit).await?,
         None => Vec::new(),
     };
+    // A Rhino surface good: bodies with mining locations in range, with the
+    // survey's share for this good (surface_mining.rs). The count is the
+    // game's; the share is the community's, labelled as such on the page.
+    let sites = match rhino {
+        Some(good) if hotspot_name.is_none() => crate::surface_mining::sites_near(pool, origin, good, radius, limit).await?,
+        _ => Vec::new(),
+    };
     let ms = started.elapsed().as_millis() as u64;
     tracing::info!(
-        radius, limit, hotspots = hotspots.len(), rings = rings.len(), bodies = bodies.len(),
+        radius, limit, hotspots = hotspots.len(), rings = rings.len(), bodies = bodies.len(), sites = sites.len(),
         known_hotspot = hotspot_name.is_some(), known_surface = surface_name.is_some(), ms,
         "mining search"
     );
@@ -295,6 +302,8 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
         // "not mapped" (unless the data also knows it as a hotspot or a
         // surface raw material, which then answer first).
         "rhino": rhino,
+        "sites": sites,
+        "survey": rhino.map(|_| crate::surface_mining::survey_about()),
         "data_installed": true,
         "radius_ly": radius,
         "ms": ms,
@@ -303,7 +312,7 @@ pub async fn search(pool: &PgPool, req: &MiningSearchRequest) -> Result<serde_js
 
 /// The sphere predicate every list shares: the system's grid cell (so
 /// the planner counts, migration 0015), the box, then the exact sphere.
-const SPHERE: &str = "sy.cell = ANY($5) \
+pub(crate) const SPHERE: &str = "sy.cell = ANY($5) \
     AND sy.x BETWEEN $2-$4 AND $2+$4 AND sy.y BETWEEN $3-$4 AND $3+$4 \
     AND sy.z BETWEEN $6-$4 AND $6+$4 \
     AND (sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$6)^2 <= $4*$4";
