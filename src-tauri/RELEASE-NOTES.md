@@ -41,6 +41,17 @@ once per pass; it is spoken once now. A delivery or courier mission the
 game redirects to a new drop-off is announced as a reroute, not a
 completion.
 
+**Engineers: everyone who can do the job, with how far they go.** The
+Engineering tab listed only the engineers who offer the grade you
+asked for, and it asks for the top grade by default, so an engineer
+who stops one grade short vanished: The Dweller takes pulse lasers to
+grade 4 and was not shown for them. Every engineer who works the
+blueprint is now listed with the grade they reach. The engineer table
+was audited against Inara and the wiki at the same time; two entries
+were wrong and are fixed (Lori Jameson, Life Support to grade 4; Juri
+Ishmaak, wake, kill warrant and manifest scanners to grade 3), and a
+test now holds the data to the audited table.
+
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
 sign-in, in your browser, back to the app). Once linked, the carrier
