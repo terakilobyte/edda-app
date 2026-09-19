@@ -853,7 +853,7 @@ mod tests {
 
     #[test]
     fn a_pass_without_a_redirect_is_silent() {
-        assert!(mission_redirected(&db(), "2026-09-16T14:00:00Z", &[kill("2026-09-16T11:00:00Z")]).is_none());
+        assert!(mission_redirected(&db(), "2026-09-16T14:00:00Z", &[json!({"timestamp": "2026-09-16T11:00:00Z", "event": "Bounty", "VictimFaction": "Anana Brotherhood"})]).is_none());
     }
 
 
