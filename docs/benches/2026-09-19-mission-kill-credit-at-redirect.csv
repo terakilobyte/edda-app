@@ -1,0 +1,87 @@
+# Kill credit at the instant the game said "objective complete": the maintainer's own store (read-only), 65 redirected
+# massacres 2026-09-09..19, replayed one watcher pass at a time through the REAL store under two rule sets and read the
+# moment before each MissionRedirected is inserted. Harness: knobs/mission_callout_replay_harness_v2.rs (appended to
+# src-tauri/src/watcher.rs, cargo test --release -p edda replay_journal_v2 -- --ignored). OLD = main a8a6390 (every live
+# mission of the target faction credited per kill, capped); NEW = missions/handin-kills-redirect b8d77be (kill only in
+# DestinationSystem; one mission per giver at a time, earliest first).
+# VERDICT (1): neither rule reproduces the game. Exact at the redirect: OLD 19/65, NEW 6/65; under: OLD 46, NEW 59; over: 0
+# in both, by construction (kills_done is capped at KillCount, so "reached it early" reads as exact here). Every credited
+# kill was in Anana = DestinationSystem for all 65, so the system gate changed nothing; the per-giver consecutive rule is
+# the whole OLD->NEW difference and it LOWERED agreement: the 13 same-giver HIP 90112 Jet Central pairs that matched exactly
+# under concurrent crediting (54/54, 48/48, 35/35...) come out 41, 40, 27 under consecutive. On this data the game credited
+# both same-giver missions at once. Do not ship the consecutive rule as a correctness claim.
+# VERDICT (2): the systematic under-count (2-23 kills short per mission, growing with session length) is NOT explained by
+# anything in the journal: the friend's (wing) kills in the same windows add 0 to 62 of 65; CommitCrime murder of the target
+# faction: 0 of 3 murders; Bounty events without VictimFaction: 0; the target as bounty-awarding faction on another
+# victim's kill: 0. All-faction kills in the window exceed KillCount in 42 of 46 under-missions, but no single other
+# faction fills the gap. MissionRedirected therefore stays the only trustworthy completion signal (#71), and kills_done is
+# an estimate to be labelled as one.
+# Callouts over the same replay: per-event "Objective complete" OLD 65 -> NEW 0; pass-level "Mission complete" 59 -> 59;
+# "Mission redirected:" 0 -> 0 (massacre-only journal); progress lines 430 -> 756; kill events 1283/1279, kills crediting
+# a mission 432 -> 756, credits 2599 -> 2377, completions inferred at kills 23 -> 6.
+mission_id,giver,target,kill_count,old_inferred_at_redirect,new_inferred_at_redirect,old_verdict,new_verdict,credited_kill_systems
+1065912132,Labour Union of Ahayan,Anana Brotherhood,25,23,23,under,under,Anana:23
+1065912168,HIP 90112 Jet Central Corp.,Anana Brotherhood,30,28,28,under,under,Anana:28
+1065912450,Natural HIP 90112 Party,Anana Brotherhood,35,33,33,under,under,Anana:33
+1065912182,New HIP 90112 for Equality,Anana Brotherhood,45,43,43,under,under,Anana:43
+1065912457,Pilots Trade Network,Anana Brotherhood,56,51,51,under,under,Anana:51
+1065942276,HIP 90112 Jet Central Corp.,Anana Brotherhood,30,27,27,under,under,Anana:27
+1065942355,Labour Union of Ahayan,Anana Brotherhood,35,28,28,under,under,Anana:28
+1065942256,New HIP 90112 for Equality,Anana Brotherhood,36,29,29,under,under,Anana:29
+1065942924,Labour Union of Ahayan,Anana Brotherhood,30,30,24,exact,under,Anana:24
+1065942304,New HIP 90112 for Equality,Anana Brotherhood,35,35,27,exact,under,Anana:27
+1065942287,HIP 90112 Jet Central Corp.,Anana Brotherhood,54,54,41,exact,under,Anana:41
+1065942829,New HIP 90112 for Equality,Anana Brotherhood,36,36,30,exact,under,Anana:30
+1065942325,HIP 90112 Jet Central Corp.,Anana Brotherhood,32,32,27,exact,under,Anana:27
+1065942908,New HIP 90112 for Equality,Anana Brotherhood,20,20,18,exact,under,Anana:18
+1065942863,HIP 90112 Jet Central Corp.,Anana Brotherhood,35,35,27,exact,under,Anana:27
+1065942878,HIP 90112 Jet Central Corp.,Anana Brotherhood,30,30,26,exact,under,Anana:26
+1065942892,HIP 90112 Jet Central Corp.,Anana Brotherhood,48,48,40,exact,under,Anana:40
+1065996875,HIP 90112 Jet Central Corp.,Anana Brotherhood,54,37,37,under,under,Anana:37
+1065996884,HIP 90112 Jet Central Corp.,Anana Brotherhood,40,40,34,exact,under,Anana:34
+1065996890,HIP 90112 Jet Central Corp.,Anana Brotherhood,36,36,36,exact,exact,Anana:36
+1065996896,HIP 90112 Jet Central Corp.,Anana Brotherhood,30,30,30,exact,exact,Anana:30
+1065997174,HIP 90112 Jet Central Corp.,Anana Brotherhood,32,32,29,exact,under,Anana:29
+1065997178,HIP 90112 Jet Central Corp.,Anana Brotherhood,30,30,24,exact,under,Anana:24
+1065997190,HIP 90112 Jet Central Corp.,Anana Brotherhood,64,64,58,exact,under,Anana:58
+1066132366,Liberals of Ahayan,Anana Brotherhood,15,15,15,exact,exact,Anana:15
+1066132348,Ahayan Defence Party,Anana Brotherhood,25,24,24,under,under,Anana:24
+1066132341,Ahayan Gold Creative Co,Anana Brotherhood,30,29,29,under,under,Anana:29
+1066132330,Labour Union of Ahayan,Anana Brotherhood,36,35,35,under,under,Anana:35
+1066136753,United Tagii League,Anana Brotherhood,40,37,37,under,under,Anana:37
+1066136777,Crimson Armada,Anana Brotherhood,40,37,37,under,under,Anana:37
+1066136797,Puneith Values Party,Anana Brotherhood,40,37,37,under,under,Anana:37
+1066132317,HIP 96854 Empire League,Anana Brotherhood,54,46,46,under,under,Anana:46
+1066136793,HR 7169 Union Party,Anana Brotherhood,56,46,46,under,under,Anana:46
+1066077652,HIP 90112 Jet Central Corp.,Anana Brotherhood,72,60,60,under,under,Anana:60
+1066169021,HIP 96854 Empire League,Anana Brotherhood,5,5,5,exact,exact,Anana:5
+1066168637,Workers of Dimocorna Union,Anana Brotherhood,25,25,25,exact,exact,Anana:25
+1066168268,Labour Union of Ahayan,Anana Brotherhood,30,30,30,exact,exact,Anana:30
+1066168667,HR 7169 Union Party,Anana Brotherhood,35,34,34,under,under,Anana:34
+1066169080,Ahayan Defence Party,Anana Brotherhood,35,34,34,under,under,Anana:34
+1066168696,United Tagii League,Anana Brotherhood,40,38,38,under,under,Anana:38
+1066167981,HIP 90112 Jet Central Corp.,Anana Brotherhood,48,45,45,under,under,Anana:45
+1066168655,Crimson Armada,Anana Brotherhood,54,49,49,under,under,Anana:49
+1066167987,Pilots Trade Network,Anana Brotherhood,72,66,66,under,under,Anana:66
+1066168007,Natural HIP 90112 Party,Anana Brotherhood,72,66,66,under,under,Anana:66
+1066225089,Ahayan Defence Party,Anana Brotherhood,30,23,23,under,under,Anana:23
+1066215171,Puneith Values Party,Anana Brotherhood,35,26,26,under,under,Anana:26
+1066215041,Workers of Dimocorna Union,Anana Brotherhood,40,30,30,under,under,Anana:30
+1066225027,Labour Union of Ahayan,Anana Brotherhood,45,35,35,under,under,Anana:35
+1066225072,Liberals of Ahayan,Anana Brotherhood,48,38,38,under,under,Anana:38
+1066215034,Puneith Organisation,Anana Brotherhood,54,43,43,under,under,Anana:43
+1066215053,Crimson Armada,Anana Brotherhood,56,45,45,under,under,Anana:45
+1066215154,United Tagii League,Anana Brotherhood,63,52,52,under,under,Anana:52
+1066225011,HIP 96854 Empire League,Anana Brotherhood,72,59,59,under,under,Anana:59
+1066225043,Ahayan Gold Creative Co,Anana Brotherhood,72,59,59,under,under,Anana:59
+1066317095,New HIP 90112 for Equality,Anana Brotherhood,30,21,21,under,under,Anana:21
+1066313384,Ahayan Defence Party,Anana Brotherhood,35,25,25,under,under,Anana:25
+1066313325,Labour Union of Ahayan,Anana Brotherhood,36,26,26,under,under,Anana:26
+1066313361,Ahayan Gold Creative Co,Anana Brotherhood,42,32,32,under,under,Anana:32
+1066316139,HIP 90112 Jet Central Corp.,Anana Brotherhood,49,37,37,under,under,Anana:37
+1066313314,HIP 96854 Empire League,Anana Brotherhood,54,41,41,under,under,Anana:41
+1066310407,HR 7169 Union Party,Anana Brotherhood,63,49,49,under,under,Anana:49
+1066310374,Puneith Organisation,Anana Brotherhood,64,49,49,under,under,Anana:49
+1066310416,Puneith Values Party,Anana Brotherhood,72,56,56,under,under,Anana:56
+1066310845,United Tagii League,Anana Brotherhood,72,56,56,under,under,Anana:56
+1066371228,United Tagii League,Anana Brotherhood,42,19,19,under,under,Anana:19

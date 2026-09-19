@@ -7,11 +7,27 @@
 //! `Abandoned`. What it does **not** give is a per-kill progress counter,
 //! so massacre progress is inferred: kills (`Bounty`, `FactionKillBond`)
 //! after acceptance whose `VictimFaction` is the mission's target faction.
-//! That is the same rule the game applies, with one honest caveat -- the
-//! game also requires the kill to happen in the destination system, and the
-//! kill events do not carry a system, so a kill of the right faction
-//! elsewhere would be over-counted here. `kills_done` is therefore capped at
-//! the target and labelled as inferred.
+//! That is the game's rule, with one refinement: the kill must happen in
+//! the mission's system (`FSDJump` / `Location` / `Docked` say where the
+//! commander is, so a kill of the right faction elsewhere is not
+//! credited). Every mission with that target credits at once, same giver
+//! or not: the maintainer's ruling of 2026-09-16 ("consecutive within a
+//! faction") was tried and REFUTED on his own store — at the instant of
+//! each redirect, same-giver pairs matched the game's count under
+//! concurrent crediting and fell short under consecutive (13 of 13;
+//! `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`).
+//! `kills_done` is an ESTIMATE: on that journal 46 of 65 missions were
+//! short by 2–23 kills at the redirect and nothing in the journal
+//! explains the gap, so the redirect stays the completion signal and the
+//! count is labelled as inferred.
+//!
+//! The hand-in is the station the mission was accepted at (the last
+//! `Docked` before `MissionAccepted`) until the game redirects it;
+//! `DestinationSystem`/`DestinationStation` at acceptance are the
+//! OBJECTIVE for a kill mission, not where it is turned in. A redirect
+//! completes a mission whose objective is done-then-return (kills,
+//! assassinations, salvage, scans); for deliveries, couriers and
+//! passengers it only moves the destination.
 //!
 //! Assassinations are done when the named target dies (the `Bounty`'s
 //! pilot name matches) or when the game redirects the mission, whichever
@@ -58,8 +74,16 @@ pub struct Mission {
     pub items_collected: i64,
     pub items_delivered: i64,
     pub total_items_to_deliver: Option<i64>,
+    /// The objective's location as the game stated it at acceptance
+    /// (for a kill mission: where the kills must happen). Not the hand-in.
     pub destination_system: Option<String>,
     pub destination_station: Option<String>,
+    /// Where the mission was accepted: the last `Docked` before it.
+    pub giver_system: Option<String>,
+    pub giver_station: Option<String>,
+    /// Where to turn it in: the giver until `MissionRedirected` says otherwise.
+    pub hand_in_system: Option<String>,
+    pub hand_in_station: Option<String>,
     pub expiry: Option<String>,
     pub reward: Option<i64>,
     pub wing: bool,
@@ -78,9 +102,22 @@ fn i(v: &Value, k: &str) -> Option<i64> {
 }
 
 /// Rough kind from the internal name: `Mission_Massacre` → `massacre`.
-fn kind_of(name: &str) -> String {
+pub fn kind_of(name: &str) -> String {
     let n = name.trim_start_matches("Mission_").to_ascii_lowercase();
     n.split('_').next().unwrap_or(&n).to_string()
+}
+
+/// Kinds whose `MissionRedirected` is a change of destination, not an
+/// objective met: the destination IS the objective. Everything else
+/// (massacre, assassinate, salvage, scan, disable, sightseeing, ...) is
+/// do-then-return, and the game's redirect is its "objective complete".
+pub const REROUTE_ONLY_KINDS: [&str; 8] =
+    ["delivery", "courier", "collect", "altruism", "altruismcredits", "passengervip", "passengerbulk", "smuggle"];
+
+/// Whether the game's redirect of a mission of this kind means its
+/// objective is met (see [`REROUTE_ONLY_KINDS`]).
+pub fn redirect_completes(kind: &str) -> bool {
+    !REROUTE_ONLY_KINDS.contains(&kind)
 }
 
 /// Every mission accepted at or after `since` (ISO timestamp; `""` for all),
@@ -90,7 +127,8 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
         "SELECT ts, event, raw FROM events
          WHERE event IN ('MissionAccepted','MissionCompleted','MissionFailed',
                          'MissionAbandoned','MissionRedirected','CargoDepot',
-                         'Bounty','FactionKillBond')
+                         'Bounty','FactionKillBond',
+                         'Docked','Location','FSDJump','CarrierJump')
            AND ts >= ?1
          ORDER BY ts, file, offset",
     )?;
@@ -99,11 +137,30 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
         .collect::<rusqlite::Result<_>>()?;
 
     let mut out: Vec<Mission> = Vec::new();
+    // Where the commander is, and where they are docked, as of the event
+    // being read: the system gates kill credit; the dock is the giver.
+    let mut here: Option<String> = None;
+    let mut docked: Option<(String, String)> = None;
     for (ts, event, raw) in rows {
         let Ok(v) = serde_json::from_str::<Value>(&raw) else {
             continue;
         };
         match event.as_str() {
+            "FSDJump" => {
+                here = s(&v, "StarSystem").or(here);
+                docked = None;
+            }
+            "Docked" => {
+                here = s(&v, "StarSystem").or(here);
+                docked = here.clone().zip(s(&v, "StationName"));
+            }
+            "Location" | "CarrierJump" => {
+                here = s(&v, "StarSystem").or(here);
+                docked = match v.get("Docked").and_then(Value::as_bool) {
+                    Some(true) => here.clone().zip(s(&v, "StationName")),
+                    _ => None,
+                };
+            }
             "MissionAccepted" => {
                 let Some(id) = i(&v, "MissionID") else {
                     continue;
@@ -128,6 +185,10 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                     total_items_to_deliver: None,
                     destination_system: s(&v, "DestinationSystem"),
                     destination_station: s(&v, "DestinationStation"),
+                    giver_system: docked.as_ref().map(|(sy, _)| sy.clone()),
+                    giver_station: docked.as_ref().map(|(_, st)| st.clone()),
+                    hand_in_system: docked.as_ref().map(|(sy, _)| sy.clone()),
+                    hand_in_station: docked.as_ref().map(|(_, st)| st.clone()),
                     expiry: s(&v, "Expiry"),
                     reward: i(&v, "Reward"),
                     wing: v.get("Wing").and_then(Value::as_bool).unwrap_or(false),
@@ -162,7 +223,9 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                 if let Some(m) = out.iter_mut().find(|m| m.id == id) {
                     match event.as_str() {
                         "MissionRedirected" => {
-                            if m.status == MissionStatus::Active {
+                            // A courier's redirect is a new drop-off, not a
+                            // job done (tester report, 2026-09-19).
+                            if m.status == MissionStatus::Active && redirect_completes(&m.kind) {
                                 m.status = MissionStatus::ReadyToTurnIn;
                                 if let Some(k) = m.kill_count {
                                     m.kills_done = k;
@@ -170,10 +233,10 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                             }
                             // The hand-in moves even if we already inferred completion.
                             if let Some(sys) = s(&v, "NewDestinationSystem") {
-                                m.destination_system = Some(sys);
+                                m.hand_in_system = Some(sys);
                             }
                             if let Some(st) = s(&v, "NewDestinationStation") {
-                                m.destination_station = Some(st);
+                                m.hand_in_station = Some(st);
                             }
                         }
                         "MissionCompleted" => {
@@ -194,11 +257,20 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
             "Bounty" | "FactionKillBond" => {
                 let victim = s(&v, "VictimFaction");
                 let pilot = loc(&v, "PilotName");
+                // Every live mission with this target credits the kill, same
+                // giver or not (measured, see the module docs).
                 for m in out.iter_mut().filter(|m| m.status == MissionStatus::Active) {
                     if m.kill_count.is_some()
                         && m.target_faction.is_some()
                         && m.target_faction == victim
                     {
+                        // The game only counts kills in the mission's system.
+                        // Unknown whereabouts (no jump seen yet) still credit.
+                        if let (Some(h), Some(d)) = (&here, &m.destination_system) {
+                            if !h.eq_ignore_ascii_case(d) {
+                                continue;
+                            }
+                        }
                         m.kills_done += 1;
                         if let Some(k) = m.kill_count {
                             if m.kills_done >= k {
@@ -433,9 +505,11 @@ mod tests {
         let massacre = ms.iter().find(|m| m.id == 1).unwrap();
         assert_eq!(massacre.status, MissionStatus::ReadyToTurnIn);
         assert_eq!(massacre.kills_done, 3, "capped at the target");
+        assert_eq!(massacre.hand_in_station.as_deref(), Some("Schmitt Enterprise"), "the redirect moves the hand-in");
         assert_eq!(
             massacre.destination_station.as_deref(),
-            Some("Schmitt Enterprise")
+            Some("Fremion City"),
+            "the objective's location is what the game said at acceptance"
         );
         assert_eq!(
             ms.iter().find(|m| m.id == 2).unwrap().status,
@@ -565,6 +639,10 @@ mod tests {
             total_items_to_deliver: None,
             destination_system: None,
             destination_station: None,
+            giver_system: None,
+            giver_station: None,
+            hand_in_system: None,
+            hand_in_station: None,
             expiry: expiry.map(str::to_string),
             reward: None,
             wing: true,
@@ -688,5 +766,101 @@ mod tests {
         );
         assert_eq!(delivery.total_items_to_deliver, Some(98));
         assert_eq!(delivery.status, MissionStatus::Active);
+    }
+
+    /// The tester's report (feedback 5, 2026-09-19): "EDDA keeps saying
+    /// Yamazaki Port". The hand-in is where the mission was ACCEPTED,
+    /// not the objective's station the game lists at acceptance.
+    #[test]
+    fn the_hand_in_is_the_station_the_mission_was_accepted_at_until_the_game_redirects() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',1,'2026-09-19T05:00:00Z','Docked','{"timestamp":"2026-09-19T05:00:00Z","event":"Docked","StationName":"Papin Works","StarSystem":"Puneith","MarketID":1}'),
+            ('J',2,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":15,"DestinationSystem":"Anana","DestinationStation":"Yamazaki Port","Expiry":"2026-09-26T00:00:00Z"}'),
+            ('J',3,'2026-09-19T05:10:00Z','FSDJump','{"timestamp":"2026-09-19T05:10:00Z","event":"FSDJump","StarSystem":"Anana"}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
+        let m = ms.iter().find(|m| m.id == 1).unwrap();
+        assert_eq!((m.giver_system.as_deref(), m.giver_station.as_deref()), (Some("Puneith"), Some("Papin Works")));
+        assert_eq!((m.hand_in_system.as_deref(), m.hand_in_station.as_deref()), (Some("Puneith"), Some("Papin Works")));
+        assert_eq!((m.destination_system.as_deref(), m.destination_station.as_deref()), (Some("Anana"), Some("Yamazaki Port")), "the objective stays what the game said");
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',4,'2026-09-19T05:20:00Z','MissionRedirected','{"timestamp":"2026-09-19T05:20:00Z","event":"MissionRedirected","MissionID":1,"NewDestinationStation":"Papin Works","NewDestinationSystem":"Puneith"}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
+        let m = ms.iter().find(|m| m.id == 1).unwrap();
+        assert_eq!(m.status, MissionStatus::ReadyToTurnIn);
+        assert_eq!(m.hand_in_station.as_deref(), Some("Papin Works"));
+    }
+
+    /// A kill of the target faction in another system is the game's
+    /// "does not count" — and ours now.
+    #[test]
+    fn a_kill_outside_the_missions_system_is_not_credited() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',1,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
+            ('J',2,'2026-09-19T05:10:00Z','FSDJump','{"timestamp":"2026-09-19T05:10:00Z","event":"FSDJump","StarSystem":"Urarina"}'),
+            ('J',3,'2026-09-19T05:11:00Z','Bounty','{"timestamp":"2026-09-19T05:11:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
+            ('J',4,'2026-09-19T05:12:00Z','Bounty','{"timestamp":"2026-09-19T05:12:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
+            ('J',5,'2026-09-19T05:20:00Z','FSDJump','{"timestamp":"2026-09-19T05:20:00Z","event":"FSDJump","StarSystem":"Anana"}'),
+            ('J',6,'2026-09-19T05:21:00Z','Bounty','{"timestamp":"2026-09-19T05:21:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
+        let m = ms.iter().find(|m| m.id == 1).unwrap();
+        assert_eq!(m.kills_done, 1, "two kills in Urarina do not count; one in Anana does");
+        assert_eq!(m.status, MissionStatus::Active);
+    }
+
+    /// Measured 2026-09-19 on the maintainer's store: at each redirect,
+    /// same-giver pairs matched the game's count under CONCURRENT
+    /// crediting (13 of 13) and fell short under consecutive. His ruling
+    /// of 2026-09-16 said consecutive within a giver; the measurement
+    /// wins. Every live mission with the target credits the kill.
+    #[test]
+    fn every_live_mission_with_the_target_credits_a_kill_whatever_the_giver() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',1,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
+            ('J',2,'2026-09-19T05:01:10Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:10Z","event":"MissionAccepted","MissionID":2,"Faction":"United Tagii League","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
+            ('J',3,'2026-09-19T05:01:20Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:20Z","event":"MissionAccepted","MissionID":3,"Faction":"Puneith Jet Boys","Name":"Mission_Massacre","TargetFaction":"Anana Brotherhood","KillCount":2,"DestinationSystem":"Anana"}'),
+            ('J',4,'2026-09-19T05:11:00Z','Bounty','{"timestamp":"2026-09-19T05:11:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
+            ('J',5,'2026-09-19T05:12:00Z','Bounty','{"timestamp":"2026-09-19T05:12:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}'),
+            ('J',6,'2026-09-19T05:13:00Z','Bounty','{"timestamp":"2026-09-19T05:13:00Z","event":"Bounty","VictimFaction":"Anana Brotherhood","TotalReward":1}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
+        let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
+        for id in [1, 2, 3] {
+            assert_eq!((by(id).kills_done, by(id).status.clone()), (2, MissionStatus::ReadyToTurnIn), "mission {id}: both League missions and the Jet Boys' credit kills 1 and 2 together");
+        }
+    }
+
+    /// A courier's `MissionRedirected` is a new drop-off, not a delivery
+    /// made: the hand-in moves, the status does not.
+    #[test]
+    fn a_couriers_redirect_moves_the_drop_off_without_completing_it() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',1,'2026-09-19T05:01:00Z','MissionAccepted','{"timestamp":"2026-09-19T05:01:00Z","event":"MissionAccepted","MissionID":1,"Faction":"United Tagii League","Name":"Mission_Courier","DestinationSystem":"Urarina","DestinationStation":"Yamazaki Port"}'),
+            ('J',2,'2026-09-19T05:20:00Z','MissionRedirected','{"timestamp":"2026-09-19T05:20:00Z","event":"MissionRedirected","MissionID":1,"NewDestinationStation":"Papin Works","NewDestinationSystem":"Puneith"}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
+        let m = ms.iter().find(|m| m.id == 1).unwrap();
+        assert_eq!(m.status, MissionStatus::Active, "not done: the parcel is still aboard");
+        assert_eq!(m.hand_in_station.as_deref(), Some("Papin Works"));
+        assert!(redirect_completes("massacre") && redirect_completes("assassinate") && !redirect_completes("delivery"));
     }
 }

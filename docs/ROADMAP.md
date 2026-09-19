@@ -8,6 +8,40 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Mission hand-ins, kill credit and completions** (2026-09-19, tester
+  feedback 5 + measured on the maintainer's store, PR pending). Three
+  defects, one report ("EDDA keeps saying Yamazaki Port"): (1) the
+  Missions tab's "Hand in" showed `DestinationStation` from
+  `MissionAccepted`, which for a kill mission is a station in the TARGET
+  system — 74 of 74 of the maintainer's massacres named a station he
+  never docked at; the hand-in is the station docked at when accepting,
+  64 of 64 redirects agree (`docs/benches/2026-09-19-mission-handins.csv`;
+  maintainer: "for the kill/massacre missions it's pretty much always
+  turn in at issuing location"). Now `giver_*`/`hand_in_*` on the
+  mission, the hand-in moving only on `MissionRedirected`;
+  `destination_*` stays the objective. (2) Kill credit ignored the
+  system; now a kill counts only in the mission's `DestinationSystem`
+  (position from `FSDJump`/`Location`/`Docked`) — inert on the
+  maintainer's data (every credited kill was in Anana), kept as the
+  game's rule. The 2026-09-16 ruling "consecutive within a giver" was
+  built, measured and REFUTED: at the instant of each of 65 redirects,
+  same-giver pairs matched the game under concurrent crediting (13/13)
+  and fell short under consecutive (exact 19/65 → 6/65;
+  `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`), so
+  every live mission with the target credits at once. Open: 46 of 65
+  missions were UNDER by 2–23 kills at the redirect and nothing in the
+  journal explains it (no murder of the target, no Bounty without a
+  faction, wing kills in other windows, PVPKill 0) — `kills_done` is an
+  estimate, labelled so on the page; the redirect stays the completion
+  signal. (3) Any
+  `MissionRedirected` completed the mission and was spoken TWICE — a
+  per-event "Objective complete" in callouts.rs and the per-pass
+  "Mission complete" (18 seconds carried both in the maintainer's log,
+  40 vs 49 lines). The per-event line is gone; a redirect completes
+  do-then-return kinds only, and a delivery/courier/passenger redirect is
+  spoken as "Mission redirected: …, now to …". Not measured yet: a
+  callout replay on the maintainer's journal with the new rules
+  (Waldorf's harness) — asked for.
 - **Ship pastes: Coriolis JSON, EDSY SLEF or EDDA SLEF** (2026-09-19,
   maintainer). A Coriolis SLEF export carries only the ship and modules;
   the route page refused its physics and then plotted on whatever jump

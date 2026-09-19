@@ -248,7 +248,10 @@ fn missions_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         let mut stops: Vec<(String, (f64, f64, f64), Vec<&ed_store::missions::Mission>)> = Vec::new();
         let mut unlocatable: Vec<String> = Vec::new();
         for mission in &list {
-            let Some(system) = mission.destination_system.as_deref().filter(|d| !d.is_empty()) else { continue };
+            // The tour is of hand-ins: the giver's station until the game
+            // redirects (maintainer, 2026-09-19: kill missions "turn in at
+            // issuing location"); the objective system is not a stop.
+            let Some(system) = mission.hand_in_system.as_deref().filter(|d| !d.is_empty()) else { continue };
             if let Some(stop) = stops.iter_mut().find(|(name, _, _)| name.eq_ignore_ascii_case(system)) {
                 stop.2.push(mission);
                 continue;
@@ -279,7 +282,7 @@ fn missions_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
                 "system": name,
                 "leg_ly": (leg_ly * 10.0).round() / 10.0,
                 "missions": missions.iter().map(|m| json!({
-                    "title": m.title, "station": m.destination_station,
+                    "title": m.title, "station": m.hand_in_station,
                     "reward": m.reward, "expiry": m.expiry, "status": m.status,
                 })).collect::<Vec<_>>(),
                 "reward_total": missions.iter().filter_map(|m| m.reward).sum::<i64>(),
