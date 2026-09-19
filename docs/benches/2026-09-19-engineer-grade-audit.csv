@@ -1,0 +1,20 @@
+# Engineer audit (maintainer, 2026-09-19: "we need to do a clean sweep of engineers" — The Dweller was missing from his
+# Type-10's pulse lasers). EDDA's blueprints.json (vendored from msarilar/EDEngineer, byte-identical to upstream master,
+# last upstream change 2024-03-22) compared per (engineer, module type, max grade) against two sources read the same day:
+# Inara's Engineers directory (knobs/engineer_audit_vs_inara.py) and the Elite Dangerous wiki's Engineers table.
+# VERDICT: the data was right about The Dweller (Pulse Laser G4) — the bug was the panel, which listed only the engineers of
+# the TOP grade (default target G5) so a G4 engineer vanished; fixed by listing every engineer with their cap. Data errors
+# found and fixed: 2 (below). Inara-only rows (Cargo Rack, Module Reinforcement Package, Mining Laser, Abrasion Blaster,
+# Enzyme Missile Rack, Guardian weapons G1) are modules the game does not engineer or types we fold (seeker = Missile Rack);
+# not adopted. Ram Tah's three limpet controllers: Inara G5, wiki G4, EDEngineer G4 — majority stands. 133/157 Inara pairs
+# agreed before the fix; 140/140 wiki pairs agree after it, pinned by a test (engineer_grades_match_the_audited_table).
+engineer,module_type,edda_before,inara,wiki,edda_after,action
+Lori Jameson,Life Support,5,4,4,4,fixed: removed from G5 blueprints
+Juri Ishmaak,Wake Scanner,absent,3,3,3,fixed: added G1-3
+Juri Ishmaak,Kill Warrant Scanner,absent,3,3,3,fixed: added G1-3
+Juri Ishmaak,Manifest Scanner,absent,3,3,3,fixed: added G1-3
+Ram Tah,Collector Limpet Controller,4,5,4,4,kept (2 of 3)
+Ram Tah,Fuel Transfer Limpet Controller,4,5,4,4,kept (2 of 3)
+Ram Tah,Prospector Limpet Controller,4,5,4,4,kept (2 of 3)
+Lori Jameson,Kill Warrant Scanner,3,3,absent,3,kept (2 of 3)
+The Dweller,Pulse Laser,4,4,4,4,data right; panel fixed

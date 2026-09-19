@@ -1,0 +1,197 @@
+{
+  "source": "Inara Engineers directory + Elite Dangerous wiki Engineers page, both read 2026-09-19; where they disagreed (Ram Tah limpet controllers G4 vs G5) the wiki agreed with EDEngineer's data and stands",
+  "fetched": "2026-09-19",
+  "note": "engineer -> blueprint module type -> highest grade offered. blueprints.json must agree with this table (test in lib.rs). Seeker and dumbfire racks are one 'Missile Rack' type; Detailed Surface Scanner is 'Surface Scanner'; Frame Shift Wake Scanner is 'Wake Scanner'.",
+  "engineers": {
+    "Bill Turner": {
+      "Auto Field-Maintenance Unit": 3,
+      "Fuel Scoop": 3,
+      "Kill Warrant Scanner": 3,
+      "Life Support": 3,
+      "Manifest Scanner": 3,
+      "Plasma Accelerator": 5,
+      "Refinery": 3,
+      "Sensors": 5,
+      "Surface Scanner": 5,
+      "Wake Scanner": 3
+    },
+    "Broo Tarquin": {
+      "Beam Laser": 5,
+      "Burst Laser": 5,
+      "Pulse Laser": 5
+    },
+    "Chloe Sedesi": {
+      "Frame Shift Drive": 3,
+      "Thrusters": 5
+    },
+    "Colonel Bris Dekker": {
+      "Frame Shift Drive": 3,
+      "Frame Shift Drive Interdictor": 4
+    },
+    "Didi Vatermann": {
+      "Shield Booster": 5,
+      "Shield Generator": 3
+    },
+    "Elvira Martuuk": {
+      "Frame Shift Drive": 5,
+      "Shield Cell Bank": 1,
+      "Shield Generator": 3,
+      "Thrusters": 2
+    },
+    "Etienne Dorn": {
+      "Kill Warrant Scanner": 5,
+      "Life Support": 5,
+      "Manifest Scanner": 5,
+      "Plasma Accelerator": 5,
+      "Power Distributor": 5,
+      "Power Plant": 5,
+      "Rail Gun": 5,
+      "Sensors": 5,
+      "Surface Scanner": 5,
+      "Wake Scanner": 5
+    },
+    "Felicity Farseer": {
+      "Frame Shift Drive": 5,
+      "Frame Shift Drive Interdictor": 1,
+      "Power Plant": 1,
+      "Sensors": 3,
+      "Shield Booster": 1,
+      "Surface Scanner": 3,
+      "Thrusters": 3
+    },
+    "Hera Tani": {
+      "Power Distributor": 3,
+      "Power Plant": 5,
+      "Sensors": 3,
+      "Surface Scanner": 5
+    },
+    "Juri Ishmaak": {
+      "Kill Warrant Scanner": 3,
+      "Manifest Scanner": 3,
+      "Mine Launcher": 5,
+      "Missile Rack": 3,
+      "Sensors": 5,
+      "Surface Scanner": 5,
+      "Torpedo Pylon": 3,
+      "Wake Scanner": 3
+    },
+    "Lei Cheung": {
+      "Sensors": 5,
+      "Shield Booster": 3,
+      "Shield Generator": 5,
+      "Surface Scanner": 5
+    },
+    "Liz Ryder": {
+      "Armour": 1,
+      "Hull Reinforcement Package": 1,
+      "Mine Launcher": 3,
+      "Missile Rack": 5,
+      "Torpedo Pylon": 5
+    },
+    "Lori Jameson": {
+      "Auto Field-Maintenance Unit": 4,
+      "Fuel Scoop": 4,
+      "Kill Warrant Scanner": 3,
+      "Life Support": 4,
+      "Manifest Scanner": 3,
+      "Refinery": 4,
+      "Sensors": 5,
+      "Shield Cell Bank": 3,
+      "Surface Scanner": 5,
+      "Wake Scanner": 3
+    },
+    "Marco Qwent": {
+      "Power Distributor": 3,
+      "Power Plant": 4
+    },
+    "Marsha Hicks": {
+      "Cannon": 5,
+      "Collector Limpet Controller": 5,
+      "Fragment Cannon": 5,
+      "Fuel Scoop": 5,
+      "Fuel Transfer Limpet Controller": 5,
+      "Hatch Breaker Limpet Controller": 5,
+      "Multi-cannon": 5,
+      "Prospector Limpet Controller": 5,
+      "Refinery": 5
+    },
+    "Mel Brandon": {
+      "Beam Laser": 5,
+      "Burst Laser": 5,
+      "Frame Shift Drive": 5,
+      "Frame Shift Drive Interdictor": 5,
+      "Pulse Laser": 5,
+      "Shield Booster": 5,
+      "Shield Cell Bank": 4,
+      "Shield Generator": 5,
+      "Thrusters": 5
+    },
+    "Petra Olmanova": {
+      "Armour": 5,
+      "Auto Field-Maintenance Unit": 5,
+      "Chaff Launcher": 5,
+      "Electronic Countermeasure": 5,
+      "Heat Sink Launcher": 5,
+      "Hull Reinforcement Package": 5,
+      "Mine Launcher": 5,
+      "Missile Rack": 5,
+      "Point Defence": 5,
+      "Torpedo Pylon": 5
+    },
+    "Professor Palin": {
+      "Frame Shift Drive": 3,
+      "Thrusters": 5
+    },
+    "Ram Tah": {
+      "Chaff Launcher": 5,
+      "Collector Limpet Controller": 4,
+      "Electronic Countermeasure": 5,
+      "Fuel Transfer Limpet Controller": 4,
+      "Hatch Breaker Limpet Controller": 3,
+      "Heat Sink Launcher": 5,
+      "Point Defence": 5,
+      "Prospector Limpet Controller": 4
+    },
+    "Selene Jean": {
+      "Armour": 5,
+      "Hull Reinforcement Package": 5
+    },
+    "The Dweller": {
+      "Beam Laser": 3,
+      "Burst Laser": 3,
+      "Power Distributor": 5,
+      "Pulse Laser": 4
+    },
+    "The Sarge": {
+      "Cannon": 5,
+      "Collector Limpet Controller": 5,
+      "Fuel Transfer Limpet Controller": 5,
+      "Hatch Breaker Limpet Controller": 5,
+      "Prospector Limpet Controller": 5,
+      "Rail Gun": 3
+    },
+    "Tiana Fortune": {
+      "Collector Limpet Controller": 5,
+      "Frame Shift Drive Interdictor": 3,
+      "Fuel Transfer Limpet Controller": 5,
+      "Hatch Breaker Limpet Controller": 5,
+      "Kill Warrant Scanner": 5,
+      "Manifest Scanner": 5,
+      "Prospector Limpet Controller": 5,
+      "Sensors": 5,
+      "Surface Scanner": 3,
+      "Wake Scanner": 5
+    },
+    "Tod McQuinn": {
+      "Cannon": 2,
+      "Fragment Cannon": 3,
+      "Multi-cannon": 5,
+      "Rail Gun": 5
+    },
+    "Zacariah Nemo": {
+      "Fragment Cannon": 5,
+      "Multi-cannon": 3,
+      "Plasma Accelerator": 2
+    }
+  }
+}

@@ -606,6 +606,10 @@ pub struct EngineerAccess {
     pub status: String,
     pub rank: Option<i64>,
     pub unlocked: bool,
+    /// The highest grade this engineer offers for the blueprint. The list
+    /// holds EVERY engineer who works the blueprint at any grade, so one
+    /// who stops short of the asked grade is still shown, with this cap.
+    pub max_grade: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -646,20 +650,17 @@ pub async fn blueprint_access(
         .find(&module_type, &name, grade)
         .ok_or_else(|| format!("no blueprint {name:?} grade {grade} for {module_type:?}"))?;
 
-    let access: Vec<EngineerAccess> = bp
-        .engineers
-        .iter()
-        .map(|e| {
-            let (status, rank, unlocked) = status_of(e);
-            EngineerAccess {
-                engineer: e.clone(),
-                status,
-                rank,
-                unlocked,
-            }
+    let access: Vec<EngineerAccess> = state
+        .engineering
+        .engineers_for(&module_type, &name)
+        .into_iter()
+        .map(|(e, max_grade)| {
+            let (status, rank, unlocked) = status_of(&e);
+            EngineerAccess { engineer: e, status, rank, unlocked, max_grade }
         })
         .collect();
-    let reachable = access.iter().any(|a| a.unlocked);
+    // Reachable means someone unlocked offers THIS grade.
+    let reachable = bp.engineers.iter().any(|e| status_of(e).2);
 
     let mut max_reachable_grade = None;
     for g in 1..=5 {
@@ -1020,6 +1021,8 @@ pub async fn check_experimental(
                     .unwrap_or_else(|| "Not known".into()),
                 rank: e.and_then(|e| e.rank),
                 unlocked: e.is_some_and(|e| e.is_unlocked()),
+                // An experimental effect has no grade ladder.
+                max_grade: 0,
             }
         })
         .collect();

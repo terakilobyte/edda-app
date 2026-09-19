@@ -340,6 +340,23 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Engineer audit** (2026-09-19, maintainer: "we need to do a clean
+  sweep of engineers" — The Dweller was missing from his Type-10's pulse
+  lasers). The vendored blueprint data (EDEngineer, byte-identical to
+  upstream, last changed 2024-03) was compared per (engineer, module
+  type, top grade) against Inara and the wiki
+  (`docs/benches/2026-09-19-engineer-grade-audit.csv`). The Dweller row
+  was RIGHT (Pulse Laser G4); the panel was wrong: it listed the
+  engineers of the target grade only, and the target defaults to G5, so
+  a G4 engineer vanished. Now every engineer who works the blueprint is
+  listed with their cap ("to G4"). Two data errors fixed: Lori Jameson
+  does Life Support to G4 (was G5); Juri Ishmaak does the three scanners
+  to G3 (was absent). The audited table is checked in
+  (`crates/ed-engineering/data/engineer_grades.json`) and a test fails
+  if the blueprint data drifts from it. Inara-only rows (Cargo Rack,
+  MRP, mining tools, Guardian G1) are modules the game does not engineer
+  and were not adopted; Ram Tah's limpet controllers stay G4 (wiki and
+  EDEngineer against Inara's G5).
 - **Browser route planner** (2026-09-09). Live at `/route/`; watch plots
   per hour from the page vs the app on the shared route budget, and the
   physics endpoint's P50 (pre-registered under 5 ms).
