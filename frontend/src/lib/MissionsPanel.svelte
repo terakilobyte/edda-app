@@ -79,7 +79,7 @@
               <td class="small">{m.faction}</td>
               <td>
                 {#if m.kill_count}
-                  <div class="num" title="Counted from your kill events; the game's own tally can run ahead of this. The mission completes on the game's signal, not on this count.">{m.kills_done} / {m.kill_count}</div>
+                  <div class="num" title="At least this many: a ship that dies before you scan it earns no bounty and writes nothing to the journal, but still counts for the mission. The mission completes on the game's signal, not on this count.">≥ {m.kills_done} / {m.kill_count}</div>
                   <div class="bar" style="width:90px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.kills_done) / m.kill_count)}%"></div></div>
                   {#if m.destination_system}<div class="muted small">in {m.destination_system}</div>{/if}
                 {:else if m.total_items_to_deliver}

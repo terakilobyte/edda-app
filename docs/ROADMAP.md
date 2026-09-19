@@ -38,12 +38,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   mission per giver at a time, earliest accepted first. Lesson for the
   record: a capped counter is not an instrument for over-credit; when
   two measurements disagree, find the broken one before overturning a
-  ruling. Open: the store runs UNDER the game on most missions (median
-  8.5 kills at the redirect on that journal) and nothing in the journal
-  explains it (no murder of the target, no Bounty without a faction,
-  wing kills in other windows, PVPKill 0) — `kills_done` is an estimate,
-  labelled so on the page; the redirect stays the completion signal.
-  (3) Any
+  ruling. The under-count (the store behind the game on most missions,
+  median 8.5 kills at the redirect on that journal; no murder of the
+  target, no Bounty without a faction, wing kills in other windows,
+  PVPKill 0) is CLOSED by construction, maintainer 2026-09-19: "sometimes
+  things die so fast the ship doesn't scan them in time to register a
+  bounty kill, but it counts towards mission credit" — an unscanned kill
+  writes no journal event at all, which fits every measurement (always
+  under, never over, the gap growing with session length). So
+  `kills_done` is a lower bound, shown as "at least N of M"; the
+  redirect stays the completion signal. (3) Any
   `MissionRedirected` completed the mission and was spoken TWICE — a
   per-event "Objective complete" in callouts.rs and the per-pass
   "Mission complete" (18 seconds carried both in the maintainer's log,
