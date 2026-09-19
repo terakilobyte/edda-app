@@ -8,7 +8,7 @@
   import { requestPlan } from "./engineering.svelte.js";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { KEYS, readKey, writeKey } from "./storage.svelte.js";
-  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned } from "./buildplan.js";
+  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
 
   // Plan the whole build at once (maintainer, 2026-09-19: "my type 10 has 9
@@ -46,18 +46,19 @@
   function update(i, patch) {
     const r = { ...rows[i], ...patch };
     if ("blueprint" in patch) {
-      // A fresh pick is meant; the grade list follows the blueprint.
-      r.include = Boolean(r.blueprint) || Boolean(r.experimental);
+      // The grade list follows the blueprint.
       const gs = gradesFor(r);
-      if (!gs.includes(Number(r.target_grade))) r.target_grade = gs[gs.length - 1] ?? 5;
+      if (!gs.includes(Number(r.target_grade))) r.target_grade = gs[gs.length - 1] ?? r.from_grade;
     }
-    if ("experimental" in patch && r.experimental && !r.blueprint) r.include = true;
+    // A fresh pick is meant to be in the plan; a row with nothing to do never is.
+    if ("blueprint" in patch || "experimental" in patch) r.include = hasWork(r);
+    if (!hasWork(r)) r.include = false;
     rows = rows.map((x, j) => (j === i ? r : x));
     planReport = null;
     savePlan();
   }
   function copyToAll(i) { rows = sameForAll(rows, rows[i]); planReport = null; savePlan(); }
-  function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && (Boolean(r.blueprint) || Boolean(r.experimental)) })); planReport = null; savePlan(); }
+  function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && hasWork(r) })); planReport = null; savePlan(); }
   function togglePlanPick(i) { const s = new Set(planPicked); s.has(i) ? s.delete(i) : s.add(i); planPicked = s; }
 
   async function runPlan() {
@@ -262,7 +263,7 @@
         <tbody>
           {#each rows as r, i (r.slot)}
             <tr class={isPlanned(r) ? "eng" : ""}>
-              <td><input type="checkbox" checked={r.include} onchange={(e) => update(i, { include: e.currentTarget.checked })} title="Include this module in the plan" /></td>
+              <td><input type="checkbox" checked={r.include && hasWork(r)} disabled={!hasWork(r)} onchange={(e) => update(i, { include: e.currentTarget.checked })} title={hasWork(r) ? "Include this module in the plan" : "Nothing to do: at the top grade and no experimental chosen"} /></td>
               <td class="small muted">{r.slot_name}</td>
               <td>{r.item_name}</td>
               <td class="small muted">{r.from_grade ? `G${r.from_grade}` : "—"}</td>
@@ -273,11 +274,11 @@
                 </select>
               </td>
               <td>
-                {#if r.blueprint}
-                  <select value={String(r.target_grade)} onchange={(e) => update(i, { target_grade: Number(e.currentTarget.value) })} disabled={gradesFor(r).length === 0}>
+                {#if r.blueprint && gradesFor(r).length}
+                  <select value={String(r.target_grade)} onchange={(e) => update(i, { target_grade: Number(e.currentTarget.value) })}>
                     {#each gradesFor(r) as g}<option value={String(g)}>G{g}</option>{/each}
                   </select>
-                  {#if gradesFor(r).length === 0}<span class="muted small">at the top</span>{/if}
+                {:else if r.blueprint}<span class="muted small">at the top</span>
                 {:else}<span class="muted">—</span>{/if}
               </td>
               <td>
