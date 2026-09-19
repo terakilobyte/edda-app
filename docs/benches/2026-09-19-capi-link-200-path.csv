@@ -6,7 +6,7 @@
 # One defect found by real data: cargo entries carry the STACK value on every one-unit entry (452 Tritium entries x 22.7 M),
 # so summing read 10.2 bn cr for 460 t. Ruled (maintainer): the value is not shown at all -- Frontier's snapshot of a moving
 # average tells the commander nothing. Verdict on the hold's correctness is the maintainer's comparison with Carrier
-# Management in-game.
+# Management in-game. VERDICT (maintainer, 2026-09-19, after the fix): the hold, tank and balance MATCH Carrier Management.
 call,status,ms
 /token (authorization_code + PKCE),200,780
 /decode (customer_id == journal FID),200 match,198
