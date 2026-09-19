@@ -795,21 +795,11 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             }
             out.push(Callout::new("mission", ts, 1, true, text));
         }
-        "MissionRedirected" => {
-            let title = s(v, "LocalisedName").or_else(|| s(v, "Name")).unwrap_or("mission");
-            let station = s(v, "NewDestinationStation").unwrap_or("the hand-in");
-            let system = s(v, "NewDestinationSystem").unwrap_or("");
-            out.push(Callout::new(
-                "mission",
-                ts,
-                1,
-                true,
-                format!(
-                    "Objective complete: {title}. Return to {station}{}.",
-                    if system.is_empty() { String::new() } else { format!(" in {system}") }
-                ),
-            ));
-        }
+        // MissionRedirected is spoken per PASS by watcher::mission_redirected
+        // (completion, giver and count from the store) and
+        // watcher::mission_rerouted; a per-event line here doubled it
+        // ("Objective complete" and "Mission complete" in the same second
+        // in a tester's log, 2026-09-19).
         "MissionFailed" => {
             let title = s(v, "LocalisedName").or_else(|| s(v, "Name")).unwrap_or("mission");
             out.push(Callout::new("mission", ts, 2, true, format!("Mission failed: {title}.")));
@@ -874,6 +864,14 @@ mod tests {
     /// Item 52 A: the carrier speaks the countdown, the cancel, the
     /// arrival — and the location heartbeat only when it actually moved
     /// (the game writes CarrierLocation at every startup).
+    /// The redirect belongs to the watcher's per-pass line; here it is silent.
+    #[test]
+    fn a_mission_redirect_has_no_per_event_line() {
+        let mut st = CalloutState::default();
+        let v = serde_json::json!({"timestamp":"2026-09-19T06:17:51Z","event":"MissionRedirected","MissionID":1,"Name":"Mission_Massacre","LocalisedName":"Put down Anana Brotherhood Pirates","NewDestinationStation":"Papin Works","NewDestinationSystem":"Puneith"});
+        assert!(super::from_event(&v, &mut st).is_empty(), "spoken once, by the watcher");
+    }
+
     #[test]
     fn carrier_callouts_count_down_and_speak_moves_once() {
         let mut st = CalloutState::default();

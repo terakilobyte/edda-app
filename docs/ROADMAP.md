@@ -8,6 +8,30 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Mission hand-ins, kill credit and completions** (2026-09-19, tester
+  feedback 5 + measured on the maintainer's store, PR pending). Three
+  defects, one report ("EDDA keeps saying Yamazaki Port"): (1) the
+  Missions tab's "Hand in" showed `DestinationStation` from
+  `MissionAccepted`, which for a kill mission is a station in the TARGET
+  system — 74 of 74 of the maintainer's massacres named a station he
+  never docked at; the hand-in is the station docked at when accepting,
+  64 of 64 redirects agree (`docs/benches/2026-09-19-mission-handins.csv`;
+  maintainer: "for the kill/massacre missions it's pretty much always
+  turn in at issuing location"). Now `giver_*`/`hand_in_*` on the
+  mission, the hand-in moving only on `MissionRedirected`;
+  `destination_*` stays the objective. (2) Kill credit ignored the
+  system and credited every mission of a same-giver stack at once; now
+  a kill counts only in the mission's `DestinationSystem` (position from
+  `FSDJump`/`Location`/`Docked`) and one mission per giver at a time,
+  every giver at once (the 2026-09-16 ruling). (3) Any
+  `MissionRedirected` completed the mission and was spoken TWICE — a
+  per-event "Objective complete" in callouts.rs and the per-pass
+  "Mission complete" (18 seconds carried both in the maintainer's log,
+  40 vs 49 lines). The per-event line is gone; a redirect completes
+  do-then-return kinds only, and a delivery/courier/passenger redirect is
+  spoken as "Mission redirected: …, now to …". Not measured yet: a
+  callout replay on the maintainer's journal with the new rules
+  (Waldorf's harness) — asked for.
 - **Planner threads on the box** (2026-09-09). The route planner runs on
   cores − 2 threads at low priority, a rule sized when the API process
   also ran the EDDN feed. Now that the feed is its own unit, sweep 2/3/4

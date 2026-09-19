@@ -81,6 +81,7 @@
                 {#if m.kill_count}
                   <div class="num">{m.kills_done} / {m.kill_count}</div>
                   <div class="bar" style="width:90px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.kills_done) / m.kill_count)}%"></div></div>
+                  {#if m.destination_system}<div class="muted small">in {m.destination_system}</div>{/if}
                 {:else if m.total_items_to_deliver}
                   <div class="num">{m.items_delivered} / {m.total_items_to_deliver} delivered</div>
                   <div class="bar" style="width:110px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.items_delivered) / m.total_items_to_deliver)}%"></div></div>
@@ -91,7 +92,7 @@
                   <span class="muted">—</span>
                 {/if}
               </td>
-              <td class="small">{m.destination_station ?? "—"}<div class="muted">{m.destination_system ?? ""}</div></td>
+              <td class="small">{m.hand_in_station ?? "—"}<div class="muted">{m.hand_in_system ?? ""}</div></td>
               <td class="r num">{fmtCr(m.reward)}</td>
               <td class="small {hl != null && hl < 3 ? 'warn' : ''}">{hl == null ? "—" : hl < 0 ? "expired" : hl < 48 ? `${hl.toFixed(1)} h` : `${(hl / 24).toFixed(1)} d`}<div class="muted">{fmtTs(m.expiry).slice(5, 16)}</div></td>
               <td><span class="pill {statusClass(m.status)}">{statusLabel(m.status)}</span></td>

@@ -379,6 +379,9 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                         if let Some(c) = mission_redirected(conn, &crate::commands::now_iso(), &pass_events) {
                                             supersede_progress(&mut out, c);
                                         }
+                                        if let Some(c) = mission_rerouted(conn, &crate::commands::now_iso(), &pass_events) {
+                                            out.push((c, None));
+                                        }
                                     }
                                     // The pass's watched signals, spoken as one counted
                                     // line per kind ("5 power conflict zones on
@@ -618,7 +621,7 @@ fn mission_progress(conn: &rusqlite::Connection, now: &str, kill: &Value) -> Vec
                 text: format!(
                     "Target down: {}. {}",
                     m.target.as_deref().unwrap_or("target"),
-                    m.destination_station
+                    m.hand_in_station
                         .as_deref()
                         .map(|s| format!("Return to {s}."))
                         .unwrap_or_default()
@@ -664,13 +667,14 @@ fn mission_progress(conn: &rusqlite::Connection, now: &str, kill: &Value) -> Vec
 /// the progress line, which fires every 80 seconds through an evening
 /// against 23 completions in a week.
 fn mission_redirected(conn: &rusqlite::Connection, now: &str, events: &[Value]) -> Option<Callout> {
+    let known = ed_store::missions::active(conn, now).unwrap_or_default();
     let redirects: Vec<&Value> = events
         .iter()
         .filter(|v| v.get("event").and_then(Value::as_str) == Some("MissionRedirected"))
+        .filter(|v| redirect_is_completion(v, &known))
         .collect();
     let first = redirects.first()?;
     let ts = first.get("timestamp").and_then(Value::as_str).unwrap_or("");
-    let known = ed_store::missions::active(conn, now).unwrap_or_default();
 
     // The store knows the giver and the kill count; the event knows the
     // localised name and where to take it. Prefer ours, fall back to the
@@ -732,6 +736,48 @@ fn mission_redirected(conn: &rusqlite::Connection, now: &str, events: &[Value]) 
     Some(Callout { kind: "mission_complete", text, priority: 1, speak: true, ts: ts.to_string() })
 }
 
+/// Whether a redirect means the objective is met: by the stored
+/// mission's kind, or the event's own `Name` when the store does not
+/// know it. A courier's redirect is a new drop-off (tester, 2026-09-19).
+fn redirect_is_completion(v: &Value, known: &[ed_store::missions::Mission]) -> bool {
+    let id = v.get("MissionID").and_then(Value::as_i64);
+    let kind = id
+        .and_then(|id| known.iter().find(|m| m.id == id))
+        .map(|m| m.kind.clone())
+        .unwrap_or_else(|| ed_store::missions::kind_of(v.get("Name").and_then(Value::as_str).unwrap_or("")));
+    ed_store::missions::redirect_completes(&kind)
+}
+
+/// The pass's redirects that are NOT completions — a delivery or courier
+/// sent to a new drop-off — spoken as what they are, once per pass.
+fn mission_rerouted(conn: &rusqlite::Connection, now: &str, events: &[Value]) -> Option<Callout> {
+    let known = ed_store::missions::active(conn, now).unwrap_or_default();
+    let reroutes: Vec<&Value> = events
+        .iter()
+        .filter(|v| v.get("event").and_then(Value::as_str) == Some("MissionRedirected"))
+        .filter(|v| !redirect_is_completion(v, &known))
+        .collect();
+    let first = reroutes.first()?;
+    let ts = first.get("timestamp").and_then(Value::as_str).unwrap_or("");
+    let lines: Vec<String> = reroutes
+        .iter()
+        .map(|v| {
+            let title = v
+                .get("LocalisedName")
+                .or_else(|| v.get("Name"))
+                .and_then(Value::as_str)
+                .unwrap_or("mission");
+            let dest = destination_of(v);
+            if dest.is_empty() { title.to_string() } else { format!("{title}, now to {dest}") }
+        })
+        .collect();
+    let text = match lines.len() {
+        1 => format!("Mission redirected: {}.", lines[0]),
+        n => format!("{n} missions redirected: {}.", lines.join("; ")),
+    };
+    Some(Callout { kind: "mission", text, priority: 1, speak: true, ts: ts.to_string() })
+}
+
 /// A completion supersedes the pass's progress line.
 ///
 /// The store is synced before the event loop, so by the time the
@@ -773,7 +819,7 @@ fn trailer(destination: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{mission_progress, mission_redirected, stale_for_speech, Callout};
+    use super::{mission_progress, mission_redirected, mission_rerouted, stale_for_speech, Callout};
     use serde_json::{json, Value};
 
     /// A stack part-way through: two massacres against the same faction
@@ -955,6 +1001,37 @@ mod tests {
     }
 
     /// A pass with no redirect says nothing.
+    /// A courier's redirect is a new drop-off: no completion is spoken,
+    /// the reroute is, and a massacre's redirect in the same pass still
+    /// completes (tester report, 2026-09-19).
+    #[test]
+    fn a_couriers_redirect_is_a_reroute_not_a_completion() {
+        let conn = db();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',5,'2026-09-16T10:00:02Z','MissionAccepted','{"timestamp":"2026-09-16T10:00:02Z","event":"MissionAccepted","MissionID":13,"Faction":"Labour Union of Ahayan","Name":"Mission_Courier","LocalisedName":"Deliver data to Yamazaki Port","DestinationSystem":"Urarina","DestinationStation":"Yamazaki Port","Expiry":"2026-09-20T00:00:00Z"}');
+        "#).unwrap();
+        let courier = json!({
+            "timestamp": "2026-09-16T12:30:00Z", "event": "MissionRedirected", "MissionID": 13,
+            "Name": "Mission_Courier", "LocalisedName": "Deliver data to Yamazaki Port",
+            "NewDestinationStation": "Papin Works", "NewDestinationSystem": "Puneith",
+        });
+        assert!(mission_redirected(&conn, "2026-09-16T14:00:00Z", &[courier.clone()]).is_none(), "a reroute is not a completion");
+        let r = mission_rerouted(&conn, "2026-09-16T14:00:00Z", &[courier.clone()]).expect("the reroute is spoken");
+        assert_eq!(r.kind, "mission");
+        assert_eq!(r.text, "Mission redirected: Deliver data to Yamazaki Port, now to Papin Works, Puneith.");
+        // Mixed pass: the massacre completes, the courier is rerouted.
+        let both = [redirect(11, "Goeppert-Mayer Vision", "Ahayan"), courier];
+        let c = mission_redirected(&conn, "2026-09-16T14:00:00Z", &both).expect("the massacre still completes");
+        assert!(c.text.starts_with("Mission complete: 9 Anana Brotherhood kills"), "{}", c.text);
+        assert!(!c.text.contains("Yamazaki"), "the courier is not folded into the completion: {}", c.text);
+        assert!(mission_rerouted(&conn, "2026-09-16T14:00:00Z", &both).is_some());
+        // An unknown mission is judged by the event's own Name.
+        let unknown = json!({"timestamp": "2026-09-16T12:30:00Z", "event": "MissionRedirected", "MissionID": 999, "Name": "Mission_Delivery", "LocalisedName": "Deliver 10 units", "NewDestinationStation": "X", "NewDestinationSystem": "Y"});
+        assert!(mission_redirected(&conn, "2026-09-16T14:00:00Z", &[unknown.clone()]).is_none());
+        assert!(mission_rerouted(&conn, "2026-09-16T14:00:00Z", &[unknown]).is_some());
+    }
+
     #[test]
     fn a_pass_without_a_redirect_is_silent() {
         assert!(mission_redirected(&db(), "2026-09-16T14:00:00Z", &[kill("2026-09-16T11:00:00Z")]).is_none());
