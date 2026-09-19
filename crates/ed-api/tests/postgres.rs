@@ -182,19 +182,21 @@ async fn feed_scans_teach_stars_bodies_and_hotspots() {
             materials: vec![("Iron".into(), 21.3)], rings: vec![RingTeaching { name: "Deciat 6 a A Ring".into(), kind: Some("Metallic".into()), mass: None, inner_radius: None, outer_radius: None }], hotspots: Vec::new(),
         }),
         Operation::RingHotspots(RingHotspots { system_address: address, ring_name: "Deciat 6 a A Ring".into(), signals: vec![("Painite".into(), 2), ("Platinum".into(), 1)], observed_at: at(4) }),
-        Operation::BodySignals(BodySignals { id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), bio_signals: Some(3), geo_signals: None, observed_at: at(5) }),
+        Operation::BodySignals(BodySignals { id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), bio_signals: Some(3), geo_signals: None, mining_locations: None, observed_at: at(5) }),
         // Signals for a body no Scan has described yet: a stub row.
-        Operation::BodySignals(BodySignals { id64: body_id64(address, 9), system_address: address, body_id: Some(9), name: Some("Deciat 6 b".into()), bio_signals: Some(1), geo_signals: None, observed_at: at(6) }),
+        Operation::BodySignals(BodySignals { id64: body_id64(address, 9), system_address: address, body_id: Some(9), name: Some("Deciat 6 b".into()), bio_signals: Some(1), geo_signals: None, mining_locations: None, observed_at: at(6) }),
+        // A DSS that found only surface mining locations on the same body: learned, counted once.
+        Operation::BodySignals(BodySignals { id64: body_id64(address, 7), system_address: address, body_id: Some(7), name: Some("Deciat 6 a".into()), bio_signals: None, geo_signals: None, mining_locations: Some(29), observed_at: at(7) }),
     ];
     let stats = ed_api::eddn::apply_operations(&pool, &ops).await.unwrap();
-    assert_eq!((stats.stars, stats.bodies, stats.hotspots, stats.body_signals, stats.skipped), (1, 1, 2, 2, 1), "{stats:?}");
+    assert_eq!((stats.stars, stats.bodies, stats.hotspots, stats.body_signals, stats.mining_locations, stats.skipped), (1, 1, 2, 3, 1, 1), "{stats:?}");
 
     let star: (i16, bool, String) = sqlx::query_as("SELECT class, scoopable, source FROM stars WHERE address = $1").bind(address).fetch_one(&pool).await.unwrap();
     assert_eq!(star, (6, true, "eddn:scan".to_string()), "K is code 6, scoopable");
     let hotspots: Vec<(String, i32)> = sqlx::query_as("SELECT material, count FROM ring_hotspots WHERE body_id64 = $1 ORDER BY material").bind(body_id64(address, 7)).fetch_all(&pool).await.unwrap();
     assert_eq!(hotspots, vec![("Painite".to_string(), 2), ("Platinum".to_string(), 1)]);
-    let signals: (Option<i32>, Option<i32>) = sqlx::query_as("SELECT bio_signals, geo_signals FROM bodies WHERE id64 = $1").bind(body_id64(address, 7)).fetch_one(&pool).await.unwrap();
-    assert_eq!(signals, (Some(3), None));
+    let signals: (Option<i32>, Option<i32>, Option<i32>) = sqlx::query_as("SELECT bio_signals, geo_signals, mining_locations FROM bodies WHERE id64 = $1").bind(body_id64(address, 7)).fetch_one(&pool).await.unwrap();
+    assert_eq!(signals, (Some(3), None, Some(29)), "the mining-only scan added its count without touching bio/geo");
     let stub: (Option<String>, Option<i32>) = sqlx::query_as("SELECT name, bio_signals FROM bodies WHERE id64 = $1").bind(body_id64(address, 9)).fetch_one(&pool).await.unwrap();
     assert_eq!(stub, (Some("Deciat 6 b".to_string()), Some(1)));
 

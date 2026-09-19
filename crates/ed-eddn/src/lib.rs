@@ -596,6 +596,12 @@ fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
             };
             let bio = signal("$SAA_SignalType_Biological;");
             let geo = signal("$SAA_SignalType_Geological;");
+            // Surface mining locations. Until 2026-09-19 the `$`-prefix
+            // filter above dropped this along with the bio/geo keys, and a
+            // scan carrying ONLY this signal produced no operation at all
+            // — measured on the box, ~39k body-signal rows a day reach us
+            // and none of them could say where to surface-mine.
+            let mining = signal("$PlanetaryMiningLocation_Name;");
             if is_ring && !hotspots.is_empty() {
                 out.push(Operation::RingHotspots(ed_domain::RingHotspots {
                     system_address: address,
@@ -603,7 +609,7 @@ fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
                     signals: hotspots,
                     observed_at: observed.clone(),
                 }));
-            } else if !is_ring && (bio.is_some() || geo.is_some()) {
+            } else if !is_ring && (bio.is_some() || geo.is_some() || mining.is_some()) {
                 out.push(Operation::BodySignals(ed_domain::BodySignals {
                     id64: ed_domain::body_id64(address, body_id),
                     system_address: address,
@@ -611,6 +617,7 @@ fn scan_operations(message: &JournalMessage) -> Vec<Operation> {
                     name: Some(name.trim().to_string()),
                     bio_signals: bio,
                     geo_signals: geo,
+                    mining_locations: mining,
                     observed_at: observed,
                 }));
             }
@@ -1468,6 +1475,31 @@ mod teaching_tests {
         let mut stats = FeedStats::default();
         stats.count(&env);
         assert_eq!(stats.journal_events.get("NavRoute.hops"), Some(&3));
+    }
+
+    #[test]
+    /// A DSS scan that found ONLY surface mining locations used to produce
+    /// no operation at all, because the `$`-prefix filter meant for ring
+    /// hotspot names swallowed it. It teaches the count now; a scan with
+    /// none leaves the field absent so it cannot overwrite a known count.
+    #[test]
+    fn a_mining_only_scan_teaches_the_location_count() {
+        let mining_only = journal(
+            r#"{"timestamp":"2026-09-18T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 4 c","BodyID":12,"Signals":[{"Type":"$PlanetaryMiningLocation_Name;","Type_Localised":"Mining Location","Count":29}]}"#,
+        );
+        let ops = mining_only.operations();
+        let Some(Operation::BodySignals(s)) = ops.iter().find(|o| matches!(o, Operation::BodySignals(_))) else {
+            panic!("a mining-only scan must teach: {ops:?}")
+        };
+        assert_eq!(s.mining_locations, Some(29));
+        assert_eq!((s.bio_signals, s.geo_signals), (None, None), "nothing invented for the others");
+
+        let bio_only = journal(
+            r#"{"timestamp":"2026-09-18T10:03:00Z","event":"SAASignalsFound","StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[1,2,3],"BodyName":"Deciat 4 c","BodyID":12,"Signals":[{"Type":"$SAA_SignalType_Biological;","Count":2}]}"#,
+        );
+        let ops = bio_only.operations();
+        let Some(Operation::BodySignals(s)) = ops.iter().find(|o| matches!(o, Operation::BodySignals(_))) else { panic!("{ops:?}") };
+        assert_eq!(s.mining_locations, None, "absent, not zero: it must not erase a count another scan taught");
     }
 
     #[test]
