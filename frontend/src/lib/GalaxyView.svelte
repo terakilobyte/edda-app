@@ -382,6 +382,13 @@
     if (focus?.pos) showFocus(); else frameRoute();
     let tick = 0, previousFrame = performance.now();
     const loop = (now = performance.now()) => {
+      // Hidden (its tab is not showing): no render, look again shortly.
+      // Tabs stay mounted between visits, so this is the common state.
+      if (host && host.offsetParent === null) {
+        previousFrame = now;
+        raf = setTimeout(() => requestAnimationFrame(loop), 250);
+        return;
+      }
       const dt = Math.min(0.1, (now - previousFrame) / 1000);
       previousFrame = now;
       if (idleRotate && !mapInteractionActive && now - lastMapInteraction >= 5000 && camera && controls) {
@@ -412,6 +419,7 @@
   onDestroy(() => {
     ro?.disconnect();
     cancelAnimationFrame(raf);
+    clearTimeout(raf);
     controls?.dispose();
     renderer?.dispose();
     scene?.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
