@@ -20,10 +20,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   turn in at issuing location"). Now `giver_*`/`hand_in_*` on the
   mission, the hand-in moving only on `MissionRedirected`;
   `destination_*` stays the objective. (2) Kill credit ignored the
-  system and credited every mission of a same-giver stack at once; now
-  a kill counts only in the mission's `DestinationSystem` (position from
-  `FSDJump`/`Location`/`Docked`) and one mission per giver at a time,
-  every giver at once (the 2026-09-16 ruling). (3) Any
+  system; now a kill counts only in the mission's `DestinationSystem`
+  (position from `FSDJump`/`Location`/`Docked`) — inert on the
+  maintainer's data (every credited kill was in Anana), kept as the
+  game's rule. The 2026-09-16 ruling "consecutive within a giver" was
+  built, measured and REFUTED: at the instant of each of 65 redirects,
+  same-giver pairs matched the game under concurrent crediting (13/13)
+  and fell short under consecutive (exact 19/65 → 6/65;
+  `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`), so
+  every live mission with the target credits at once. Open: 46 of 65
+  missions were UNDER by 2–23 kills at the redirect and nothing in the
+  journal explains it (no murder of the target, no Bounty without a
+  faction, wing kills in other windows, PVPKill 0) — `kills_done` is an
+  estimate, labelled so on the page; the redirect stays the completion
+  signal. (3) Any
   `MissionRedirected` completed the mission and was spoken TWICE — a
   per-event "Objective complete" in callouts.rs and the per-pass
   "Mission complete" (18 seconds carried both in the maintainer's log,

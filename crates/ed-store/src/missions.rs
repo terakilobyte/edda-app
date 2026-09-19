@@ -7,16 +7,19 @@
 //! `Abandoned`. What it does **not** give is a per-kill progress counter,
 //! so massacre progress is inferred: kills (`Bounty`, `FactionKillBond`)
 //! after acceptance whose `VictimFaction` is the mission's target faction.
-//! That is the same rule the game applies, with two refinements measured
-//! against a tester's report and the maintainer's journal (2026-09-19):
-//! the kill must happen in the mission's system (`FSDJump` / `Location`
-//! / `Docked` say where the commander is, so a kill of the right faction
-//! elsewhere is not credited), and missions from ONE giver against the
-//! same target progress consecutively, earliest accepted first, while
-//! missions from different givers all credit at once (maintainer,
-//! 2026-09-16: "concurrent across factions, consecutive within a
-//! faction"). `kills_done` is capped at the target and labelled as
-//! inferred.
+//! That is the game's rule, with one refinement: the kill must happen in
+//! the mission's system (`FSDJump` / `Location` / `Docked` say where the
+//! commander is, so a kill of the right faction elsewhere is not
+//! credited). Every mission with that target credits at once, same giver
+//! or not: the maintainer's ruling of 2026-09-16 ("consecutive within a
+//! faction") was tried and REFUTED on his own store — at the instant of
+//! each redirect, same-giver pairs matched the game's count under
+//! concurrent crediting and fell short under consecutive (13 of 13;
+//! `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`).
+//! `kills_done` is an ESTIMATE: on that journal 46 of 65 missions were
+//! short by 2–23 kills at the redirect and nothing in the journal
+//! explains the gap, so the redirect stays the completion signal and the
+//! count is labelled as inferred.
 //!
 //! The hand-in is the station the mission was accepted at (the last
 //! `Docked` before `MissionAccepted`) until the game redirects it;
@@ -254,12 +257,8 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
             "Bounty" | "FactionKillBond" => {
                 let victim = s(&v, "VictimFaction");
                 let pilot = loc(&v, "PilotName");
-                // One kill credits ONE mission per giver (consecutive within
-                // a faction), every giver at once (concurrent across them).
-                // `out` is in acceptance order, so the earliest live
-                // mission of each giver is the one that advances.
-                let mut credited_givers: std::collections::HashSet<(String, String)> =
-                    std::collections::HashSet::new();
+                // Every live mission with this target credits the kill, same
+                // giver or not (measured, see the module docs).
                 for m in out.iter_mut().filter(|m| m.status == MissionStatus::Active) {
                     if m.kill_count.is_some()
                         && m.target_faction.is_some()
@@ -271,13 +270,6 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                             if !h.eq_ignore_ascii_case(d) {
                                 continue;
                             }
-                        }
-                        let giver = (
-                            m.faction.to_ascii_lowercase(),
-                            m.target_faction.as_deref().unwrap_or("").to_ascii_lowercase(),
-                        );
-                        if !credited_givers.insert(giver) {
-                            continue;
                         }
                         m.kills_done += 1;
                         if let Some(k) = m.kill_count {
@@ -827,11 +819,13 @@ mod tests {
         assert_eq!(m.status, MissionStatus::Active);
     }
 
-    /// Maintainer, 2026-09-16: "If I accept multiple missions from the
-    /// same faction against the same target, progress is consecutive and
-    /// not concurrent" — and concurrent across givers.
+    /// Measured 2026-09-19 on the maintainer's store: at each redirect,
+    /// same-giver pairs matched the game's count under CONCURRENT
+    /// crediting (13 of 13) and fell short under consecutive. His ruling
+    /// of 2026-09-16 said consecutive within a giver; the measurement
+    /// wins. Every live mission with the target credits the kill.
     #[test]
-    fn one_givers_stack_advances_one_mission_at_a_time_while_other_givers_advance_together() {
+    fn every_live_mission_with_the_target_credits_a_kill_whatever_the_giver() {
         let conn = Connection::open_in_memory().unwrap();
         crate::schema::migrate(&conn).unwrap();
         crate::schema::attach_galaxy(&conn, None).unwrap();
@@ -846,9 +840,9 @@ mod tests {
         "#).unwrap();
         let ms = missions(&conn, "", "2026-09-19T06:00:00Z").unwrap();
         let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
-        assert_eq!((by(1).kills_done, by(1).status.clone()), (2, MissionStatus::ReadyToTurnIn), "first of the League's stack: kills 1 and 2");
-        assert_eq!((by(2).kills_done, by(2).status.clone()), (1, MissionStatus::Active), "second of the stack starts only after the first is done: kill 3");
-        assert_eq!((by(3).kills_done, by(3).status.clone()), (2, MissionStatus::ReadyToTurnIn), "the other giver credits every kill concurrently");
+        for id in [1, 2, 3] {
+            assert_eq!((by(id).kills_done, by(id).status.clone()), (2, MissionStatus::ReadyToTurnIn), "mission {id}: both League missions and the Jet Boys' credit kills 1 and 2 together");
+        }
     }
 
     /// A courier's `MissionRedirected` is a new drop-off, not a delivery
