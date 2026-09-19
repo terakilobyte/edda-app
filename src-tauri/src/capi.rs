@@ -136,7 +136,6 @@ pub struct CarrierLive {
     pub current_jump: Option<String>,
     pub hold: Vec<HoldLine>,
     pub hold_t: i64,
-    pub hold_value_cr: i64,
     pub market: Option<Value>,
     pub sales: Vec<Value>,
     pub purchases: Vec<Value>,
@@ -149,7 +148,6 @@ pub struct HoldLine {
     pub commodity: String,
     pub name: String,
     pub tonnes: i64,
-    pub value_cr: i64,
     pub stolen_t: i64,
     pub mission_t: i64,
 }
@@ -244,7 +242,10 @@ pub fn carrier_from_json(v: &Value, fetched_at: &str) -> Option<CarrierLive> {
     for item in v.pointer("/cargo").and_then(Value::as_array).into_iter().flatten() {
         let Some(commodity) = item.get("commodity").and_then(Value::as_str) else { continue };
         let qty = item.get("qty").and_then(Value::as_i64).unwrap_or(1).max(0);
-        let value = item.get("value").and_then(Value::as_i64).unwrap_or(0);
+        // `value` is deliberately not kept: it is Frontier's snapshot of a
+        // moving average (and rides every one-unit entry as the whole
+        // stack's), so it tells the commander nothing (maintainer,
+        // 2026-09-19: "don't even need the value as that's dynamic").
         let stolen = item.get("stolen").and_then(Value::as_bool).unwrap_or(false);
         let mission = item.get("mission").and_then(Value::as_bool).unwrap_or(false);
         let line = hold.entry(commodity.to_ascii_lowercase()).or_insert_with(|| HoldLine {
@@ -256,12 +257,10 @@ pub fn carrier_from_json(v: &Value, fetched_at: &str) -> Option<CarrierLive> {
                 .unwrap_or(commodity)
                 .to_owned(),
             tonnes: 0,
-            value_cr: 0,
             stolen_t: 0,
             mission_t: 0,
         });
         line.tonnes += qty;
-        line.value_cr += value * qty;
         if stolen {
             line.stolen_t += qty;
         }
@@ -272,7 +271,6 @@ pub fn carrier_from_json(v: &Value, fetched_at: &str) -> Option<CarrierLive> {
     let mut hold: Vec<HoldLine> = hold.into_values().collect();
     hold.sort_by(|a, b| b.tonnes.cmp(&a.tonnes).then_with(|| a.name.cmp(&b.name)));
     let hold_t = hold.iter().map(|l| l.tonnes).sum();
-    let hold_value_cr = hold.iter().map(|l| l.value_cr).sum();
 
     let services: Vec<String> = v
         .pointer("/market/services")
@@ -300,7 +298,6 @@ pub fn carrier_from_json(v: &Value, fetched_at: &str) -> Option<CarrierLive> {
         current_jump: s("/itinerary/currentJump"),
         hold,
         hold_t,
-        hold_value_cr,
         market: v.pointer("/marketFinances").cloned(),
         sales: list("/orders/commodities/sales"),
         purchases: list("/orders/commodities/purchases"),
@@ -734,8 +731,8 @@ mod tests {
             "marketFinances": {"cargoTotalValue": 12345, "allTimeProfit": 6789, "numCommodsForSale": 3, "numCommodsPurchaseOrders": 1},
             "finance": {"bankBalance": 9734563753i64, "bankReservedBalance": 100000000},
             "cargo": [
-                {"commodity": "Tritium", "mission": false, "qty": 1, "value": 51000, "stolen": false, "locName": "Tritium"},
-                {"commodity": "Tritium", "mission": false, "qty": 1, "value": 51000, "stolen": false, "locName": "Tritium"},
+                {"commodity": "Tritium", "mission": false, "qty": 1, "value": 102000, "stolen": false, "locName": "Tritium"},
+                {"commodity": "Tritium", "mission": false, "qty": 1, "value": 102000, "stolen": false, "locName": "Tritium"},
                 {"commodity": "LiquidOxygen", "mission": false, "qty": 1, "value": 300, "stolen": false, "locName": "Liquid Oxygen"},
                 {"commodity": "Gold", "mission": true, "qty": 1, "value": 9000, "stolen": true, "locName": "Gold"}
             ],
@@ -748,7 +745,7 @@ mod tests {
         assert_eq!(c.system.as_deref(), Some("HIP 90112"));
         assert_eq!((c.fuel_t, c.balance_cr, c.reserved_cr), (Some(587), Some(9_734_563_753), Some(100_000_000)));
         assert_eq!(c.hold.iter().map(|l| (l.name.as_str(), l.tonnes)).collect::<Vec<_>>(), [("Tritium", 2), ("Gold", 1), ("Liquid Oxygen", 1)], "one wire entry per unit, folded and sorted by tonnes");
-        assert_eq!((c.hold_t, c.hold_value_cr), (4, 111_300));
+        assert_eq!(c.hold_t, 4);
         let gold = c.hold.iter().find(|l| l.name == "Gold").unwrap();
         assert_eq!((gold.stolen_t, gold.mission_t), (1, 1));
         assert_eq!(c.services, vec!["commodities", "refuel", "repair"], "only services reporting ok");

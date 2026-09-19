@@ -99,10 +99,10 @@
           · tank {fmtInt(live.fuel_t)} t · balance {fmtInt(live.balance_cr)} cr{live.reserved_cr ? ` (${fmtInt(live.reserved_cr)} reserved for upkeep)` : ""}{live.state && live.state !== "normalOperation" ? ` · ${live.state}` : ""}{live.current_jump ? ` · jump plotted to ${live.current_jump}` : ""}</div>
         {#if live.hold.length}
           <div class="table-wrap" style="margin-top:0.3rem"><table>
-            <thead><tr><th>Hold · {fmtInt(live.hold_t)} t · {fmtInt(live.hold_value_cr)} cr</th><th class="num">t</th><th class="num">value</th></tr></thead>
+            <thead><tr><th>Hold · {fmtInt(live.hold_t)} t</th><th class="num">t</th></tr></thead>
             <tbody>
               {#each live.hold as h}
-                <tr><td>{h.name}{#if h.stolen_t}<span class="pill warn" style="margin-left:0.3rem">stolen {h.stolen_t} t</span>{/if}{#if h.mission_t}<span class="pill" style="margin-left:0.3rem">mission {h.mission_t} t</span>{/if}</td><td class="num">{fmtInt(h.tonnes)}</td><td class="num">{fmtInt(h.value_cr)}</td></tr>
+                <tr><td>{h.name}{#if h.stolen_t}<span class="pill warn" style="margin-left:0.3rem">stolen {h.stolen_t} t</span>{/if}{#if h.mission_t}<span class="pill" style="margin-left:0.3rem">mission {h.mission_t} t</span>{/if}</td><td class="num">{fmtInt(h.tonnes)}</td></tr>
               {/each}
             </tbody>
           </table></div>
