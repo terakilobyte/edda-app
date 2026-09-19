@@ -35,8 +35,12 @@
 
 <svelte:window onkeydown={(e) => e.key === "Escape" && dismiss()} />
 
-<div class="scrim" role="presentation" onclick={dismiss}>
-  <div class="sheet" role="dialog" tabindex="-1" aria-label="Release notes" onclick={(e) => e.stopPropagation()}>
+<!-- A click on the scrim itself dismisses; clicks inside the sheet do not.
+     Checked on the target rather than stopped on the sheet, so the sheet
+     carries no click handler (svelte a11y_click_events_have_key_events;
+     Escape is handled on the window above). -->
+<div class="scrim" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
+  <div class="sheet" role="dialog" tabindex="-1" aria-label="Release notes">
     <header>
       <h2>{latestOnly ? `New in EDDA ${notes.version}` : "Release notes"}</h2>
       <button class="ghost" onclick={dismiss}>✕</button>
