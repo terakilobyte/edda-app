@@ -265,6 +265,13 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                             }
                                                         }
                                                     }
+                                                    // The carrier changed in a way Frontier will report:
+                                                    // refresh the live figures if the commander is linked.
+                                                    Some(ev @ ("CarrierStats" | "CarrierBuy" | "CarrierTradeOrder" | "CarrierDepositFuel"))
+                                                        if !stale_for_speech(v.get("timestamp").and_then(Value::as_str).unwrap_or("")) =>
+                                                    {
+                                                        crate::capi::on_carrier_event(&app, ev);
+                                                    }
                                                     Some("Bounty") | Some("FactionKillBond") => {
                                                         out.extend(
                                                             mission_progress(conn, &crate::commands::now_iso(), &v)

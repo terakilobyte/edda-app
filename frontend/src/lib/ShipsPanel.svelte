@@ -17,11 +17,13 @@
   // Item 52 A: the commander's carrier from the journal — a card, not a
   // ship (a carrier has no ShipID and never appears in StoredShips).
   let carriers = $state([]);
+  // The Frontier link's last /fleetcarrier answer (null until linked).
+  let live = $state(null);
   // Strangers' carriers are in the store because docking at one creates a
   // row; they do not belong on the commander's Ships tab.
   const mine = $derived(ownCarriers(carriers));
   async function loadCarriers() {
-    try { carriers = (await carrierStatus()).carriers ?? []; } catch { carriers = []; }
+    try { const r = await carrierStatus(); carriers = r.carriers ?? []; live = r.live ?? null; } catch { carriers = []; live = null; }
   }
   // Item 53: one line per stored ship saying where it is and how fresh that is.
   const whereabouts = (l) => {
@@ -84,16 +86,35 @@
       {#if c.capacity}<div class="muted small">Capacity: {fmtInt(c.capacity.value.used_t ?? 0)} t used, {fmtInt(c.capacity.value.free_t ?? 0)} t free of {fmtInt(c.capacity.value.total_t)} t · as of {fmtAge(c.capacity.age_hours)}</div>{/if}
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
       {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
-      <!-- No hold listing here on purpose. The journal only records the
-           transfers the commander made themselves, so a running total of
-           those is not the carrier's inventory: it cannot see the
-           carrier's own market sales, another commander's transfers, or
-           services consuming cargo, and it drifts further from the truth
-           the longer the carrier trades. Showing it looked like current
-           stock and was not (maintainer, 2026-09-16: "if we can't show a
-           carrier's *current* inventory we shouldn't show the inventory
-           at all"). Frontier's CAPI /fleetcarrier returns the real
-           thing; until that is wired, nothing is shown. -->
+      <!-- The hold comes ONLY from Frontier's own report (the Frontier
+           link, Settings → Frontier account). The journal's running total
+           of the commander's own transfers is not the inventory — it
+           cannot see the carrier's market sales, other commanders'
+           transfers or services consuming cargo (maintainer, 2026-09-16:
+           "if we can't show a carrier's *current* inventory we shouldn't
+           show the inventory at all"), so without the link nothing is
+           shown. -->
+      {#if live && c.callsign && live.callsign === c.callsign}
+        <div class="small" style="margin-top:0.4rem"><strong>Frontier reports</strong> <span class="muted">fetched {fmtAge((Date.now() - new Date(live.fetched_at)) / 3600e3)} ago</span>
+          · tank {fmtInt(live.fuel_t)} t · balance {fmtInt(live.balance_cr)} cr{live.reserved_cr ? ` (${fmtInt(live.reserved_cr)} reserved for upkeep)` : ""}{live.state && live.state !== "normalOperation" ? ` · ${live.state}` : ""}{live.current_jump ? ` · jump plotted to ${live.current_jump}` : ""}</div>
+        {#if live.hold.length}
+          <div class="table-wrap" style="margin-top:0.3rem"><table>
+            <thead><tr><th>Hold · {fmtInt(live.hold_t)} t · {fmtInt(live.hold_value_cr)} cr</th><th class="num">t</th><th class="num">value</th></tr></thead>
+            <tbody>
+              {#each live.hold as h}
+                <tr><td>{h.name}{#if h.stolen_t}<span class="pill warn" style="margin-left:0.3rem">stolen {h.stolen_t} t</span>{/if}{#if h.mission_t}<span class="pill" style="margin-left:0.3rem">mission {h.mission_t} t</span>{/if}</td><td class="num">{fmtInt(h.tonnes)}</td><td class="num">{fmtInt(h.value_cr)}</td></tr>
+              {/each}
+            </tbody>
+          </table></div>
+        {:else}
+          <div class="muted small">Hold empty.</div>
+        {/if}
+        {#if live.sales.length || live.purchases.length}
+          <div class="muted small">Orders: {live.sales.length} selling, {live.purchases.length} buying.</div>
+        {/if}
+      {:else if c.owned}
+        <div class="muted small">Hold: link your Frontier account (Settings → Frontier account) to see what is really aboard.</div>
+      {/if}
     </div>
   {/each}
 </section>
