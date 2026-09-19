@@ -111,6 +111,11 @@ pub struct BodyTeaching {
     pub volcanism: Option<String>,
     pub bio_signals: Option<i32>,
     pub geo_signals: Option<i32>,
+    /// Surface mining locations from a DSS scan, when the source carries
+    /// them (`$PlanetaryMiningLocation_Name;`: the journal and the Spansh
+    /// dump both use that key). Absent means "not reported", never zero.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mining_locations: Option<i32>,
     pub observed_at: ObservedAt,
     pub provenance: String,
     /// `(material, percent)`.

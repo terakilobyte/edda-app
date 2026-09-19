@@ -56,7 +56,13 @@ pub fn body_row(
     };
     let bio = signal("$SAA_SignalType_Biological;");
     let geo = signal("$SAA_SignalType_Geological;");
-    if !(body.is_landable || has_materials || has_rings || bio.is_some() || geo.is_some()) {
+    // The dump carries the DSS mining-location count under the journal's
+    // own key (confirmed on galaxy_1day 2026-09-19), so the nightly and
+    // weekly hydrates backfill it for every body Spansh has seen scanned
+    // — the difference between "where to surface-mine" answering this
+    // week and only after fresh feed traffic.
+    let mining = signal("$PlanetaryMiningLocation_Name;");
+    if !(body.is_landable || has_materials || has_rings || bio.is_some() || geo.is_some() || mining.is_some()) {
         return None;
     }
     let observed_epoch = body
@@ -104,6 +110,7 @@ pub fn body_row(
         volcanism: body.volcanism.clone(),
         bio_signals: bio,
         geo_signals: geo,
+        mining_locations: mining,
         observed_at: ed_domain::ObservedAt::new(ed_store::session::iso_from_epoch(observed_epoch), observed_epoch),
         provenance: provenance.to_owned(),
         materials,
@@ -467,12 +474,21 @@ mod tests {
             "id64": 101, "bodyId": 4, "name": "Deciat 6 a", "type": "Planet", "subType": "Rocky body",
             "isLandable": true, "gravity": 0.12, "distanceToArrival": 812.5,
             "materials": {"Iron": 21.3, "Nickel": 16.1},
-            "signals": {"signals": {"$SAA_SignalType_Biological;": 2, "$SAA_SignalType_Geological;": 5}}
+            "signals": {"signals": {"$SAA_SignalType_Biological;": 2, "$SAA_SignalType_Geological;": 5, "$PlanetaryMiningLocation_Name;": 16}}
         }));
         let row = body_row(1, &rock, Some(5), "spansh:test").expect("landable rock is a row");
         assert!(row.is_landable);
         assert_eq!(row.materials, vec![("Iron".to_string(), 21.3), ("Nickel".to_string(), 16.1)]);
         assert_eq!((row.bio_signals, row.geo_signals), (Some(2), Some(5)));
+        assert_eq!(row.mining_locations, Some(16), "the dump's DSS mining-location count rides along");
+        // A body the dump knows ONLY by its mining locations still teaches.
+        let mining_only: spansh::Body = serde_json::from_value(serde_json::json!({
+            "id64": 700, "bodyId": 3, "name": "Mine 3", "type": "Planet", "subType": "Rocky body",
+            "signals": {"signals": {"$PlanetaryMiningLocation_Name;": 4}}
+        }))
+        .unwrap();
+        let row = body_row(1, &mining_only, Some(5), "spansh:test").expect("mining locations alone are worth a row");
+        assert_eq!((row.mining_locations, row.bio_signals), (Some(4), None));
         assert_eq!(row.observed_at.epoch_seconds, 5, "no updateTime: the system's date");
 
         let star = body(serde_json::json!({
