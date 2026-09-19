@@ -273,6 +273,11 @@ pub fn item_name(symbol: &str) -> String {
         }
         "multidronecontrol" => "Multi Limpet Controller".into(),
         "buggybay" => "Planetary Vehicle Hangar".into(),
+        // The Rhino SRV's hangars (September 2026 mining update; EDCD FDevIDs
+        // #113): int_largebuggybay_* and int_mkiilargebuggybay_*, with a
+        // `_free` variant for the early-access purchase.
+        "largebuggybay" => "Large Planetary Vehicle Hangar".into(),
+        "mkiilargebuggybay" => "Mk II Large Planetary Vehicle Hangar".into(),
         "fighterbay" => "Fighter Hangar".into(),
         "metaalloyhullreinforcement" => "Meta Alloy Hull Reinforcement".into(),
         "expmodulestabiliser" => "Experimental Weapon Stabiliser".into(),
@@ -370,6 +375,10 @@ mod tests {
             item_name("int_guardianfsdbooster_size5"),
             "Guardian FSD Booster 5"
         );
+        // The Rhino's hangars, as the maintainer's Type-11 carries one (2026-09-18).
+        assert_eq!(item_name("int_mkiilargebuggybay_size4_class3_free"), "Mk II Large Planetary Vehicle Hangar 4C");
+        assert_eq!(item_name("int_largebuggybay_size6_class3"), "Large Planetary Vehicle Hangar 6C");
+        assert_eq!(item_name("int_buggybay_size2_class2"), "Planetary Vehicle Hangar 2D");
         assert_eq!(
             item_name("hpt_beamlaser_gimbal_medium"),
             "Beam Laser (gimballed, medium)"
