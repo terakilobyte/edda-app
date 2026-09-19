@@ -52,13 +52,27 @@ verdicts live in the CSV headers under `docs/benches/`.
   (position from `FSDJump`/`Location`/`Docked`) — inert on the
   maintainer's data (every credited kill was in Anana), kept as the
   game's rule. The 2026-09-16 ruling "consecutive within a giver" was
-  built, measured and REFUTED: at the instant of each of 65 redirects,
-  same-giver pairs matched the game under concurrent crediting (13/13)
-  and fell short under consecutive (exact 19/65 → 6/65;
-  `docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`), so
-  every live mission with the target credits at once. SUPERSEDED the
-  same day (see the entry above): the "refuted" reading was an
-  instrument error, and kill credit itself was removed. (3) Any
+  built, then dropped for a day on a broken instrument, then restored:
+  the redirect-instant check
+  (`docs/benches/2026-09-19-mission-kill-credit-at-redirect.csv`) read
+  `kills_done`, which is capped at the target, so an over-credited
+  mission sat at the cap and read "exact" — it could not see over-credit
+  at all, and its 13/13 for concurrent was that blindness. The instrument
+  that can see it (time the store first reached the target vs the game's
+  redirect, `knobs/mission_callout_replay.py`, 2026-09-16) had already
+  shown concurrent crediting finishing 18 same-giver missions 20 min to
+  14 h early, and on 2026-09-19 the maintainer watched the game credit
+  one of a same-giver pair while concurrent EDDA showed both. Rule: one
+  mission per giver at a time, earliest accepted first. Lesson for the
+  record: a capped counter is not an instrument for over-credit; when
+  two measurements disagree, find the broken one before overturning a
+  ruling. Open: the store runs UNDER the game on most missions (median
+  8.5 kills at the redirect on that journal) and nothing in the journal
+  explains it (no murder of the target, no Bounty without a faction,
+  wing kills in other windows, PVPKill 0). CLOSED the same day: the gap
+  is kills the ship never finished scanning (no journal event, full
+  mission credit), and kill counting was removed altogether — see the
+  entry above. (3) Any
   `MissionRedirected` completed the mission and was spoken TWICE — a
   per-event "Objective complete" in callouts.rs and the per-pass
   "Mission complete" (18 seconds carried both in the maintainer's log,
