@@ -15,7 +15,7 @@ mod follow;
 mod heatmap;
 mod telemetry;
 mod mission_route;
-mod capi_spike;
+mod capi;
 mod hold_sale;
 mod phonetics;
 mod remote_search;
@@ -274,18 +274,19 @@ pub fn run() {
             // planner threads below normal priority, or Settings stops
             // answering while a route is being plotted.
             ed_galaxy::init_thread_pool(ed_input::lower_thread_priority);
-            // CAPI spike: register the edda:// scheme at runtime (dev
-            // builds have no installer to do it) and route callbacks.
-            #[cfg(debug_assertions)]
+            // The Frontier link's callback arrives as edda://auth. The
+            // installer registers the scheme; a dev build has none, so it
+            // registers at runtime.
             {
                 use tauri_plugin_deep_link::DeepLinkExt as _;
+                #[cfg(debug_assertions)]
                 if let Err(error) = app.deep_link().register_all() {
-                    tracing::warn!(%error, "capi spike: deep-link scheme registration failed");
+                    tracing::warn!(%error, "frontier link: deep-link scheme registration failed");
                 }
-                let spike_handle = app.handle().clone();
+                let link_handle = app.handle().clone();
                 app.deep_link().on_open_url(move |event| {
                     for url in event.urls() {
-                        capi_spike::on_deep_link(&spike_handle, url.as_str());
+                        capi::on_deep_link(&link_handle, url.as_str());
                     }
                 });
             }
@@ -554,7 +555,11 @@ pub fn run() {
             commands::ranks,
             commands::current_route,
             commands::powerplay_options,
-            capi_spike::capi_spike_start,
+            commands::capi_status,
+            commands::capi_link_start,
+            commands::capi_link_code,
+            commands::capi_unlink,
+            commands::capi_refresh_carrier,
         exchange::dev_api_get,
         exchange::dev_api_set,
         hold_sale::sell_hold_search,

@@ -84,6 +84,12 @@ export const COMMANDS = {
   shipModules: ["ship_modules", ["shipId"], { shipId: null }],
   shipsList: ["ships_list", ["includeHistorical"], { includeHistorical: false }],
   carrierStatus: ["carrier_status"],
+  // The Frontier link (CAPI)
+  capiStatus: ["capi_status"],
+  capiLinkStart: ["capi_link_start"],
+  capiLinkCode: ["capi_link_code", ["text"]],
+  capiUnlink: ["capi_unlink"],
+  capiRefreshCarrier: ["capi_refresh_carrier"],
   shipSlef: ["ship_slef", ["shipId", "proposed"], { shipId: null, proposed: null }],
   shipLinks: ["ship_links", ["shipId"], { shipId: null }],
   materialShopping: ["material_shopping", "*"],
@@ -233,6 +239,7 @@ export const EVENTS = {
   onSupercharge: "supercharge",
   onOverlayInteractive: "overlay-interactive",
   onGameState: "game-state",
+  onCapiState: "capi-state",
   onKnowledgeProgress: "knowledge-progress",
   onRouteProgress: "route-progress",
   onRouteCandidate: "route-candidate",
@@ -264,7 +271,7 @@ const listeners = Object.fromEntries(Object.entries(EVENTS).map(([k, ev]) => [k,
 // ── Named wrappers (generated) ─────────────────────────────────────
 export const {
   getStatus, getInventory, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
-  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, carrierStatus, shipSlef, shipLinks, materialShopping,
+  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping,
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,
   galaxyStatus, activityHeatmap, feedbackSend, telemetryPrefs, telemetryPrefsSet, shipScoopInfo, sellHoldSearch, miningSearch, miningMaterials, markAdd, markRemove, markHere, gameState,
@@ -286,7 +293,7 @@ export const setAiConfig = (apiKey, model, research = null, extra = {}) =>
   wrapped.setAiConfig({ apiKey, model, research, ...extra });
 
 export const {
-  onJournalChanged, onSyncProgress, onSyncComplete, onCallout, onSupercharge, onOverlayInteractive, onGameState,
+  onJournalChanged, onSyncProgress, onSyncComplete, onCallout, onSupercharge, onOverlayInteractive, onGameState, onCapiState,
   onKnowledgeProgress,
   onRouteProgress, onRouteCandidate, onRouteReplanned, onRouteFollow, onTradeFollow, onCarrierRoute,
   onListenState, onListenHeard, onListenPartial, onListenReply, onListenSetup, onSpeechEngineProgress, onAppUpdate,

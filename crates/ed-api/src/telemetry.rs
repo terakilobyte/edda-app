@@ -108,7 +108,8 @@ pub fn valid_level(level: &str) -> bool {
 }
 
 pub fn valid_kind(kind: &str) -> bool {
-    matches!(kind, "plot" | "trade" | "sync" | "hydrate")
+    // `capi`: the client's Frontier calls, duration and outcome only.
+    matches!(kind, "plot" | "trade" | "sync" | "hydrate" | "capi")
 }
 
 /// Label values become Prometheus labels: a closed charset, never empty,

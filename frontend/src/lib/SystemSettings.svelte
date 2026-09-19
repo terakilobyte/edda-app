@@ -4,14 +4,17 @@
   // the rest is small enough to live here.
   let { onSetup = () => {} } = $props();
   import { onMount } from "svelte";
+  import FrontierLink from "./FrontierLink.svelte";
   // One section at a time: seven panels stacked was a wall.
   const SECTIONS = [
     ["computer", "Ship computer"],
     ["follow", "Route control"],
     ["hud", "HUD"],
     ["database", "Database"],
+    ["frontier", "Frontier account"],
     ["setup", "Setup"],
   ];
+  import { capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, onCapiState } from "./api.js";
   import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet } from "./api.js";
 
   // Anonymous usage data — the maintainer's opt-out consent (2026-09-05).
@@ -210,6 +213,14 @@
 {/if}
 
 {#if sec === "follow"}<RouteControlSettings />{/if}
+
+{#if sec === "frontier"}
+<section class="panel">
+  <h2>Frontier account <span class="sub">optional · your carrier's real hold, tank and balance</span></h2>
+  <p class="muted small">Linking signs you in to Frontier in your browser and lets EDDA read what Frontier reports about your fleet carrier — the hold per commodity, the tank, the balance, buy and sell orders — which the journal cannot see. Everything fetched stays on this PC; EDDA's own server never holds a token or sees a byte of it. Frontier logins last about 25 days, and linking on another PC unlinks this one; the card says when to link again.</p>
+  <FrontierLink />
+</section>
+{/if}
 
 {#if sec === "database"}
 <section class="panel">

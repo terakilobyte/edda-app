@@ -359,6 +359,16 @@ CREATE TABLE IF NOT EXISTS ships (
     raw            TEXT    NOT NULL
 );
 
+-- The carrier as Frontier last reported it, fetched by the app over the
+-- commander's own Frontier link (CAPI /fleetcarrier); one row, replaced
+-- on every fetch, cleared on unlink. Read for the carrier card and the
+-- ship computer; never sent anywhere.
+CREATE TABLE IF NOT EXISTS carrier_capi (
+    callsign   TEXT PRIMARY KEY,
+    fetched_at TEXT NOT NULL,
+    json       TEXT NOT NULL
+);
+
 -- What the COMMANDER moved aboard (CargoTransfer tocarrier minus
 -- toship/tosrv, floored at zero): "what you moved", never "what is aboard".
 CREATE TABLE IF NOT EXISTS carrier_hold (

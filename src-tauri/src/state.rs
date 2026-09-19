@@ -177,6 +177,9 @@ pub struct AppState {
     pub data_dir: PathBuf,
     /// Whether the overlay currently accepts mouse input (false = click-through).
     pub overlay_interactive: AtomicBool,
+    /// The Frontier link: PKCE in progress, the access token, the last
+    /// profile. The refresh token lives in the keychain, not here.
+    pub capi: crate::capi::CapiHandle,
     pub config: Arc<Mutex<AppConfig>>,
     pub db_path: PathBuf,
     /// Galaxy index caches; also managed separately for the routing commands.
@@ -261,6 +264,7 @@ impl AppState {
             callouts: Arc::new(Mutex::new(VecDeque::with_capacity(CALLOUT_HISTORY))),
             data_dir,
             overlay_interactive: AtomicBool::new(false),
+            capi: Default::default(),
         }
     }
 
