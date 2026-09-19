@@ -722,7 +722,7 @@ fn trailer(destination: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{mission_redirected, mission_rerouted, stale_for_speech, Callout};
+    use super::{mission_redirected, mission_rerouted, stale_for_speech};
     use serde_json::{json, Value};
 
     /// A stack part-way through: two massacres against the same faction
