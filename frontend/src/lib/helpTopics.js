@@ -159,6 +159,7 @@ export const topics = [
     title: "HUD overlay",
     body: [
       "A transparent, always-on-top overlay for the game window: callouts, the route countdown, missions, and the voice conversation. Unlock it from Settings → HUD to move and resize it. The game must run in borderless window mode.",
+      "Settings → HUD → Layout decides what it shows and in what order: hide any section, move it up or down, or mark it compact (no label, fewer items). Combat, Trade and Explore presets are one click, Default restores the shipped layout, and a layout can be remembered for the ship you are flying — it applies whenever that ship is the one in the journal.",
     ],
     keys: [["Ctrl+Shift+H", "hide or show the HUD"]],
     tabs: [["settings:hud", "HUD settings"]],

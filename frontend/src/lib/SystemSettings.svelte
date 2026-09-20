@@ -5,6 +5,8 @@
   let { onSetup = () => {} } = $props();
   import { onMount } from "svelte";
   import FrontierLink from "./FrontierLink.svelte";
+  import { ship } from "./ship.svelte.js";
+  import { SECTIONS as HUD_SECTIONS, PRESETS, normalise as normaliseLayout, move as moveSection, toggleHidden, toggleCompact, preset as hudPreset } from "./hudLayout.js";
   // One section at a time: seven panels stacked was a wall.
   const SECTIONS = [
     ["computer", "Ship computer"],
@@ -29,6 +31,20 @@
   // HUD look: shared with the overlay window over the storage bus.
   const hudAlpha = persisted(KEYS.hudAlpha, 1, { json: true, sync: true });
   const hudScale = persisted(KEYS.hudScale, 1, { json: true, sync: true });
+  // Customisable HUD (maintainer, 2026-09-20): sections shown, order,
+  // compact; presets; a layout remembered per ship. Same bus as the sliders.
+  const hudLayout = persisted(KEYS.hudLayout, null, { json: true, sync: true });
+  const hudLayoutByShip = persisted(KEYS.hudLayoutByShip, {}, { json: true, sync: true });
+  const shipLayout = $derived(ship.currentId != null ? (hudLayoutByShip.value ?? {})[String(ship.currentId)] ?? null : null);
+  // What the editor edits: the ship's own layout while one is remembered, else the global one.
+  const editing = $derived(normaliseLayout(shipLayout ?? hudLayout.value));
+  function setLayout(next) {
+    if (shipLayout && ship.currentId != null) hudLayoutByShip.value = { ...(hudLayoutByShip.value ?? {}), [String(ship.currentId)]: next };
+    else hudLayout.value = next;
+  }
+  const shipLabel = $derived(ship.current ? (ship.current.name ? `${ship.current.name} (${ship.current.ship})` : ship.current.ship) : null);
+  function rememberForShip() { if (ship.currentId != null) hudLayoutByShip.value = { ...(hudLayoutByShip.value ?? {}), [String(ship.currentId)]: editing }; }
+  function forgetForShip() { if (ship.currentId == null) return; const m = { ...(hudLayoutByShip.value ?? {}) }; delete m[String(ship.currentId)]; hudLayoutByShip.value = m; }
   // "index" and "data" were retired (API-only client, 2026-09-07); a stored
   // pick of either lands on the ship computer, where app updates now live.
   const storedSec = readKey(KEYS.settingsSection, "computer");
@@ -209,6 +225,47 @@
     <button class="ghost" onclick={() => { hudAlpha.value = 1; hudScale.value = 1; }}>Reset</button>
   </div>
   <p class="muted small" style="margin:0.3rem 0 0">Background fades the panel, never the text — callouts keep their shadow and stay readable over the game.</p>
+
+  <h3 style="margin-top:1rem">Layout <span class="muted small">what the HUD shows, in what order · live, no restart</span></h3>
+  <div class="row small" style="gap:0.4rem; flex-wrap:wrap; margin-bottom:0.5rem">
+    <span class="muted">Presets</span>
+    {#each Object.keys(PRESETS) as name}
+      <button class="quiet" onclick={() => setLayout(hudPreset(name))}>{name === "default" ? "Default" : name[0].toUpperCase() + name.slice(1)}</button>
+    {/each}
+  </div>
+  <div class="table-wrap">
+    <table class="layout">
+      <thead><tr><th></th><th>Section</th><th>Show</th><th>Compact</th><th></th></tr></thead>
+      <tbody>
+        {#each editing.order as id, i (id)}
+          {@const s = HUD_SECTIONS.find((x) => x.id === id)}
+          <tr class={editing.hidden.includes(id) ? "dim" : ""}>
+            <td class="muted num">{i + 1}</td>
+            <td>{s?.label ?? id}</td>
+            <td><input type="checkbox" checked={!editing.hidden.includes(id)} onchange={() => setLayout(toggleHidden(editing, id))} aria-label={`Show ${s?.label ?? id}`} /></td>
+            <td><input type="checkbox" checked={editing.compact.includes(id)} onchange={() => setLayout(toggleCompact(editing, id))} aria-label={`Compact ${s?.label ?? id}`} /></td>
+            <td class="row" style="gap:0.2rem">
+              <button class="quiet small" disabled={i === 0} onclick={() => setLayout(moveSection(editing, id, -1))} title="Move up">▲</button>
+              <button class="quiet small" disabled={i === editing.order.length - 1} onclick={() => setLayout(moveSection(editing, id, 1))} title="Move down">▼</button>
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+  <div class="row small" style="gap:0.6rem; flex-wrap:wrap; margin-top:0.5rem">
+    {#if shipLabel}
+      {#if shipLayout}
+        <span class="pill ok">Layout remembered for {shipLabel}</span>
+        <button class="quiet" onclick={forgetForShip}>Forget it (use the shared layout)</button>
+      {:else}
+        <span class="muted">Editing the shared layout, used by every ship.</span>
+        <button class="quiet" onclick={rememberForShip}>Remember this layout for {shipLabel}</button>
+      {/if}
+    {:else}
+      <span class="muted">Editing the shared layout. A ship-specific one can be remembered once EDDA knows which ship you are flying.</span>
+    {/if}
+  </div>
 </section>
 {/if}
 
@@ -252,6 +309,8 @@
 </p>
 
 <style>
+  table.layout td, table.layout th { padding: 0.15rem 0.5rem; }
+  table.layout tr.dim td { opacity: 0.55; }
   .subnav { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.7rem; }
   .subnav button { font-size: 0.82rem; padding: 0.25rem 0.7rem; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
   .subnav button:hover { color: var(--fg); }

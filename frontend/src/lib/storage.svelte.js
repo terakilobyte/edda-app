@@ -10,6 +10,8 @@ export const KEYS = Object.freeze({
   pinnedLoop: "edda.pinnedLoop",                    // JSON: trade loop shown on the HUD
   hudAlpha: "edda.hudAlpha",                        // HUD background opacity, 0–1 (Settings → HUD; storage is the bus)
   hudScale: "edda.hudScale",                        // HUD content scale, 0.7–1.5
+  hudLayout: "edda.hudLayout",                      // HUD sections: order, hidden, compact (JSON; Settings → HUD writes, the overlay reads)
+  hudLayoutByShip: "edda.hudLayoutByShip",          // JSON map ShipID → layout, remembered per ship
   stackingMode: "edda.stackingMode",                // Missions tab → HUD: list every giver already tapped (mission stacking)
   plotInjections: "edda.plotInjections",            // route plotter: use FSD injections
   plotWhiteDwarfs: "edda.plotWhiteDwarfs",          // route plotter: boost off white dwarfs too (opt-in)
