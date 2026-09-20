@@ -54,6 +54,12 @@ engineers you need to visit with what to bring each of them. The plan is
 saved per ship, and the planned build copies as SLEF for EDSY or
 Coriolis.
 
+**Import a build, get the gap.** Paste an EDSY or Coriolis SLEF export
+into the Ships tab's plan and EDDA works out what separates your ship
+from it: the modules to swap, then every engineering job to reach the
+build, continuing from what is already rolled. The one material list,
+shopping list and engineer itinerary follow from there.
+
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
 sign-in, in your browser, back to the app). Once linked, the carrier

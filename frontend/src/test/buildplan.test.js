@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked } from "../lib/buildplan.js";
+import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked, applyImport } from "../lib/buildplan.js";
 
 // A Type-10's business end: nine hardpoints, one already engineered.
 const modules = [
@@ -134,5 +134,30 @@ describe("the report reads as groups, not one line per slot", () => {
     ]);
     expect(b[1]).toMatchObject({ max_reachable_grade: 3, today: ["Lei Cheung"], unlock: [{ engineer: "Didi Vatermann", status: "Not known" }, { engineer: "Mel Brandon", status: "Known" }] });
     expect(b[0]).toMatchObject({ today: ["Marco Qwent"], unlock: [{ engineer: "Etienne Dorn", status: "Not known" }] });
+  });
+});
+
+describe("applyImport", () => {
+  it("lays an imported build over the rows: continue, start over, done, new slot, untouched", () => {
+    const rows = planRows(modules);
+    const imported = {
+      items: [
+        // Same blueprint on the fitted laser: continue from grade 2 to 5.
+        { slot: "LargeHardpoint1", slot_name: "Large Hardpoint 1", item_name: "Pulse Laser 3C/G", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, target_grade: 5, experimental: "Oversized", done: false },
+        // A swapped module: beam laser where a pulse laser sits, from grade 0.
+        { slot: "LargeHardpoint2", slot_name: "Large Hardpoint 2", item_name: "Beam Laser 3C/G", module_type: "Beam Laser", blueprint: "Long Range Weapon", from_grade: 0, target_grade: 5, experimental: null, done: false },
+        // Exactly what the ship has: nothing to do.
+        { slot: "MediumHardpoint1", slot_name: "Medium Hardpoint 1", item_name: "Multi-cannon 2D/G", module_type: "Multi-cannon", blueprint: "Overcharged Weapon", from_grade: 5, target_grade: 5, experimental: null, done: true },
+        // A slot the ship has empty.
+        { slot: "Slot01_Size6", slot_name: "Optional 1 (size 6)", item_name: "Shield Generator 6A", module_type: "Shield Generator", blueprint: "Thermal Resistant Shields", from_grade: 0, target_grade: 5, experimental: "Fast Charge", done: false },
+      ],
+    };
+    const out = applyImport(rows, imported);
+    expect(out.find((r) => r.slot === "LargeHardpoint1")).toMatchObject({ blueprint: "Focused Weapon", from_grade: 2, target_grade: 5, experimental: "Oversized", include: true });
+    expect(out.find((r) => r.slot === "LargeHardpoint2")).toMatchObject({ item_name: "Beam Laser 3C/G", module_type: "Beam Laser", blueprint: "Long Range Weapon", from_grade: 0, include: true });
+    expect(out.find((r) => r.slot === "MediumHardpoint1")).toMatchObject({ include: false });
+    expect(out.find((r) => r.slot === "PowerDistributor")).toMatchObject({ include: false });
+    expect(out.find((r) => r.slot === "Slot01_Size6")).toMatchObject({ slot_name: "Optional 1 (size 6)", blueprint: "Thermal Resistant Shields", experimental: "Fast Charge", include: true });
+    expect(planRequest(out).map((r) => r.slot)).toEqual(["LargeHardpoint1", "LargeHardpoint2", "Slot01_Size6"]);
   });
 });

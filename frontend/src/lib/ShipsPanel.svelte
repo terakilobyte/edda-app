@@ -2,13 +2,13 @@
   import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
-  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport } from "./api.js";
+  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport, importBuild } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { fmtInt, fmtTs, fmtAge } from "./format.js";
   import { requestPlan } from "./engineering.svelte.js";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { KEYS, readKey, writeKey } from "./storage.svelte.js";
-  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked } from "./buildplan.js";
+  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
 
   // Plan the whole build at once (maintainer, 2026-09-19: "my type 10 has 9
@@ -69,6 +69,33 @@
       planPicked = new Set((planReport.shopping?.list?.trades ?? []).map((_, i) => i));
     } catch (e) { planReport = null; planMsg = String(e); } finally { planBusy = false; }
   }
+  // A build from EDSY or Coriolis (their SLEF export) becomes the plan:
+  // what to swap, then the engineering to reach it.
+  let importText = $state("");
+  let imported = $state(null);
+  let importBusy = $state(false);
+  async function runImport() {
+    if (!selected || !importText.trim()) return;
+    importBusy = true; planMsg = ""; imported = null;
+    try {
+      const r = await importBuild(selected.ship_id, importText);
+      if (!r.ship_matches) {
+        planMsg = `That build is a ${r.ship}${r.ship_name ? ` ("${r.ship_name}")` : ""}, not ${label(selected)} — select that ship in the fleet, or paste a build for this one.`;
+        return;
+      }
+      imported = r;
+      rows = applyImport(rows, r);
+      planReport = null;
+      savePlan();
+      const types = [...new Set(rows.map((x) => x.module_type))].filter((x) => !bpOptions[x]);
+      const got = await Promise.all(types.map((x) => listBlueprintNames(x)));
+      const next = { ...bpOptions };
+      types.forEach((x, i) => { next[x] = got[i]; });
+      bpOptions = next;
+      importText = "";
+    } catch (e) { planMsg = String(e); } finally { importBusy = false; }
+  }
+
   async function copyPlannedBuild() {
     if (!selected) return;
     try {
@@ -252,6 +279,34 @@
     <!-- The whole build: a blueprint, grade and experimental per module.
          "Same for all N" copies one row onto every module of its type, so
          nine lasers are planned in one click. Saved per ship. -->
+    <details class="small" style="margin-top:0.6rem">
+      <summary>Import a build from EDSY or Coriolis</summary>
+      <div class="muted" style="margin:0.3rem 0">Paste the SLEF export (EDSY: Export → SLEF; Coriolis: Export → SLEF). The plan becomes the difference: modules to swap, then the engineering to reach the build.</div>
+      <textarea rows="3" style="width:100%; font-family: monospace" bind:value={importText} placeholder={'[{"header": {"appName": "EDSY", ...}, "data": {"event": "Loadout", ...}}]'}></textarea>
+      <button class="mini" onclick={runImport} disabled={importBusy || !importText.trim()}>Import build</button>
+    </details>
+    {#if imported}
+      <div class="small" style="margin-top:0.5rem">
+        <strong>Imported{imported.app ? ` from ${imported.app}` : ""}{imported.ship_name ? `: "${imported.ship_name}"` : ""}</strong>
+        · {imported.swaps.length} module{imported.swaps.length === 1 ? "" : "s"} to swap
+        · {imported.items.filter((it) => !it.done).length} engineering job{imported.items.filter((it) => !it.done).length === 1 ? "" : "s"}
+        · {imported.items.filter((it) => it.done).length} already there
+        {#if imported.swaps.length}
+          <div class="table-wrap" style="margin-top:0.3rem">
+            <table>
+              <thead><tr><th>Slot</th><th>Fitted</th><th>Build wants</th></tr></thead>
+              <tbody>
+                {#each imported.swaps as sw}
+                  <tr><td class="muted">{sw.slot_name}</td><td>{sw.have ?? "empty"}</td><td>{sw.want}</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          <div class="muted">A swapped module is engineered from scratch: its rows below start at grade 0.</div>
+        {/if}
+        {#each imported.skipped as sk}<div class="warn">{sk}</div>{/each}
+      </div>
+    {/if}
     <div class="row small" style="margin-top:0.6rem; gap:0.6rem; flex-wrap:wrap">
       <span class="muted">{plannedCount} of {rows.length} modules planned · fitted engineering continues to the top grade unless you change it</span>
       <button class="mini" onclick={() => includeAll(true)}>include all chosen</button>
