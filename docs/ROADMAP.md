@@ -407,6 +407,13 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Engineering tab hidden** (2026-09-20, maintainer: "let's get rid of
+  the engineering tab now (just hide it). I think it's now replaced fully
+  by the build planner"). The tab is out of the strip; `EngineeringPanel`
+  and its store stay on disk (ShoppingReport still reads the store). The
+  Ships tab's per-module Plan opens the planner on that ship; the old
+  hand-over flag lands on the planner too. The help topic folded into
+  Ships, and the help test refuses any "Engineering tab" wording.
 - **Guardian and Thargoid materials are never traded** (2026-09-20,
   maintainer: "we seem to suggest trading for guardian technology
   components and whatnot is possible. It is not" — the list had offered

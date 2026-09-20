@@ -96,26 +96,16 @@ export const topics = [
     tabs: [["missions", "Open the Missions tab"]],
   },
   {
-    id: "engineering",
-    title: "Engineering",
-    body: [
-      "Blueprint costs for every engineerable module, your live material inventory from the journal, and a shopping list that knows material-trader exchange rates (6:1 per grade up, 3:1 per grade down, 6:1 across groups). A plan an unlocked engineer cannot apply yet says so in red. Everything here is local: the bundled blueprint data and your own journal, no server.",
-      "Every engineer who works a blueprint is listed with the grade they reach (\"The Dweller · Unlocked · rank 5 · to G4\"), dimmed when that is below the grade you asked for, so an engineer who stops one grade short is never hidden. The engineer table is checked against Inara and the wiki and held by a test.",
-      "To plan a whole ship at once — nine hardpoints, every utility — use the Build planner tab; it uses the same materials, traders and engineers as this tab.",
-    ],
-    tabs: [["engineering", "Open the Engineering tab"], ["planner", "Open the Build planner"]],
-  },
-  {
     id: "ships",
     title: "Ships",
     body: [
-      "Every ship you have flown, from the journal, with its current build: modules, engineering grades and experimental effects. Plan on any module hands it to the Engineering tab. Open in EDSY / Open in Coriolis opens the site with the build already loaded; Copy build puts it on the clipboard in SLEF for anything else that imports it.",
-      "Plan build opens the Build planner on that ship. The planner turns the module table into a plan: a blueprint, target grade and experimental for every engineerable module, \"same for all N\" to give every module of one type the same plan, saved per ship. Fitted engineering continues to the top grade unless you change it; a module at the top grade with no experimental has nothing to do and cannot be ticked. Materials for this build gives one answer for the lot: every material pooled against what you carry, one shopping list for the shortfall with the nearest traders and farm sites, and the fewest engineers to visit with what to bring each. What no unlocked engineer can do at the asked grade is grouped, with who takes it part-way today and who to unlock for the rest.",
+      "Every ship you have flown, from the journal, with its current build: modules, engineering grades and experimental effects. Plan on any module opens the Build planner on that ship. Open in EDSY / Open in Coriolis opens the site with the build already loaded; Copy build puts it on the clipboard in SLEF for anything else that imports it.",
+      "Plan build opens the Build planner on that ship. The planner turns the module table into a plan: a blueprint, target grade and experimental for every engineerable module, \"same for all N\" to give every module of one type the same plan, saved per ship. Fitted engineering continues to the top grade unless you change it; a module at the top grade with no experimental has nothing to do and cannot be ticked. Materials for this build gives one answer for the lot: every material pooled against what you carry, one shopping list for the shortfall with the nearest traders and farm sites, and the fewest engineers to visit with what to bring each. What no unlocked engineer can do at the asked grade is grouped, with who takes it part-way today and who to unlock for the rest. Every engineer who works a blueprint is listed with the grade they reach (\"The Dweller · rank 5 · to G4\"), so one who stops a grade short is never hidden; the engineer table is checked against Inara and the wiki and held by a test. The shopping list knows the material-trader rates (6:1 per grade up, 3:1 per grade down, 6:1 across groups) and never offers Guardian or Thargoid materials as trades. All of it is local: the bundled blueprint data and your own journal.",
       "Import a build (on the Build planner): paste an EDSY or Coriolis SLEF export (Export → SLEF on either site) and the plan becomes the difference between your ship and that build — the modules to swap, then every engineering job to reach it, continuing from what is already rolled. Coriolis's JSON export names modules its own way and is refused with the way out.",
       "As flown → with this plan: unladen mass, jump range (full tank, laden, and the single-jump maximum) and power drawn against the plant, retracted and deployed, red when the plan would overdraw. Planned blueprints count at a full roll, as EDSY shows them; the figures are checked against EDSY on real ships to a tenth of a tonne and a hundredth of a light-year. Copy planned build puts the build with every planned blueprint at its target grade on the clipboard as SLEF.",
       "Your fleet carrier has a card above the fleet. What Frontier reports — the hold per commodity, tank, balance, reserved upkeep, orders — needs the Frontier link (Settings → Frontier account, or the setup step); Update now asks Frontier again on the spot. Without the link the card says so: EDDA never guesses a hold from the journal, which cannot see the carrier's own sales or other commanders' transfers.",
     ],
-    tabs: [["ships", "Open the Ships tab"], ["planner", "Open the Build planner"], ["engineering", "Open the Engineering tab"], ["settings:frontier", "Frontier account"]],
+    tabs: [["ships", "Open the Ships tab"], ["planner", "Open the Build planner"], ["settings:frontier", "Frontier account"]],
   },
   {
     id: "voice",
