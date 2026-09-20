@@ -87,10 +87,11 @@
       },
       "targets": [
         {
-          "expr": "sum by (kind) (increase(edda_client_timing_ms_count{ok=\"false\"}[1h]))",
+          "expr": "(sum by (kind) (increase(edda_client_timing_ms_count{ok=\"false\"}[1h]))) or on() vector(0)",
           "legendFormat": "{{kind}}"
         }
-      ]
+      ],
+      "description": "Zero when nothing failed (the filtered series does not exist then; the query falls back to 0)."
     },
     {
       "id": 5,
@@ -240,10 +241,11 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h])) / clamp_min(sum(increase(edda_client_timing_ms_count{kind=\"trade\"}[1h])), 1)",
+          "expr": "(sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h])) / clamp_min(sum(increase(edda_client_timing_ms_count{kind=\"trade\"}[1h])), 1)) or vector(0)",
           "legendFormat": "failed / total"
         }
-      ]
+      ],
+      "description": "Zero when nothing failed (the filtered series does not exist then; the query falls back to 0)."
     },
     {
       "id": 12,
@@ -260,10 +262,11 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h]))",
+          "expr": "(sum(increase(edda_client_timing_ms_count{kind=\"trade\",ok=\"false\"}[1h]))) or vector(0)",
           "legendFormat": "failures/h"
         }
-      ]
+      ],
+      "description": "Zero when nothing failed (the filtered series does not exist then; the query falls back to 0)."
     },
     {
       "id": 13,
@@ -398,114 +401,6 @@
       },
       "collapsed": false,
       "panels": []
-    },
-    {
-      "id": 19,
-      "type": "timeseries",
-      "title": "Coverage gaps /h by path",
-      "gridPos": {
-        "x": 0,
-        "y": 50,
-        "w": 8,
-        "h": 8
-      },
-      "datasource": {
-        "uid": "edda-vm"
-      },
-      "description": "EMITTER PENDING (2026-09-20 no-data audit): no client code emits a callsite matching edda::coverage_gap::* yet, so this reads empty until it lands. A local-mode search that came back empty over a coverage gap (no observed board where it looked). Pre-registered reading: near zero after a week = rare papercut, keep the offer UI; a constant drumbeat = the next task is coverage itself.",
-      "targets": [
-        {
-          "expr": "sum by (path) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"path\", \"$1\", \"callsite\", \"edda::coverage_gap::([a-z_]+)::.*\"))",
-          "legendFormat": "{{path}}"
-        }
-      ]
-    },
-    {
-      "id": 20,
-      "type": "timeseries",
-      "title": "Coverage gaps /h by kind",
-      "gridPos": {
-        "x": 8,
-        "y": 50,
-        "w": 8,
-        "h": 8
-      },
-      "datasource": {
-        "uid": "edda-vm"
-      },
-      "targets": [
-        {
-          "expr": "sum by (kind) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"kind\", \"$1\", \"callsite\", \"edda::coverage_gap::[a-z_]+::([a-z_]+)\"))",
-          "legendFormat": "{{kind}}"
-        }
-      ],
-      "description": "EMITTER PENDING (2026-09-20 no-data audit): no client code emits a callsite matching edda::coverage_gap::* yet, so this reads empty until it lands."
-    },
-    {
-      "id": 21,
-      "type": "stat",
-      "title": "Local-data share of clients (24h)",
-      "gridPos": {
-        "x": 16,
-        "y": 50,
-        "w": 4,
-        "h": 8
-      },
-      "datasource": {
-        "uid": "edda-vm"
-      },
-      "description": "EMITTER PENDING (2026-09-20 no-data audit): the client's feature_flags() sends only auto_update, the voice engine and capi_linked; data_source_remote is not among them yet, so this reads 100% until it lands. 1 \u2212 remote share. data_source_remote is a feature flag; batches without it are local or not yet chosen.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "decimals": 0,
-          "min": 0,
-          "max": 1
-        }
-      },
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "expr": "1 - sum(increase(edda_client_feature_total{name=\"data_source_remote\",enabled=\"true\"}[24h])) / clamp_min(sum(increase(edda_telemetry_batches_total{outcome=\"accepted\"}[24h])), 1)",
-          "legendFormat": "local"
-        }
-      ]
-    },
-    {
-      "id": 22,
-      "type": "stat",
-      "title": "\"Always check API\" share (24h)",
-      "gridPos": {
-        "x": 20,
-        "y": 50,
-        "w": 4,
-        "h": 8
-      },
-      "datasource": {
-        "uid": "edda-vm"
-      },
-      "description": "EMITTER PENDING (2026-09-20 no-data audit): api_fallback_always is not a feature flag the client sends yet, so this reads 0 until it lands. Commanders who turned the gap offer into a standing answer.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "decimals": 0,
-          "min": 0,
-          "max": 1
-        }
-      },
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "expr": "sum(increase(edda_client_feature_total{name=\"api_fallback_always\",enabled=\"true\"}[24h])) / clamp_min(sum(increase(edda_telemetry_batches_total{outcome=\"accepted\"}[24h])), 1)",
-          "legendFormat": "always"
-        }
-      ]
     }
   ]
 }

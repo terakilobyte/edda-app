@@ -8,6 +8,25 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Clients dashboard: four panels removed, three made honest at zero**
+  (2026-09-20, live audit through the tunnel, 95 panels). "Coverage
+  gaps /h by path/kind" read `edda_client_events_total{callsite=~
+  "edda::coverage_gap::.*"}` and "Local-data share" / "Always check API"
+  read feature flags `data_source_remote` / `api_fallback_always` — the
+  client in this repo emits none of those (feature_flags sends
+  auto_update, the voice engine and capi_linked), so the panels were
+  pre-registered for telemetry that does not exist. Removed; re-add
+  when the client sends them (the flags are one push each in
+  `telemetry::feature_flags` once the settings exist here). "Failed
+  operations", "Trade search failure rate" and "Trade failures" filter
+  on `ok="false"` and had no series while nothing failed; they now fall
+  back to 0. Host Health's 18 panels and the Server Postgres row were
+  dead for want of exporters (#120), live since the 2026-09-20 setup
+  re-run (node 1,781 series, postgres 1,124). Still quiet, not broken:
+  station board requests, trade-search saturation and cache, EDSM
+  proxy latency, knowledge errors (no events in 7 days), and
+  `edda_artifact_bytes_total` (no artifact download served in 7 days —
+  worth a look: clients on local data should be pulling nightly).
 - **Nearest-service search: rare services fixed by an index, common
   ones still scan** (2026-09-20, measured on the box). A 300 ly
   material-trader search around Anana took 1.8–2.0 s server-side (mean
