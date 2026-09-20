@@ -34,10 +34,21 @@ pub struct MaterialMeta {
     pub name: String,
     pub kind: TraderKind,
     /// Trader "category": the column at the trader (e.g. `Conductive`, or `4`
-    /// for raw element category 4).
+    /// for raw element category 4). `None` in EDCD's table means the trader
+    /// has no column for it: Guardian and Thargoid materials are never
+    /// traded, either way (maintainer, 2026-09-20: "we seem to suggest
+    /// trading for guardian technology components and whatnot is possible.
+    /// It is not").
     pub group: String,
     /// 1..=5.
     pub grade: u8,
+}
+
+impl MaterialMeta {
+    /// Whether a material trader will take or give this at all.
+    pub fn tradeable(&self) -> bool {
+        !self.group.trim().is_empty() && !self.group.eq_ignore_ascii_case("none")
+    }
 }
 
 /// `give` units of `from` buy `get` units of `to`, at a `kind` trader.
@@ -63,7 +74,7 @@ pub struct ShoppingList {
 
 /// Batch ratio give:get for one trade, reduced.
 pub fn rate(from: &MaterialMeta, to: &MaterialMeta) -> Option<(i64, i64)> {
-    if from.kind != to.kind || from.name.eq_ignore_ascii_case(&to.name) {
+    if from.kind != to.kind || from.name.eq_ignore_ascii_case(&to.name) || !from.tradeable() || !to.tradeable() {
         return None;
     }
     let up = to.grade.saturating_sub(from.grade) as u32;
@@ -90,6 +101,11 @@ pub fn shopping_list(
     surplus: &HashMap<String, i64>,
     meta: &[MaterialMeta],
 ) -> ShoppingList {
+    // Guardian and Thargoid materials have no trader column: they are
+    // neither given nor taken, so they leave the solver here and land in
+    // `still_short`, where the sources say where they come from.
+    let tradeable: Vec<MaterialMeta> = meta.iter().filter(|m| m.tradeable()).cloned().collect();
+    let meta = &tradeable[..];
     let by_name: HashMap<String, &MaterialMeta> =
         meta.iter().map(|m| (m.name.to_lowercase(), m)).collect();
     let mut spare: HashMap<String, i64> =
@@ -266,5 +282,47 @@ mod tests {
         let list = shopping_list(&[("T".into(), 5)], &surplus, &meta);
         assert_eq!(list.trades.iter().map(|t| t.get).sum::<i64>(), 3);
         assert_eq!(list.still_short, vec![("T".to_string(), 2)]);
+    }
+}
+
+#[cfg(test)]
+mod untradeable_tests {
+    use super::*;
+
+    fn m(name: &str, kind: TraderKind, group: &str, grade: u8) -> MaterialMeta {
+        MaterialMeta { name: name.into(), kind, group: group.into(), grade }
+    }
+
+    /// The maintainer's report, 2026-09-20: "5 Sensor Fragment -> 45 Guardian
+    /// Technology Component 1:9" and "3 Pattern Beta Obelisk Data -> 3 Guardian
+    /// Weapon Blueprint Segment 1:1" were offered. No trader deals in either.
+    #[test]
+    fn guardian_and_thargoid_materials_are_never_traded_either_way() {
+        let meta = vec![
+            m("Sensor Fragment", TraderKind::Manufactured, "None", 5),
+            m("Guardian Technology Component", TraderKind::Manufactured, "None", 3),
+            m("Pattern Beta Obelisk Data", TraderKind::Encoded, "None", 3),
+            m("Guardian Weapon Blueprint Segment", TraderKind::Encoded, "None", 5),
+            m("Iron", TraderKind::Raw, "4", 1),
+            m("Nickel", TraderKind::Raw, "4", 1),
+        ];
+        let short = vec![("Guardian Technology Component".to_string(), 45), ("Guardian Weapon Blueprint Segment".to_string(), 3)];
+        let surplus: std::collections::HashMap<String, i64> = [("Sensor Fragment".to_string(), 500), ("Pattern Beta Obelisk Data".to_string(), 50), ("Nickel".to_string(), 300)].into_iter().collect();
+        let list = shopping_list(&short, &surplus, &meta);
+        assert!(list.trades.is_empty(), "no trade may involve them: {:?}", list.trades);
+        assert_eq!(list.still_short.len(), 2, "{:?}", list.still_short);
+        // A tradeable material still trades.
+        let list = shopping_list(&[("Iron".to_string(), 10)], &surplus, &meta);
+        assert!(!list.trades.is_empty(), "nickel for iron is a trade: {:?}", list.still_short);
+        // Farm-then-trade: a Sensor Fragment site is no way to a Guardian component;
+        // the component's own site is.
+        let farmable = vec![
+            ("Sensor Fragment".to_string(), "Thargoid site".to_string(), None, None),
+            ("Guardian Technology Component".to_string(), "Guardian ruins".to_string(), Some("Synuefe XR-H d11-102".to_string()), None),
+        ];
+        let opts = farm_options(&meta[1], 45, &farmable, &meta);
+        assert_eq!(opts.len(), 1, "{opts:?}");
+        assert_eq!(opts[0].farm_material, "Guardian Technology Component");
+        assert!(opts[0].rate.is_none());
     }
 }

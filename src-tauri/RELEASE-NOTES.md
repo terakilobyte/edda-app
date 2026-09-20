@@ -82,7 +82,9 @@ trading, the plan now says where: the places you picked it up before,
 from your own journal, with units and distance and a route button; the
 community's known sites; and how that kind of material is found at all,
 from surface prospecting to crash sites to the trader rates. Your own
-pickups also feed the farm-and-trade suggestions. A build that swaps in
+pickups also feed the farm-and-trade suggestions. Guardian and Thargoid
+materials are never offered as trades, in either direction: no trader
+deals in them, so they show as still short with their own sites. A build that swaps in
 a technology-broker module, Guardian or human, shows the unlock recipe
 broken down, with its materials counted in the list and its commodities
 listed to buy.
