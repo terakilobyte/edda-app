@@ -1,7 +1,9 @@
 [package]
 name = "ed-ships"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 description = "Ship performance from a build: mass, jump range, power, from Coriolis's vendored figures and the journal's engineered values"
 
 [dependencies]
