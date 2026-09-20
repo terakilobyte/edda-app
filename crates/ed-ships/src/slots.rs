@@ -307,6 +307,29 @@ mod tests {
         assert!(s.fits(prospector, mining, "hpt_pulselaser_fixed_medium").is_err(), "a mining hardpoint takes mining tools only");
     }
 
+    /// The Armour slot offers the hull's own five bulkheads and nobody
+    /// else's (maintainer, 2026-09-20: "we seem to be missing the various
+    /// bulkheads").
+    #[test]
+    fn the_armour_slot_offers_the_hulls_five_bulkheads() {
+        let s = slots();
+        let t10 = s.hull("type9_military").unwrap();
+        let armour = t10.slot("Armour").unwrap();
+        let c = s.candidates(t10, armour);
+        let items: Vec<&str> = c.iter().map(|(i, _)| *i).collect();
+        assert_eq!(c.len(), 5, "{items:?}");
+        assert!(items.contains(&"type9_military_armour_grade1"));
+        assert!(items.contains(&"type9_military_armour_reactive"));
+        assert!(c.iter().all(|(i, _)| i.starts_with("type9_military_armour_")), "{items:?}");
+        assert!(s.fits(t10, armour, "sidewinder_armour_grade1").is_err(), "another hull's plating");
+        assert!(s.fits(t10, armour, "int_hullreinforcement_size1_class1").is_err(), "a reinforcement package is not a bulkhead");
+        assert_eq!(c.iter().find(|(i, _)| *i == "type9_military_armour_grade3").map(|(_, k)| k.name.as_str()), Some("Military Grade Composite"));
+        for h in s.hulls() {
+            let n = s.candidates(h, h.slot("Armour").unwrap()).len();
+            assert!(n >= 5, "{}: {n} bulkheads", h.name);
+        }
+    }
+
     #[test]
     fn candidates_are_sorted_and_only_what_fits() {
         let s = slots();
