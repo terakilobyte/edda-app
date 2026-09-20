@@ -89,6 +89,19 @@ a technology-broker module, Guardian or human, shows the unlock recipe
 broken down, with its materials counted in the list and its commodities
 listed to buy.
 
+**Swap modules, on any ship.** Every slot of the ship is a row in the
+Build planner, empty ones too, and Swap to offers only what that slot
+takes: the right sizes, utility mounts for utility modules, military
+slots for reinforcement and cell banks, life support and sensors at
+exactly the slot's size, fighter hangars and luxury cabins only on the
+hulls that sell them, one shield generator to a ship. The ship dropdown
+now lists every hull under "Any ship", so a ship you do not own yet is
+planned from its stock fit — swap modules in, plan the engineering, or
+import a build for it and get the gap from stock. Every hull's exact
+slots, by the journal's own names, are held in a table checked against
+your own ships' Loadouts; the figures, the material list and the SLEF
+export all carry the swaps.
+
 **Import a build, get the gap.** Paste an EDSY or Coriolis SLEF export
 into the Ships tab's plan and EDDA works out what separates your ship
 from it: the modules to swap, then every engineering job to reach the

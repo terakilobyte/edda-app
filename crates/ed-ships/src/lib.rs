@@ -16,6 +16,9 @@
 //! and weapons follow, each with its pin.
 
 mod data;
+pub mod slots;
+
+pub use slots::{Hull, ModuleKind, Slot, Slots};
 
 use serde::Serialize;
 use serde_json::Value;

@@ -213,6 +213,21 @@ registry and were not read; `deny.toml` covers them when `cargo deny check`
 runs on each target. The full per-crate list can be generated at any time
 with `cargo license` or `cargo about generate`.
 
+## 7b. Outfitting facts (`crates/ed-ships/data/ship_slots.json`, `module_kinds.json`)
+
+Tables of the game's outfitting rules: which slots each hull has (by the
+journal's own slot names and sizes), which module kinds each slot takes,
+which modules are sold only for some hulls, and how many of a kind a ship
+may carry. These are facts of Elite Dangerous, Frontier Developments'
+property, used as a fan tool under Frontier's media usage rules. They
+were compiled with EDSY (edsy.org, by taleden) as the reference for the
+rules — EDSY's exports carry the journal's slot names — and cross-checked
+against the vendored Coriolis ship data and the maintainer's own journal
+Loadouts (`docs/benches/2026-09-20-ship-slots-pin.csv`). No EDSY code,
+markup or data file is vendored or redistributed; the generator
+(`docs/benches/knobs/gen_ship_slots.py`) reads a local copy the
+maintainer fetches and is not part of the build.
+
 ## 8. npm packages (`frontend/`)
 
 69 packages, from `npm ls --all`:

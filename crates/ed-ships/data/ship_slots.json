@@ -1,0 +1,9031 @@
+{
+ "adder": {
+  "name": "Adder",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 3,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 3,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 3,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 2,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 3,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot02_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot03_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Adder_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size3_Class1",
+   "FuelTank": "Int_FuelTank_Size3_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size3_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size2_Class1",
+   "PowerPlant": "Int_Powerplant_Size3_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot02_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot03_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot06_Size1": "Int_SuperCruiseAssist",
+   "Slot07_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "anaconda": {
+  "name": "Anaconda",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint7"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint8"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 6,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 8,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 8,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot01_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot07_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot09_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot10_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot13_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot14_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Anaconda_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size6_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size8_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size8_Class1",
+   "Slot01_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot05_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot13_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot14_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "asp": {
+  "name": "Asp Explorer",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Asp_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size4_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot06_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot08_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "asp_scout": {
+  "name": "Asp Scout",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Asp_Scout_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size4_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "belugaliner": {
+  "name": "Beluga Liner",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 7,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 8,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 7,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot07_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot09_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot10_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot11_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot12_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "BelugaLiner_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size7_Class1",
+   "FuelTank": "Int_FuelTank_Size7_Class3",
+   "LifeSupport": "Int_LifeSupport_Size8_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size6": "Int_PassengerCabin_Size6_Class2",
+   "Slot04_Size6": "Int_PassengerCabin_Size6_Class2",
+   "Slot05_Size5": "Int_PassengerCabin_Size4_Class2",
+   "Slot06_Size5": "Int_PassengerCabin_Size4_Class2",
+   "Slot07_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot08_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot12_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "cobramkiii": {
+  "name": "Cobra Mk III",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot01_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "CobraMkIII_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot04_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "Slot08_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "cobramkiv": {
+  "name": "Cobra Mk IV",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot01_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "CobraMkIV_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot04_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot05_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot06_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot07_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist",
+   "Slot10_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "cobramkv": {
+  "name": "Cobra Mk V",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "CobraMkV_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size4_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size5": "Int_ShieldGenerator_Size4_Class3",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot05_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot08_Size2": "Int_DockingComputer_Advanced",
+   "Slot09_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "corsair": {
+  "name": "Corsair",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 7,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 6,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot07_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot09_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Corsair_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size7_Class1",
+   "Radar": "Int_Sensors_Size6_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size6": "Int_ShieldGenerator_Size5_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot09_Size2": "Int_SuperCruiseAssist",
+   "Slot10_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "cutter": {
+  "name": "Imperial Cutter",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint7"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint8"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 8,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 7,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 7,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 7,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 6,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot01_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot02_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot05_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot07_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot09_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Cutter_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size7_Class1",
+   "FuelTank": "Int_FuelTank_Size6_Class3",
+   "LifeSupport": "Int_LifeSupport_Size7_Class1",
+   "MainEngines": "Int_Engine_Size8_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size7_Class1",
+   "Slot01_Size8": "Int_ShieldGenerator_Size8_Class1",
+   "Slot02_Size8": "Int_CargoRack_Size7_Class1",
+   "Slot03_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot09_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot10_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "diamondback": {
+  "name": "Diamondback Scout",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 2,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot02_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "DiamondBack_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size2_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot05_Size1": "Int_SuperCruiseAssist",
+   "Slot06_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "diamondbackxl": {
+  "name": "Diamondback Explorer",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot01_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "DiamondBackXL_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size4_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "Slot08_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "dolphin": {
+  "name": "Dolphin",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Dolphin_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size5": "Int_PassengerCabin_Size5_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot04_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot05_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot08_Size1": "Int_SuperCruiseAssist",
+   "Slot09_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "eagle": {
+  "name": "Eagle",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 2,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 3,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 3,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 2,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 2,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 2,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot02_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot03_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot04_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Eagle_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size3_Class1",
+   "FuelTank": "Int_FuelTank_Size2_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size3_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size2_Class1",
+   "PowerPlant": "Int_Powerplant_Size2_Class2",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot02_Size2": "Int_CargoRack_Size1_Class1",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "empire_courier": {
+  "name": "Imperial Courier",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 3,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 3,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 3,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot02_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot03_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Empire_Courier_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size3_Class1",
+   "FuelTank": "Int_FuelTank_Size3_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size3_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot02_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot03_Size2": "Int_ShieldGenerator_Size2_Class1",
+   "Slot04_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot05_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "Slot08_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "empire_eagle": {
+  "name": "Imperial Eagle",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 3,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 3,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 3,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 2,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 2,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 2,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot02_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot03_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot04_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Empire_Eagle_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size3_Class1",
+   "FuelTank": "Int_FuelTank_Size2_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size3_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size2_Class1",
+   "PowerPlant": "Int_Powerplant_Size3_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot02_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot05_Size1": "Int_SuperCruiseAssist",
+   "Slot06_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "empire_trader": {
+  "name": "Imperial Clipper",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot01_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Empire_Trader_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot02_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot07_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "explorer_nx": {
+  "name": "Caspian Explorer",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint6"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint5"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 8,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 8,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 7,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot01_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot07_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot09_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot10_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot11_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot12_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot13_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot14_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Explorer_NX_Armour_Grade1_Default",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size8_Class1",
+   "FuelTank": "Int_FuelTank_Size7_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size8_Class1",
+   "Slot01_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot02_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot03_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot13_Size1": "Int_SuperCruiseAssist",
+   "Slot14_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "federation_corvette": {
+  "name": "Federal Corvette",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint7"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint8"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 6,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 8,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 8,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot01_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot02_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot03_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot05_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot07_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot09_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot10_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot11_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Federation_Corvette_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size6_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size8_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size8_Class1",
+   "Slot01_Size7": "Int_ShieldGenerator_Size7_Class1",
+   "Slot02_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot08_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot10_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot11_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "federation_dropship": {
+  "name": "Federal Dropship",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot09_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Federation_Dropship_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint3": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint4": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot03_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot04_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot10_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "federation_dropship_mkii": {
+  "name": "Federal Assault Ship",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Federation_Dropship_MkII_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot02_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot04_Size3": "Int_CargoRack_Size3_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "federation_gunship": {
+  "name": "Federal Gunship",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military03"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Federation_Gunship_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint3": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint4": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot02_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot03_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot06_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "ferdelance": {
+  "name": "Fer-de-Lance",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 3,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "FerDeLance_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size3_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot02_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot06_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "hauler": {
+  "name": "Hauler",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 2,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 2,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 2,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 1,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 1,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 2,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot02_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot03_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot04_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Hauler_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size2_Class1",
+   "FuelTank": "Int_FuelTank_Size2_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size2_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size1_Class1",
+   "PowerPlant": "Int_Powerplant_Size2_Class1",
+   "Radar": "Int_Sensors_Size1_Class1",
+   "Slot01_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot02_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot03_Size2": "Int_ShieldGenerator_Size2_Class1",
+   "Slot05_Size1": "Int_SuperCruiseAssist",
+   "Slot06_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "independant_trader": {
+  "name": "Keelback",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Independant_Trader_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot02_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size3_Class1",
+   "Slot04_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot05_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "krait_light": {
+  "name": "Krait Phantom",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 7,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 6,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Krait_Light_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size7_Class1",
+   "Radar": "Int_Sensors_Size6_Class1",
+   "Slot01_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot02_Size5": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size5": "Int_CargoRack_Size5_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot08_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "krait_mkii": {
+  "name": "Krait Mk II",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 7,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 6,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot05_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Krait_MkII_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size7_Class1",
+   "Radar": "Int_Sensors_Size6_Class1",
+   "Slot01_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size5": "Int_CargoRack_Size5_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot08_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "lakonminer": {
+  "name": "Type-11 Prospector",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "only": [
+     "hmtl",
+     "hmtm"
+    ],
+    "size": 3,
+    "slot": "LargeMiningHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "only": [
+     "hmtl",
+     "hmtm"
+    ],
+    "size": 2,
+    "slot": "MediumMiningHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "only": [
+     "hmtl",
+     "hmtm"
+    ],
+    "size": 2,
+    "slot": "MediumMiningHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "only": [
+     "hmtl",
+     "hmtm"
+    ],
+    "size": 1,
+    "slot": "SmallMiningHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "iclc",
+     "idlc",
+     "iftlc",
+     "ihblc",
+     "imlc",
+     "inlc",
+     "iplc",
+     "irlc",
+     "islc"
+    ],
+    "size": 5,
+    "slot": "LimpetController01"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ifh"
+    ],
+    "size": 5,
+    "slot": "FighterBay01"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot06_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "LakonMiner_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size6": "Int_ShieldGenerator_Size5_Class1",
+   "Slot09_Size1": "Int_DockingComputer_Advanced",
+   "Slot10_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint3": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint4": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "mamba": {
+  "name": "Mamba",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 3,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Mamba_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size3_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot02_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot06_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "mandalay": {
+  "name": "Mandalay",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 5,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Mandalay_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class3",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size5_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot10_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "mediumtransport01": {
+  "name": "Lynx Highliner",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 6,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 5,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipc"
+    ],
+    "size": 6,
+    "slot": "Passenger01"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipc"
+    ],
+    "size": 6,
+    "slot": "Passenger02"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipc"
+    ],
+    "size": 5,
+    "slot": "Passenger03"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "MediumTransport01_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size6_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "Passenger01": "Int_PassengerCabin_Size5_Class1",
+   "Passenger02": "Int_PassengerCabin_Size5_Class1",
+   "Passenger03": "Int_PassengerCabin_Size4_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size5_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size6": "Int_ShieldGenerator_Size5_Class1",
+   "Slot02_Size5": "Int_PassengerCabin_Size4_Class1",
+   "Slot06_Size2": "Int_SuperCruiseAssist",
+   "Slot07_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "orca": {
+  "name": "Orca",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 6,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 5,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot05_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot06_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Orca_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size6_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size5_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size6": "Int_PassengerCabin_Size6_Class1",
+   "Slot02_Size5": "Int_PassengerCabin_Size4_Class1",
+   "Slot03_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot04_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot05_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "panthermkii": {
+  "name": "Panther Clipper Mk II",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 8,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 7,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 7,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "cft",
+     "icr"
+    ],
+    "size": 8,
+    "slot": "Cargo01"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot01_Size8"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "cft",
+     "icr"
+    ],
+    "size": 7,
+    "slot": "Cargo02"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot02_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot05_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot07_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot09_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "PantherMkII_Armour_Grade1",
+   "Cargo01": "Int_CargoRack_Size7_Class1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size7_Class1",
+   "FuelTank": "Int_FuelTank_Size7_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size8_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size8": "Int_ShieldGenerator_Size7_Class1",
+   "Slot04_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot05_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot09_Size2": "Int_DockingComputer_Advanced",
+   "Slot10_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "python": {
+  "name": "Python",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 7,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 6,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot06_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot09_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot10_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Python_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size7_Class1",
+   "PowerPlant": "Int_Powerplant_Size7_Class1",
+   "Radar": "Int_Sensors_Size6_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot09_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot10_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "python_nx": {
+  "name": "Python Mk II",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 5,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Python_NX_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class3",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size5_Class1",
+   "Slot01_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot05_Size1": "Int_SuperCruiseAssist",
+   "Slot06_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "sidewinder": {
+  "name": "Sidewinder",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 2,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 2,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 2,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 1,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 1,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 1,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot01_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot02_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot03_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot04_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "SideWinder_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size2_Class1",
+   "FuelTank": "Int_FuelTank_Size1_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size2_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size1_Class1",
+   "PowerPlant": "Int_Powerplant_Size2_Class1",
+   "Radar": "Int_Sensors_Size1_Class1",
+   "Slot01_Size2": "Int_ShieldGenerator_Size2_Class1",
+   "Slot02_Size2": "Int_CargoRack_Size2_Class1",
+   "SmallHardpoint1": "Hpt_PulseLaser_Gimbal_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Gimbal_Small"
+  }
+ },
+ "smallcombat01_nx": {
+  "name": "Kestrel Mk II",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 1,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 5,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "SmallCombat01_NX_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size1_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size5_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot06_Size2": "Int_SuperCruiseAssist",
+   "Slot07_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_MultiCannon_Fixed_Small",
+   "SmallHardpoint2": "Hpt_MultiCannon_Fixed_Small"
+  }
+ },
+ "type6": {
+  "name": "Type-6 Transporter",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 3,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 2,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 2,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot04_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot05_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Type6_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size2_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size3_Class1",
+   "Radar": "Int_Sensors_Size2_Class1",
+   "Slot01_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot02_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot04_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot05_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot06_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot08_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "type7": {
+  "name": "Type-7 Transporter",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 4,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot09_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Type7_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size4_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot03_Size5": "Int_CargoRack_Size5_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot05_Size4": "Int_CargoRack_Size4_Class1",
+   "Slot06_Size4": "Int_ShieldGenerator_Size4_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "type8": {
+  "name": "Type-8 Transporter",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint5"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 5,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 4,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 5,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot01_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot04_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot07_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot08_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot09_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Type8_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size5_Class3",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size4_Class1",
+   "PowerPlant": "Int_Powerplant_Size5_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size7": "Int_CargoRack_Size7_Class1",
+   "Slot02_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot05_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot06_Size5": "Int_ShieldGenerator_Size4_Class1",
+   "Slot09_Size1": "Int_SuperCruiseAssist",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
+ "type9": {
+  "name": "Type-9 Heavy",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 6,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 6,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot00_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot01_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot02_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot05_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot06_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot11_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot12_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Type9_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size6_Class1",
+   "FuelTank": "Int_FuelTank_Size6_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot00_Size8": "Int_CargoRack_Size7_Class1",
+   "Slot01_Size8": "Int_CargoRack_Size7_Class1",
+   "Slot02_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot03_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot05_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot07_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot12_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "type9_military": {
+  "name": "Type-10 Defender",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint7"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint8"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 7,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 7,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 6,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot01_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot02_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot03_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot05_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot06_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot07_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot08_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot11_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot12_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Type9_Military_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size6_Class1",
+   "FuelTank": "Int_FuelTank_Size6_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size8": "Int_CargoRack_Size7_Class1",
+   "Slot02_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot03_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot05_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot07_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot12_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "typex": {
+  "name": "Alliance Chieftain",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military03"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot03_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "TypeX_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LargeHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot03_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot06_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "typex_2": {
+  "name": "Alliance Crusader",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military03"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot02_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "TypeX_2_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot04_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "typex_3": {
+  "name": "Alliance Challenger",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 6,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 6,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 5,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 6,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military02"
+   },
+   {
+    "group": "military",
+    "size": 4,
+    "slot": "Military03"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot01_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot02_Size6"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot04_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot06_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "TypeX_3_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size6_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size6_Class1",
+   "PowerPlant": "Int_Powerplant_Size6_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size6": "Int_CargoRack_Size5_Class1",
+   "Slot02_Size6": "Int_ShieldGenerator_Size6_Class1",
+   "Slot03_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot04_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist"
+  }
+ },
+ "viper": {
+  "name": "Viper Mk III",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 3,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 3,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 3,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 2,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 2,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 3,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot01_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot02_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot03_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot04_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Viper_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size3_Class1",
+   "FuelTank": "Int_FuelTank_Size2_Class3",
+   "LifeSupport": "Int_LifeSupport_Size2_Class1",
+   "MainEngines": "Int_Engine_Size3_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size3_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size3": "Int_CargoRack_Size2_Class1",
+   "Slot02_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot05_Size1": "Int_SuperCruiseAssist",
+   "Slot06_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "viper_mkiv": {
+  "name": "Viper Mk IV",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 2,
+    "slot": "MediumHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 4,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 2,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 3,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 3,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 4,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 3,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot01_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot03_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot04_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot05_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Viper_MkIV_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "LifeSupport": "Int_LifeSupport_Size2_Class1",
+   "MainEngines": "Int_Engine_Size4_Class1",
+   "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "MediumHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "PowerDistributor": "Int_PowerDistributor_Size3_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size3_Class1",
+   "Slot01_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot03_Size3": "Int_ShieldGenerator_Size3_Class1",
+   "Slot04_Size2": "Int_CargoRack_Size1_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "Slot08_Size1": "Int_DockingComputer_Advanced"
+  }
+ },
+ "vulture": {
+  "name": "Vulture",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 4,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 5,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 4,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 3,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 5,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 4,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 3,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot01_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot02_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot03_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot05_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot06_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot07_Size1"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot08_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "Vulture_Armour_Grade1",
+   "FrameShiftDrive": "Int_Hyperdrive_Size4_Class1",
+   "FuelTank": "Int_FuelTank_Size3_Class3",
+   "LargeHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "LargeHardpoint2": "Hpt_PulseLaser_Fixed_Small",
+   "LifeSupport": "Int_LifeSupport_Size3_Class1",
+   "MainEngines": "Int_Engine_Size5_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size5_Class1",
+   "PowerPlant": "Int_Powerplant_Size4_Class1",
+   "Radar": "Int_Sensors_Size4_Class1",
+   "Slot01_Size5": "Int_ShieldGenerator_Size5_Class1",
+   "Slot02_Size4": "Int_CargoRack_Size3_Class1",
+   "Slot07_Size1": "Int_SuperCruiseAssist",
+   "Slot08_Size1": "Int_DockingComputer_Advanced"
+  }
+ }
+}

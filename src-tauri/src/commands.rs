@@ -773,11 +773,14 @@ pub struct ProposedSwap {
 pub async fn build_performance(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
+    hull: Option<String>,
     plan: Option<Vec<ProposedEngineering>>,
     swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<Performance, String> {
-    let raw = loadout_raw(&state, ship_id)?;
+    let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let loadout: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
+    let pairs: Vec<(String, String)> = swaps.iter().flatten().map(|s| (s.slot.clone(), s.item.clone())).collect();
+    check_swaps(&loadout, &pairs)?;
     let catalog = ed_ships::Catalog::load();
     let build = ed_ships::Build::from_loadout(&catalog, &loadout);
     let before = build.summary();
@@ -812,8 +815,8 @@ pub async fn build_performance(
 /// A pasted build (EDSY or Coriolis SLEF) against the ship as flown: the
 /// modules to swap and the engineering to do. See `build_import`.
 #[tauri::command]
-pub async fn import_build(state: State<'_, AppState>, ship_id: Option<i64>, text: String) -> Result<crate::build_import::ImportedBuild, String> {
-    crate::build_import::import(state.inner(), ship_id, &text)
+pub async fn import_build(state: State<'_, AppState>, ship_id: Option<i64>, hull: Option<String>, text: String) -> Result<crate::build_import::ImportedBuild, String> {
+    crate::build_import::import(state.inner(), ship_id, hull.as_deref(), &text)
 }
 
 /// The whole build's plan in one report: pooled materials, one shopping
@@ -822,13 +825,14 @@ pub async fn import_build(state: State<'_, AppState>, ship_id: Option<i64>, text
 pub async fn build_plan_report(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
+    hull: Option<String>,
     items: Vec<crate::build_plan::PlanItem>,
     minimum: Option<bool>,
     complete: Option<bool>,
     swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<crate::build_plan::BuildPlanReport, String> {
     let swaps: Vec<(String, String)> = swaps.unwrap_or_default().into_iter().map(|s| (s.slot, s.item)).collect();
-    let mut report = crate::build_plan::report(state.inner(), ship_id, &items, &swaps, minimum.unwrap_or(false), complete.unwrap_or(true))?;
+    let mut report = crate::build_plan::report(state.inner(), ship_id, hull.as_deref(), &items, &swaps, minimum.unwrap_or(false), complete.unwrap_or(true))?;
     if let Some(shopping) = report.shopping.as_mut() {
         fill_traders(&state, shopping).await;
     }
@@ -880,7 +884,23 @@ pub struct ShipModule {
 }
 
 /// The latest `Loadout` for one ship (by the game's ShipID), or the current ship.
-pub(crate) fn loadout_raw(state: &AppState, ship_id: Option<i64>) -> Result<String, String> {
+/// The game's outfitting facts: every hull's slots and what fits them.
+/// Loaded once; see `ed_ships::slots`.
+pub(crate) fn slots() -> &'static ed_ships::Slots {
+    static SLOTS: std::sync::OnceLock<ed_ships::Slots> = std::sync::OnceLock::new();
+    SLOTS.get_or_init(ed_ships::Slots::load)
+}
+
+/// The Loadout to work on: a ship from the journal by ShipID (None: the
+/// one being flown), or — `hull` given — a hull the commander does not
+/// own, as sold (maintainer, 2026-09-20: "what if someone imports a build
+/// for a ship they don't have yet? or wants to plan out their own build
+/// for a ship they don't have yet?").
+pub(crate) fn loadout_raw(state: &AppState, ship_id: Option<i64>, hull: Option<&str>) -> Result<String, String> {
+    if let Some(h) = hull.map(str::trim).filter(|h| !h.is_empty()) {
+        let hull = slots().hull(h).ok_or_else(|| format!("no such hull: {h}"))?;
+        return Ok(slots().stock_loadout(hull).to_string());
+    }
     match ship_id {
         None => state.with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout")).map_err(err)?.ok_or_else(|| "no Loadout in the journal yet".into()),
         Some(id) => state
@@ -973,6 +993,26 @@ pub struct ProposedEngineering {
 /// Replace one module's `Engineering` block with a proposed blueprint at
 /// full grade. Modifiers are dropped: EDSY and Coriolis recompute the
 /// grade's nominal values, which is what a plan (not yet rolled) means.
+/// Swapped modules into a Loadout: the slot takes the new item with no
+/// engineering; an empty slot gets a new entry.
+pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[(String, String)]) -> Result<(), String> {
+    let modules = data.get_mut("Modules").and_then(serde_json::Value::as_array_mut).ok_or("Loadout has no Modules")?;
+    for (slot, item) in swaps {
+        match modules.iter_mut().find(|m| m["Slot"].as_str().is_some_and(|s| s.eq_ignore_ascii_case(slot))) {
+            Some(m) => {
+                m["Item"] = serde_json::Value::String(item.to_ascii_lowercase());
+                if let Some(o) = m.as_object_mut() {
+                    o.remove("Engineering");
+                    o.remove("Item_Localised");
+                    o.remove("Value");
+                }
+            }
+            None => modules.push(serde_json::json!({ "Slot": slot, "Item": item.to_ascii_lowercase(), "On": true, "Priority": 1 })),
+        }
+    }
+    Ok(())
+}
+
 fn apply_proposed_engineering(data: &mut serde_json::Value, proposed: &ProposedEngineering) -> Result<(), String> {
     let symbol = ed_engineering::journal::symbol_for_blueprint(&proposed.blueprint, &proposed.module_type)
         .ok_or_else(|| format!("no journal symbol for {} / {}", proposed.module_type, proposed.blueprint))?;
@@ -1009,11 +1049,17 @@ fn apply_proposed_engineering(data: &mut serde_json::Value, proposed: &ProposedE
 pub async fn ship_slef(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
+    hull: Option<String>,
     proposed: Option<ProposedEngineering>,
     plan: Option<Vec<ProposedEngineering>>,
+    swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<String, String> {
-    let raw = loadout_raw(&state, ship_id)?;
+    let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let mut data: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
+    // Swapped modules first, unengineered; the plan's blueprints go on top.
+    let pairs: Vec<(String, String)> = swaps.iter().flatten().map(|s| (s.slot.clone(), s.item.clone())).collect();
+    check_swaps(&data, &pairs)?;
+    apply_swaps(&mut data, &pairs)?;
     if let Some(proposed) = &proposed {
         apply_proposed_engineering(&mut data, proposed)?;
     }
@@ -1040,7 +1086,7 @@ pub async fn ship_links(
 ) -> Result<ShipLinks, String> {
     use base64::Engine;
     use std::io::Write;
-    let raw = loadout_raw(&state, ship_id)?;
+    let raw = loadout_raw(&state, ship_id, None)?;
     let compact = serde_json::from_str::<serde_json::Value>(&raw)
         .map_err(err)?
         .to_string();
@@ -1059,9 +1105,132 @@ pub async fn ship_links(
 pub async fn ship_modules(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
+    hull: Option<String>,
 ) -> Result<ShipLoadout, String> {
-    ship_loadout(state.inner(), ship_id)
+    ship_loadout(state.inner(), ship_id, hull.as_deref())
 }
+
+/// Every hull the outfitting tables know, for planning a ship the
+/// commander does not own yet.
+#[derive(Debug, Serialize)]
+pub struct HullSummary {
+    /// The journal's ship symbol (`type9_military`).
+    pub symbol: String,
+    /// The printed name ("Type-10 Defender").
+    pub name: String,
+}
+
+#[tauri::command]
+pub async fn hulls_list() -> Result<Vec<HullSummary>, String> {
+    Ok(slots().hulls().into_iter().map(|h| HullSummary { symbol: h.symbol.clone(), name: h.name.clone() }).collect())
+}
+
+/// A module that fits a slot.
+#[derive(Debug, Serialize)]
+pub struct SlotCandidate {
+    pub item: String,
+    pub item_name: String,
+    /// The kind's printed name ("Pulse Laser"), for grouping.
+    pub kind: String,
+    pub class: i64,
+    pub rating: String,
+    pub mount: Option<String>,
+    /// Blueprint-data module type, when engineers work it.
+    pub module_type: Option<String>,
+}
+
+/// One slot of the ship with what is in it and what could be.
+#[derive(Debug, Serialize)]
+pub struct SlotOptions {
+    pub slot: String,
+    pub slot_name: String,
+    pub group: String,
+    pub size: i64,
+    pub fitted: Option<String>,
+    pub fitted_name: Option<String>,
+    pub candidates: Vec<SlotCandidate>,
+}
+
+/// Every slot of the ship (or hull) with every module that fits it, so
+/// the Build planner offers only what the slot takes (maintainer,
+/// 2026-09-20: "we need to ensure we only allow selecting valid modules
+/// for a slot").
+#[tauri::command]
+pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull: Option<String>) -> Result<Vec<SlotOptions>, String> {
+    let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
+    let v: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
+    let ship = v["Ship"].as_str().unwrap_or("");
+    let table = slots();
+    let h = table.hull(ship).ok_or_else(|| format!("no slot table for the {}", ed_journal::ships::display_name_or(ship, None)))?;
+    let fitted: std::collections::HashMap<String, String> = v["Modules"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| Some((m["Slot"].as_str()?.to_ascii_lowercase(), m["Item"].as_str()?.to_string())))
+        .collect();
+    Ok(h.slots
+        .iter()
+        .map(|s| {
+            let f = fitted.get(&s.slot.to_ascii_lowercase()).cloned();
+            SlotOptions {
+                slot: s.slot.clone(),
+                slot_name: ed_journal::modules::slot_name(&s.slot),
+                group: s.group.clone(),
+                size: s.size,
+                fitted_name: f.as_deref().map(ed_journal::modules::item_name),
+                fitted: f,
+                candidates: table
+                    .candidates(h, s)
+                    .into_iter()
+                    .map(|(item, k)| SlotCandidate {
+                        item: item.to_string(),
+                        item_name: ed_journal::modules::item_name(item),
+                        kind: k.name.clone(),
+                        class: k.class,
+                        rating: k.rating.clone(),
+                        mount: k.mount.clone(),
+                        module_type: ed_engineering::journal::module_type_for_item(item).map(str::to_string),
+                    })
+                    .collect(),
+            }
+        })
+        .collect())
+}
+
+/// Swaps checked against the hull's slots: the slot exists, the module
+/// fits it, and the whole fit keeps to the one-per-ship limits. The
+/// reasons, when any.
+pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[(String, String)]) -> Result<(), String> {
+    if swaps.is_empty() {
+        return Ok(());
+    }
+    let table = slots();
+    let ship = loadout["Ship"].as_str().unwrap_or("");
+    let Some(h) = table.hull(ship) else { return Ok(()) };
+    let mut problems = Vec::new();
+    for (slot, item) in swaps {
+        match h.slot(slot) {
+            None => problems.push(format!("the {} has no slot {}", h.name, ed_journal::modules::slot_name(slot))),
+            Some(s) => {
+                if let Err(e) = table.fits(h, s, item) {
+                    problems.push(format!("{}: {e}", ed_journal::modules::slot_name(slot)));
+                }
+            }
+        }
+    }
+    let mut fit: Vec<(String, String)> = loadout["Modules"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| Some((m["Slot"].as_str()?.to_string(), m["Item"].as_str()?.to_string())))
+        .filter(|(slot, _)| !swaps.iter().any(|(s, _)| s.eq_ignore_ascii_case(slot)))
+        .collect();
+    fit.extend(swaps.iter().cloned());
+    problems.extend(table.over_limit(&fit));
+    if problems.is_empty() { Ok(()) } else { Err(problems.join("; ")) }
+}
+
+
 
 /// The Ships tab's build for one ship: the latest Loadout for `ship_id`
 /// (any owned ship, not only the one being flown), or the newest Loadout
@@ -1069,8 +1238,8 @@ pub async fn ship_modules(
 /// (maintainer, 2026-09-10: "which of my ships has a wake scanner" was
 /// answered with "I can only see the active ship" while the Ships tab
 /// showed every build).
-pub fn ship_loadout(state: &AppState, ship_id: Option<i64>) -> Result<ShipLoadout, String> {
-    let raw = loadout_raw(state, ship_id)?;
+pub fn ship_loadout(state: &AppState, ship_id: Option<i64>, hull: Option<&str>) -> Result<ShipLoadout, String> {
+    let raw = loadout_raw(state, ship_id, hull)?;
     let v: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     let mut out: Vec<ShipModule> = v
         .get("Modules")

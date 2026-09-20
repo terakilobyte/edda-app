@@ -68,7 +68,7 @@ describe("generated wrappers", () => {
       { name: "missions", args: { activeOnly: true } },
       { name: "missions", args: { activeOnly: false } },
       { name: "check_blueprint", args: { moduleType: "fsd", name: "Increased range", fromGrade: 0, targetGrade: 5, minimum: false, complete: true } },
-      { name: "ship_modules", args: { shipId: null } },
+      { name: "ship_modules", args: { shipId: null, hull: null } },
       { name: "material_shopping", args: { trades: [1] } },
     ]);
   });

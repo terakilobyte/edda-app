@@ -81,8 +81,12 @@ export const COMMANDS = {
   blueprintAccess: ["blueprint_access", ["moduleType", "name", "grade"]],
   listEngineers: ["list_engineers"],
   checkExperimental: ["check_experimental", ["moduleType", "name"]],
-  shipModules: ["ship_modules", ["shipId"], { shipId: null }],
+  shipModules: ["ship_modules", ["shipId", "hull"], { shipId: null, hull: null }],
   shipsList: ["ships_list", ["includeHistorical"], { includeHistorical: false }],
+  // Every hull the outfitting tables know, and every slot of a ship (or
+  // hull) with every module that fits it — the Build planner's swaps.
+  hullsList: ["hulls_list"],
+  slotOptions: ["slot_options", ["shipId", "hull"], { shipId: null, hull: null }],
   carrierStatus: ["carrier_status"],
   // The Frontier link (CAPI)
   capiStatus: ["capi_status"],
@@ -90,10 +94,10 @@ export const COMMANDS = {
   capiLinkCode: ["capi_link_code", ["text"]],
   capiUnlink: ["capi_unlink"],
   capiRefreshCarrier: ["capi_refresh_carrier"],
-  shipSlef: ["ship_slef", ["shipId", "proposed", "plan"], { shipId: null, proposed: null, plan: null }],
+  shipSlef: ["ship_slef", ["shipId", "proposed", "plan", "swaps", "hull"], { shipId: null, proposed: null, plan: null, swaps: null, hull: null }],
   buildPlanReport: ["build_plan_report", "*"],
-  importBuild: ["import_build", ["shipId", "text"]],
-  buildPerformance: ["build_performance", ["shipId", "plan", "swaps"], { shipId: null, plan: null, swaps: null }],
+  importBuild: ["import_build", ["shipId", "text", "hull"], { hull: null }],
+  buildPerformance: ["build_performance", ["shipId", "plan", "swaps", "hull"], { shipId: null, plan: null, swaps: null, hull: null }],
   shipLinks: ["ship_links", ["shipId"], { shipId: null }],
   materialShopping: ["material_shopping", "*"],
   // Galaxy
@@ -274,7 +278,7 @@ const listeners = Object.fromEntries(Object.entries(EVENTS).map(([k, ev]) => [k,
 // ── Named wrappers (generated) ─────────────────────────────────────
 export const {
   getStatus, getInventory, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
-  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport, importBuild, buildPerformance,
+  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, hullsList, slotOptions, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport, importBuild, buildPerformance,
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,
   galaxyStatus, activityHeatmap, feedbackSend, telemetryPrefs, telemetryPrefsSet, shipScoopInfo, sellHoldSearch, miningSearch, miningMaterials, markAdd, markRemove, markHere, gameState,

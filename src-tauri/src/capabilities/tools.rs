@@ -325,7 +325,7 @@ fn ship_modules(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     // The Ships tab's own read (commands::ship_loadout): any owned ship by
     // id, the flown one without.
     let ship_id = input.get("ship_id").and_then(Value::as_i64);
-    let build = crate::commands::ship_loadout(ctx.state, ship_id).map_err(|e| {
+    let build = crate::commands::ship_loadout(ctx.state, ship_id, None).map_err(|e| {
         if ship_id.is_some() {
             CapError::not_found(e).hint("ship_id comes from list_ships; a ship never flown since the journal began has no Loadout")
         } else {
@@ -388,7 +388,7 @@ fn find_module(ctx: &Ctx, input: &Value) -> CapResult<Value> {
     let mut searched = 0usize;
     let mut unreadable = Vec::new();
     for ship in &ships {
-        let build = match crate::commands::ship_loadout(ctx.state, Some(ship.ship_id)) {
+        let build = match crate::commands::ship_loadout(ctx.state, Some(ship.ship_id), None) {
             Ok(b) => b,
             Err(_) => {
                 unreadable.push(ship.ship_name.clone().unwrap_or_else(|| ship.ship.clone()));
