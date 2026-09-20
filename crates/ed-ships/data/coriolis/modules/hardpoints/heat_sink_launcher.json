@@ -1,0 +1,58 @@
+{
+  "hs": [
+    {
+      "ammo": 3,
+      "ammocost": 25,
+      "class": 0,
+      "clip": 1,
+      "cost": 3500,
+      "distdraw": 2,
+      "drain": 100,
+      "duration": 10,
+      "edID": 128049519,
+      "eddbID": 886,
+      "eps": 0.4,
+      "fireint": 5.0,
+      "grp": "hs",
+      "id": "02",
+      "integrity": 20,
+      "mass": 1.3,
+      "name": "Heat Sink Launcher",
+      "passive": 1,
+      "power": 0.2,
+      "rating": "I",
+      "reload": 10,
+      "symbol": "Hpt_HeatSinkLauncher_Turret_Tiny"
+    },
+    {
+      "ammo": 3,
+      "ammocost": 25,
+      "class": 0,
+      "clip": 1,
+      "cost": 0,
+      "distdraw": 2,
+      "drain": 100,
+      "duration": 10,
+      "eps": 0.4,
+      "fireint": 5.0,
+      "grp": "hs",
+      "id": "5W",
+      "integrity": 20,
+      "mass": 0.65,
+      "name": "Heat Sink Launcher (Sirius)",
+      "preEngineered": {
+        "reengineerable": false,
+        "gradeChangeable": false,
+        "blueprints": ["Misc_HeatSinkCapacity"],
+        "grade": 1,
+        "canApplyExperimental": false,
+        "description": "This module has been pre-engineered with Grade 1 Expanded Heat Sink Capacity modifications."
+      },
+      "passive": 1,
+      "power": 0.2,
+      "rating": "I",
+      "reload": 10,
+      "symbol": "Hpt_HeatSinkLauncher_Turret_Tiny"
+    }
+  ]
+}

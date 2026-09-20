@@ -1,0 +1,1067 @@
+{
+ "timestamp": "2026-09-20T03:32:28Z",
+ "event": "Loadout",
+ "Ship": "type9_military",
+ "ShipID": 37,
+ "ShipName": "",
+ "ShipIdent": "WI-12T",
+ "HullValue": 106603674,
+ "ModulesValue": 201117807,
+ "HullHealth": 1.0,
+ "UnladenMass": 1883.199951,
+ "CargoCapacity": 4,
+ "MaxJumpRange": 19.558407,
+ "FuelCapacity": {
+  "Main": 64.0,
+  "Reserve": 0.77
+ },
+ "Rebuy": 11539559,
+ "Modules": [
+  {
+   "Slot": "LargeHardpoint1",
+   "Item": "hpt_pulselaser_turret_large",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 351351,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 9.2,
+      "OriginalValue": 8.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.9434,
+      "OriginalValue": 0.89,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "LargeHardpoint2",
+   "Item": "hpt_pulselaser_turret_large",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 351351,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 9.2,
+      "OriginalValue": 8.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.9434,
+      "OriginalValue": 0.89,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "LargeHardpoint3",
+   "Item": "hpt_pulselaser_turret_large",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 351351,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 9.2,
+      "OriginalValue": 8.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.9434,
+      "OriginalValue": 0.89,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "LargeHardpoint4",
+   "Item": "hpt_pulselaser_turret_large",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 351351,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 9.2,
+      "OriginalValue": 8.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.9434,
+      "OriginalValue": 0.89,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "MediumHardpoint1",
+   "Item": "hpt_pulselaser_turret_medium",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 116532,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 4.6,
+      "OriginalValue": 4.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.6148,
+      "OriginalValue": 0.58,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "MediumHardpoint2",
+   "Item": "hpt_pulselaser_turret_medium",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 116532,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 4.6,
+      "OriginalValue": 4.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.6148,
+      "OriginalValue": 0.58,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "MediumHardpoint3",
+   "Item": "hpt_pulselaser_turret_medium",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 116532,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 4.6,
+      "OriginalValue": 4.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.6148,
+      "OriginalValue": 0.58,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "SmallHardpoint1",
+   "Item": "hpt_pulselaser_turret_small",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 22815,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 2.3,
+      "OriginalValue": 2.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.4028,
+      "OriginalValue": 0.38,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "SmallHardpoint2",
+   "Item": "hpt_pulselaser_turret_small",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 22815,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673576,
+    "BlueprintName": "Weapon_LongRange",
+    "Level": 2,
+    "Quality": 1.0,
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 2.3,
+      "OriginalValue": 2.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 0.4028,
+      "OriginalValue": 0.38,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "MaximumRange",
+      "Value": 4200.0,
+      "OriginalValue": 3000.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "DamageFalloffRange",
+      "Value": 4200.0,
+      "OriginalValue": 500.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint1",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673791,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 2,
+    "Quality": 0.5,
+    "ExperimentalEffect": "special_shieldbooster_kinetic",
+    "ExperimentalEffect_Localised": "Force Block",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 45.119999,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.32,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "DefenceModifierShieldMultiplier",
+      "Value": 18.800009,
+      "OriginalValue": 20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 8.37,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint2",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673791,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 2,
+    "Quality": 0.5,
+    "ExperimentalEffect": "special_shieldbooster_kinetic",
+    "ExperimentalEffect_Localised": "Force Block",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 45.119999,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.32,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "DefenceModifierShieldMultiplier",
+      "Value": 18.800009,
+      "OriginalValue": 20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 8.37,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint3",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673791,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 2,
+    "Quality": 0.5,
+    "ExperimentalEffect": "special_shieldbooster_kinetic",
+    "ExperimentalEffect_Localised": "Force Block",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 45.119999,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.32,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "DefenceModifierShieldMultiplier",
+      "Value": 18.800009,
+      "OriginalValue": 20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 8.37,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint4",
+   "Item": "hpt_plasmapointdefence_turret_tiny",
+   "On": true,
+   "Priority": 0,
+   "AmmoInClip": 12,
+   "AmmoInHopper": 10000,
+   "Health": 1.0,
+   "Value": 16275
+  },
+  {
+   "Slot": "Armour",
+   "Item": "type9_military_armour_grade1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "PowerPlant",
+   "Item": "int_powerplant_size8_class5",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0,
+   "Value": 102439239,
+   "Engineering": {
+    "Engineer": "Marco Qwent",
+    "EngineerID": 300200,
+    "BlueprintID": 128673768,
+    "BlueprintName": "PowerPlant_Boosted",
+    "Level": 4,
+    "Quality": 1.0,
+    "ExperimentalEffect": "special_powerplant_highcharge",
+    "ExperimentalEffect_Localised": "Monstered",
+    "Modifiers": [
+     {
+      "Label": "Mass",
+      "Value": 88.0,
+      "OriginalValue": 80.0,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "Integrity",
+      "Value": 132.0,
+      "OriginalValue": 165.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerCapacity",
+      "Value": 50.273998,
+      "OriginalValue": 36.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "HeatEfficiency",
+      "Value": 0.48,
+      "OriginalValue": 0.4,
+      "LessIsGood": 1
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "MainEngines",
+   "Item": "int_engine_size7_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 1666898
+  },
+  {
+   "Slot": "FrameShiftDrive",
+   "Item": "int_hyperdrive_overcharge_size7_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 54007436
+  },
+  {
+   "Slot": "LifeSupport",
+   "Item": "int_lifesupport_size5_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 69713
+  },
+  {
+   "Slot": "PowerDistributor",
+   "Item": "int_powerdistributor_size7_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 8539765,
+   "Engineering": {
+    "Engineer": "The Dweller",
+    "EngineerID": 300180,
+    "BlueprintID": 128673754,
+    "BlueprintName": "PowerDistributor_PriorityWeapons",
+    "Level": 5,
+    "Quality": 1.0,
+    "ExperimentalEffect": "special_powerdistributor_fast",
+    "ExperimentalEffect_Localised": "Super Conduits",
+    "Modifiers": [
+     {
+      "Label": "WeaponsCapacity",
+      "Value": 93.695999,
+      "OriginalValue": 61.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "WeaponsRecharge",
+      "Value": 9.13536,
+      "OriginalValue": 6.1,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "EnginesCapacity",
+      "Value": 33.456001,
+      "OriginalValue": 41.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "EnginesRecharge",
+      "Value": 3.536,
+      "OriginalValue": 4.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "SystemsCapacity",
+      "Value": 33.456001,
+      "OriginalValue": 41.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "SystemsRecharge",
+      "Value": 3.952,
+      "OriginalValue": 4.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "Radar",
+   "Item": "int_sensors_size4_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 389022
+  },
+  {
+   "Slot": "FuelTank",
+   "Item": "int_fueltank_size6_class3",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0,
+   "Value": 299733
+  },
+  {
+   "Slot": "Slot01_Size8",
+   "Item": "int_shieldgenerator_size8_class3_fast",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 23778275,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673844,
+    "BlueprintName": "ShieldGenerator_Thermic",
+    "Level": 5,
+    "Quality": 1.0,
+    "ExperimentalEffect": "special_shield_regenerative",
+    "ExperimentalEffect_Localised": "Fast Charge",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 210.0,
+      "OriginalValue": 150.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "RegenRate",
+      "Value": 6.624,
+      "OriginalValue": 5.76,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "BrokenRegenRate",
+      "Value": 16.559999,
+      "OriginalValue": 14.4,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 26.919996,
+      "OriginalValue": 39.999996,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 39.099998,
+      "OriginalValue": -20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 49.25,
+      "OriginalValue": 50.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "Slot02_Size7",
+   "Item": "int_fighterbay_size7_class1",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 2079079
+  },
+  {
+   "Slot": "Slot03_Size6",
+   "Item": "int_guardianshieldreinforcement_size5_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 873402
+  },
+  {
+   "Slot": "Slot04_Size5",
+   "Item": "int_guardianshieldreinforcement_size5_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 873402
+  },
+  {
+   "Slot": "Slot05_Size4",
+   "Item": "int_guardianshieldreinforcement_size4_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 363917
+  },
+  {
+   "Slot": "Slot06_Size4",
+   "Item": "int_guardianshieldreinforcement_size4_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 363917
+  },
+  {
+   "Slot": "Slot07_Size3",
+   "Item": "int_guardianshieldreinforcement_size3_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 151632
+  },
+  {
+   "Slot": "Slot08_Size3",
+   "Item": "int_guardianshieldreinforcement_size3_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 151632
+  },
+  {
+   "Slot": "Slot11_Size2",
+   "Item": "int_cargorack_size2_class1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0,
+   "Value": 2852
+  },
+  {
+   "Slot": "Slot12_Size1",
+   "Item": "int_supercruiseassist",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0,
+   "Value": 8003
+  },
+  {
+   "Slot": "Military01",
+   "Item": "int_guardianshieldreinforcement_size5_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 873402
+  },
+  {
+   "Slot": "Military02",
+   "Item": "int_guardianshieldreinforcement_size5_class2",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 873402
+  },
+  {
+   "Slot": "PlanetaryApproachSuite",
+   "Item": "int_planetapproachsuite_advanced",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0,
+   "Value": 438
+  },
+  {
+   "Slot": "TinyHardpoint5",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673791,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 2,
+    "Quality": 0.5,
+    "ExperimentalEffect": "special_shieldbooster_kinetic",
+    "ExperimentalEffect_Localised": "Force Block",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 45.119999,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.32,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "DefenceModifierShieldMultiplier",
+      "Value": 18.800009,
+      "OriginalValue": 20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 8.37,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint6",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673791,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 2,
+    "Quality": 0.5,
+    "ExperimentalEffect": "special_shieldbooster_kinetic",
+    "ExperimentalEffect_Localised": "Force Block",
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 45.119999,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.32,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "DefenceModifierShieldMultiplier",
+      "Value": 18.800009,
+      "OriginalValue": 20.000004,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 8.37,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 6.5,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "TinyHardpoint7",
+   "Item": "hpt_plasmapointdefence_turret_tiny",
+   "On": true,
+   "Priority": 0,
+   "AmmoInClip": 12,
+   "AmmoInHopper": 10000,
+   "Health": 1.0,
+   "Value": 16275
+  },
+  {
+   "Slot": "TinyHardpoint8",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 0,
+   "Health": 1.0,
+   "Value": 246578,
+   "Engineering": {
+    "Engineer": "Lei Cheung",
+    "EngineerID": 300120,
+    "BlueprintID": 128673792,
+    "BlueprintName": "ShieldBooster_Resistive",
+    "Level": 3,
+    "Quality": 0.3333,
+    "Modifiers": [
+     {
+      "Label": "Integrity",
+      "Value": 44.16,
+      "OriginalValue": 48.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "PowerDraw",
+      "Value": 1.38,
+      "OriginalValue": 1.2,
+      "LessIsGood": 1
+     },
+     {
+      "Label": "KineticResistance",
+      "Value": 9.000004,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ThermicResistance",
+      "Value": 9.000004,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     },
+     {
+      "Label": "ExplosiveResistance",
+      "Value": 9.000004,
+      "OriginalValue": 0.0,
+      "LessIsGood": 0
+     }
+    ]
+   }
+  },
+  {
+   "Slot": "VesselVoice",
+   "Item": "voicepack_verity",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "ShipCockpit",
+   "Item": "type9_military_cockpit",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "CargoHatch",
+   "Item": "modularcargobaydoor",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  }
+ ]
+}

@@ -15,6 +15,7 @@ members = [
     "crates/ed-listen",
     "crates/ed-api",
     "src-tauri",
+    "crates/ed-ships",
 ]
 
 [workspace.package]

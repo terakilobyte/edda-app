@@ -59,6 +59,7 @@ ed-eddn = { version = "0.1.0", path = "../crates/ed-eddn" }
 ed-voice = { path = "../crates/ed-voice" }
 ed-route = { path = "../crates/ed-route" }
 ed-galaxy = { path = "../crates/ed-galaxy" }
+ed-ships = { path = "../crates/ed-ships" }
 ed-ebex = { path = "../crates/ed-ebex" }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"

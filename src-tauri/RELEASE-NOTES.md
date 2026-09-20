@@ -64,6 +64,14 @@ account link as its own step, optional and skippable, with the same card
 Settings uses and the same promise: the login is Frontier's, in your
 browser, and nothing from Frontier is sent to EDDA's servers.
 
+**What the plan does to the ship.** The build plan now shows the ship as
+flown and with the plan applied: unladen mass, jump range (full tank,
+laden, and the single-jump maximum) and power drawn against the plant,
+retracted and deployed. Planned blueprints count at a full roll, as EDSY
+shows them. The figures are checked against EDSY on real ships and stay
+within a tenth of a tonne and a hundredth of a light-year. Speed, shields
+and weapons follow.
+
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
 sign-in, in your browser, back to the app). Once linked, the carrier

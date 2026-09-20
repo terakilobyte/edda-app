@@ -487,6 +487,7 @@ pub fn run() {
             commands::blueprint_access,
             commands::build_plan_report,
             commands::import_build,
+            commands::build_performance,
             commands::check_experimental,
             commands::ship_modules,
             commands::ships_list,

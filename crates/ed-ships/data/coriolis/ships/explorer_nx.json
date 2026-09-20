@@ -1,0 +1,205 @@
+{
+  "explorer_nx": {
+    "edID": 129036570,
+    "properties": {
+      "name": "Caspian Explorer",
+      "manufacturer": "Zorgon Peterson",
+      "class": 3,
+      "hullCost": 189326510,
+      "speed": 210,
+      "heatCapacity": 250,
+      "boost": 290,
+      "minthrust": 76.0,
+      "boostEnergy": 25,
+      "boostInt": 5.5,
+      "baseShieldStrength": 500,
+      "baseArmour": 345,
+      "hardness": 60,
+      "hullMass": 950,
+      "masslock": 19,
+      "fighterHangars": true,
+      "pipSpeed": 0.16666666666667,
+      "pitch": 30,
+      "roll": 75,
+      "yaw": 14,
+      "crew": 4,
+      "reserveFuelCapacity": 1.14
+    },
+    "retailCost": 194861290,
+    "bulkheads": [
+      {
+        "id": "6W",
+        "edID": 129036581,
+        "grp": "bh",
+        "cost": 0,
+        "mass": 0,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 0.8,
+        "name": "Lightweight Alloy",
+        "symbol": "Explorer_NX_Armour_Grade1_Default"
+      },
+      {
+        "id": "6R",
+        "edID": 129036571,
+        "grp": "bh",
+        "cost": 9743070,
+        "mass": 15,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 0.8,
+        "name": "Mk II Ablative Lightweight",
+        "symbol": "Explorer_NX_Armour_Grade1"
+      },
+      {
+        "id": "6S",
+        "edID": 129036572,
+        "grp": "bh",
+        "cost": 77944520,
+        "mass": 30,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 1.52,
+        "name": "Mk II Ablative Reinforced",
+        "symbol": "Explorer_NX_Armour_Grade2"
+      },
+      {
+        "id": "6T",
+        "edID": 129036573,
+        "grp": "bh",
+        "cost": 175375160,
+        "mass": 60,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 2.5,
+        "name": "Mk II Ablative Military Grade",
+        "symbol": "Explorer_NX_Armour_Grade3"
+      },
+      {
+        "id": "6U",
+        "edID": 129036574,
+        "grp": "bh",
+        "cost": 414469960,
+        "mass": 60,
+        "causres": 0,
+        "explres": -0.5,
+        "kinres": -0.75,
+        "thermres": 0.5,
+        "hullboost": 2.5,
+        "name": "Mk II Ablative Mirrored",
+        "symbol": "Explorer_NX_Armour_Mirrored"
+      },
+      {
+        "id": "6V",
+        "edID": 129036575,
+        "grp": "bh",
+        "cost": 459288060,
+        "mass": 60,
+        "causres": 0,
+        "explres": 0.2,
+        "kinres": 0.25,
+        "thermres": -0.4,
+        "hullboost": 2.5,
+        "name": "Mk II Ablative Reactive",
+        "symbol": "Explorer_NX_Armour_Reactive"
+      }
+    ],
+    "slots": {
+      "standard": [
+        8,
+        7,
+        8,
+        5,
+        7,
+        8,
+        7
+      ],
+      "hardpoints": [
+        3,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        7,
+        6,
+        6,
+        5,
+        5,
+        5,
+        5,
+        4,
+        4,
+        3,
+        2,
+        1,
+        1,
+        1,
+        {
+          "class": 1,
+          "name": "PlanetaryApproachSuite",
+          "eligible": {
+            "pas": 1
+          }
+        }
+      ]
+    },
+    "defaults": {
+      "standard": [
+        "8E",
+        "7E",
+        "8E",
+        "5E",
+        "7E",
+        "8E",
+        "7C"
+      ],
+      "hardpoints": [
+        0,
+        0,
+        0,
+        17,
+        17,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        "05",
+        "4j",
+        "04",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        "3w",
+        "3x",
+        "4F"
+      ]
+    }
+  }
+}

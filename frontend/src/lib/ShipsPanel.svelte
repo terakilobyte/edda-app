@@ -2,7 +2,7 @@
   import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
-  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport, importBuild, capiRefreshCarrier } from "./api.js";
+  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport, importBuild, capiRefreshCarrier, buildPerformance } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { fmtInt, fmtTs, fmtAge } from "./format.js";
   import { requestPlan } from "./engineering.svelte.js";
@@ -33,6 +33,7 @@
     if (!selected || !build) return;
     rows = planRows(build.modules, readKey(planKey(selected.ship_id), {}, { json: true }) ?? {});
     planReport = null; planMsg = "";
+    refreshPerformance();
     const types = [...new Set(rows.map((r) => r.module_type))].filter((t) => !bpOptions[t]);
     try {
       const got = await Promise.all(types.map((t) => listBlueprintNames(t)));
@@ -42,7 +43,28 @@
     } catch (e) { planMsg = String(e); }
     planning = true;
   }
-  function savePlan() { if (selected) writeKey(planKey(selected.ship_id), savedFrom(rows), { json: true }); }
+  function savePlan() { if (selected) writeKey(planKey(selected.ship_id), savedFrom(rows), { json: true }); refreshPerformance(); }
+
+  // What the plan does to the ship: mass, jump, power, as flown and at a
+  // full roll of every planned blueprint (EDSY's convention). Pinned
+  // against EDSY in ed_ships; shown whenever the rows change.
+  let perf = $state(null);
+  let perfSeq = 0;
+  let imported = $state(null);   // the last imported build (its swaps feed the figures)
+  async function refreshPerformance() {
+    if (!selected) { perf = null; return; }
+    const seq = ++perfSeq;
+    try {
+      // An imported build's swaps count too: the new modules at their base figures, then the plan.
+      const swaps = (imported?.swaps ?? []).map((s) => ({ slot: s.slot, item: s.want_item }));
+      const r = await buildPerformance(selected.ship_id, proposedFor(rows), swaps);
+      if (seq === perfSeq) perf = r;
+    } catch (e) { if (seq === perfSeq) perf = { error: String(e) }; }
+  }
+  const t1 = (n) => (n == null ? "—" : n.toFixed(1));
+  const t2 = (n) => (n == null ? "—" : n.toFixed(2));
+  const pct = (draw, cap) => (cap ? `${Math.round((100 * draw) / cap)}%` : "—");
+  const arrow = (a, b) => (b == null || a === b ? a : `${a} → ${b}`);
   function update(i, patch) {
     const r = { ...rows[i], ...patch };
     if ("blueprint" in patch) {
@@ -72,7 +94,6 @@
   // A build from EDSY or Coriolis (their SLEF export) becomes the plan:
   // what to swap, then the engineering to reach it.
   let importText = $state("");
-  let imported = $state(null);
   let importBusy = $state(false);
   async function runImport() {
     if (!selected || !importText.trim()) return;
@@ -159,7 +180,7 @@
 
   async function pick(s) {
     selected = s; build = null; msg = "";
-    planReport = null; planMsg = "";
+    planReport = null; planMsg = ""; imported = null;
     try { build = await shipModules(s.ship_id); } catch (e) { msg = String(e); }
     // The plan follows the ship: each has its own.
     if (planning && build) await startPlanning();
@@ -318,6 +339,20 @@
         {#each imported.skipped as sk}<div class="warn">{sk}</div>{/each}
       </div>
     {/if}
+    {#if perf && !perf.error}
+      {@const b = perf.before}
+      {@const a = perf.after}
+      <div class="small perf" style="margin-top:0.6rem">
+        <strong>As flown{a ? " → with this plan" : ""}</strong>
+        <span title="Hull and modules, no fuel or cargo">unladen {arrow(t1(b.unladen_mass), a && t1(a.unladen_mass))} t</span>
+        <span title="Full tank, no cargo / full cargo / one jump's fuel only">jump {arrow(t2(b.jump_unladen), a && t2(a.jump_unladen))} ly <span class="muted">(laden {arrow(t2(b.jump_laden), a && t2(a.jump_laden))}, max {arrow(t2(b.jump_max), a && t2(a.jump_max))})</span></span>
+        <span class={(a ?? b).power_deployed > (a ?? b).power_capacity ? "bad" : ""} title="Draw with hardpoints retracted / deployed, against the power plant">power {arrow(pct(b.power_retracted, b.power_capacity), a && pct(a.power_retracted, a.power_capacity))} / {arrow(pct(b.power_deployed, b.power_capacity), a && pct(a.power_deployed, a.power_capacity))} of {arrow(t1(b.power_capacity), a && t1(a.power_capacity))} MW</span>
+        {#if perf.unknown_items.length}<span class="muted" title={perf.unknown_items.join(", ")}>{perf.unknown_items.length} module{perf.unknown_items.length === 1 ? "" : "s"} unknown to the figures</span>{/if}
+        {#each perf.notes as n}<span class="warn">{n}</span>{/each}
+      </div>
+    {:else if perf?.error}
+      <div class="small warn" style="margin-top:0.6rem">{perf.error}</div>
+    {/if}
     <div class="row small" style="margin-top:0.6rem; gap:0.6rem; flex-wrap:wrap">
       <span class="muted">{plannedCount} of {rows.length} modules planned · fitted engineering continues to the top grade unless you change it</span>
       <button class="mini" onclick={() => includeAll(true)}>include all chosen</button>
@@ -412,6 +447,7 @@
 {/if}
 
 <style>
+  .perf { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: baseline; }
 
   .ships { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.5rem; }
   .card { width: 100%; text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); }

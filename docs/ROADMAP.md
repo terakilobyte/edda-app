@@ -370,6 +370,26 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Ship physics, phase 1: mass, jump, power** (2026-09-19, maintainer:
+  "can we work out ship physics like weight and whatnot like edsy and
+  coriolis do to see what the perf would be after engineering?" — and
+  "it's fine if we take the physics stuff", the vendoring call). New crate
+  `ed-ships` with Coriolis's figures vendored (`data/coriolis`, 1.4 MB,
+  upstream 0db9234 of 2026-04-24; Frontier's data under Frontier's terms,
+  see THIRD-PARTY-NOTICES) and the journal's rolled values winning over
+  computed ones. A planned blueprint applies its Coriolis effect ranges
+  at a full roll on the module's base figures, EDSY's convention. The
+  Ships tab's plan shows "as flown → with this plan": unladen mass, jump
+  (full tank / laden / max) and power retracted / deployed against the
+  plant. Pinned against EDSY on the maintainer's Type-10 as flown
+  (`docs/benches/2026-09-19-ship-physics-phase1-vs-edsy.csv`): mass to
+  0.1 t, jump to 0.01 ly, power to 0.1 %. Two facts from the pin: the
+  journal's cockpit and cargo hatch are fixed parts (0 t; the hatch 0.6
+  MW), and EDSY weighs the fuel reserve but does not jump with it. Next
+  phases, each with its own pin: speed and boost (thruster mass curve),
+  shields and armour, weapons (DPS, thermal, distributor). Ships Coriolis
+  lacks (none of the maintainer's; the data has the Caspian, the Panther
+  Mk II, the Type-11, the Kestrel) fall back to the journal's own totals.
 - **Import a build, plan the gap** (2026-09-19, maintainer: "import a
   build from either edsy or coriolis and we calculate what they're
   missing to get to it"). The Ships tab's plan takes a SLEF paste (EDSY

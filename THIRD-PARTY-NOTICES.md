@@ -79,6 +79,24 @@ the page above.
   locations and yields are game facts; the `method` sentences are EDDA's
   own summaries. Used with attribution.
 
+### EDCD/coriolis-data (github.com/EDCD/coriolis-data) — data under Frontier's terms, code MIT
+
+Ship and module figures (hull and module masses, optimal masses, thruster
+and shield curves, weapon damage and rates, power draw, blueprint effect
+ranges, experimental effects) as collected by the Coriolis project.
+Reproduced in this tree as `crates/ed-ships/data/coriolis/` (vendored at
+upstream 0db9234, 2026-04-24; see its README), embedded into `ed-ships`
+at compile time for the Ships tab's performance figures.
+
+Upstream's LICENSE.md states that the data and JSON files are the
+intellectual property and copyright of Frontier Developments plc and are
+subject to Frontier's terms and conditions, and that only Coriolis's own
+code (JavaScript, CSS, HTML, SVG) is MIT. We use none of the code. The
+figures are the game's own numbers, used by every third-party build tool
+under the same terms; we reproduce them with attribution to the
+Coriolis contributors and to Frontier, and will replace or remove them
+if either asks.
+
 ## 3. EDCD/FDevIDs (github.com/EDCD/FDevIDs) — no license file
 
 Frontier's factual ID assignments (commodity and material symbols, display

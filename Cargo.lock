@@ -1611,6 +1611,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed-ships"
+version = "0.1.0"
+dependencies = [
+ "ed-engineering",
+ "ed-journal",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ed-store"
 version = "0.1.0"
 dependencies = [
@@ -1678,6 +1688,7 @@ dependencies = [
  "ed-journal",
  "ed-listen",
  "ed-route",
+ "ed-ships",
  "ed-store",
  "ed-voice",
  "flate2",
