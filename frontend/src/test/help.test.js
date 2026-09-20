@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { topics, routeLegend } from "../lib/helpTopics.js";
 
 // The tabs App.svelte renders; a help chip pointing anywhere else is dead.
-const TABS = ["setup", "trade", "market", "mining", "combat", "missions", "route", "galaxy", "powerplay", "engineering", "inventory", "ships", "planner", "voice", "settings", "help"];
+const TABS = ["setup", "trade", "market", "mining", "combat", "missions", "route", "galaxy", "powerplay", "inventory", "ships", "planner", "voice", "settings", "help"];
 
 describe("help topics", () => {
   it("have unique ids (they are deep-link targets)", () => {
@@ -37,6 +37,8 @@ describe("help topics", () => {
 
   it("does not document removed features", () => {
     const text = JSON.stringify(topics);
+    // The Engineering tab was hidden on 2026-09-20; the Build planner is the way.
+    expect(text).not.toMatch(/Engineering tab/);
     // Kill counting was removed on 2026-09-19; help must not promise it.
     expect(text).not.toMatch(/kills (done|so far|counted)/i);
     // The effort dial was replaced by quick-plot + "Try harder".

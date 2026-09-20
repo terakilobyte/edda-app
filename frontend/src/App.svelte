@@ -14,7 +14,6 @@
   import CombatPanel from "./lib/CombatPanel.svelte";
   import GalaxyPanel from "./lib/GalaxyPanel.svelte";
   import PowerplayPanel from "./lib/PowerplayPanel.svelte";
-  import EngineeringPanel from "./lib/EngineeringPanel.svelte";
   import InventoryPanel from "./lib/InventoryPanel.svelte";
   import VoiceSettings from "./lib/VoiceSettings.svelte";
   import SystemSettings from "./lib/SystemSettings.svelte";
@@ -51,7 +50,6 @@
     ["powerplay", "Powerplay"],
     ["ships", "Ships"],
     ["planner", "Build planner"],
-    ["engineering", "Engineering"],
     ["voice", "Voice"],
     ["settings", "Settings"],
     ["report", "Report"],
@@ -67,8 +65,10 @@
   $effect(() => { if (routing.openTab) { pick("route"); routing.openTab = false; } });
   // A "?" anywhere asks for a Help topic.
   $effect(() => { if (helpStore.requested) pick("help"); });
-  // The Ships tab can hand a module to the Engineering tab.
-  $effect(() => { if (engStore.openTab) { pick("engineering"); engStore.openTab = false; } });
+  // The Engineering tab is hidden since 0.3.5 (maintainer, 2026-09-20: "I
+  // think it's now replaced fully by the build planner"); EngineeringPanel
+  // stays on disk. A module handed over the old way lands on the planner.
+  $effect(() => { if (engStore.openTab) { pick("planner"); engStore.openTab = false; } });
   // The Ships tab's Plan build lands on the Build planner with that ship.
   $effect(() => { if (planner.openTab) { pick("planner"); planner.openTab = false; } });
   let sync = $state(null); // {file, done, total}
@@ -251,7 +251,6 @@
           {:else if k === "route"}<RoutePanel />
           {:else if k === "galaxy"}<GalaxyPanel />
           {:else if k === "powerplay"}<PowerplayPanel />
-          {:else if k === "engineering"}<EngineeringPanel />
           {:else if k === "inventory"}<InventoryPanel />
           {:else if k === "ships"}<ShipsPanel />
           {:else if k === "planner"}<BuildPlannerPanel />

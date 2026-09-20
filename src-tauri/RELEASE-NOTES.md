@@ -103,6 +103,12 @@ shows them. The figures are checked against EDSY on real ships and stay
 within a tenth of a tonne and a hundredth of a light-year. Speed, shields
 and weapons follow.
 
+**The Engineering tab is gone; the Build planner is the way.** One
+module at a time is a whole ship at a time now, so the tab that planned a
+single module is hidden. Plan on a module in the Ships tab opens the Build
+planner on that ship; everything the old tab knew (blueprint costs, your
+materials, trader rates, engineers) lives there.
+
 **Engineers: everyone who can do the job, with how far they go.** The
 Engineering tab listed only the engineers who offer the grade you asked
 for, and it asks for the top grade by default, so an engineer who stops
