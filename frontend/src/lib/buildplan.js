@@ -167,3 +167,44 @@ export function blocked(report) {
   }
   return [...groups.values()].map((g) => ({ ...g, count: g.slots.length, slots: compactSlots(g.slots) }));
 }
+
+/**
+ * An imported build laid over the rows: every engineered module of the
+ * build becomes that slot's plan (a swapped module starts from grade 0,
+ * the same blueprint continues from the fitted grade, a module the ship
+ * already has is left unticked), a slot the ship has empty gets a row,
+ * and everything the build does not engineer is unticked.
+ */
+export function applyImport(rows, imported) {
+  const bySlot = new Map((imported?.items ?? []).map((it) => [it.slot, it]));
+  const out = rows.map((r) => {
+    const it = bySlot.get(r.slot);
+    if (!it) return { ...r, include: false };
+    return {
+      ...r,
+      item_name: it.item_name,
+      module_type: it.module_type,
+      blueprint: it.blueprint ?? "",
+      from_grade: it.from_grade,
+      target_grade: it.target_grade,
+      experimental: it.experimental ?? "",
+      include: !it.done,
+    };
+  });
+  const have = new Set(rows.map((r) => r.slot));
+  for (const it of imported?.items ?? []) {
+    if (have.has(it.slot)) continue;
+    out.push({
+      slot: it.slot,
+      slot_name: it.slot_name,
+      item_name: it.item_name,
+      module_type: it.module_type,
+      blueprint: it.blueprint ?? "",
+      from_grade: it.from_grade,
+      target_grade: it.target_grade,
+      experimental: it.experimental ?? "",
+      include: !it.done,
+    });
+  }
+  return out;
+}

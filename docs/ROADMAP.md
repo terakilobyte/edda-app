@@ -370,6 +370,19 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Import a build, plan the gap** (2026-09-19, maintainer: "import a
+  build from either edsy or coriolis and we calculate what they're
+  missing to get to it"). The Ships tab's plan takes a SLEF paste (EDSY
+  and Coriolis both export the journal Loadout) and diffs it against the
+  ship as flown: modules to swap (fitted → wanted, per slot), then every
+  engineered module of the build as a plan row — same blueprint continues
+  from the fitted grade, a swapped module or another blueprint starts at
+  grade 0, a module the ship already has is left unticked. From there the
+  whole-build report applies unchanged. Coriolis's JSON export is refused
+  with the way out (it names modules Coriolis's way; its reshaping serves
+  the route planner's drive only). Experimental effects arrive as journal
+  symbols; `experimental_for_symbol` maps the 90 of them to blueprint-data
+  names (from Coriolis's specials list; three matched by hand).
 - **Plan the whole build at once** (2026-09-19, maintainer: "my type 10
   has 9 weapon hardpoints — I'd like to be able to plan out all 9 at once
   and get the list. It should generalize to planning all hardpoints").

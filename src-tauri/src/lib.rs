@@ -1,6 +1,7 @@
 #![recursion_limit = "512"]
 mod ai;
 mod app_update;
+mod build_import;
 mod build_plan;
 mod callouts;
 mod carrier_follow;
@@ -485,6 +486,7 @@ pub fn run() {
             commands::check_blueprint,
             commands::blueprint_access,
             commands::build_plan_report,
+            commands::import_build,
             commands::check_experimental,
             commands::ship_modules,
             commands::ships_list,

@@ -675,6 +675,13 @@ pub(crate) fn access_for(
     Some((access, reachable, max_reachable_grade))
 }
 
+/// A pasted build (EDSY or Coriolis SLEF) against the ship as flown: the
+/// modules to swap and the engineering to do. See `build_import`.
+#[tauri::command]
+pub async fn import_build(state: State<'_, AppState>, ship_id: Option<i64>, text: String) -> Result<crate::build_import::ImportedBuild, String> {
+    crate::build_import::import(state.inner(), ship_id, &text)
+}
+
 /// The whole build's plan in one report: pooled materials, one shopping
 /// list, the fewest engineers to visit. See `build_plan`.
 #[tauri::command]
@@ -737,7 +744,7 @@ pub struct ShipModule {
 }
 
 /// The latest `Loadout` for one ship (by the game's ShipID), or the current ship.
-fn loadout_raw(state: &AppState, ship_id: Option<i64>) -> Result<String, String> {
+pub(crate) fn loadout_raw(state: &AppState, ship_id: Option<i64>) -> Result<String, String> {
     match ship_id {
         None => state.with_read(|s| ed_store::session::latest_event_raw(s.conn(), "Loadout")).map_err(err)?.ok_or_else(|| "no Loadout in the journal yet".into()),
         Some(id) => state

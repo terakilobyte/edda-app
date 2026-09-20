@@ -316,3 +316,114 @@ mod tests {
         assert_eq!(blueprint_for_symbol("Future_Blueprint", "Thrusters"), None);
     }
 }
+
+/// Blueprint-data name for a journal experimental-effect symbol
+/// (`special_weapon_damage` -> "Oversized"). The journal usually carries
+/// the localised name beside the symbol; a SLEF from another app may not.
+/// Symbols are Frontier's; the names are the ones in `blueprints.json`.
+pub fn experimental_for_symbol(symbol: &str) -> Option<&'static str> {
+    let s = symbol.to_ascii_lowercase();
+    Some(match s.as_str() {
+        "special_armour_chunky" => "Deep Plating",
+        "special_armour_explosive" => "Layered Plating",
+        "special_armour_kinetic" => "Angled Plating",
+        "special_armour_thermic" => "Reflective Plating",
+        "special_auto_loader" => "Auto Loader",
+        "special_blinding_shell" => "Dazzle Shell",
+        "special_concordant_sequence" => "Concordant Sequence",
+        "special_corrosive_shell" => "Corrosive Shell",
+        "special_deep_cut_payload" => "Penetrator Payload",
+        "special_dispersal_field" => "Dispersal Field",
+        "special_distortion_field" => "Inertial Impact",
+        "special_drag_munitions" => "Drag Munition",
+        "special_emissive_munitions" => "Emissive Munitions",
+        "special_engine_cooled" => "Thermal Spread",
+        "special_engine_haulage" => "Drive Distributors",
+        "special_engine_lightweight" => "Stripped Down",
+        "special_engine_overloaded" => "Drag Drives",
+        "special_engine_toughened" => "Double Braced",
+        "special_feedback_cascade" => "Feedback Cascade",
+        "special_feedback_cascade_cooled" => "Feedback Cascade",
+        "special_force_shell" => "Force Shell",
+        "special_fsd_cooled" => "Thermal Spread",
+        "special_fsd_fuelcapacity" => "Deep Charge",
+        "special_fsd_heavy" => "Mass Manager",
+        "special_fsd_interrupt" => "FSD Interrupt (Dumbfire only)",
+        "special_fsd_lightweight" => "Stripped Down",
+        "special_fsd_toughened" => "Double Braced",
+        "special_high_yield_shell" => "High Yield Shell",
+        "special_hullreinforcement_chunky" => "Deep Plating",
+        "special_hullreinforcement_explosive" => "Layered Plating",
+        "special_hullreinforcement_kinetic" => "Angled Plating",
+        "special_hullreinforcement_thermic" => "Reflective Plating",
+        "special_incendiary_rounds" => "Incendiary Rounds",
+        "special_ion_disruptor" => "Ion Disruptor",
+        "special_lock_breaker" => "Target Lock Breaker",
+        "special_mass_lock" => "Mass Lock Munition",
+        "special_mass_lock_munition" => "Mass Lock Munition",
+        "special_overload_munitions" => "Overload Munitions",
+        "special_penetrator_munitions" => "Penetrator Munitions (Dumbfire only)",
+        "special_penetrator_payload" => "Penetrator Payload",
+        "special_phasing_sequence" => "Phasing Sequence",
+        "special_plasma_slug" => "Plasma Slug",
+        "special_plasma_slug_cooled" => "Plasma Slug",
+        "special_plasma_slug_pa" => "Plasma Slug",
+        "special_powerdistributor_capacity" => "Cluster Capacitor",
+        "special_powerdistributor_efficient" => "Flow Control",
+        "special_powerdistributor_fast" => "Super Conduits",
+        "special_powerdistributor_lightweight" => "Stripped Down",
+        "special_powerdistributor_toughened" => "Double Braced",
+        "special_powerplant_cooled" => "Thermal Spread",
+        "special_powerplant_highcharge" => "Monstered",
+        "special_powerplant_lightweight" => "Stripped Down",
+        "special_powerplant_toughened" => "Double Braced",
+        "special_radiant_canister" => "Radiant Canister",
+        "special_regeneration_sequence" => "Regeneration Sequence",
+        "special_reverberating_cascade" => "Reverberating Cascade",
+        "special_scramble_spectrum" => "Scramble Spectrum",
+        "special_screening_shell" => "Screening Shell",
+        "special_shield_efficient" => "Lo-draw",
+        "special_shield_health" => "Hi-cap",
+        "special_shield_kinetic" => "Force Block",
+        "special_shield_lightweight" => "Stripped Down",
+        "special_shield_regenerative" => "Fast Charge",
+        "special_shield_resistive" => "Multi-weave",
+        "special_shield_thermic" => "Thermo Block",
+        "special_shield_toughened" => "Double Braced",
+        "special_shieldbooster_chunky" => "Super Capacitor",
+        "special_shieldbooster_efficient" => "Flow Control",
+        "special_shieldbooster_explosive" => "Blast Block",
+        "special_shieldbooster_kinetic" => "Force Block",
+        "special_shieldbooster_thermic" => "Thermo Block",
+        "special_shieldbooster_toughened" => "Double Braced",
+        "special_shieldcell_efficient" => "Flow Control",
+        "special_shieldcell_gradual" => "Recycling Cells",
+        "special_shieldcell_lightweight" => "Stripped Down",
+        "special_shieldcell_oversized" => "Boss Cells",
+        "special_shieldcell_toughened" => "Double Braced",
+        "special_shiftlock_canister" => "Shift-Lock Canister",
+        "special_smart_rounds" => "Smart Rounds",
+        "special_super_penetrator" => "Super Penetrator",
+        "special_super_penetrator_cooled" => "Super Penetrator",
+        "special_thermal_cascade" => "Thermal Cascade",
+        "special_thermal_conduit" => "Thermal Conduit",
+        "special_thermal_vent" => "Thermal Vent",
+        "special_thermalshock" => "Thermal Shock",
+        "special_weapon_damage" => "Oversized",
+        "special_weapon_efficient" => "Flow Control",
+        "special_weapon_lightweight" => "Stripped Down",
+        "special_weapon_rateoffire" => "Multi-Servos",
+        "special_weapon_toughened" => "Double Braced",
+        _ => return None,
+    })
+}
+
+#[cfg(test)]
+mod experimental_symbol_tests {
+    #[test]
+    fn journal_symbols_map_to_blueprint_data_names() {
+        assert_eq!(super::experimental_for_symbol("special_weapon_damage"), Some("Oversized"));
+        assert_eq!(super::experimental_for_symbol("SPECIAL_FSD_HEAVY"), Some("Mass Manager"));
+        assert_eq!(super::experimental_for_symbol("special_nothing"), None);
+    }
+}
