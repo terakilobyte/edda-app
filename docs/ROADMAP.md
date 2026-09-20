@@ -390,6 +390,34 @@ verdicts live in the CSV headers under `docs/benches/`.
   shields and armour, weapons (DPS, thermal, distributor). Ships Coriolis
   lacks (none of the maintainer's; the data has the Caspian, the Panther
   Mk II, the Type-11, the Kestrel) fall back to the journal's own totals.
+- **Printed names are EDCD's, and Frontier's** (2026-09-20, maintainer:
+  "every ship name, every module name, every commodity, every material,
+  every everything has a coded name and a printed name and we should be
+  exact"; "no mismatch between us, EDDN, EDMC, EDCD"). Measured first
+  (`docs/benches/2026-09-20-edcd-name-exactness.csv`): materials 137/137
+  and commodities 270/270 exact; ships 39/48 and modules 1041/1236 from
+  hand tables; rare commodities absent. Two facts decided the rule.
+  The journal's `*_Localised` module strings are the ship panel's SHORT
+  forms ("FSD (SCO)", "Frag Cannon", "K-Warrant Scanner"), none of them
+  in EDCD's table — a first check that read "156 of 156 agree" had
+  skipped exactly those rows and counted nothing (instrument error,
+  retracted the same night) — so modules print EDCD's outfitting-screen
+  name, the one EDMC and EDDN use, and the short forms are a second
+  namespace not yet carried; and Frontier writes "Krait Mk II"
+  where EDCD's shipyard table writes "Krait MkII" — so ships print
+  EDCD's name with Frontier's mark spacing. FDevIDs `outfitting.csv`,
+  `shipyard.csv`, `rare_commodity.csv`, `microresources.csv` and
+  `engineers.csv` are vendored; `item_name` and `display_name` read the
+  tables first and keep the hand tables only as the fallback for a
+  symbol newer than the table; rare goods join the catalog; "Tod
+  McQuinn" is spelled as the journal spells him (the nickname in), which
+  is why he never showed as unlocked. Gates:
+  `crates/ed-journal/tests/edcd_exact.rs` (every table row, and
+  Frontier's strings from the journal as a fixture) and the
+  engineer-spelling test. EDMC's own ship map is inconsistent on the
+  same spacing ("Cobra MkIII", "Python Mk II"), so Frontier's strings
+  are the tiebreak, not EDMC. Not yet in the catalog: Odyssey
+  microresources as a kind of their own.
 - **Import a build, plan the gap** (2026-09-19, maintainer: "import a
   build from either edsy or coriolis and we calculate what they're
   missing to get to it"). The Ships tab's plan takes a SLEF paste (EDSY

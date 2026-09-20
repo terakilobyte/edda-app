@@ -118,7 +118,10 @@ Juri Ishmaak, the three scanners to grade 3) and a test now holds it. A
 system in the Galaxy tab's services results plots a route, like
 everywhere else. The Rhino's Large and Mk II Large
 Planetary Vehicle Hangars are named like outfitting. The "What's new"
-sheet closes when you click outside it.
+sheet closes when you click outside it. Every ship, module, material and
+commodity name EDDA prints is now the game's own spelling, held to
+EDCD's tables and to the strings in your journal by tests; rare goods
+have names too.
 
 ## 0.3.4
 

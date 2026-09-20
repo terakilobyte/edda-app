@@ -149,6 +149,16 @@ impl Catalog {
         }
     }
 
+    /// The journal's spelling of an engineer where EDEngineer's differs:
+    /// `EngineerProgress` (and EDCD's engineers.csv) write the nickname in,
+    /// so "Tod McQuinn" never matched an unlocked engineer (2026-09-20).
+    fn canonical_engineer(name: &str) -> &str {
+        match name {
+            "Tod McQuinn" => "Tod 'The Blaster' McQuinn",
+            other => other,
+        }
+    }
+
     pub fn load() -> Self {
         let mut blueprints: Vec<Blueprint> =
             serde_json::from_str(BLUEPRINTS_JSON).expect("bundled blueprints.json must parse");
@@ -157,6 +167,12 @@ impl Catalog {
                 let canon = Self::canonical_material(&i.name);
                 if canon != i.name {
                     i.name = canon.to_string();
+                }
+            }
+            for e in &mut b.engineers {
+                let canon = Self::canonical_engineer(e);
+                if canon != e {
+                    *e = canon.to_string();
                 }
             }
         }
@@ -527,6 +543,19 @@ mod tests {
         }
         bad.sort(); bad.dedup();
         assert!(bad.is_empty(), "not the game's names: {bad:?}");
+    }
+
+    /// Every engineer on a blueprint is spelled as the journal spells them
+    /// (EDCD's engineers.csv carries the journal's strings), or the unlock
+    /// check can never find them.
+    #[test]
+    fn blueprint_engineers_are_spelled_as_the_journal_spells_them() {
+        let csv = include_str!("../../ed-journal/data/engineers.csv");
+        let names: std::collections::HashSet<&str> = csv.lines().skip(1).filter_map(|l| l.split(',').nth(3)).map(str::trim).collect();
+        let lib = Catalog::load();
+        let mut bad: Vec<String> = lib.blueprints.iter().flat_map(|b| b.engineers.iter()).filter(|e| !e.starts_with('@') && !names.contains(e.as_str())).cloned().collect();
+        bad.sort(); bad.dedup();
+        assert!(bad.is_empty(), "not the journal's spelling: {bad:?}");
     }
 
     #[test]

@@ -102,7 +102,45 @@ pub fn complete(prefix: &str, limit: usize) -> Vec<&'static str> {
     out
 }
 
+/// EDCD's shipyard table (FDevIDs `shipyard.csv`, vendored), symbol -> name,
+/// with Frontier's own spacing: the game prints "Krait Mk II" and "Python
+/// Mk II" (its `Ship_Localised`), where the table writes "Krait MkII" —
+/// measured on the maintainer's journal 2026-09-20 (tests/fixtures/
+/// frontier_names.json). The hand table below is the fallback for a
+/// symbol newer than the table.
+fn shipyard_table() -> &'static std::collections::HashMap<String, String> {
+    static TABLE: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        include_str!("../data/shipyard.csv")
+            .lines()
+            .skip(1)
+            .filter_map(|line| {
+                // id,symbol,name,entitlement
+                let cols: Vec<&str> = line.split(',').collect();
+                (cols.len() >= 3).then(|| (cols[1].trim().to_ascii_lowercase(), frontier_mark_spacing(cols[2].trim())))
+            })
+            .collect()
+    })
+}
+
+/// "Cobra MkIII" -> "Cobra Mk III": the game's own spacing of marks.
+pub fn frontier_mark_spacing(name: &str) -> String {
+    let mut out = name.to_string();
+    for (from, to) in [("MkIII", "Mk III"), ("MkII", "Mk II"), ("MkIV", "Mk IV"), ("MkV", "Mk V")] {
+        out = out.replace(from, to);
+    }
+    out
+}
+
 pub fn display_name(symbol: &str) -> String {
+    let s = symbol.trim().to_ascii_lowercase();
+    if let Some(name) = shipyard_table().get(&s) {
+        return name.clone();
+    }
+    display_name_fallback(&s)
+}
+
+fn display_name_fallback(symbol: &str) -> String {
     let s = symbol.trim().to_ascii_lowercase();
     let known = match s.as_str() {
         "adder" => "Adder",

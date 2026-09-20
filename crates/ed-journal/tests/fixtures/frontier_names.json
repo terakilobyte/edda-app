@@ -1,0 +1,16 @@
+{
+  "source": "Frontier's own localised strings as written in the maintainer's journal (Loadout Ship_Localised, StoredShips ShipType_Localised, Module* *_Localised, StoredModules Name_Localised), read 2026-09-20. These are the printed names the game itself uses; where EDCD's tables and these disagree (the Mk spacing on ships), these win. Module strings keep only the outfitting-screen names (ModuleBuy/ModuleSell/StoredModules); the ship panel's short forms ('FSD (SCO)', 'Frag Cannon') are another printed namespace and are not pinned.",
+  "ships": {
+    "asp": "Asp Explorer",
+    "explorer_nx": "Caspian Explorer",
+    "federation_dropship_mkii": "Federal Assault Ship",
+    "federation_gunship": "Federal Gunship",
+    "krait_mkii": "Krait Mk II",
+    "lakonminer": "Type-11 Prospector",
+    "panthermkii": "Panther Clipper Mk II",
+    "python_nx": "Python Mk II",
+    "smallcombat01_nx": "Kestrel Mk II",
+    "type9_military": "Type-10 Defender"
+  },
+  "modules": {}
+}

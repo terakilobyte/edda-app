@@ -104,7 +104,80 @@ mod search_fragment_tests {
     }
 }
 
+/// EDCD's outfitting table (FDevIDs `outfitting.csv`, vendored): the base
+/// row per symbol (the `entitlement` column empty — pre-engineered and
+/// Powerplay variants share a symbol and are not told apart by a Loadout).
+/// Frontier's own `*_Localised` strings agree with it on every one of the
+/// 156 modules in the maintainer's journal (2026-09-20), so it is the
+/// printed name; the hand table below is only the fallback for a symbol
+/// newer than the table.
+struct OutfittingRow {
+    name: &'static str,
+    mount: &'static str,
+    class: &'static str,
+    rating: &'static str,
+}
+
+fn outfitting_table() -> &'static std::collections::HashMap<String, OutfittingRow> {
+    static TABLE: std::sync::OnceLock<std::collections::HashMap<String, OutfittingRow>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let csv = include_str!("../data/outfitting.csv");
+        let mut map = std::collections::HashMap::new();
+        for line in csv.lines().skip(1) {
+            // id,symbol,category,name,mount,guidance,ship,class,rating,entitlement
+            let cols: Vec<&str> = line.split(',').collect();
+            if cols.len() < 10 || !cols[9].trim().is_empty() {
+                continue;
+            }
+            map.entry(cols[1].trim().to_ascii_lowercase()).or_insert(OutfittingRow {
+                name: cols[3].trim(),
+                mount: cols[4].trim(),
+                class: cols[7].trim(),
+                rating: cols[8].trim(),
+            });
+        }
+        map
+    })
+}
+
+/// A journal item symbol, bare or wrapped (`$hpt_pulselaser_fixed_small_name;`).
+fn bare_symbol(symbol: &str) -> String {
+    let s = symbol.trim().to_ascii_lowercase();
+    s.strip_prefix('$').and_then(|r| r.strip_suffix("_name;")).map(str::to_string).unwrap_or(s)
+}
+
+/// The outfitting name for a journal item symbol: EDCD's name, then the
+/// class and rating as the game's outfitting screen shows them ("Fuel
+/// Scoop 7A"; a weapon "Pulse Laser (fixed, small)").
 pub fn item_name(symbol: &str) -> String {
+    let s = bare_symbol(symbol);
+    let Some(row) = outfitting_table().get(&s) else { return item_name_fallback(&s) };
+    let is_hardpoint = s.starts_with("hpt_");
+    if is_hardpoint {
+        let mount = match row.mount {
+            "Fixed" => Some("fixed"),
+            "Gimballed" => Some("gimballed"),
+            "Turreted" => Some("turreted"),
+            _ => None,
+        };
+        let size = match row.class {
+            "0" => Some("0"),
+            "1" => Some("small"),
+            "2" => Some("medium"),
+            "3" => Some("large"),
+            "4" => Some("huge"),
+            _ => None,
+        };
+        let detail: Vec<&str> = [mount, size].into_iter().flatten().collect();
+        return if detail.is_empty() { row.name.to_string() } else { format!("{} ({})", row.name, detail.join(", ")) };
+    }
+    if s.contains("_armour_") || s.contains("_cockpit") || row.class.is_empty() {
+        return row.name.to_string();
+    }
+    format!("{} {}{}", row.name, row.class, row.rating)
+}
+
+fn item_name_fallback(symbol: &str) -> String {
     let s = symbol.to_ascii_lowercase();
     let parts: Vec<&str> = s.split('_').collect();
     // Size/class from `sizeN_classM` -> "NA".
@@ -363,7 +436,8 @@ mod tests {
     fn names_read_like_outfitting() {
         assert_eq!(
             item_name("int_hyperdrive_overcharge_size8_class5_overchargebooster_mkii"),
-            "Frame Shift Drive (SCO) Mk II 8A"
+            // EDCD's outfitting name, as the outfitting screen prints it.
+            "Mk II Supercharge Optimised Frame Shift Drive (SCO) 8A"
         );
         assert_eq!(item_name("int_fuelscoop_size7_class5"), "Fuel Scoop 7A");
         assert_eq!(item_name("int_engine_size6_class2"), "Thrusters 6D");
