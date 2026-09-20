@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { topics, routeLegend } from "../lib/helpTopics.js";
 
 // The tabs App.svelte renders; a help chip pointing anywhere else is dead.
-const TABS = ["setup", "trade", "market", "mining", "combat", "missions", "route", "galaxy", "powerplay", "engineering", "inventory", "ships", "voice", "settings", "help"];
+const TABS = ["setup", "trade", "market", "mining", "combat", "missions", "route", "galaxy", "powerplay", "engineering", "inventory", "ships", "planner", "voice", "settings", "help"];
 
 describe("help topics", () => {
   it("have unique ids (they are deep-link targets)", () => {

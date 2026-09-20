@@ -407,6 +407,16 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Build planner is its own tab** (2026-09-20, maintainer, first flight of
+  the plan: the Import build and include buttons were "a hell of a lot
+  smaller than other buttons", and "it might be good to have a build
+  planner page with a dropdown of ships to select, and the plan build
+  button on the ships page can just link to that"). `BuildPlannerPanel`
+  with a ship dropdown (the flown ship by default), the import box as a
+  proper block with full-size buttons, the plan table, figures and report
+  moved out of `ShipsPanel` unchanged; `planner.svelte.js` is the hand-off
+  (Plan build → the planner on that ship), the same shape as the
+  Engineering tab's. Help chips and the notes point at the tab.
 - **Customisable HUD** (2026-09-20, maintainer: "I'd like to get the
   customizeable hud in too"). The overlay's nine lines are now named
   sections (`frontend/src/lib/hudLayout.js`: location, Powerplay, next,
