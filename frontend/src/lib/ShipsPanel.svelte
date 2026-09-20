@@ -8,7 +8,7 @@
   import { requestPlan } from "./engineering.svelte.js";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { KEYS, readKey, writeKey } from "./storage.svelte.js";
-  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork } from "./buildplan.js";
+  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
 
   // Plan the whole build at once (maintainer, 2026-09-19: "my type 10 has 9
@@ -322,15 +322,22 @@
       </div>
 
       <h3 style="margin-top:0.8rem">Engineers to visit <span class="muted">fewest stops that cover the plan</span></h3>
-      {#each planReport.engineers as stop}
-        <div class="small" style="margin:0.3rem 0"><strong>{stop.engineer}</strong>{stop.rank ? ` · rank ${stop.rank}` : ""}: {stop.jobs.join("; ")}</div>
+      {#each itinerary(planReport) as stop}
+        <div class="small" style="margin:0.3rem 0"><strong>{stop.engineer}</strong>{stop.rank ? ` · rank ${stop.rank}` : ""}
+          {#each stop.jobs as j}<div style="margin-left:1rem">{j.count > 1 ? `${j.count} × ` : ""}{j.module_type} {j.what} <span class="muted">({j.slots})</span></div>{/each}
+        </div>
       {/each}
-      {#each planReport.unassigned as job}
-        <div class="small bad" style="margin:0.3rem 0">{job}: no unlocked engineer offers this grade.</div>
-      {/each}
-      {#each planReport.items.filter((it) => it.blueprint && !it.reachable) as it}
-        <div class="small muted">{it.slot_name}: {it.max_reachable_grade ? `highest you can apply today is grade ${it.max_reachable_grade}` : "no unlocked engineer works this blueprint"} — {it.engineers.map((e) => `${e.engineer} to G${e.max_grade} (${e.status})`).join(", ")}</div>
-      {/each}
+      {#if blocked(planReport).length}
+        <h3 style="margin-top:0.6rem">Not reachable yet <span class="muted">no unlocked engineer offers the asked grade</span></h3>
+        {#each blocked(planReport) as b}
+          <div class="small" style="margin:0.3rem 0"><span class="bad">{b.count > 1 ? `${b.count} × ` : ""}{b.module_type} {b.what}</span> <span class="muted">({b.slots})</span>
+            <div style="margin-left:1rem">
+              {#if b.max_reachable_grade}Today: to G{b.max_reachable_grade} with {b.today.join(" or ")}.{:else}Nobody unlocked works this blueprint.{/if}
+              {#if b.unlock.length}For G{b.target_grade}: unlock {b.unlock.map((u) => `${u.engineer} (${u.status.toLowerCase()})`).join(" or ")}.{/if}
+            </div>
+          </div>
+        {/each}
+      {/if}
 
       <ShoppingReport shopping={planReport.shopping} picked={planPicked} onToggle={togglePlanPick} />
     {/if}

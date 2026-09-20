@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork } from "../lib/buildplan.js";
+import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked } from "../lib/buildplan.js";
 
 // A Type-10's business end: nine hardpoints, one already engineered.
 const modules = [
@@ -93,5 +93,46 @@ describe("planRequest / proposedFor / savedFrom", () => {
 
   it("counts rows per module type", () => {
     expect([...groupCounts(planRows(modules))]).toEqual([["Pulse Laser", 2], ["Multi-cannon", 1], ["Power Distributor", 1]]);
+  });
+});
+
+describe("the report reads as groups, not one line per slot", () => {
+  it("folds slot names into ranges", () => {
+    expect(compactSlots(["Large hardpoint 1", "Large hardpoint 2", "Large hardpoint 3", "Large hardpoint 4", "Medium hardpoint 1", "Medium hardpoint 2", "Medium hardpoint 3", "Small hardpoint 1", "Small hardpoint 2"]))
+      .toBe("Large hardpoints 1–4; Medium hardpoints 1–3; Small hardpoints 1–2");
+    expect(compactSlots(["Utility 1", "Utility 2", "Utility 3", "Utility 5", "Utility 6", "Utility 8"])).toBe("Utility 1–3, 5–6, 8");
+    expect(compactSlots(["Power Plant", "Utility 4"])).toBe("Power Plant; Utility 4");
+  });
+
+  // The maintainer's Type-10 plan, 2026-09-19: Long Range lasers to The
+  // Dweller, six shield boosters and a power plant nobody unlocked takes
+  // to G5. Twenty-two lines became four.
+  const report = {
+    engineers: [{ engineer: "The Dweller", rank: 5, jobs: [] }],
+    items: [
+      ...[1, 2, 3, 4].map((n) => ({ slot_name: `Large hardpoint ${n}`, module_type: "Pulse Laser", blueprint: "Long Range Weapon", target_grade: 4, reachable: true, assigned_to: "The Dweller", engineers: [] })),
+      ...[1, 2, 3].map((n) => ({ slot_name: `Medium hardpoint ${n}`, module_type: "Pulse Laser", blueprint: "Long Range Weapon", target_grade: 4, reachable: true, assigned_to: "The Dweller", engineers: [] })),
+      { slot_name: "Power Plant", module_type: "Power Plant", blueprint: "Overcharged", target_grade: 5, reachable: false, max_reachable_grade: 4, assigned_to: null,
+        engineers: [{ engineer: "Etienne Dorn", max_grade: 5, unlocked: false, status: "Not known" }, { engineer: "Felicity Farseer", max_grade: 1, unlocked: true, status: "Unlocked" }, { engineer: "Marco Qwent", max_grade: 4, unlocked: true, status: "Unlocked" }] },
+      ...[1, 2, 3, 5, 6, 8].map((n) => ({ slot_name: `Utility ${n}`, module_type: "Shield Booster", blueprint: "Resistance Augmented", target_grade: 5, reachable: false, max_reachable_grade: 3, assigned_to: null,
+        engineers: [{ engineer: "Didi Vatermann", max_grade: 5, unlocked: false, status: "Not known" }, { engineer: "Lei Cheung", max_grade: 3, unlocked: true, status: "Unlocked" }, { engineer: "Mel Brandon", max_grade: 5, unlocked: false, status: "Known" }] })),
+      { slot_name: "Power Distributor", module_type: "Power Distributor", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Conduits" },
+    ],
+  };
+
+  it("one line per engineer, jobs grouped by blueprint and grade with the slots folded", () => {
+    expect(itinerary(report)).toEqual([
+      { engineer: "The Dweller", rank: 5, jobs: [{ what: "Long Range Weapon G4", module_type: "Pulse Laser", count: 7, slots: "Large hardpoints 1–4; Medium hardpoints 1–3" }] },
+    ]);
+  });
+
+  it("what is blocked is grouped, with who takes it part-way today and who to unlock", () => {
+    const b = blocked(report);
+    expect(b.map((g) => [g.what, g.count, g.slots])).toEqual([
+      ["Overcharged G5", 1, "Power Plant"],
+      ["Resistance Augmented G5", 6, "Utility 1–3, 5–6, 8"],
+    ]);
+    expect(b[1]).toMatchObject({ max_reachable_grade: 3, today: ["Lei Cheung"], unlock: [{ engineer: "Didi Vatermann", status: "Not known" }, { engineer: "Mel Brandon", status: "Known" }] });
+    expect(b[0]).toMatchObject({ today: ["Marco Qwent"], unlock: [{ engineer: "Etienne Dorn", status: "Not known" }] });
   });
 });
