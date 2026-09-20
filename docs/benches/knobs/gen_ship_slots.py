@@ -76,6 +76,18 @@ def main():
             k["exact_size"] = True
         kinds[fd.lower()] = k
 
+    # ---- bulkheads: each hull's five armour modules live in the hull's own
+    # entry, not the shared module table (maintainer, 2026-09-20: "we seem
+    # to be missing the various bulkheads"). Bound to their hull.
+    ARMOUR = {"grade1": "Lightweight Alloy", "grade2": "Reinforced Alloy", "grade3": "Military Grade Composite", "mirrored": "Mirrored Surface Composite", "reactive": "Reactive Surface Composite"}
+    for sid, s in ships.items():
+        for mid, m in (s.get("module") or {}).items():
+            fd = m.get("fdname")
+            if not fd or "_armour_" not in fd.lower():
+                continue
+            grade = fd.lower().rsplit("_", 1)[-1]
+            kinds[fd.lower()] = {"kind": "cbh", "class": 1, "rating": "", "name": ARMOUR.get(grade, "Bulkheads"), "ships": [s["fdname"].lower()]}
+
     # ---- ship slots
     out = {}
     for sid, s in ships.items():

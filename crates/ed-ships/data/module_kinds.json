@@ -1,4 +1,1093 @@
 {
+ "adder_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "adder"
+  ]
+ },
+ "adder_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "adder"
+  ]
+ },
+ "adder_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "adder"
+  ]
+ },
+ "adder_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "adder"
+  ]
+ },
+ "adder_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "adder"
+  ]
+ },
+ "anaconda_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "anaconda"
+  ]
+ },
+ "anaconda_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "anaconda"
+  ]
+ },
+ "anaconda_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "anaconda"
+  ]
+ },
+ "anaconda_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "anaconda"
+  ]
+ },
+ "anaconda_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "anaconda"
+  ]
+ },
+ "asp_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "asp"
+  ]
+ },
+ "asp_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "asp"
+  ]
+ },
+ "asp_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "asp"
+  ]
+ },
+ "asp_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "asp"
+  ]
+ },
+ "asp_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "asp"
+  ]
+ },
+ "asp_scout_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "asp_scout"
+  ]
+ },
+ "asp_scout_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "asp_scout"
+  ]
+ },
+ "asp_scout_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "asp_scout"
+  ]
+ },
+ "asp_scout_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "asp_scout"
+  ]
+ },
+ "asp_scout_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "asp_scout"
+  ]
+ },
+ "belugaliner_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "belugaliner"
+  ]
+ },
+ "belugaliner_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "belugaliner"
+  ]
+ },
+ "belugaliner_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "belugaliner"
+  ]
+ },
+ "belugaliner_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "belugaliner"
+  ]
+ },
+ "belugaliner_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "belugaliner"
+  ]
+ },
+ "cobramkiii_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkiii"
+  ]
+ },
+ "cobramkiii_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkiii"
+  ]
+ },
+ "cobramkiii_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiii"
+  ]
+ },
+ "cobramkiii_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiii"
+  ]
+ },
+ "cobramkiii_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiii"
+  ]
+ },
+ "cobramkiv_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkiv"
+  ]
+ },
+ "cobramkiv_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkiv"
+  ]
+ },
+ "cobramkiv_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiv"
+  ]
+ },
+ "cobramkiv_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiv"
+  ]
+ },
+ "cobramkiv_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkiv"
+  ]
+ },
+ "cobramkv_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkv"
+  ]
+ },
+ "cobramkv_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "cobramkv"
+  ]
+ },
+ "cobramkv_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "cobramkv"
+  ]
+ },
+ "cobramkv_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkv"
+  ]
+ },
+ "cobramkv_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "cobramkv"
+  ]
+ },
+ "corsair_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "corsair"
+  ]
+ },
+ "corsair_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "corsair"
+  ]
+ },
+ "corsair_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "corsair"
+  ]
+ },
+ "corsair_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "corsair"
+  ]
+ },
+ "corsair_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "corsair"
+  ]
+ },
+ "cutter_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "cutter"
+  ]
+ },
+ "cutter_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "cutter"
+  ]
+ },
+ "cutter_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "cutter"
+  ]
+ },
+ "cutter_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "cutter"
+  ]
+ },
+ "cutter_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "cutter"
+  ]
+ },
+ "diamondback_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "diamondback"
+  ]
+ },
+ "diamondback_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "diamondback"
+  ]
+ },
+ "diamondback_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "diamondback"
+  ]
+ },
+ "diamondback_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "diamondback"
+  ]
+ },
+ "diamondback_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "diamondback"
+  ]
+ },
+ "diamondbackxl_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "diamondbackxl"
+  ]
+ },
+ "diamondbackxl_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "diamondbackxl"
+  ]
+ },
+ "diamondbackxl_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "diamondbackxl"
+  ]
+ },
+ "diamondbackxl_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "diamondbackxl"
+  ]
+ },
+ "diamondbackxl_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "diamondbackxl"
+  ]
+ },
+ "dolphin_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "dolphin"
+  ]
+ },
+ "dolphin_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "dolphin"
+  ]
+ },
+ "dolphin_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "dolphin"
+  ]
+ },
+ "dolphin_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "dolphin"
+  ]
+ },
+ "dolphin_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "dolphin"
+  ]
+ },
+ "eagle_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "eagle"
+  ]
+ },
+ "eagle_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "eagle"
+  ]
+ },
+ "eagle_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "eagle"
+  ]
+ },
+ "eagle_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "eagle"
+  ]
+ },
+ "eagle_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "eagle"
+  ]
+ },
+ "empire_courier_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "empire_courier"
+  ]
+ },
+ "empire_courier_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "empire_courier"
+  ]
+ },
+ "empire_courier_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "empire_courier"
+  ]
+ },
+ "empire_courier_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_courier"
+  ]
+ },
+ "empire_courier_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_courier"
+  ]
+ },
+ "empire_eagle_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "empire_eagle"
+  ]
+ },
+ "empire_eagle_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "empire_eagle"
+  ]
+ },
+ "empire_eagle_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "empire_eagle"
+  ]
+ },
+ "empire_eagle_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_eagle"
+  ]
+ },
+ "empire_eagle_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_eagle"
+  ]
+ },
+ "empire_trader_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "empire_trader"
+  ]
+ },
+ "empire_trader_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "empire_trader"
+  ]
+ },
+ "empire_trader_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "empire_trader"
+  ]
+ },
+ "empire_trader_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_trader"
+  ]
+ },
+ "empire_trader_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "empire_trader"
+  ]
+ },
+ "explorer_nx_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "explorer_nx_armour_grade1_default": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Bulkheads",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "explorer_nx_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "explorer_nx_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "explorer_nx_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "explorer_nx_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "federation_corvette_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "federation_corvette"
+  ]
+ },
+ "federation_corvette_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "federation_corvette"
+  ]
+ },
+ "federation_corvette_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "federation_corvette"
+  ]
+ },
+ "federation_corvette_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_corvette"
+  ]
+ },
+ "federation_corvette_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_corvette"
+  ]
+ },
+ "federation_dropship_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "federation_dropship"
+  ]
+ },
+ "federation_dropship_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "federation_dropship"
+  ]
+ },
+ "federation_dropship_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship"
+  ]
+ },
+ "federation_dropship_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship"
+  ]
+ },
+ "federation_dropship_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship"
+  ]
+ },
+ "federation_dropship_mkii_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "federation_dropship_mkii"
+  ]
+ },
+ "federation_dropship_mkii_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "federation_dropship_mkii"
+  ]
+ },
+ "federation_dropship_mkii_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship_mkii"
+  ]
+ },
+ "federation_dropship_mkii_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship_mkii"
+  ]
+ },
+ "federation_dropship_mkii_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_dropship_mkii"
+  ]
+ },
+ "federation_gunship_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "federation_gunship"
+  ]
+ },
+ "federation_gunship_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "federation_gunship"
+  ]
+ },
+ "federation_gunship_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "federation_gunship"
+  ]
+ },
+ "federation_gunship_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_gunship"
+  ]
+ },
+ "federation_gunship_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "federation_gunship"
+  ]
+ },
+ "ferdelance_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "ferdelance"
+  ]
+ },
+ "ferdelance_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "ferdelance"
+  ]
+ },
+ "ferdelance_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "ferdelance"
+  ]
+ },
+ "ferdelance_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "ferdelance"
+  ]
+ },
+ "ferdelance_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "ferdelance"
+  ]
+ },
+ "hauler_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "hauler"
+  ]
+ },
+ "hauler_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "hauler"
+  ]
+ },
+ "hauler_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "hauler"
+  ]
+ },
+ "hauler_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "hauler"
+  ]
+ },
+ "hauler_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "hauler"
+  ]
+ },
  "hpt_advancedtorppylon_fixed_large": {
   "class": 3,
   "kind": "htp",
@@ -1390,6 +2479,51 @@
   "limit": 1,
   "name": "Enhanced Xeno Scanner",
   "rating": "C"
+ },
+ "independant_trader_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "independant_trader"
+  ]
+ },
+ "independant_trader_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "independant_trader"
+  ]
+ },
+ "independant_trader_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "independant_trader"
+  ]
+ },
+ "independant_trader_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "independant_trader"
+  ]
+ },
+ "independant_trader_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "independant_trader"
+  ]
  },
  "int_buggybay_size2_class1": {
   "class": 2,
@@ -6214,10 +7348,1045 @@
   "name": "Supercruise Assist",
   "rating": "E"
  },
+ "krait_light_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "krait_light"
+  ]
+ },
+ "krait_light_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "krait_light"
+  ]
+ },
+ "krait_light_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "krait_light"
+  ]
+ },
+ "krait_light_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "krait_light"
+  ]
+ },
+ "krait_light_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "krait_light"
+  ]
+ },
+ "krait_mkii_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "krait_mkii"
+  ]
+ },
+ "krait_mkii_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "krait_mkii"
+  ]
+ },
+ "krait_mkii_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "krait_mkii"
+  ]
+ },
+ "krait_mkii_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "krait_mkii"
+  ]
+ },
+ "krait_mkii_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "krait_mkii"
+  ]
+ },
+ "lakonminer_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "lakonminer_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "lakonminer_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "lakonminer_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "lakonminer_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "mamba_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "mamba"
+  ]
+ },
+ "mamba_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "mamba"
+  ]
+ },
+ "mamba_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "mamba"
+  ]
+ },
+ "mamba_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "mamba"
+  ]
+ },
+ "mamba_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "mamba"
+  ]
+ },
+ "mandalay_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "mandalay"
+  ]
+ },
+ "mandalay_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "mandalay"
+  ]
+ },
+ "mandalay_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "mandalay"
+  ]
+ },
+ "mandalay_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "mandalay"
+  ]
+ },
+ "mandalay_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "mandalay"
+  ]
+ },
+ "mediumtransport01_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "mediumtransport01_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "mediumtransport01_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "mediumtransport01_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "mediumtransport01_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
  "modularcargobaydoor": {
   "class": 1,
   "kind": "cch",
   "name": "Cargo Hatch",
   "rating": "H"
+ },
+ "orca_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "orca"
+  ]
+ },
+ "orca_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "orca"
+  ]
+ },
+ "orca_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "orca"
+  ]
+ },
+ "orca_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "orca"
+  ]
+ },
+ "orca_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "orca"
+  ]
+ },
+ "panthermkii_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "panthermkii_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "panthermkii_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "panthermkii_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "panthermkii_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "python_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "python"
+  ]
+ },
+ "python_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "python"
+  ]
+ },
+ "python_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "python"
+  ]
+ },
+ "python_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "python"
+  ]
+ },
+ "python_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "python"
+  ]
+ },
+ "python_nx_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "python_nx"
+  ]
+ },
+ "python_nx_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "python_nx"
+  ]
+ },
+ "python_nx_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "python_nx"
+  ]
+ },
+ "python_nx_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "python_nx"
+  ]
+ },
+ "python_nx_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "python_nx"
+  ]
+ },
+ "sidewinder_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "sidewinder"
+  ]
+ },
+ "sidewinder_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "sidewinder"
+  ]
+ },
+ "sidewinder_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "sidewinder"
+  ]
+ },
+ "sidewinder_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "sidewinder"
+  ]
+ },
+ "sidewinder_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "sidewinder"
+  ]
+ },
+ "smallcombat01_nx_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "smallcombat01_nx_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "smallcombat01_nx_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "smallcombat01_nx_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "smallcombat01_nx_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "type6_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "type6"
+  ]
+ },
+ "type6_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "type6"
+  ]
+ },
+ "type6_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "type6"
+  ]
+ },
+ "type6_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "type6"
+  ]
+ },
+ "type6_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "type6"
+  ]
+ },
+ "type7_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "type7"
+  ]
+ },
+ "type7_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "type7"
+  ]
+ },
+ "type7_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "type7"
+  ]
+ },
+ "type7_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "type7"
+  ]
+ },
+ "type7_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "type7"
+  ]
+ },
+ "type8_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "type8"
+  ]
+ },
+ "type8_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "type8"
+  ]
+ },
+ "type8_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "type8"
+  ]
+ },
+ "type8_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "type8"
+  ]
+ },
+ "type8_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "type8"
+  ]
+ },
+ "type9_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "type9"
+  ]
+ },
+ "type9_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "type9"
+  ]
+ },
+ "type9_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "type9"
+  ]
+ },
+ "type9_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "type9"
+  ]
+ },
+ "type9_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "type9"
+  ]
+ },
+ "type9_military_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "type9_military"
+  ]
+ },
+ "type9_military_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "type9_military"
+  ]
+ },
+ "type9_military_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "type9_military"
+  ]
+ },
+ "type9_military_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "type9_military"
+  ]
+ },
+ "type9_military_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "type9_military"
+  ]
+ },
+ "typex_2_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "typex_2"
+  ]
+ },
+ "typex_2_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "typex_2"
+  ]
+ },
+ "typex_2_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "typex_2"
+  ]
+ },
+ "typex_2_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex_2"
+  ]
+ },
+ "typex_2_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex_2"
+  ]
+ },
+ "typex_3_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "typex_3"
+  ]
+ },
+ "typex_3_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "typex_3"
+  ]
+ },
+ "typex_3_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "typex_3"
+  ]
+ },
+ "typex_3_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex_3"
+  ]
+ },
+ "typex_3_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex_3"
+  ]
+ },
+ "typex_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "typex"
+  ]
+ },
+ "typex_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "typex"
+  ]
+ },
+ "typex_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "typex"
+  ]
+ },
+ "typex_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex"
+  ]
+ },
+ "typex_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "typex"
+  ]
+ },
+ "viper_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "viper"
+  ]
+ },
+ "viper_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "viper"
+  ]
+ },
+ "viper_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "viper"
+  ]
+ },
+ "viper_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "viper"
+  ]
+ },
+ "viper_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "viper"
+  ]
+ },
+ "viper_mkiv_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "viper_mkiv"
+  ]
+ },
+ "viper_mkiv_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "viper_mkiv"
+  ]
+ },
+ "viper_mkiv_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "viper_mkiv"
+  ]
+ },
+ "viper_mkiv_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "viper_mkiv"
+  ]
+ },
+ "viper_mkiv_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "viper_mkiv"
+  ]
+ },
+ "vulture_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "vulture"
+  ]
+ },
+ "vulture_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reinforced Alloy",
+  "rating": "",
+  "ships": [
+   "vulture"
+  ]
+ },
+ "vulture_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "vulture"
+  ]
+ },
+ "vulture_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "vulture"
+  ]
+ },
+ "vulture_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "vulture"
+  ]
  }
 }
