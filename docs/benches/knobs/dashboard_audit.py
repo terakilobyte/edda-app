@@ -173,7 +173,8 @@ class Live:
         if res.get("error"):
             return f"error:{res['error'][:60]}"
         frames = res.get("frames", [])
-        points = sum(len(f.get("data", {}).get("values", [[]])[0]) for f in frames)
+        # A frame with no series comes back with values: [] — not [[]].
+        points = sum(len(v[0]) if v else 0 for v in (f.get("data", {}).get("values", []) for f in frames))
         return "OK" if points else "no-data"
 
 
