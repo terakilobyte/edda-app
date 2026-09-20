@@ -77,6 +77,16 @@ engineers you need to visit with what to bring each of them. The plan is
 saved per ship, and the planned build copies as SLEF for EDSY or
 Coriolis.
 
+**Where to get what is short.** For every material still short after
+trading, the plan now says where: the places you picked it up before,
+from your own journal, with units and distance and a route button; the
+community's known sites; and how that kind of material is found at all,
+from surface prospecting to crash sites to the trader rates. Your own
+pickups also feed the farm-and-trade suggestions. A build that swaps in
+a technology-broker module, Guardian or human, shows the unlock recipe
+broken down, with its materials counted in the list and its commodities
+listed to buy.
+
 **Import a build, get the gap.** Paste an EDSY or Coriolis SLEF export
 into the Ships tab's plan and EDDA works out what separates your ship
 from it: the modules to swap, then every engineering job to reach the

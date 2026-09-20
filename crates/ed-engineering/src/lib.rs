@@ -290,6 +290,24 @@ impl Catalog {
         out
     }
 
+    /// The technology broker's unlock recipe for a module, by its outfitting
+    /// name ("Guardian Gauss Cannon (fixed, medium)" -> the Guardian recipe;
+    /// "Guardian FSD Booster 5H" matches its recipe by prefix). None for a
+    /// module no broker sells.
+    pub fn unlock_recipe(&self, item_name: &str) -> Option<&Blueprint> {
+        let want = item_name.trim().to_ascii_lowercase();
+        let mut best: Option<&Blueprint> = None;
+        for b in self.blueprints.iter().filter(|b| matches!(b.module_type.as_str(), "Guardian" | "Human") && b.grade.is_none()) {
+            let name = b.name.to_ascii_lowercase();
+            if want == name || want.starts_with(&format!("{name} ")) || want.starts_with(&format!("{name} (")) {
+                if best.is_none_or(|x| x.name.len() < b.name.len()) {
+                    best = Some(b);
+                }
+            }
+        }
+        best
+    }
+
     pub fn find(&self, module_type: &str, name: &str, grade: i64) -> Option<&Blueprint> {
         self.blueprints.iter().find(|b| {
             b.module_type.eq_ignore_ascii_case(module_type)
@@ -556,6 +574,20 @@ mod tests {
         let mut bad: Vec<String> = lib.blueprints.iter().flat_map(|b| b.engineers.iter()).filter(|e| !e.starts_with('@') && !names.contains(e.as_str())).cloned().collect();
         bad.sort(); bad.dedup();
         assert!(bad.is_empty(), "not the journal's spelling: {bad:?}");
+    }
+
+    /// A swap to a technology-broker module breaks down into its unlock
+    /// (maintainer, 2026-09-20: "refer to the recipe for the component and
+    /// break it down that way").
+    #[test]
+    fn a_tech_broker_module_has_its_unlock_recipe() {
+        let lib = Catalog::load();
+        let gauss = lib.unlock_recipe("Guardian Gauss Cannon (fixed, medium)").expect("the Guardian gauss recipe");
+        assert_eq!(gauss.module_type, "Guardian");
+        assert!(gauss.ingredients.iter().any(|i| i.name == "Guardian Power Cell"));
+        assert_eq!(lib.unlock_recipe("Guardian FSD Booster 5H").map(|b| b.name.as_str()), Some("Guardian FSD Booster"));
+        assert_eq!(lib.unlock_recipe("Enzyme Missile Rack (fixed, medium)").map(|b| b.module_type.as_str()), Some("Human"));
+        assert!(lib.unlock_recipe("Pulse Laser (fixed, small)").is_none());
     }
 
     #[test]

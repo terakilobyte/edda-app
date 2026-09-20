@@ -69,6 +69,20 @@ pub struct PlanEngineer {
     pub jobs: Vec<String>,
 }
 
+/// A swapped-in module a technology broker sells: its unlock, broken
+/// down (maintainer, 2026-09-20: "refer to the recipe for the component
+/// and break it down that way"). Materials pool into the plan's list;
+/// commodities are bought at a market and listed apart.
+#[derive(Debug, Serialize)]
+pub struct Unlock {
+    pub slot_name: String,
+    pub item_name: String,
+    /// "Guardian" or "Human": which technology broker.
+    pub broker: String,
+    pub materials: Vec<RequirementLine>,
+    pub commodities: Vec<(String, i64)>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct BuildPlanReport {
     pub ship: String,
@@ -83,6 +97,8 @@ pub struct BuildPlanReport {
     pub unassigned: Vec<String>,
     /// Trades and farming for the pooled shortfall; None when nothing is short.
     pub shopping: Option<ShoppingReport>,
+    /// Technology-broker unlocks the swaps need, materials already pooled above.
+    pub unlocks: Vec<Unlock>,
 }
 
 /// Materials pooled by name across every slot. `have` is the same for all
@@ -144,8 +160,8 @@ pub fn assign(jobs: &[Job]) -> (Vec<PlanEngineer>, Vec<String>) {
 
 /// The report, everything but the trader lookup (which is async and done
 /// by the command).
-pub fn report(state: &AppState, ship_id: Option<i64>, items: &[PlanItem], minimum: bool, complete: bool) -> Result<BuildPlanReport, String> {
-    if items.is_empty() {
+pub fn report(state: &AppState, ship_id: Option<i64>, items: &[PlanItem], swaps: &[(String, String)], minimum: bool, complete: bool) -> Result<BuildPlanReport, String> {
+    if items.is_empty() && swaps.is_empty() {
         return Err("nothing planned: pick a blueprint for at least one module".into());
     }
     let loadout = commands::ship_loadout(state, ship_id)?;
@@ -221,6 +237,30 @@ pub fn report(state: &AppState, ship_id: Option<i64>, items: &[PlanItem], minimu
         });
     }
 
+    // Swaps to technology-broker modules: the unlock recipe, materials
+    // pooled with the rest, commodities listed to buy.
+    let jc = ed_journal::Catalog::load();
+    let mut unlocks = Vec::new();
+    for (slot, item) in swaps {
+        let item_name = ed_journal::modules::item_name(item);
+        let Some(recipe) = catalog.unlock_recipe(&item_name) else { continue };
+        let mut mats = Vec::new();
+        let mut comms = Vec::new();
+        for ing in &recipe.ingredients {
+            match jc.by_name(&ing.name) {
+                Some(i) if i.kind == ed_journal::Kind::Commodity => comms.push((ing.name.clone(), ing.quantity)),
+                _ => mats.push(RequirementLine { material: ing.name.clone(), need: ing.quantity, have: *have.get(&ing.name).unwrap_or(&0) }),
+            }
+        }
+        per_item.push(mats.clone());
+        unlocks.push(Unlock {
+            slot_name: ed_journal::modules::slot_name(slot),
+            item_name,
+            broker: recipe.module_type.clone(),
+            materials: mats,
+            commodities: comms,
+        });
+    }
     let materials = pool(&per_item);
     let fully_met = materials.iter().all(|l| l.have >= l.need);
     let (itinerary, unassigned) = assign(&jobs);
@@ -250,6 +290,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, items: &[PlanItem], minimu
         engineers: itinerary,
         unassigned,
         shopping,
+        unlocks,
     })
 }
 
