@@ -8,7 +8,7 @@
   import { shipsList, shipModules, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
-  import { KEYS, readKey, writeKey } from "./storage.svelte.js";
+  import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
   import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { useTabActive } from "./lifecycle.svelte.js";
@@ -26,7 +26,12 @@
   let planBusy = $state(false);
   let planMsg = $state("");
   let planPicked = $state(new Set());
-  const planKey = (id) => `${KEYS.buildPlan}.${id}`;
+  // The saved plan is keyed by ShipID AND hull: the game hands a sold
+  // ship's ID to the next one bought, and a plan for a Type-10 must never
+  // surface on whatever ship inherits its number (maintainer, 2026-09-20:
+  // "if the build in memory is associated with a different ship it
+  // shouldn't show").
+  const planKey = (id) => { const s = ships.find((x) => x.ship_id === id); return `${KEYS.buildPlan}.${id}.${(s?.ship ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`; };
   const counts = $derived(groupCounts(rows));
   const plannedCount = $derived(rows.filter(isPlanned).length);
   const blueprintsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length > 0);
@@ -136,6 +141,16 @@
     } catch (e) { planMsg = String(e); } finally { importBusy = false; }
   }
 
+  // "Clear this build" (maintainer, 2026-09-20): forget the saved plan for
+  // this ship, drop any imported build, back to the fitted defaults.
+  function clearBuild() {
+    if (selectedId == null || !build) return;
+    removeKey(planKey(selectedId));
+    imported = null; planReport = null; planMsg = "";
+    rows = planRows(build.modules, {});
+    refreshPerformance();
+  }
+
   async function copyPlannedBuild() {
     if (selectedId == null) return;
     try {
@@ -156,6 +171,7 @@
     </label>
     <button class={importOpen ? "" : "quiet"} onclick={() => (importOpen = !importOpen)} title="Paste an EDSY or Coriolis SLEF export; the plan becomes the difference between this ship and that build">Import a build</button>
     <button class="quiet" onclick={copyPlannedBuild} disabled={plannedCount === 0} title="The build with every planned blueprint at its target grade, for EDSY or Coriolis">Copy planned build (SLEF)</button>
+    <button class="quiet" onclick={clearBuild} disabled={!build} title="Forget the plan saved for this ship and start again from what is fitted">Clear this build</button>
     {#if msg}<span class="error small">{msg}</span>{/if}
   </div>
 
