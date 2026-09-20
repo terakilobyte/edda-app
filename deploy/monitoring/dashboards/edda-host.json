@@ -85,13 +85,13 @@
       ]
     },
     {
-      "id": 10, "type": "timeseries", "title": "Network I/O (eth0)",
+      "id": 10, "type": "timeseries", "title": "Network I/O (physical interfaces)",
       "gridPos": { "x": 0, "y": 21, "w": 12, "h": 8 },
       "datasource": { "uid": "edda-vm" },
       "fieldConfig": { "defaults": { "unit": "Bps" } },
       "targets": [
-        { "expr": "rate(node_network_receive_bytes_total{device=\"eth0\"}[5m])", "legendFormat": "rx" },
-        { "expr": "rate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])", "legendFormat": "tx" }
+        { "expr": "sum(rate(node_network_receive_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[5m]))", "legendFormat": "rx" },
+        { "expr": "sum(rate(node_network_transmit_bytes_total{device!~\"lo|veth.*|docker.*|br-.*\"}[5m]))", "legendFormat": "tx" }
       ]
     },
     {
