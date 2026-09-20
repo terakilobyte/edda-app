@@ -375,6 +375,10 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                         if let Some(c) = mission_rerouted(conn, &crate::commands::now_iso(), &pass_events) {
                                             out.push((c, None));
                                         }
+                                        // Docked where missions are waiting: one line per dock.
+                                        if let Some(c) = missions_ready_here(conn, &crate::commands::now_iso(), &pass_events) {
+                                            out.push((c, None));
+                                        }
                                     }
                                     // The pass's watched signals, spoken as one counted
                                     // line per kind ("5 power conflict zones on
@@ -653,6 +657,32 @@ fn mission_redirected(conn: &rusqlite::Connection, now: &str, events: &[Value]) 
     Some(Callout { kind: "mission_complete", text, priority: 1, speak: true, ts: ts.to_string() })
 }
 
+/// The pass docked somewhere missions are ready to hand in: said once per
+/// dock, with the count and the stated credits (measured on the
+/// maintainer's journal: 43 of 481 docks, four missions on average, twelve
+/// at most; `docs/benches/2026-09-20-missions-reconcile-pin.csv`). The
+/// idea is ODEliteTracker's; the match is the store's `hand_in_*`.
+fn missions_ready_here(conn: &rusqlite::Connection, now: &str, events: &[Value]) -> Option<Callout> {
+    let docked = events.iter().rev().find(|v| v.get("event").and_then(Value::as_str) == Some("Docked"))?;
+    let station = docked.get("StationName").and_then(Value::as_str)?;
+    let system = docked.get("StarSystem").and_then(Value::as_str).unwrap_or("");
+    let ts = docked.get("timestamp").and_then(Value::as_str).unwrap_or("");
+    let live = ed_store::missions::active(conn, now).unwrap_or_default();
+    let here = ed_store::missions::ready_here(&live, system, station);
+    if here.is_empty() {
+        return None;
+    }
+    let credits: i64 = here.iter().map(|m| m.reward.unwrap_or(0)).sum();
+    let n = here.len();
+    let text = match (n, credits > 0) {
+        (1, true) => format!("One mission ready to hand in here, {}.", callouts::spoken_credits(credits)),
+        (1, false) => "One mission ready to hand in here.".to_string(),
+        (n, true) => format!("{n} missions ready to hand in here, {}.", callouts::spoken_credits(credits)),
+        (n, false) => format!("{n} missions ready to hand in here."),
+    };
+    Some(Callout { kind: "mission_hand_in", text, priority: 1, speak: true, ts: ts.to_string() })
+}
+
 /// Whether a redirect means the objective is met: by the stored
 /// mission's kind, or the event's own `Name` when the store does not
 /// know it. A courier's redirect is a new drop-off (tester, 2026-09-19).
@@ -722,7 +752,7 @@ fn trailer(destination: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{mission_redirected, mission_rerouted, stale_for_speech};
+    use super::{mission_redirected, mission_rerouted, missions_ready_here, stale_for_speech};
     use serde_json::{json, Value};
 
     /// A stack part-way through: two massacres against the same faction
@@ -849,6 +879,28 @@ mod tests {
         let unknown = json!({"timestamp": "2026-09-16T12:30:00Z", "event": "MissionRedirected", "MissionID": 999, "Name": "Mission_Delivery", "LocalisedName": "Deliver 10 units", "NewDestinationStation": "X", "NewDestinationSystem": "Y"});
         assert!(mission_redirected(&conn, "2026-09-16T14:00:00Z", &[unknown.clone()]).is_none());
         assert!(mission_rerouted(&conn, "2026-09-16T14:00:00Z", &[unknown]).is_some());
+    }
+
+    /// Docking where a ready mission's hand-in is says so once, with the
+    /// credits; docking elsewhere, or with nothing ready, says nothing.
+    #[test]
+    fn docking_at_the_hand_in_says_what_is_ready_here() {
+        let conn = db();
+        // The fixture's mission 11 is redirected to Goeppert-Mayer Vision, Ahayan.
+        let redirect = redirect(11, "Goeppert-Mayer Vision", "Ahayan");
+        conn.execute(
+            "INSERT INTO events (file,offset,ts,event,raw) VALUES ('J',900,'2026-09-16T13:59:00Z','MissionRedirected',?1)",
+            [redirect.to_string()],
+        )
+        .unwrap();
+        let dock = |station: &str, system: &str| {
+            serde_json::json!({ "timestamp": "2026-09-16T14:00:00Z", "event": "Docked", "StationName": station, "StarSystem": system })
+        };
+        let c = missions_ready_here(&conn, "2026-09-16T14:00:00Z", &[dock("Goeppert-Mayer Vision", "Ahayan")]).expect("a line");
+        assert_eq!(c.kind, "mission_hand_in");
+        assert!(c.text.starts_with("One mission ready to hand in here"), "{}", c.text);
+        assert!(missions_ready_here(&conn, "2026-09-16T14:00:00Z", &[dock("Piaget Orbital", "HIP 90112")]).is_none(), "not this station");
+        assert!(missions_ready_here(&conn, "2026-09-16T14:00:00Z", &[]).is_none(), "no dock in the pass");
     }
 
     #[test]

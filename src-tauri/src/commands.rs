@@ -2177,6 +2177,7 @@ pub const CALLOUT_KINDS: &[(&str, &str)] = &[
     ("material", "Material pickups"),
     ("mission", "Missions: progress and targets"),
     ("mission_complete", "Mission completions"),
+    ("mission_hand_in", "Missions ready to hand in where you dock"),
     ("route", "The game's plotted route"),
     ("follow", "Following an app route"),
     ("signal", "Signal watch"),
@@ -2527,6 +2528,14 @@ pub async fn mission_stack(
                 .map(|live| ed_store::missions::stacking_givers(&live))
         })
         .map_err(err)
+}
+
+/// What is ready to hand in at the current dock (None when not docked or
+/// nothing is ready here), for the Missions tab's pill and the HUD.
+#[tauri::command]
+pub async fn missions_here(state: State<'_, AppState>) -> Result<Option<ed_store::missions::HandIns>, String> {
+    let now = now_iso();
+    state.with_read(|s| ed_store::missions::hand_ins_here(s.conn(), &now)).map_err(err)
 }
 
 // ── Ship computer configuration ──────────────────────────────────────

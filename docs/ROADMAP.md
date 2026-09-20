@@ -432,6 +432,28 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Stack economics and hand-ins at the dock, from ODEliteTracker's
+  ideas** (2026-09-20; the maintainer: "let's make sure we aren't missing
+  anything", and "since we aren't copying code, just ideas, make sure we
+  say based on some ideas derived from"). Statler's gap review
+  (`docs/2026-09-20-odelitetracker-mission-gap-review.md`) recommended
+  three items; measured first on the maintainer's store
+  (`docs/benches/2026-09-20-missions-reconcile-pin.csv`,
+  `knobs/missions_reconcile_pin.py`): across 185 startup `Missions`
+  events EDDA held ZERO missions the game no longer listed and missed
+  ZERO of its Failed list, so startup reconciliation is a null result
+  and stays in the ledger unbuilt; 43 of 481 docks had hand-ins ready
+  (mean 4, max 12), so the dock line is worth a line. Built: `Stack`
+  gains kills_needed (largest per-giver sum), kills_remaining (over
+  open missions), kills_credited (every count added), value,
+  value_ready, value_shareable, target_system — all stated fields, pinned
+  on the twenty-mission fixture (120 / 72 / 824, pre-registered);
+  `ready_here` and `hand_ins_here` (the derived `location` table for the
+  dock); `MissionCompleted.Reward` replaces the offer, `Donated` kept;
+  `missions_here` command; the watcher speaks one `mission_hand_in` line
+  per dock; the tab and HUD show the figures and the dock pill. Idea
+  credit to ODEliteTracker in the notes and help; no code copied (it has
+  no license file).
 - **Engineering tab hidden** (2026-09-20, maintainer: "let's get rid of
   the engineering tab now (just hide it). I think it's now replaced fully
   by the build planner"). The tab is out of the strip; `EngineeringPanel`

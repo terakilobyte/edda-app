@@ -1,0 +1,46 @@
+# Pin: startup Missions reconciliation and docks with hand-ins ready, on the maintainer's store.
+# startups=185 stale_live_total=0 failed_unseen_total=0 docks=481 docks_with_ready=43 max_ready_per_dock=12 mean_ready_per_dock=4.02
+kind,ts,ours_live,game_active,stale_ours_not_in_game,game_failed_we_missed,game_complete_still_ours_or_station,system,ready_here
+dock,2026-07-26T00:41:44Z,,,,,,Ray Gateway,Diaguandri,1
+dock,2026-07-26T04:54:55Z,,,,,,Clement Station,Alpha Fornacis,1
+dock,2026-07-26T07:14:02Z,,,,,,Clement Station,Alpha Fornacis,1
+dock,2026-07-26T20:39:27Z,,,,,,Bacon Port,Gliese 868,5
+dock,2026-07-26T20:47:06Z,,,,,,MacLean Terminal,Gliese 868,5
+dock,2026-07-27T03:33:18Z,,,,,,MacLean Terminal,Gliese 868,1
+dock,2026-07-28T02:52:24Z,,,,,,MacLean Terminal,Gliese 868,2
+dock,2026-07-28T03:30:58Z,,,,,,Bacon Port,Gliese 868,1
+dock,2026-07-28T03:37:13Z,,,,,,MacLean Terminal,Gliese 868,1
+dock,2026-08-06T00:20:15Z,,,,,,Cleave Gateway,Col 285 Sector RE-P c6-6,1
+dock,2026-08-08T14:35:41Z,,,,,,Ohm City,LHS 20,1
+dock,2026-08-20T05:14:48Z,,,,,,Ohm City,LHS 20,1
+dock,2026-08-21T15:41:04Z,,,,,,Mackenzie Relay,Cemiess,4
+dock,2026-08-21T16:11:30Z,,,,,,Mackenzie Relay,Cemiess,1
+dock,2026-08-21T17:09:33Z,,,,,,Mackenzie Relay,Cemiess,1
+dock,2026-08-26T12:55:03Z,,,,,,Schmitt Enterprise,Wongi,3
+dock,2026-09-13T19:45:27Z,,,,,,Piaget Orbital,HIP 90112,3
+dock,2026-09-13T19:51:43Z,,,,,,Townshend Settlement,HIP 90112,2
+dock,2026-09-14T12:25:20Z,,,,,,Townshend Settlement,HIP 90112,6
+dock,2026-09-14T12:33:18Z,,,,,,Townshend Settlement,HIP 90112,6
+dock,2026-09-14T12:38:18Z,,,,,,Piaget Orbital,HIP 90112,6
+dock,2026-09-15T12:15:57Z,,,,,,Kubasov Station,HIP 90112,4
+dock,2026-09-16T02:55:12Z,,,,,,Townshend Settlement,HIP 90112,3
+dock,2026-09-16T16:06:43Z,,,,,,Wheelock Port,Puneith,4
+dock,2026-09-16T16:11:56Z,,,,,,Goeppert-Mayer Vision,Ahayan,5
+dock,2026-09-16T20:59:35Z,,,,,,Townshend Settlement,HIP 90112,1
+dock,2026-09-17T03:26:13Z,,,,,,Goeppert-Mayer Vision,Ahayan,7
+dock,2026-09-17T03:50:57Z,,,,,,Wheelock Port,Puneith,8
+dock,2026-09-17T04:05:13Z,,,,,,Piaget Orbital,HIP 90112,3
+dock,2026-09-17T04:11:18Z,,,,,,Kubasov Station,HIP 90112,1
+dock,2026-09-18T13:55:03Z,,,,,,Wheelock Port,Puneith,5
+dock,2026-09-18T14:29:29Z,,,,,,Goeppert-Mayer Vision,Ahayan,5
+dock,2026-09-19T05:13:23Z,,,,,,Townshend Settlement,HIP 90112,2
+dock,2026-09-19T05:43:24Z,,,,,,Wheelock Port,Puneith,9
+dock,2026-09-19T07:45:31Z,,,,,,Wheelock Port,Puneith,11
+dock,2026-09-19T08:02:24Z,,,,,,Goeppert-Mayer Vision,Ahayan,9
+dock,2026-09-19T22:44:49Z,,,,,,Piaget Orbital,HIP 90112,2
+dock,2026-09-19T22:49:46Z,,,,,,Goeppert-Mayer Vision,Ahayan,5
+dock,2026-09-19T22:55:31Z,,,,,,Wheelock Port,Puneith,5
+dock,2026-09-20T02:36:46Z,,,,,,Wheelock Port,Puneith,11
+dock,2026-09-20T15:36:56Z,,,,,,Piaget Orbital,HIP 90112,2
+dock,2026-09-20T16:07:42Z,,,,,,Wheelock Port,Puneith,12
+dock,2026-09-20T16:23:56Z,,,,,,Goeppert-Mayer Vision,Ahayan,6

@@ -31,3 +31,46 @@ export function stackSummary(stack) {
   if (stack.other_targets) parts.push(`+${stack.other_targets} against another target`);
   return parts.join(" · ");
 }
+
+/** Credits as the HUD shows them: 12.3M, 850k, 900. */
+export function shortCr(n) {
+  n = Number(n) || 0;
+  if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (Math.abs(n) >= 1e3) return `${Math.round(n / 1e3)}k`;
+  return String(n);
+}
+
+/**
+ * The stack's figures in one line, every one a stated field summed
+ * (never an estimate): the kills that clear it and what is still to
+ * make, what those kills are worth in mission credit, the stack's value
+ * and what is ready to collect now. The idea of putting these next to
+ * the givers is ODEliteTracker's (studied 2026-09-20; no code copied).
+ */
+export function stackEconomics(stack) {
+  if (!stack || !stack.kills_needed) return "";
+  const parts = [];
+  const where = stack.target_system ? ` in ${stack.target_system}` : "";
+  parts.push(stack.kills_remaining > 0 ? `${stack.kills_remaining} kills to go${where} (${stack.kills_needed} for the stack)` : `all ${stack.kills_needed} kills made${where}`);
+  const ratio = stack.kills_needed ? (stack.kills_credited / stack.kills_needed).toFixed(1) : null;
+  parts.push(`${stack.kills_credited} credited${ratio ? ` · ${ratio}× per kill` : ""}`);
+  if (stack.value) {
+    let v = `${shortCr(stack.value)} cr`;
+    const bits = [];
+    if (stack.value_ready) bits.push(`${shortCr(stack.value_ready)} ready to collect`);
+    if (stack.value_shareable && stack.value_shareable !== stack.value) bits.push(`${shortCr(stack.value_shareable)} wing-shared`);
+    else if (stack.value_shareable) bits.push("all wing-shared");
+    if (bits.length) v += ` (${bits.join(", ")})`;
+    parts.push(v);
+  }
+  return parts.join(" · ");
+}
+
+/** "3 missions ready to hand in here · 2.4M cr", for the dock. */
+export function handInsLabel(here) {
+  if (!here || !here.missions?.length) return "";
+  const n = here.missions.length;
+  const cr = here.credits ? ` · ${shortCr(here.credits)} cr` : "";
+  return `${n} mission${n === 1 ? "" : "s"} ready to hand in here${cr}`;
+}

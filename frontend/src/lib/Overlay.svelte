@@ -14,9 +14,10 @@
     setOverlayInteractive,
     missions,
     missionStack,
+    missionsHere,
     currentRoute,
   } from "./api.js";
-  import { giverLabel, giverTitle, stackSummary } from "./stacking.js";
+  import { giverLabel, giverTitle, stackSummary, stackEconomics, handInsLabel } from "./stacking.js";
   import { fmtInt } from "./format.js";
   import { prioClass, fuelPct, fuelLabel } from "./ui.js";
   import { KEYS, persisted } from "./storage.svelte.js";
@@ -33,6 +34,7 @@
   let callouts = $state([]);
   let interactive = $state(false);
   let activeMissions = $state([]);
+  let here = $state(null);   // hand-ins ready at the current dock
   // Stacking mode (maintainer, 2026-09-16): the Missions tab's checkbox,
   // storage as the bus like the HUD sliders. On, the missions line lists
   // every giver already holding a massacre against the target -- all of
@@ -78,6 +80,7 @@
     status = await getStatus();
     activeMissions = await missions(true);
     stack = await missionStack();
+    here = await missionsHere();
     const rv = await currentRoute();
     route = rv.route;
     fuelMarks = rv.fuel_marks ?? [];
@@ -234,6 +237,12 @@
         </div>
       {/if}
     {:else if id === "missions"}
+      {#if here}
+        <div class="line missions {compact(id)}">
+          <span class="lbl">Hand in</span>
+          <span class="pill ok" title={here.missions.map((m) => m.title).join("\n")}>{handInsLabel(here)}</span>
+        </div>
+      {/if}
       {#if stackingMode.value && stack}
         <div class="line missions {compact(id)}">
           <span class="lbl">Stack</span>
@@ -245,6 +254,9 @@
             <span class="giver {g.duplicate ? 'dup' : ''} {g.ready === g.missions ? 'done' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
           {/each}
         </div>
+        {#if stackEconomics(stack) && !isCompact(layout, id)}
+          <div class="line missions {compact(id)}"><span class="muted small">{stackEconomics(stack)}</span></div>
+        {/if}
       {:else if activeMissions.length}
         <div class="line missions {compact(id)}">
           <span class="lbl">Missions</span>
