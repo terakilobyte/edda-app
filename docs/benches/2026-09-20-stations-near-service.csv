@@ -1,0 +1,19 @@
+# VERDICT: the nearest-service query's cost was the per-station EXISTS probe over every station in the sphere (548,501 within 300 ly of Anana), because station_services is keyed (station_id, service) and "stations with this service" had no index path. An index on (service, station_id) lets the planner start from the 1,640 material traders galaxy-wide: EXPLAIN ANALYZE on the box 5,415 ms -> 328 ms total of which 290 ms is JIT compilation of the test script's own cost estimate and 23 ms the query; the live API from a Mac 2.4-2.7 s -> 0.77 s, of which ~0.6 s is network (a 1-2 ms systems-mode request costs 0.59 s from the same Mac). Common services keep the station-first plan and its cost (interstellar factors, 272,144 rows: 3,799 -> 2,524 ms in EXPLAIN); the unfiltered search is 1,461 ms at 300 ly. Both scale with radius, so the next step is a ring search that stops at the smallest radius filling the limit.
+# Box: Postgres, 2026-09-20 04:3xZ-04:5xZ; systems 2,903,623 rows, stations 844,712, station_services 12,720,744; autoanalyze 01:27-01:52Z. Scripts: scratch explain_near.sql / explain_near2.sql (in the PR body).
+measurement,before index,after index
+EXPLAIN ANALYZE material trader 300 ly (ms; execution total / JIT),5415 / 313,328 / 290
+EXPLAIN ANALYZE interstellar factors 300 ly (ms),3799,2524
+EXPLAIN ANALYZE no service 300 ly (ms),1461,n/a (unchanged path)
+station_services probes in the plan (material trader),548501,1640 index-only rows
+cube: cells / systems / stations within 300 ly of Anana,343 / 170002 / 704804,
+stations after the sphere cut,548501,
+material traders galaxy-wide / interstellar factors galaxy-wide,1640 / 272144,
+API server-side ms (journal "stations served" mode=near),1786 / 1789 / 2023,not yet read
+API from Mac material trader 300 ly (s),2.45 / 2.58 / 2.70,0.78 / 0.77 / 0.77
+API from Mac black market 300 ly (s),4.04,2.63
+API from Mac interstellar factors 300 ly (s),6.73,3.11
+API from Mac no service 50 / 100 / 150 / 300 ly (s),1.77 (300),0.76 / 0.94 / 0.99 / 1.88
+API from Mac interstellar factors 50 / 100 / 150 / 300 ly (s),,0.85 / 0.90 / 1.17 / 2.84
+API from Mac systems mode (server 1-2 ms) (s),,0.59
+nearest 25 with no filter at 50 ly: farthest hit (ly),,8.2
+index size / build time (concurrent),,491 MB / 14.7 s

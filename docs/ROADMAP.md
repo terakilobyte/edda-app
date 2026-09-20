@@ -8,6 +8,24 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Nearest-service search: rare services fixed by an index, common
+  ones still scan** (2026-09-20, measured on the box). A 300 ly
+  material-trader search around Anana took 1.8–2.0 s server-side (mean
+  2.0 s over 40 near requests): the sphere holds 548,501 stations and,
+  with a service filter, the plan probed station_services once per
+  station because the table is keyed (station_id, service). Index
+  (service, station_id) (migration 0020; 491 MB, 14.7 s, built
+  concurrently on the box first): the same query does 23 ms of work and
+  the request from a Mac is 0.77 s, of which ~0.6 s is TLS and distance
+  (a 1 ms systems-mode request costs 0.59 s from the same place).
+  Still open: common services and the unfiltered search at 300 ly
+  (2.5–3.1 s, 1.5 s) walk 105,784 systems and half a million stations to
+  keep 100 — the fix is answering from the smallest radius ring that
+  fills the limit (the 25 nearest at 50 ly are all within 8 ly of
+  Anana), measured before built. Also seen: one first-after-restart
+  request stalled for the client's full 15 s and the retry answered in
+  2.6 s — unexplained; the plan's JIT is ~0.3 s, not 15.
+  `docs/benches/2026-09-20-stations-near-service.csv`.
 - **Kill counts are gone from mission tracking** (2026-09-19, ruled:
   "if there's no reliable way to read exact mission data at any given
   time, I think we have to abandon kill count tracking"). The journal

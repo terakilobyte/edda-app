@@ -1,0 +1,12 @@
+-- Nearest-service lookups by service (2026-09-20). station_services is
+-- keyed (station_id, service), so "every station with this service" had
+-- no index path: a 300 ly material-trader search around Anana walked
+-- all 548,501 stations in the sphere and probed each one (EXPLAIN on the
+-- box: 5.4 s; the API's own timing 1.8-2.0 s per request, mean 2.0 s
+-- over 40). With (service, station_id) the planner starts from the
+-- 1,640 material traders galaxy-wide and the same query does 23 ms of
+-- work; common services (interstellar factors, 272,144 rows) keep the
+-- station-first plan by their own statistics. 491 MB, 14.7 s to build
+-- on 12.7 M rows; built CONCURRENTLY by hand on the box first, so this
+-- is a no-op there and a real build everywhere else.
+CREATE INDEX IF NOT EXISTS station_services_service_idx ON station_services (service, station_id);
