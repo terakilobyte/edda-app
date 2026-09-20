@@ -136,9 +136,30 @@ impl Catalog {
         pairs
     }
 
+    /// EDEngineer's spelling of a ship material where it differs from the
+    /// game's own (FDevIDs `material.csv`, which is what the journal and
+    /// the inventory use). Measured 2026-09-19: of 258 ingredient names,
+    /// exactly one ship material differed — and it read as "short 5" on
+    /// a plan while 84 sat in the hold. Suit/weapon materials and
+    /// tech-broker commodities are a different namespace and stay as they are.
+    fn canonical_material(name: &str) -> &str {
+        match name {
+            "Abnormal Compact Emission Data" => "Abnormal Compact Emissions Data",
+            other => other,
+        }
+    }
+
     pub fn load() -> Self {
-        let blueprints: Vec<Blueprint> =
+        let mut blueprints: Vec<Blueprint> =
             serde_json::from_str(BLUEPRINTS_JSON).expect("bundled blueprints.json must parse");
+        for b in &mut blueprints {
+            for i in &mut b.ingredients {
+                let canon = Self::canonical_material(&i.name);
+                if canon != i.name {
+                    i.name = canon.to_string();
+                }
+            }
+        }
         let synthesis: SynthesisFile =
             serde_json::from_str(SYNTHESIS_JSON).expect("bundled synthesis.json must parse");
         Catalog {
@@ -484,6 +505,28 @@ mod tests {
             who,
             vec![("Broo Tarquin".to_string(), 5), ("Mel Brandon".to_string(), 5), ("The Dweller".to_string(), 4)]
         );
+    }
+
+    /// Every ingredient of a SHIP blueprint is spelled as the game spells
+    /// it (FDevIDs material.csv, the inventory's names); a spelling drift
+    /// reads as "short" while the hold is full. Suit, weapon, unlock and
+    /// tech-broker recipes use other namespaces and are not held to it.
+    #[test]
+    fn ship_blueprint_ingredients_are_the_games_material_names() {
+        let csv = include_str!("../../ed-journal/data/material.csv");
+        let names: std::collections::HashSet<&str> = csv.lines().skip(1).filter_map(|l| l.rsplit(',').next()).collect();
+        let other_namespaces = ["Suit", "Weapon", "Unlock", "Guardian", "Human"];
+        let lib = Catalog::load();
+        let mut bad = Vec::new();
+        for b in lib.blueprints.iter().filter(|b| !other_namespaces.contains(&b.module_type.as_str()) && !b.module_type.contains("Munitions")) {
+            for i in &b.ingredients {
+                if !names.contains(i.name.as_str()) {
+                    bad.push(format!("{} / {}: {}", b.module_type, b.name, i.name));
+                }
+            }
+        }
+        bad.sort(); bad.dedup();
+        assert!(bad.is_empty(), "not the game's names: {bad:?}");
     }
 
     #[test]

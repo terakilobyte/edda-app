@@ -562,16 +562,28 @@ pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) 
     // reason from `origin_system` — saying "could not reach the API" here
     // would be the exact lie this flag exists to prevent (review, 2026-09-15).
     let Some(system) = report.origin_system.clone() else { return };
+    // One question for every kind: the API's nearest material traders are
+    // one list, and the kind is a client-side split by station economy.
+    // Asking per kind sent the same request three times, and on
+    // 2026-09-20 the first of them stalled for the full 15 s while the
+    // second answered in 2.6 s — so the raw stop read "could not reach the
+    // API" beside a manufactured stop that could. A stalled ask is tried
+    // once more before it is called unreachable.
+    let mut all = crate::remote_lookup::nearest_material_traders_all(state, &system, TRADER_RADIUS_LY).await;
+    if all.is_none() {
+        all = crate::remote_lookup::nearest_material_traders_all(state, &system, TRADER_RADIUS_LY).await;
+    }
     for stop in &mut report.traders {
-        let kind = format!("{:?}", stop.kind).to_lowercase();
-        match crate::remote_lookup::nearest_material_traders(state, &system, &kind, TRADER_RADIUS_LY, 5).await {
+        match &all {
             Some(hits) => {
+                let kind = format!("{:?}", stop.kind).to_lowercase();
+                let split = crate::remote_lookup::traders_of_kind(hits, &kind, 5);
                 stop.asked = true;
-                stop.kind_known = hits.kind_known;
-                stop.nearest = hits.stations;
+                stop.kind_known = split.kind_known;
+                stop.nearest = split.stations;
             }
-            // The API refused or could not be reached. Leave the list
-            // empty but say so, rather than reporting an empty galaxy.
+            // The API refused or could not be reached, twice. Leave the
+            // list empty but say so, rather than reporting an empty galaxy.
             None => stop.asked = false,
         }
     }

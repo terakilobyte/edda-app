@@ -1,0 +1,360 @@
+# Printed-name exactness against EDCD FDevIDs (upstream c356129, 2026-09-05), measured 2026-09-20 with
+# crates/ed-journal/tests/edcd_names.rs (EDDA_FDEVIDS=<dir> cargo test -p ed-journal --test edcd_names -- --ignored).
+# Maintainer: "every ship name, every module name, every commodity, every material, every everything has a coded name
+# and a printed name and we should be exact." Comparison: the name EDDA prints for each table's symbol vs the table's name
+# (modules on the name part, since EDDA appends class/rating). VERDICT: materials 137/137 and commodities 270/270 exact;
+# ships 39/48 (9 differ: EDCD writes "Cobra MkIII", EDDA "Cobra Mk III" — a spacing convention, the maintainer's call —
+# and Lynx Highliner is unknown to EDDA); modules 1041/1236 (195 differ, grouped in the PR); rare commodities 0/142 —
+# EDDA has no rare-commodity table at all. Fixes follow in their own PR once the convention is ruled.
+table,symbol,edcd_name,edda_name,verdict
+shipyard,Viper,Viper MkIII,Viper Mk III,differs
+shipyard,CobraMkIII,Cobra MkIII,Cobra Mk III,differs
+shipyard,Viper_MkIV,Viper MkIV,Viper Mk IV,differs
+shipyard,CobraMkIV,Cobra MkIV,Cobra Mk IV,differs
+shipyard,Krait_MkII,Krait MkII,Krait Mk II,differs
+shipyard,Python_NX,Python MkII,Python Mk II,differs
+shipyard,CobraMkV,Cobra MkV,Cobra Mk V,differs
+shipyard,PantherMkII,Panther Clipper MkII,Panther Clipper Mk II,differs
+shipyard,MediumTransport01,Lynx Highliner,Mediumtransport01,differs
+outfitting,Hpt_BasicMissileRack_Fixed_Small,Seeker Missile Rack,Missile Rack (fixed; small),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Medium,Seeker Missile Rack,Missile Rack (fixed; medium),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Large,Seeker Missile Rack,Missile Rack (fixed; large),differs
+outfitting,Hpt_CargoScanner_Size0_Class1,Cargo Scanner,Manifest Scanner,differs
+outfitting,Hpt_CargoScanner_Size0_Class2,Cargo Scanner,Manifest Scanner,differs
+outfitting,Hpt_CargoScanner_Size0_Class3,Cargo Scanner,Manifest Scanner,differs
+outfitting,Hpt_CargoScanner_Size0_Class4,Cargo Scanner,Manifest Scanner,differs
+outfitting,Hpt_CargoScanner_Size0_Class5,Cargo Scanner,Manifest Scanner,differs
+outfitting,Int_StellarBodyDiscoveryScanner_Standard,Basic Discovery Scanner,Stellarbodydiscoveryscanner,differs
+outfitting,Int_StellarBodyDiscoveryScanner_Intermediate,Intermediate Discovery Scanner,Stellarbodydiscoveryscanner,differs
+outfitting,Int_StellarBodyDiscoveryScanner_Advanced,Advanced Discovery Scanner,Stellarbodydiscoveryscanner,differs
+outfitting,Int_StellarBodyDiscoveryScanner_Standard_free,Basic Discovery Scanner,Stellarbodydiscoveryscanner,differs
+outfitting,Int_ShieldGenerator_Size1_Class5_Strong,Prismatic Shield Generator,Shield Generator 1A,differs
+outfitting,Int_ShieldGenerator_Size2_Class5_Strong,Prismatic Shield Generator,Shield Generator 2A,differs
+outfitting,Int_ShieldGenerator_Size3_Class5_Strong,Prismatic Shield Generator,Shield Generator 3A,differs
+outfitting,Int_ShieldGenerator_Size4_Class5_Strong,Prismatic Shield Generator,Shield Generator 4A,differs
+outfitting,Int_ShieldGenerator_Size5_Class5_Strong,Prismatic Shield Generator,Shield Generator 5A,differs
+outfitting,Int_ShieldGenerator_Size6_Class5_Strong,Prismatic Shield Generator,Shield Generator 6A,differs
+outfitting,Int_ShieldGenerator_Size7_Class5_Strong,Prismatic Shield Generator,Shield Generator 7A,differs
+outfitting,Int_ShieldGenerator_Size8_Class5_Strong,Prismatic Shield Generator,Shield Generator 8A,differs
+outfitting,Int_ShieldGenerator_Size1_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 1C,differs
+outfitting,Int_ShieldGenerator_Size2_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 2C,differs
+outfitting,Int_ShieldGenerator_Size3_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 3C,differs
+outfitting,Int_ShieldGenerator_Size4_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 4C,differs
+outfitting,Int_ShieldGenerator_Size5_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 5C,differs
+outfitting,Int_ShieldGenerator_Size6_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 6C,differs
+outfitting,Int_ShieldGenerator_Size7_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 7C,differs
+outfitting,Int_ShieldGenerator_Size8_Class3_Fast,Bi-Weave Shield Generator,Shield Generator 8C,differs
+outfitting,Hpt_PlasmaAccelerator_Fixed_Large_Advanced,Advanced Plasma Accelerator,Plasma Accelerator (fixed; large),differs
+outfitting,Hpt_MiningLaser_Fixed_Small_Advanced,Mining Lance,Mining Laser (fixed; small),differs
+outfitting,Hpt_Railgun_Fixed_Medium_Burst,Imperial Hammer Rail Gun,Rail Gun (fixed; medium),differs
+outfitting,Hpt_PulseLaser_Fixed_Medium_Disruptor,Pulse Disruptor Laser,Pulse Laser (fixed; medium),differs
+outfitting,Hpt_Slugshot_Fixed_Large_Range,Pacifier Frag-Cannon,Fragment Cannon (fixed; large),differs
+outfitting,Hpt_MultiCannon_Fixed_Small_Strong,Enforcer Cannon,Multi-cannon (fixed; small),differs
+outfitting,Hpt_BeamLaser_Fixed_Small_Heat,Retributor Beam Laser,Beam Laser (fixed; small),differs
+outfitting,Hpt_MineLauncher_Fixed_Small_Impulse,Shock Mine Launcher,Mine Launcher (fixed; small),differs
+outfitting,Hpt_PulseLaserBurst_Fixed_Small_Scatter,Cytoscrambler Burst Laser,Burst Laser (fixed; small),differs
+outfitting,Int_Engine_Size3_Class5_Fast,Enhanced Performance Thrusters,Thrusters 3A,differs
+outfitting,Int_Engine_Size2_Class5_Fast,Enhanced Performance Thrusters,Thrusters 2A,differs
+outfitting,Int_PassengerCabin_Size4_Class1,Economy Class Passenger Cabin,Passenger Cabin 4E,differs
+outfitting,Int_PassengerCabin_Size4_Class2,Business Class Passenger Cabin,Passenger Cabin 4D,differs
+outfitting,Int_PassengerCabin_Size4_Class3,First Class Passenger Cabin,Passenger Cabin 4C,differs
+outfitting,Int_PassengerCabin_Size5_Class4,Luxury Class Passenger Cabin,Passenger Cabin 5B,differs
+outfitting,Int_PassengerCabin_Size6_Class1,Economy Class Passenger Cabin,Passenger Cabin 6E,differs
+outfitting,Int_PassengerCabin_Size6_Class2,Business Class Passenger Cabin,Passenger Cabin 6D,differs
+outfitting,Int_PassengerCabin_Size6_Class3,First Class Passenger Cabin,Passenger Cabin 6C,differs
+outfitting,Int_PassengerCabin_Size6_Class4,Luxury Class Passenger Cabin,Passenger Cabin 6B,differs
+outfitting,Int_FighterBay_Size5_Class1,Vessel Hangar,Fighter Hangar 5E,differs
+outfitting,Int_FighterBay_Size6_Class1,Vessel Hangar,Fighter Hangar 6E,differs
+outfitting,Int_FighterBay_Size7_Class1,Vessel Hangar,Fighter Hangar 7E,differs
+outfitting,Hpt_DumbfireMissileRack_Fixed_Medium_Lasso,Rocket Propelled FSD Disruptor,Missile Rack (fixed; medium),differs
+outfitting,Int_PassengerCabin_Size2_Class1,Economy Class Passenger Cabin,Passenger Cabin 2E,differs
+outfitting,Int_PassengerCabin_Size3_Class1,Economy Class Passenger Cabin,Passenger Cabin 3E,differs
+outfitting,Int_PassengerCabin_Size3_Class2,Business Class Passenger Cabin,Passenger Cabin 3D,differs
+outfitting,Int_PassengerCabin_Size5_Class1,Economy Class Passenger Cabin,Passenger Cabin 5E,differs
+outfitting,Int_PassengerCabin_Size5_Class2,Business Class Passenger Cabin,Passenger Cabin 5D,differs
+outfitting,Int_PassengerCabin_Size5_Class3,First Class Passenger Cabin,Passenger Cabin 5C,differs
+outfitting,Int_DroneControl_UnkVesselResearch,Research Limpet Controller,Limpet Controller,differs
+outfitting,Hpt_XenoScannerMk2_Basic_Tiny,Enhanced Xeno Scanner,Xenoscannermk2,differs
+outfitting,Hpt_Guardian_GaussCannon_Fixed_Medium,Guardian Gauss Cannon,Guardian Weapon (fixed; medium),differs
+outfitting,Int_GuardianPowerDistributor_Size1,Guardian Hybrid Power Distributor,Guardian Power Distributor 1,differs
+outfitting,Int_GuardianPowerDistributor_Size2,Guardian Hybrid Power Distributor,Guardian Power Distributor 2,differs
+outfitting,Int_GuardianPowerDistributor_Size3,Guardian Hybrid Power Distributor,Guardian Power Distributor 3,differs
+outfitting,Int_GuardianPowerDistributor_Size4,Guardian Hybrid Power Distributor,Guardian Power Distributor 4,differs
+outfitting,Int_GuardianPowerDistributor_Size5,Guardian Hybrid Power Distributor,Guardian Power Distributor 5,differs
+outfitting,Int_GuardianPowerDistributor_Size6,Guardian Hybrid Power Distributor,Guardian Power Distributor 6,differs
+outfitting,Int_GuardianPowerDistributor_Size7,Guardian Hybrid Power Distributor,Guardian Power Distributor 7,differs
+outfitting,Int_GuardianPowerDistributor_Size8,Guardian Hybrid Power Distributor,Guardian Power Distributor 8,differs
+outfitting,Int_GuardianPowerplant_Size2,Guardian Hybrid Power Plant,Guardian Power Plant 2,differs
+outfitting,Int_GuardianPowerplant_Size3,Guardian Hybrid Power Plant,Guardian Power Plant 3,differs
+outfitting,Int_GuardianPowerplant_Size4,Guardian Hybrid Power Plant,Guardian Power Plant 4,differs
+outfitting,Int_GuardianPowerplant_Size5,Guardian Hybrid Power Plant,Guardian Power Plant 5,differs
+outfitting,Int_GuardianPowerplant_Size6,Guardian Hybrid Power Plant,Guardian Power Plant 6,differs
+outfitting,Int_GuardianPowerplant_Size7,Guardian Hybrid Power Plant,Guardian Power Plant 7,differs
+outfitting,Int_GuardianPowerplant_Size8,Guardian Hybrid Power Plant,Guardian Power Plant 8,differs
+outfitting,Hpt_CausticMissile_Fixed_Medium,Enzyme Missile Rack,Causticmissile,differs
+outfitting,Hpt_FlechetteLauncher_Fixed_Medium,Remote Release Flechette Launcher,Flechettelauncher,differs
+outfitting,Hpt_FlechetteLauncher_Turret_Medium,Remote Release Flechette Launcher,Flechettelauncher,differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Fixed_Medium,Guardian Plasma Charger,Guardian Weapon (fixed; medium),differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Turret_Medium,Guardian Plasma Charger,Guardian Weapon (turreted; medium),differs
+outfitting,Hpt_Guardian_ShardCannon_Fixed_Medium,Guardian Shard Cannon,Guardian Weapon (fixed; medium),differs
+outfitting,Hpt_Guardian_ShardCannon_Turret_Medium,Guardian Shard Cannon,Guardian Weapon (turreted; medium),differs
+outfitting,Hpt_PlasmaShockCannon_Fixed_Medium,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Gimbal_Medium,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Turret_Medium,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_Guardian_ShardCannon_Fixed_Large,Guardian Shard Cannon,Guardian Weapon (fixed; large),differs
+outfitting,Hpt_Guardian_ShardCannon_Turret_Large,Guardian Shard Cannon,Guardian Weapon (turreted; large),differs
+outfitting,Hpt_PlasmaShockCannon_Fixed_Large,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Gimbal_Large,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Turret_Large,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Fixed_Large,Guardian Plasma Charger,Guardian Weapon (fixed; large),differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Turret_Large,Guardian Plasma Charger,Guardian Weapon (turreted; large),differs
+outfitting,Hpt_PlasmaShockCannon_Turret_Small,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Gimbal_Small,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_PlasmaShockCannon_Fixed_Small,Shock Cannon,Plasmashockcannon,differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Turret_Small,Guardian Plasma Charger,Guardian Weapon (turreted; small),differs
+outfitting,Hpt_Guardian_PlasmaLauncher_Fixed_Small,Guardian Plasma Charger,Guardian Weapon (fixed; small),differs
+outfitting,Hpt_Guardian_ShardCannon_Turret_Small,Guardian Shard Cannon,Guardian Weapon (turreted; small),differs
+outfitting,Hpt_Guardian_ShardCannon_Fixed_Small,Guardian Shard Cannon,Guardian Weapon (fixed; small),differs
+outfitting,Hpt_Guardian_GaussCannon_Fixed_Small,Guardian Gauss Cannon,Guardian Weapon (fixed; small),differs
+outfitting,Hpt_Mining_SubSurfDispMisle_Fixed_Small,Sub-Surface Displacement Missile,Mining Tool (fixed; small),differs
+outfitting,Hpt_Mining_SubSurfDispMisle_Turret_Small,Sub-Surface Displacement Missile,Mining Tool (turreted; small),differs
+outfitting,Hpt_Mining_SubSurfDispMisle_Fixed_Medium,Sub-Surface Displacement Missile,Mining Tool (fixed; medium),differs
+outfitting,Hpt_Mining_SubSurfDispMisle_Turret_Medium,Sub-Surface Displacement Missile,Mining Tool (turreted; medium),differs
+outfitting,Hpt_Mining_AbrBlstr_Fixed_Small,Abrasion Blaster,Mining Tool (fixed; small),differs
+outfitting,Hpt_Mining_AbrBlstr_Turret_Small,Abrasion Blaster,Mining Tool (turreted; small),differs
+outfitting,Hpt_Mining_SeismChrgWarhd_Fixed_Medium,Seismic Charge Launcher,Mining Tool (fixed; medium),differs
+outfitting,Hpt_Mining_SeismChrgWarhd_Turret_Medium,Seismic Charge Launcher,Mining Tool (turreted; medium),differs
+outfitting,Hpt_MultiCannon_Fixed_Medium_Advanced,Advanced Multi-Cannon,Multi-cannon (fixed; medium),differs
+outfitting,Hpt_MultiCannon_Fixed_Small_Advanced,Advanced Multi-Cannon,Multi-cannon (fixed; small),differs
+outfitting,Hpt_DumbfireMissileRack_Fixed_Small_Advanced,Advanced Missile Rack,Missile Rack (fixed; small),differs
+outfitting,Hpt_DumbfireMissileRack_Fixed_Medium_Advanced,Advanced Missile Rack,Missile Rack (fixed; medium),differs
+outfitting,Int_PlanetApproachSuite_Advanced,Advanced Planetary Approach Suite,Planetary Approach Suite,differs
+outfitting,Int_MultiDroneControl_Mining_Size3_Class1,Mining Multi Limpet Controller,Multi Limpet Controller 3E,differs
+outfitting,Int_MultiDroneControl_Mining_Size3_Class3,Mining Multi Limpet Controller,Multi Limpet Controller 3C,differs
+outfitting,Int_MultiDroneControl_Operations_Size3_Class3,Operations Multi Limpet Controller,Multi Limpet Controller 3C,differs
+outfitting,Int_MultiDroneControl_Operations_Size3_Class4,Operations Multi Limpet Controller,Multi Limpet Controller 3B,differs
+outfitting,Int_MultiDroneControl_Rescue_Size3_Class2,Rescue Multi Limpet Controller,Multi Limpet Controller 3D,differs
+outfitting,Int_MultiDroneControl_Rescue_Size3_Class3,Rescue Multi Limpet Controller,Multi Limpet Controller 3C,differs
+outfitting,Int_MultiDroneControl_Xeno_Size3_Class3,Xeno Multi Limpet Controller,Multi Limpet Controller 3C,differs
+outfitting,Int_MultiDroneControl_Xeno_Size3_Class4,Xeno Multi Limpet Controller,Multi Limpet Controller 3B,differs
+outfitting,Int_MultiDroneControl_Universal_Size7_Class3,Universal Multi Limpet Controller,Multi Limpet Controller 7C,differs
+outfitting,Int_MultiDroneControl_Universal_Size7_Class5,Universal Multi Limpet Controller,Multi Limpet Controller 7A,differs
+outfitting,Hpt_ATDumbfireMissile_Fixed_Large_V2,Enhanced AX Missile Rack,AX Missile Rack (fixed; large),differs
+outfitting,Hpt_ATMultiCannon_Fixed_Medium_V2,Enhanced AX Multi-Cannon,AX Multi-cannon (fixed; medium),differs
+outfitting,Hpt_ATDumbfireMissile_Fixed_Medium_V2,Enhanced AX Missile Rack,AX Missile Rack (fixed; medium),differs
+outfitting,Hpt_ATDumbfireMissile_Turret_Large_V2,Enhanced AX Missile Rack,AX Missile Rack (turreted; large),differs
+outfitting,Hpt_ATDumbfireMissile_Turret_Medium_V2,Enhanced AX Missile Rack,AX Missile Rack (turreted; medium),differs
+outfitting,Hpt_ATMultiCannon_Fixed_Large_V2,Enhanced AX Multi-Cannon,AX Multi-cannon (fixed; large),differs
+outfitting,Hpt_ATMultiCannon_Turret_Large_V2,Enhanced AX Multi-Cannon,AX Multi-cannon (turreted; large),differs
+outfitting,Hpt_ATMultiCannon_Turret_Medium_V2,Enhanced AX Multi-Cannon,AX Multi-cannon (turreted; medium),differs
+outfitting,Hpt_ATMultiCannon_Gimbal_Large,Enhanced AX Multi-Cannon,AX Multi-cannon (gimballed; large),differs
+outfitting,Hpt_ATMultiCannon_Gimbal_Medium,Enhanced AX Multi-Cannon,AX Multi-cannon (gimballed; medium),differs
+outfitting,Hpt_AntiUnknownShutdown_Tiny_V2,Thargoid Pulse Neutraliser,Shutdown Field Neutraliser (0),differs
+outfitting,Hpt_XenoScanner_Advanced_Tiny,Pulse Wave Xeno Scanner,Xeno Scanner (0),differs
+outfitting,Hpt_Human_Extraction_Fixed_Medium,Sub-Surface Extraction Missile,Human,differs
+outfitting,Hpt_ATVentDisruptorPylon_Fixed_Medium,Guardian Nanite Torpedo Pylon,Atventdisruptorpylon,differs
+outfitting,Hpt_ATVentDisruptorPylon_Fixed_Large,Guardian Nanite Torpedo Pylon,Atventdisruptorpylon,differs
+outfitting,Hpt_Cannon_Gimbal_Medium_Burst,Concord Cannon,Cannon (gimballed; medium),differs
+outfitting,Int_LargeCargoRack_Size7_Class1,Mk II Cargo Rack,Largecargorack 7E,differs
+outfitting,Int_LargeCargoRack_Size8_class1,Mk II Cargo Rack,Largecargorack 8E,differs
+outfitting,Hpt_MiningToolV2_Fixed_Large,Mining Volley Repeater,Miningtoolv2,differs
+outfitting,Int_MultiDroneControl_MiningV2_Size5_Class5,Mk II Mining Multi-Limpet Controller,Multi Limpet Controller 5A,differs
+outfitting,Explorer_NX_Armour_Grade1,Mk II Ablative Lightweight Alloys,Lightweight Alloy,differs
+outfitting,Explorer_NX_Armour_Grade2,Mk II Ablative Reinforced Alloys,Reinforced Alloy,differs
+outfitting,Explorer_NX_Armour_Grade3,Mk II Ablative Military Grade Composite,Military Grade Composite,differs
+outfitting,Explorer_NX_Armour_Mirrored,Mk II Ablative Mirrored Surface Composite,Mirrored Surface Composite,differs
+outfitting,Explorer_NX_Armour_Reactive,Mk II Ablative Reactive Surface Composite,Reactive Surface Composite,differs
+outfitting,Int_Hyperdrive_Overcharge_Size8_Class5_OverchargeBooster_MkII,Mk II Supercharge Optimised Frame Shift Drive (SCO),Frame Shift Drive (SCO) Mk II 8A,differs
+outfitting,Int_Engine_Size7_Class5_GravityOptimised_MkII,Mk II Gravity Optimised Thrusters,Thrusters 7A,differs
+outfitting,Hpt_MkIIPlasmaShockAutocannon_Fixed_Large,Mk II Plasma Shock Accelerator,Mkiiplasmashockautocannon,differs
+outfitting,Int_MkIIAgileBoost_Engine_Size5_Class5,Mk II Agile Boost Thrusters,Mkiiagileboost 5A,differs
+outfitting,Int_MkII_PassengerCabin_Size2_Class1,MkII Economy Class Passenger Cabin,Mkii 2E,differs
+outfitting,Int_MkII_PassengerCabin_Size3_Class1,MkII Economy Class Passenger Cabin,Mkii 3E,differs
+outfitting,Int_MkII_PassengerCabin_Size3_Class2,MkII Business Class Passenger Cabin,Mkii 3D,differs
+outfitting,Int_MkII_PassengerCabin_Size4_Class1,MkII Economy Class Passenger Cabin,Mkii 4E,differs
+outfitting,Int_MkII_PassengerCabin_Size4_Class2,MkII Business Class Passenger Cabin,Mkii 4D,differs
+outfitting,Int_MkII_PassengerCabin_Size5_Class1,MkII Economy Class Passenger Cabin,Mkii 5E,differs
+outfitting,Int_MkII_PassengerCabin_Size5_Class2,MkII Business Class Passenger Cabin,Mkii 5D,differs
+outfitting,Int_MkII_PassengerCabin_Size6_Class1,MkII Economy Class Passenger Cabin,Mkii 6E,differs
+outfitting,Int_MkII_PassengerCabin_Size6_Class2,MkII Business Class Passenger Cabin,Mkii 6D,differs
+outfitting,Hpt_Railgun_Fixed_Medium,Enduring Feedback Rail Gun,Rail Gun (fixed; medium),differs
+outfitting,Int_PowerDistributor_Size5_Class5,Balanced Power Distributor,Power Distributor 5A,differs
+outfitting,Int_ModuleReinforcement_Size5_Class2,Heavy Duty Module Reinforcement Package,Module Reinforcement Package 5D,differs
+outfitting,Hpt_Mining_AbrBlstr_Fixed_Small,Far-Reaching Abrasion Blaster,Mining Tool (fixed; small),differs
+outfitting,Hpt_CausticMissile_Fixed_Medium,High-Yield Enzyme Missile Rack,Causticmissile,differs
+outfitting,Hpt_Slugshot_Gimbal_Large,Double Screaming Fragment Cannon,Fragment Cannon (gimballed; large),differs
+outfitting,Hpt_Slugshot_Gimbal_Small,Double Screaming Fragment Cannon,Fragment Cannon (gimballed; small),differs
+outfitting,Hpt_MiningLaser_Fixed_Small,Long Range Mining Laser,Mining Laser (fixed; small),differs
+outfitting,Hpt_MultiCannon_Fixed_Medium,Rapid Phase Multi-Cannon,Multi-cannon (fixed; medium),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Medium,Drag Seeker Missile Rack,Missile Rack (fixed; medium),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Medium,Lightweight Thermal Seeker Missile Rack,Missile Rack (fixed; medium),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Medium,Lockdown Seeker Missile Rack,Missile Rack (fixed; medium),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Large,Lockdown Seeker Missile Rack,Missile Rack (fixed; large),differs
+outfitting,Int_PowerDistributor_Size3_Class2,Support Focused Power Distributor,Power Distributor 3D,differs
+outfitting,Int_PowerDistributor_Size3_Class5,Support Focused Power Distributor,Power Distributor 3A,differs
+outfitting,Int_PowerDistributor_Size4_Class2,Support Focused Power Distributor,Power Distributor 4D,differs
+outfitting,Int_PowerDistributor_Size4_Class5,Support Focused Power Distributor,Power Distributor 4A,differs
+outfitting,Int_PowerDistributor_Size6_Class5,Support Focused Power Distributor,Power Distributor 6A,differs
+outfitting,Int_CargoRack_Size5_Class1,Extended Cargo Rack,Cargo Rack 5E,differs
+outfitting,Int_CargoRack_Size6_Class1,Extended Cargo Rack,Cargo Rack 6E,differs
+outfitting,Int_DetailedSurfaceScanner_Tiny,Long Range Detailed Surface Scanner,Detailed Surface Scanner,differs
+outfitting,Int_FighterBayMk2_Size6_Class1,Mk II Vessel Hangar,Fighterbaymk2 6E,differs
+outfitting,Int_FighterBayMk2_Size5_Class1,Mk II Vessel Hangar,Fighterbaymk2 5E,differs
+outfitting,Int_FighterBayMk2_Size7_Class1,Mk II Vessel Hangar,Fighterbaymk2 7E,differs
+outfitting,Int_FighterBayMk2_Size5_Class1_Free,Mk II Vessel Hangar,Fighterbaymk2 5E,differs
+outfitting,Int_FighterBayMk2_Size6_Class1_Free,Mk II Vessel Hangar,Fighterbaymk2 6E,differs
+outfitting,Int_FighterBayMk2_Size7_Class1_Free,Mk II Vessel Hangar,Fighterbaymk2 7E,differs
+outfitting,Int_FighterBay_Size5_Class1_Free,Vessel Hangar,Fighter Hangar 5E,differs
+outfitting,Int_FighterBay_Size6_Class1_Free,Vessel Hangar,Fighter Hangar 6E,differs
+outfitting,Int_FighterBay_Size7_Class1_Free,Vessel Hangar,Fighter Hangar 7E,differs
+outfitting,Hpt_Cannon_Fixed_Huge,Force Impact Cannon,Cannon (fixed; huge),differs
+outfitting,Hpt_PulseLaserBurst_Gimbal_Medium,Regenerative Burst Laser,Burst Laser (gimballed; medium),differs
+outfitting,Hpt_BeamLaser_Fixed_Huge,Overloaded Beam Laser,Beam Laser (fixed; huge),differs
+outfitting,Hpt_BasicMissileRack_Fixed_Large,Exposing Missiles,Missile Rack (fixed; large),differs
+rare_commodity.csv,EraninPearlWhisky,Eranin Pearl Whisky,,missing
+rare_commodity.csv,LavianBrandy,Lavian Brandy,,missing
+rare_commodity.csv,HIP10175BushMeat,HIP 10175 Bush Meat,,missing
+rare_commodity.csv,AlbinoQuechuaMammoth,Albino Quechua Mammoth Meat,,missing
+rare_commodity.csv,UtgaroarMillenialEggs,Utgaroar Millennial Eggs,,missing
+rare_commodity.csv,WitchhaulKobeBeef,Witchhaul Kobe Beef,,missing
+rare_commodity.csv,KarsukiLocusts,Karsuki Locusts,,missing
+rare_commodity.csv,GiantIrukamaSnails,Giant Irukama Snails,,missing
+rare_commodity.csv,BaltahSineVacuumKrill,Baltah'sine Vacuum Krill,,missing
+rare_commodity.csv,CetiRabbits,Ceti Rabbits,,missing
+rare_commodity.csv,KachiriginLeaches,Kachirigin Filter Leeches,,missing
+rare_commodity.csv,LyraeWeed,Lyrae Weed,,missing
+rare_commodity.csv,OnionHead,Onionhead,,missing
+rare_commodity.csv,TarachTorSpice,Tarach Spice,,missing
+rare_commodity.csv,Wolf1301Fesh,Wolf Fesh,,missing
+rare_commodity.csv,BorasetaniPathogenetics,Borasetani Pathogenetics,,missing
+rare_commodity.csv,HIP118311Swarm,HIP 118311 Swarm,,missing
+rare_commodity.csv,KonggaAle,Kongga Ale,,missing
+rare_commodity.csv,WuthieloKuFroth,Wuthielo Ku Froth,,missing
+rare_commodity.csv,AlacarakmoSkinArt,Alacarakmo Skin Art,,missing
+rare_commodity.csv,EleuThermals,Eleu Thermals,,missing
+rare_commodity.csv,EshuUmbrellas,Eshu Umbrellas,,missing
+rare_commodity.csv,KaretiiCouture,Karetii Couture,,missing
+rare_commodity.csv,NjangariSaddles,Njangari Saddles,,missing
+rare_commodity.csv,AnyNaCoffee,Any Na Coffee,,missing
+rare_commodity.csv,CD75CatCoffee,CD-75 Kitten Brand Coffee,,missing
+rare_commodity.csv,GomanYauponCoffee,Goman Yaupon Coffee,,missing
+rare_commodity.csv,VolkhabBeeDrones,Volkhab Bee Drones,,missing
+rare_commodity.csv,KinagoInstruments,Kinago Violins,,missing
+rare_commodity.csv,NgunaModernAntiques,Nguna Modern Antiques,,missing
+rare_commodity.csv,RajukruStoves,Rajukru Multi-Stoves,,missing
+rare_commodity.csv,TiolceWaste2PasteUnits,Tiolce Waste2Paste Units,,missing
+rare_commodity.csv,ChiEridaniMarinePaste,Chi Eridani Marine Paste,,missing
+rare_commodity.csv,EsusekuCaviar,Esuseku Caviar,,missing
+rare_commodity.csv,LiveHecateSeaWorms,Live Hecate Sea Worms,,missing
+rare_commodity.csv,HelvetitjPearls,Helvetitj Pearls,,missing
+rare_commodity.csv,HIP41181Squid,HIP Proto-Squid,,missing
+rare_commodity.csv,CoquimSpongiformVictuals,Coquim Spongiform Victuals,,missing
+rare_commodity.csv,AerialEdenApple,Eden Apples of Aerial,,missing
+rare_commodity.csv,NeritusBerries,Neritus Berries,,missing
+rare_commodity.csv,OchoengChillies,Ochoeng Chillies,,missing
+rare_commodity.csv,DeuringasTruffles,Deuringas Truffles,,missing
+rare_commodity.csv,HR7221Wheat,HR 7221 Wheat,,missing
+rare_commodity.csv,JarouaRice,Jaroua Rice,,missing
+rare_commodity.csv,BelalansRayLeather,Belalans Ray Leather,,missing
+rare_commodity.csv,DamnaCarapaces,Damna Carapaces,,missing
+rare_commodity.csv,RapaBaoSnakeSkins,Rapa Bao Snake Skins,,missing
+rare_commodity.csv,VanayequiRhinoFur,Vanayequi Ceratomorpha Fur,,missing
+rare_commodity.csv,BastSnakeGin,Bast Snake Gin,,missing
+rare_commodity.csv,ThrutisCream,Thrutis Cream,,missing
+rare_commodity.csv,WulpaHyperboreSystems,Wulpa Hyperbore Systems,,missing
+rare_commodity.csv,AganippeRush,Aganippe Rush,,missing
+rare_commodity.csv,TerraMaterBloodBores,Terra Mater Blood Bores,,missing
+rare_commodity.csv,HolvaDuellingBlades,Holva Duelling Blades,,missing
+rare_commodity.csv,KamorinHistoricWeapons,Kamorin Historic Weapons,,missing
+rare_commodity.csv,GilyaSignatureWeapons,Gilya Signature Weapons,,missing
+rare_commodity.csv,DeltaPhoenicisPalms,Delta Phoenicis Palms,,missing
+rare_commodity.csv,ToxandjiVirocide,Toxandji Virocide,,missing
+rare_commodity.csv,XiheCompanions,Xihe Biomorphic Companions,,missing
+rare_commodity.csv,SanumaMEAT,Sanuma Decorative Meat,,missing
+rare_commodity.csv,EthgrezeTeaBuds,Ethgreze Tea Buds,,missing
+rare_commodity.csv,CeremonialHeikeTea,Ceremonial Heike Tea,,missing
+rare_commodity.csv,TanmarkTranquilTea,Tanmark Tranquil Tea,,missing
+rare_commodity.csv,AZCancriFormula42,AZ Cancri Formula 42,,missing
+rare_commodity.csv,KamitraCigars,Kamitra Cigars,,missing
+rare_commodity.csv,RusaniOldSmokey,Rusani Old Smokey,,missing
+rare_commodity.csv,YasoKondiLeaf,Yaso Kondi Leaf,,missing
+rare_commodity.csv,ChateauDeAegaeon,Chateau De Aegaeon,,missing
+rare_commodity.csv,WatersOfShintara,The Waters of Shintara,,missing
+rare_commodity.csv,OphiuchiExinoArtefacts,Ophiuch Exino Artefacts,,missing
+rare_commodity.csv,BakedGreebles,Baked Greebles,,missing
+rare_commodity.csv,CetiAepyornisEgg,Aepyornis Egg,,missing
+rare_commodity.csv,SaxonWine,Saxon Wine,,missing
+rare_commodity.csv,CentauriMegaGin,Centauri Mega Gin,,missing
+rare_commodity.csv,AnduligaFireWorks,Anduliga Fire Works,,missing
+rare_commodity.csv,BankiAmphibiousLeather,Banki Amphibious Leather,,missing
+rare_commodity.csv,CherbonesBloodCrystals,Cherbones Blood Crystals,,missing
+rare_commodity.csv,MotronaExperienceJelly,Motrona Experience Jelly,,missing
+rare_commodity.csv,GeawenDanceDust,Geawen Dance Dust,,missing
+rare_commodity.csv,GerasianGueuzeBeer,Gerasian Gueuze Beer,,missing
+rare_commodity.csv,HaidneBlackBrew,Haiden Black Brew,,missing
+rare_commodity.csv,HavasupaiDreamCatcher,Havasupai Dream Catcher,,missing
+rare_commodity.csv,BurnhamBileDistillate,Burnham Bile Distillate,,missing
+rare_commodity.csv,HIPOrganophosphates,HIP Organophosphates,,missing
+rare_commodity.csv,JaradharrePuzzlebox,Jaradharre Puzzle Box,,missing
+rare_commodity.csv,KorroKungPellets,Koro Kung Pellets,,missing
+rare_commodity.csv,LFTVoidExtractCoffee,Void Extract Coffee,,missing
+rare_commodity.csv,HonestyPills,Honesty Pills,,missing
+rare_commodity.csv,NonEuclidianExotanks,Non Euclidian Exotanks,,missing
+rare_commodity.csv,LTTHyperSweet,LTT Hyper Sweet,,missing
+rare_commodity.csv,MechucosHighTea,Mechucos High Tea,,missing
+rare_commodity.csv,MedbStarlube,Medb Starlube,,missing
+rare_commodity.csv,MokojingBeastFeast,Mokojing Beast Feast,,missing
+rare_commodity.csv,MukusubiiChitinOs,Mukusubii Chitin-os,,missing
+rare_commodity.csv,MulachiGiantFungus,Mulachi Giant Fungus,,missing
+rare_commodity.csv,NgadandariFireOpals,Ngadandari Fire Opals,,missing
+rare_commodity.csv,TiegfriesSynthSilk,Tiegfries Synth Silk,,missing
+rare_commodity.csv,UzumokuLowGWings,Uzumoku Low-G Wings,,missing
+rare_commodity.csv,VHerculisBodyRub,V Herculis Body Rub,,missing
+rare_commodity.csv,WheemeteWheatCakes,Wheemete Wheat Cakes,,missing
+rare_commodity.csv,VegaSlimWeed,Vega Slimweed,,missing
+rare_commodity.csv,AltairianSkin,Altairian Skin,,missing
+rare_commodity.csv,PavonisEarGrubs,Pavonis Ear Grubs,,missing
+rare_commodity.csv,JotunMookah,Jotun Mookah,,missing
+rare_commodity.csv,GiantVerrix,Giant Verrix,,missing
+rare_commodity.csv,IndiBourbon,Indi Bourbon,,missing
+rare_commodity.csv,AroucaConventualSweets,Arouca Conventual Sweets,,missing
+rare_commodity.csv,TauriChimes,Tauri Chimes,,missing
+rare_commodity.csv,ZeesszeAntGlue,Zeessze Ant Grub Glue,,missing
+rare_commodity.csv,PantaaPrayerSticks,Pantaa Prayer Sticks,,missing
+rare_commodity.csv,FujinTea,Fujin Tea,,missing
+rare_commodity.csv,ChameleonCloth,Chameleon Cloth,,missing
+rare_commodity.csv,OrrerianViciousBrew,Orrerian Vicious Brew,,missing
+rare_commodity.csv,UszaianTreeGrub,Uszaian Tree Grub,,missing
+rare_commodity.csv,MomusBogSpaniel,Momus Bog Spaniel,,missing
+rare_commodity.csv,DisoMaCorn,Diso Ma Corn,,missing
+rare_commodity.csv,LeestianEvilJuice,Leestian Evil Juice,,missing
+rare_commodity.csv,BlueMilk,Azure Milk,,missing
+rare_commodity.csv,AlienEggs,Leathery Eggs,,missing
+rare_commodity.csv,AlyaBodilySoap,Alya Body Soap,,missing
+rare_commodity.csv,VidavantianLace,Vidavantian Lace,,missing
+rare_commodity.csv,TransgenicOnionHead,Lucan Onionhead,,missing
+rare_commodity.csv,JaquesQuinentianStill,Jaques Quinentian Still,,missing
+rare_commodity.csv,SoontillRelics,Soontill Relics,,missing
+rare_commodity.csv,Advert1,Ultra-Compact Processor Prototypes,,missing
+rare_commodity.csv,TheHuttonMug,The Hutton Mug,,missing
+rare_commodity.csv,SothisCrystallineGold,Sothis Crystalline Gold,,missing
+rare_commodity.csv,MasterChefs,Master Chefs,,missing
+rare_commodity.csv,PersonalGifts,Festive Gifts,,missing
+rare_commodity.csv,CrystallineSpheres,Crystalline Spheres,,missing
+rare_commodity.csv,OnionHeadA,Onionhead Alpha Strain,,missing
+rare_commodity.csv,OnionHeadB,Onionhead Beta Strain,,missing
+rare_commodity.csv,GalacticTravelGuide,Galactic Travel Guide,,missing
+rare_commodity.csv,AnimalEffigies,Crom Silver Fesh,,missing
+rare_commodity.csv,ShansCharisOrchid,Shan's Charis Orchid,,missing
+rare_commodity.csv,BuckyballBeerMats,Buckyball Beer Mats,,missing
+rare_commodity.csv,HarmaSilverSeaRum,Harma Silver Sea Rum,,missing
+rare_commodity.csv,PlatinumAloy,Platinum Alloy,,missing
+rare_commodity.csv,Nanomedicines,Nanomedicines,,missing
+rare_commodity.csv,Duradrives,Duradrives,,missing
+rare_commodity.csv,ApaVietii,Apa Vietii,,missing
+rare_commodity.csv,ClassifiedExperimentalEquipment,Classified Experimental Equipment,,missing
+#totals,shipyard,ok=39,differs_or_missing=9
+#totals,outfitting,ok=1041,differs_or_missing=195
+#totals,material.csv,ok=137,differs_or_missing=0
+#totals,commodity.csv,ok=270,differs_or_missing=0
+#totals,rare_commodity.csv,ok=0,differs_or_missing=142
