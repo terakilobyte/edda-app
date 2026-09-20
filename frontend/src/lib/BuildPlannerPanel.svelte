@@ -1,24 +1,35 @@
 <script>
-  // The Build planner: pick a ship, give every engineerable module a
-  // blueprint, grade and experimental — or import a build from EDSY or
-  // Coriolis and plan the gap — and get one answer for the lot: what the
-  // plan does to the ship, every material pooled, one shopping list, the
-  // fewest engineers to visit. Its own page with a ship dropdown
-  // (maintainer, 2026-09-20); the Ships tab's Plan build lands here.
-  import { shipsList, shipModules, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance } from "./api.js";
+  // The Build planner: pick a ship — one of yours, or any hull you do not
+  // own yet — swap modules slot by slot from what each slot takes, give
+  // every engineerable module a blueprint, grade and experimental (or
+  // import a build from EDSY or Coriolis and plan the gap), and get one
+  // answer for the lot: what the plan does to the ship, every material
+  // pooled, one shopping list, the fewest engineers to visit. Its own page
+  // with a ship dropdown (maintainer, 2026-09-20); the Ships tab's Plan
+  // build lands here.
+  import { shipsList, hullsList, shipModules, slotOptions, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
-  import { planRows, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
+  import { planRows, withSwap, swapsFrom, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { useTabActive } from "./lifecycle.svelte.js";
 
   let ships = $state([]);
+  let hulls = $state([]);
+  // What is selected: one of the commander's ships by ShipID, or a hull
+  // the commander does not own (planned from its stock fit).
   let selectedId = $state(null);
-  const selected = $derived(ships.find((s) => s.ship_id === selectedId) ?? null);
+  let selectedHull = $state(null);
+  const selectKey = $derived(selectedHull ? `hull:${selectedHull}` : selectedId == null ? "" : String(selectedId));
+  const selected = $derived(selectedHull ? null : ships.find((s) => s.ship_id === selectedId) ?? null);
+  const hull = $derived(selectedHull ? hulls.find((h) => h.symbol === selectedHull) ?? null : null);
+  const target = $derived({ shipId: selectedHull ? null : selectedId, hull: selectedHull });
   let build = $state(null);
+  let slots = $state([]);          // every slot of the hull with its candidates
   let msg = $state("");
   const label = (s) => (s.ship_name ? `${s.ship_name} (${s.ship})` : s.ship) + (s.ident ? ` · ${s.ident}` : "");
+  const title = $derived(selected ? label(selected) : hull ? `${hull.name} (stock hull)` : "this ship");
 
   let rows = $state([]);
   let bpOptions = $state({});      // module type → [{name, grades}]
@@ -30,38 +41,62 @@
   // ship's ID to the next one bought, and a plan for a Type-10 must never
   // surface on whatever ship inherits its number (maintainer, 2026-09-20:
   // "if the build in memory is associated with a different ship it
-  // shouldn't show").
-  const planKey = (id) => { const s = ships.find((x) => x.ship_id === id); return `${KEYS.buildPlan}.${id}.${(s?.ship ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`; };
+  // shouldn't show"). A hull the commander does not own is keyed by hull.
+  const slug = (s) => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const planKey = () => (selectedHull ? `${KEYS.buildPlan}.hull.${slug(selectedHull)}` : `${KEYS.buildPlan}.${selectedId}.${slug(ships.find((x) => x.ship_id === selectedId)?.ship)}`);
   const counts = $derived(groupCounts(rows));
+  const engineerable = $derived(rows.filter((r) => r.module_type).length);
   const plannedCount = $derived(rows.filter(isPlanned).length);
+  const swapCount = $derived(rows.filter((r) => r.swap).length);
   const blueprintsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length > 0);
   const experimentalsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length === 0);
   const gradesFor = (row) => (blueprintsFor(row.module_type).find((b) => b.name === row.blueprint)?.grades ?? [1, 2, 3, 4, 5]).filter((g) => g > row.from_grade);
+  const candidatesFor = (slot) => slots.find((s) => s.slot === slot)?.candidates ?? [];
+  // Candidates grouped by kind for the swap dropdown ("Pulse Laser" → its sizes, ratings and mounts).
+  const kindsFor = (slot) => {
+    const groups = new Map();
+    for (const c of candidatesFor(slot)) {
+      if (!groups.has(c.kind)) groups.set(c.kind, []);
+      groups.get(c.kind).push(c);
+    }
+    return [...groups.entries()];
+  };
 
   const active = useTabActive();
 
   async function loadShips() {
     try {
-      ships = await shipsList(false);
+      const [own, all] = await Promise.all([shipsList(false), hulls.length ? Promise.resolve(hulls) : hullsList()]);
+      ships = own;
+      hulls = all;
       const want = planner.shipId != null ? ships.find((s) => s.ship_id === planner.shipId) : null;
-      const cur = want ?? ships.find((s) => s.ship_id === selectedId) ?? ships.find((s) => s.current) ?? ships[0] ?? null;
       planner.shipId = null;
-      if (cur) await select(cur.ship_id);
-      else { selectedId = null; build = null; rows = []; }
+      if (want) await select(String(want.ship_id));
+      else if (selectedHull) await select(`hull:${selectedHull}`);
+      else {
+        const cur = ships.find((s) => s.ship_id === selectedId) ?? ships.find((s) => s.current) ?? ships[0] ?? null;
+        if (cur) await select(String(cur.ship_id));
+        else { selectedId = null; build = null; rows = []; slots = []; }
+      }
     } catch (e) { msg = String(e); }
   }
   // Mount, every ship swap, and every hand-off from the Ships tab.
   $effect(() => { void ship.currentId; void planner.shipId; loadShips(); });
 
-  async function select(id) {
-    selectedId = id; build = null; msg = ""; planReport = null; planMsg = ""; imported = null; perf = null; rows = [];
-    try { build = await shipModules(id); } catch (e) { msg = String(e); return; }
-    rows = planRows(build.modules, readKey(planKey(id), {}, { json: true }) ?? {});
+  async function select(key) {
+    if (key.startsWith("hull:")) { selectedHull = key.slice(5); selectedId = null; }
+    else { selectedHull = null; selectedId = Number(key); }
+    build = null; slots = []; msg = ""; planReport = null; planMsg = ""; imported = null; perf = null; rows = [];
+    try {
+      const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
+      build = b; slots = s;
+    } catch (e) { msg = String(e); return; }
+    rows = planRows(build.modules, readKey(planKey(), {}, { json: true }) ?? {}, slots);
     refreshPerformance();
     await loadOptions();
   }
   async function loadOptions() {
-    const types = [...new Set(rows.map((r) => r.module_type))].filter((t) => !bpOptions[t]);
+    const types = [...new Set(rows.map((r) => r.module_type).filter(Boolean))].filter((t) => !bpOptions[t]);
     if (!types.length) return;
     try {
       const got = await Promise.all(types.map((t) => listBlueprintNames(t)));
@@ -70,20 +105,20 @@
       bpOptions = next;
     } catch (e) { planMsg = String(e); }
   }
-  function savePlan() { if (selectedId != null) writeKey(planKey(selectedId), savedFrom(rows), { json: true }); refreshPerformance(); }
+  function savePlan() { if (selectedId != null || selectedHull) writeKey(planKey(), savedFrom(rows), { json: true }); refreshPerformance(); }
 
-  // What the plan does to the ship: mass, jump, power, as flown and at a
-  // full roll of every planned blueprint (EDSY's convention). Pinned
-  // against EDSY in ed_ships; refreshed whenever the rows change.
+  // What the plan does to the ship: mass, jump, power, as flown and with
+  // the swaps at their base figures plus a full roll of every planned
+  // blueprint (EDSY's convention). Pinned against EDSY in ed_ships;
+  // refreshed whenever the rows change.
   let perf = $state(null);
   let perfSeq = 0;
-  let imported = $state(null);   // the last imported build (its swaps feed the figures)
+  let imported = $state(null);   // the last imported build (what it said)
   async function refreshPerformance() {
-    if (selectedId == null) { perf = null; return; }
+    if (selectedId == null && !selectedHull) { perf = null; return; }
     const seq = ++perfSeq;
     try {
-      const swaps = (imported?.swaps ?? []).map((s) => ({ slot: s.slot, item: s.want_item }));
-      const r = await buildPerformance(selectedId, proposedFor(rows), swaps);
+      const r = await buildPerformance(target.shipId, proposedFor(rows), swapsFrom(rows), target.hull);
       if (seq === perfSeq) perf = r;
     } catch (e) { if (seq === perfSeq) perf = { error: String(e) }; }
   }
@@ -104,32 +139,42 @@
     planReport = null;
     savePlan();
   }
+  // Another module in the slot, from what the slot takes; "" is the fitted module (or empty) again.
+  async function swapTo(i, item) {
+    const candidate = item ? candidatesFor(rows[i].slot).find((c) => c.item === item) ?? null : null;
+    rows = rows.map((x, j) => (j === i ? withSwap(x, candidate) : x));
+    planReport = null;
+    savePlan();
+    await loadOptions();
+  }
   function copyToAll(i) { rows = sameForAll(rows, rows[i]); planReport = null; savePlan(); }
   function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && hasWork(r) })); planReport = null; savePlan(); }
   function togglePlanPick(i) { const s = new Set(planPicked); s.has(i) ? s.delete(i) : s.add(i); planPicked = s; }
 
   async function runPlan() {
-    if (selectedId == null) return;
+    if (selectedId == null && !selectedHull) return;
     planBusy = true; planMsg = "";
     try {
-      const swaps = (imported?.swaps ?? []).map((s) => ({ slot: s.slot, item: s.want_item }));
-      planReport = await buildPlanReport({ shipId: selectedId, items: planRequest(rows), swaps });
+      planReport = await buildPlanReport({ shipId: target.shipId, hull: target.hull, items: planRequest(rows), swaps: swapsFrom(rows) });
       planPicked = new Set((planReport.shopping?.list?.trades ?? []).map((_, i) => i));
     } catch (e) { planReport = null; planMsg = String(e); } finally { planBusy = false; }
   }
 
   // A build from EDSY or Coriolis (their SLEF export) becomes the plan:
-  // what to swap, then the engineering to reach it.
+  // what to swap, then the engineering to reach it. On a hull you do not
+  // own, the gap from the stock fit: every module a swap, every
+  // engineered one a job from grade 0.
   let importText = $state("");
   let importBusy = $state(false);
   let importOpen = $state(false);
   async function runImport() {
-    if (selectedId == null || !importText.trim()) return;
+    if ((selectedId == null && !selectedHull) || !importText.trim()) return;
     importBusy = true; planMsg = ""; imported = null;
     try {
-      const r = await importBuild(selectedId, importText);
+      const r = await importBuild(target.shipId, importText, target.hull);
       if (!r.ship_matches) {
-        planMsg = `That build is a ${r.ship}${r.ship_name ? ` ("${r.ship_name}")` : ""}, not ${selected ? label(selected) : "this ship"} — pick that ship above, or paste a build for this one.`;
+        const hullFor = hulls.find((h) => h.name.toLowerCase() === (r.ship ?? "").toLowerCase());
+        planMsg = `That build is a ${r.ship}${r.ship_name ? ` ("${r.ship_name}")` : ""}, not ${title} — pick that ship above${hullFor ? ` (it is under "Any ship" if you do not own one)` : ""}, or paste a build for this one.`;
         return;
       }
       imported = r;
@@ -143,19 +188,20 @@
   }
 
   // "Clear this build" (maintainer, 2026-09-20): forget the saved plan for
-  // this ship, drop any imported build, back to the fitted defaults.
+  // this ship, drop any imported build and every swap, back to the fitted
+  // defaults (the stock fit, for a hull).
   function clearBuild() {
-    if (selectedId == null || !build) return;
-    removeKey(planKey(selectedId));
+    if ((selectedId == null && !selectedHull) || !build) return;
+    removeKey(planKey());
     imported = null; planReport = null; planMsg = "";
-    rows = planRows(build.modules, {});
+    rows = planRows(build.modules, {}, slots);
     refreshPerformance();
   }
 
   async function copyPlannedBuild() {
-    if (selectedId == null) return;
+    if (selectedId == null && !selectedHull) return;
     try {
-      const slef = await shipSlef(selectedId, null, proposedFor(rows));
+      const slef = await shipSlef(target.shipId, null, proposedFor(rows), swapsFrom(rows), target.hull);
       await navigator.clipboard.writeText(slef);
       planMsg = "Planned build copied as SLEF — paste into EDSY or Coriolis (Import).";
     } catch (e) { planMsg = String(e); }
@@ -163,18 +209,28 @@
 </script>
 
 <section class="panel">
-  <h2>Build planner <span class="sub">every module at once · one material list · the fewest engineers</span></h2>
+  <h2>Build planner <span class="sub">every module at once · swap what a slot takes · one material list · the fewest engineers</span></h2>
   <div class="row" style="gap:0.8rem; flex-wrap:wrap; align-items:center">
     <label>Ship
-      <select value={selectedId} onchange={(e) => select(Number(e.currentTarget.value))} style="margin-left:0.4rem; min-width:18rem">
-        {#each ships as s}<option value={s.ship_id}>{label(s)}{s.current ? " · flying" : ""}</option>{/each}
+      <select value={selectKey} onchange={(e) => select(e.currentTarget.value)} style="margin-left:0.4rem; min-width:18rem">
+        {#if ships.length}
+          <optgroup label="Your ships">
+            {#each ships as s}<option value={String(s.ship_id)}>{label(s)}{s.current ? " · flying" : ""}</option>{/each}
+          </optgroup>
+        {/if}
+        <optgroup label="Any ship (as sold)">
+          {#each hulls as h}<option value={`hull:${h.symbol}`}>{h.name}</option>{/each}
+        </optgroup>
       </select>
     </label>
     <button class={importOpen ? "" : "quiet"} onclick={() => (importOpen = !importOpen)} title="Paste an EDSY or Coriolis SLEF export; the plan becomes the difference between this ship and that build">Import a build</button>
-    <button class="quiet" onclick={copyPlannedBuild} disabled={plannedCount === 0} title="The build with every planned blueprint at its target grade, for EDSY or Coriolis">Copy planned build (SLEF)</button>
-    <button class="quiet" onclick={clearBuild} disabled={!build} title="Forget the plan saved for this ship and start again from what is fitted">Clear this build</button>
+    <button class="quiet" onclick={copyPlannedBuild} disabled={plannedCount === 0 && swapCount === 0} title="The build with every swap and every planned blueprint at its target grade, for EDSY or Coriolis">Copy planned build (SLEF)</button>
+    <button class="quiet" onclick={clearBuild} disabled={!build} title="Forget the plan saved for this ship, every swap included, and start again from what is fitted">Clear this build</button>
     {#if msg}<span class="error small">{msg}</span>{/if}
   </div>
+  {#if hull}
+    <div class="muted small" style="margin-top:0.4rem">A {hull.name} as sold, not one of yours: every slot starts at the stock fit. Swap modules in, plan the engineering, or import a build for it.</div>
+  {/if}
 
   {#if importOpen}
     <div class="import" style="margin-top:0.6rem">
@@ -193,19 +249,7 @@
       · {imported.swaps.length} module{imported.swaps.length === 1 ? "" : "s"} to swap
       · {imported.items.filter((it) => !it.done).length} engineering job{imported.items.filter((it) => !it.done).length === 1 ? "" : "s"}
       · {imported.items.filter((it) => it.done).length} already there
-      {#if imported.swaps.length}
-        <div class="table-wrap" style="margin-top:0.3rem">
-          <table>
-            <thead><tr><th>Slot</th><th>Fitted</th><th>Build wants</th></tr></thead>
-            <tbody>
-              {#each imported.swaps as sw}
-                <tr><td class="muted">{sw.slot_name}</td><td>{sw.have ?? "empty"}</td><td>{sw.want}</td></tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        <div class="muted">A swapped module is engineered from scratch: its rows below start at grade 0.</div>
-      {/if}
+      {#if imported.swaps.length}<div class="muted">The swaps are in the table below, in the Swap to column; a swapped module is engineered from scratch, so its row starts at grade 0.</div>{/if}
       {#each imported.skipped as sk}<div class="warn">{sk}</div>{/each}
     </div>
   {/if}
@@ -214,7 +258,7 @@
     {@const b = perf.before}
     {@const a = perf.after}
     <div class="small perf" style="margin-top:0.6rem">
-      <strong>As flown{a ? " → with this plan" : ""}</strong>
+      <strong>{hull ? "As sold" : "As flown"}{a ? " → with this plan" : ""}</strong>
       <span title="Hull and modules, no fuel or cargo">unladen {arrow(t1(b.unladen_mass), a && t1(a.unladen_mass))} t</span>
       <span title="Full tank, no cargo / full cargo / one jump's fuel only">jump {arrow(t2(b.jump_unladen), a && t2(a.jump_unladen))} ly <span class="muted">(laden {arrow(t2(b.jump_laden), a && t2(a.jump_laden))}, max {arrow(t2(b.jump_max), a && t2(a.jump_max))})</span></span>
       <span class={(a ?? b).power_deployed > (a ?? b).power_capacity ? "bad" : ""} title="Draw with hardpoints retracted / deployed, against the power plant">power {arrow(pct(b.power_retracted, b.power_capacity), a && pct(a.power_retracted, a.power_capacity))} / {arrow(pct(b.power_deployed, b.power_capacity), a && pct(a.power_deployed, a.power_capacity))} of {arrow(t1(b.power_capacity), a && t1(a.power_capacity))} MW</span>
@@ -227,48 +271,64 @@
 
   {#if build}
     <div class="row" style="margin-top:0.7rem; gap:0.6rem; flex-wrap:wrap; align-items:center">
-      <span class="muted small">{plannedCount} of {rows.length} modules planned · fitted engineering continues to the top grade unless you change it</span>
+      <span class="muted small">{plannedCount} of {engineerable} engineerable modules planned{swapCount ? ` · ${swapCount} swap${swapCount === 1 ? "" : "s"}` : ""} · fitted engineering continues to the top grade unless you change it · Swap to offers only what the slot takes</span>
       <button class="quiet" onclick={() => includeAll(true)}>Include all chosen</button>
       <button class="quiet" onclick={() => includeAll(false)}>Include none</button>
     </div>
     <div class="table-wrap" style="margin-top:0.4rem">
       <table>
-        <thead><tr><th></th><th>Slot</th><th>Module</th><th>Fitted</th><th>Blueprint</th><th>To grade</th><th>Experimental</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Slot</th><th>Module</th><th>Swap to</th><th>Fitted</th><th>Blueprint</th><th>To grade</th><th>Experimental</th><th></th></tr></thead>
         <tbody>
           {#each rows as r, i (r.slot)}
-            <tr class={isPlanned(r) ? "eng" : ""}>
-              <td><input type="checkbox" checked={r.include && hasWork(r)} disabled={!hasWork(r)} onchange={(e) => update(i, { include: e.currentTarget.checked })} title={hasWork(r) ? "Include this module in the plan" : "Nothing to do: at the top grade and no experimental chosen"} /></td>
-              <td class="small muted">{r.slot_name}</td>
-              <td>{r.item_name}</td>
-              <td class="small muted">{r.from_grade ? `G${r.from_grade}` : "—"}</td>
+            <tr class={isPlanned(r) ? "eng" : r.swap ? "swap" : ""}>
+              <td>{#if r.module_type}<input type="checkbox" checked={r.include && hasWork(r)} disabled={!hasWork(r)} onchange={(e) => update(i, { include: e.currentTarget.checked })} title={hasWork(r) ? "Include this module in the plan" : "Nothing to do: at the top grade and no experimental chosen"} />{/if}</td>
+              <td class="small muted" title={r.size != null ? `${r.slot_name} · size ${r.size}` : r.slot_name}>{r.slot_name}</td>
+              <td>{#if r.swap}<span class="muted">{r.fitted_name ?? "empty"}</span> → <strong>{r.item_name}</strong>{:else}{r.item_name ?? "empty"}{/if}</td>
               <td>
-                <select value={r.blueprint} onchange={(e) => update(i, { blueprint: e.currentTarget.value })}>
-                  <option value="">none</option>
-                  {#each blueprintsFor(r.module_type) as b}<option value={b.name}>{b.name}</option>{/each}
-                </select>
-              </td>
-              <td>
-                {#if r.blueprint && gradesFor(r).length}
-                  <select value={String(r.target_grade)} onchange={(e) => update(i, { target_grade: Number(e.currentTarget.value) })}>
-                    {#each gradesFor(r) as g}<option value={String(g)}>G{g}</option>{/each}
+                {#if candidatesFor(r.slot).length}
+                  <select value={r.swap ?? ""} onchange={(e) => swapTo(i, e.currentTarget.value)} title="Every module this slot takes">
+                    <option value="">{r.fitted_name ? `keep: ${r.fitted_name}` : "leave empty"}</option>
+                    {#each kindsFor(r.slot) as [kind, cs]}
+                      <optgroup label={kind}>
+                        {#each cs as c}<option value={c.item}>{c.item_name}</option>{/each}
+                      </optgroup>
+                    {/each}
                   </select>
-                {:else if r.blueprint}<span class="muted small">at the top</span>
                 {:else}<span class="muted">—</span>{/if}
               </td>
-              <td>
-                <select value={r.experimental} onchange={(e) => update(i, { experimental: e.currentTarget.value })}>
-                  <option value="">none</option>
-                  {#each experimentalsFor(r.module_type) as x}<option value={x.name}>{x.name}</option>{/each}
-                </select>
-              </td>
-              <td>{#if (counts.get(r.module_type) ?? 0) > 1}<button class="quiet small" onclick={() => copyToAll(i)} title="Give every {r.module_type} on this ship the same plan">same for all {counts.get(r.module_type)}</button>{/if}</td>
+              <td class="small muted">{r.swap ? "new" : r.from_grade ? `G${r.from_grade}` : "—"}</td>
+              {#if r.module_type}
+                <td>
+                  <select value={r.blueprint} onchange={(e) => update(i, { blueprint: e.currentTarget.value })}>
+                    <option value="">none</option>
+                    {#each blueprintsFor(r.module_type) as b}<option value={b.name}>{b.name}</option>{/each}
+                  </select>
+                </td>
+                <td>
+                  {#if r.blueprint && gradesFor(r).length}
+                    <select value={String(r.target_grade)} onchange={(e) => update(i, { target_grade: Number(e.currentTarget.value) })}>
+                      {#each gradesFor(r) as g}<option value={String(g)}>G{g}</option>{/each}
+                    </select>
+                  {:else if r.blueprint}<span class="muted small">at the top</span>
+                  {:else}<span class="muted">—</span>{/if}
+                </td>
+                <td>
+                  <select value={r.experimental} onchange={(e) => update(i, { experimental: e.currentTarget.value })}>
+                    <option value="">none</option>
+                    {#each experimentalsFor(r.module_type) as x}<option value={x.name}>{x.name}</option>{/each}
+                  </select>
+                </td>
+                <td>{#if (counts.get(r.module_type) ?? 0) > 1}<button class="quiet small" onclick={() => copyToAll(i)} title="Give every {r.module_type} on this ship the same plan">same for all {counts.get(r.module_type)}</button>{/if}</td>
+              {:else}
+                <td colspan="4" class="muted small">{r.item ? "no engineer works this" : ""}</td>
+              {/if}
             </tr>
           {/each}
         </tbody>
       </table>
     </div>
     <div class="row" style="margin-top:0.6rem">
-      <button onclick={runPlan} disabled={planBusy || (plannedCount === 0 && !(imported?.swaps?.length))}>{planBusy ? "Working…" : "Materials for this build"}</button>
+      <button onclick={runPlan} disabled={planBusy || (plannedCount === 0 && swapCount === 0)}>{planBusy ? "Working…" : "Materials for this build"}</button>
       {#if planMsg}<span class="muted small">{planMsg}</span>{/if}
     </div>
 
@@ -324,13 +384,14 @@
       <ShoppingReport shopping={planReport.shopping} picked={planPicked} onToggle={togglePlanPick} />
     {/if}
   {:else if !msg}
-    <p class="muted" style="margin-top:0.6rem">{ships.length ? "Loading the build…" : "No ships in the journal yet."}</p>
+    <p class="muted" style="margin-top:0.6rem">{ships.length || hulls.length ? "Loading the build…" : "No ships in the journal yet — pick any hull above to plan one."}</p>
   {/if}
 </section>
 
 <style>
   .perf { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: baseline; }
   tr.eng td { background: #7ec8ff10; }
+  tr.swap td { background: #ffd47e10; }
   button.small { padding: 0.1rem 0.5rem; font-size: 0.78rem; }
   .import { border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.8rem; background: var(--panel-2); }
 </style>

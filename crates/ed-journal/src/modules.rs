@@ -395,11 +395,19 @@ pub fn slot_name(slot: &str) -> String {
     }
     for (prefix, label) in [
         ("TinyHardpoint", "Utility"),
+        ("SmallMiningHardpoint", "Small mining hardpoint"),
+        ("MediumMiningHardpoint", "Medium mining hardpoint"),
+        ("LargeMiningHardpoint", "Large mining hardpoint"),
         ("SmallHardpoint", "Small hardpoint"),
         ("MediumHardpoint", "Medium hardpoint"),
         ("LargeHardpoint", "Large hardpoint"),
         ("HugeHardpoint", "Huge hardpoint"),
         ("Military", "Military"),
+        // The Panther's cargo slots, the Caspian's cabins, the Type-11's limpet and hangar slots.
+        ("Cargo", "Cargo"),
+        ("Passenger", "Passenger cabin"),
+        ("LimpetController", "Limpet controller"),
+        ("FighterBay", "Fighter hangar"),
     ] {
         if let Some(n) = s.strip_prefix(prefix) {
             return format!("{label} {}", n.trim_start_matches('0'));

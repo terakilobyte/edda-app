@@ -1,0 +1,6223 @@
+{
+ "hpt_advancedtorppylon_fixed_large": {
+  "class": 3,
+  "kind": "htp",
+  "mount": "fixed",
+  "name": "Torpedo Pylon",
+  "rating": "I"
+ },
+ "hpt_advancedtorppylon_fixed_medium": {
+  "class": 2,
+  "kind": "htp",
+  "mount": "fixed",
+  "name": "Torpedo Pylon",
+  "rating": "I"
+ },
+ "hpt_advancedtorppylon_fixed_small": {
+  "class": 1,
+  "kind": "htp",
+  "mount": "fixed",
+  "name": "Torpedo Pylon",
+  "rating": "I"
+ },
+ "hpt_antiunknownshutdown_tiny": {
+  "class": 0,
+  "kind": "uex",
+  "limit": 1,
+  "name": "Shutdown Field Neutraliser",
+  "rating": "F"
+ },
+ "hpt_antiunknownshutdown_tiny_v2": {
+  "class": 0,
+  "kind": "uex",
+  "limit": 1,
+  "name": "Thargoid Pulse Neutraliser",
+  "rating": "E"
+ },
+ "hpt_atdumbfiremissile_fixed_large": {
+  "class": 3,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "AX Missile Rack",
+  "rating": "C"
+ },
+ "hpt_atdumbfiremissile_fixed_large_v2": {
+  "class": 3,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Enhanced AX Missile Rack",
+  "rating": "B"
+ },
+ "hpt_atdumbfiremissile_fixed_medium": {
+  "class": 2,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "AX Missile Rack",
+  "rating": "E"
+ },
+ "hpt_atdumbfiremissile_fixed_medium_v2": {
+  "class": 2,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Enhanced AX Missile Rack",
+  "rating": "D"
+ },
+ "hpt_atdumbfiremissile_turret_large": {
+  "class": 3,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "AX Missile Rack",
+  "rating": "E"
+ },
+ "hpt_atdumbfiremissile_turret_large_v2": {
+  "class": 3,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Enhanced AX Missile Rack",
+  "rating": "D"
+ },
+ "hpt_atdumbfiremissile_turret_medium": {
+  "class": 2,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "AX Missile Rack",
+  "rating": "F"
+ },
+ "hpt_atdumbfiremissile_turret_medium_v2": {
+  "class": 2,
+  "kind": "hexxm",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Enhanced AX Missile Rack",
+  "rating": "E"
+ },
+ "hpt_atmulticannon_fixed_large": {
+  "class": 3,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "AX Multi-Cannon",
+  "rating": "C"
+ },
+ "hpt_atmulticannon_fixed_large_v2": {
+  "class": 3,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "B"
+ },
+ "hpt_atmulticannon_fixed_medium": {
+  "class": 2,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "AX Multi-Cannon",
+  "rating": "E"
+ },
+ "hpt_atmulticannon_fixed_medium_v2": {
+  "class": 2,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "D"
+ },
+ "hpt_atmulticannon_gimbal_large": {
+  "class": 3,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "gimballed",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "C"
+ },
+ "hpt_atmulticannon_gimbal_medium": {
+  "class": 2,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "gimballed",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "E"
+ },
+ "hpt_atmulticannon_turret_large": {
+  "class": 3,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "AX Multi-Cannon",
+  "rating": "E"
+ },
+ "hpt_atmulticannon_turret_large_v2": {
+  "class": 3,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "D"
+ },
+ "hpt_atmulticannon_turret_medium": {
+  "class": 2,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "AX Multi-Cannon",
+  "rating": "F"
+ },
+ "hpt_atmulticannon_turret_medium_v2": {
+  "class": 2,
+  "kind": "hexxc",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Enhanced AX Multi-Cannon",
+  "rating": "E"
+ },
+ "hpt_atventdisruptorpylon_fixed_large": {
+  "class": 3,
+  "kind": "hextp",
+  "mount": "fixed",
+  "name": "Guardian Nanite Torpedo Pylon",
+  "rating": "I"
+ },
+ "hpt_atventdisruptorpylon_fixed_medium": {
+  "class": 2,
+  "kind": "hextp",
+  "mount": "fixed",
+  "name": "Guardian Nanite Torpedo Pylon",
+  "rating": "I"
+ },
+ "hpt_basicmissilerack_fixed_large": {
+  "class": 3,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Seeker Missile Rack",
+  "rating": "A"
+ },
+ "hpt_basicmissilerack_fixed_medium": {
+  "class": 2,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Seeker Missile Rack",
+  "rating": "B"
+ },
+ "hpt_basicmissilerack_fixed_small": {
+  "class": 1,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Seeker Missile Rack",
+  "rating": "B"
+ },
+ "hpt_beamlaser_fixed_huge": {
+  "class": 4,
+  "kind": "hel",
+  "mount": "fixed",
+  "name": "Beam Laser",
+  "rating": "A"
+ },
+ "hpt_beamlaser_fixed_large": {
+  "class": 3,
+  "kind": "hel",
+  "mount": "fixed",
+  "name": "Beam Laser",
+  "rating": "C"
+ },
+ "hpt_beamlaser_fixed_medium": {
+  "class": 2,
+  "kind": "hel",
+  "mount": "fixed",
+  "name": "Beam Laser",
+  "rating": "D"
+ },
+ "hpt_beamlaser_fixed_small": {
+  "class": 1,
+  "kind": "hel",
+  "mount": "fixed",
+  "name": "Beam Laser",
+  "rating": "E"
+ },
+ "hpt_beamlaser_fixed_small_heat": {
+  "class": 1,
+  "kind": "hel",
+  "mount": "fixed",
+  "name": "Retributor Beam Laser",
+  "rating": "E"
+ },
+ "hpt_beamlaser_gimbal_huge": {
+  "class": 4,
+  "kind": "hel",
+  "mount": "gimballed",
+  "name": "Beam Laser",
+  "rating": "A"
+ },
+ "hpt_beamlaser_gimbal_large": {
+  "class": 3,
+  "kind": "hel",
+  "mount": "gimballed",
+  "name": "Beam Laser",
+  "rating": "C"
+ },
+ "hpt_beamlaser_gimbal_medium": {
+  "class": 2,
+  "kind": "hel",
+  "mount": "gimballed",
+  "name": "Beam Laser",
+  "rating": "D"
+ },
+ "hpt_beamlaser_gimbal_small": {
+  "class": 1,
+  "kind": "hel",
+  "mount": "gimballed",
+  "name": "Beam Laser",
+  "rating": "E"
+ },
+ "hpt_beamlaser_turret_large": {
+  "class": 3,
+  "kind": "hel",
+  "mount": "turreted",
+  "name": "Beam Laser",
+  "rating": "D"
+ },
+ "hpt_beamlaser_turret_medium": {
+  "class": 2,
+  "kind": "hel",
+  "mount": "turreted",
+  "name": "Beam Laser",
+  "rating": "E"
+ },
+ "hpt_beamlaser_turret_small": {
+  "class": 1,
+  "kind": "hel",
+  "mount": "turreted",
+  "name": "Beam Laser",
+  "rating": "F"
+ },
+ "hpt_cannon_fixed_huge": {
+  "class": 4,
+  "kind": "hc",
+  "mount": "fixed",
+  "name": "Cannon",
+  "rating": "B"
+ },
+ "hpt_cannon_fixed_large": {
+  "class": 3,
+  "kind": "hc",
+  "mount": "fixed",
+  "name": "Cannon",
+  "rating": "C"
+ },
+ "hpt_cannon_fixed_medium": {
+  "class": 2,
+  "kind": "hc",
+  "mount": "fixed",
+  "name": "Cannon",
+  "rating": "D"
+ },
+ "hpt_cannon_fixed_small": {
+  "class": 1,
+  "kind": "hc",
+  "mount": "fixed",
+  "name": "Cannon",
+  "rating": "D"
+ },
+ "hpt_cannon_gimbal_huge": {
+  "class": 4,
+  "kind": "hc",
+  "mount": "gimballed",
+  "name": "Cannon",
+  "rating": "B"
+ },
+ "hpt_cannon_gimbal_large": {
+  "class": 3,
+  "kind": "hc",
+  "mount": "gimballed",
+  "name": "Cannon",
+  "rating": "C"
+ },
+ "hpt_cannon_gimbal_medium": {
+  "class": 2,
+  "kind": "hc",
+  "mount": "gimballed",
+  "name": "Cannon",
+  "rating": "D"
+ },
+ "hpt_cannon_gimbal_medium_burst": {
+  "class": 2,
+  "kind": "hc",
+  "mount": "gimballed",
+  "name": "Concord Cannon",
+  "rating": "D"
+ },
+ "hpt_cannon_gimbal_small": {
+  "class": 1,
+  "kind": "hc",
+  "mount": "gimballed",
+  "name": "Cannon",
+  "rating": "E"
+ },
+ "hpt_cannon_turret_large": {
+  "class": 3,
+  "kind": "hc",
+  "mount": "turreted",
+  "name": "Cannon",
+  "rating": "D"
+ },
+ "hpt_cannon_turret_medium": {
+  "class": 2,
+  "kind": "hc",
+  "mount": "turreted",
+  "name": "Cannon",
+  "rating": "E"
+ },
+ "hpt_cannon_turret_small": {
+  "class": 1,
+  "kind": "hc",
+  "mount": "turreted",
+  "name": "Cannon",
+  "rating": "F"
+ },
+ "hpt_cargoscanner_size0_class1": {
+  "class": 0,
+  "kind": "ucs",
+  "limit": 1,
+  "name": "Manifest Scanner",
+  "rating": "E"
+ },
+ "hpt_cargoscanner_size0_class2": {
+  "class": 0,
+  "kind": "ucs",
+  "limit": 1,
+  "name": "Manifest Scanner",
+  "rating": "D"
+ },
+ "hpt_cargoscanner_size0_class3": {
+  "class": 0,
+  "kind": "ucs",
+  "limit": 1,
+  "name": "Manifest Scanner",
+  "rating": "C"
+ },
+ "hpt_cargoscanner_size0_class4": {
+  "class": 0,
+  "kind": "ucs",
+  "limit": 1,
+  "name": "Manifest Scanner",
+  "rating": "B"
+ },
+ "hpt_cargoscanner_size0_class5": {
+  "class": 0,
+  "kind": "ucs",
+  "limit": 1,
+  "name": "Manifest Scanner",
+  "rating": "A"
+ },
+ "hpt_causticmissile_fixed_medium": {
+  "class": 2,
+  "kind": "hex",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Enzyme Missile Rack",
+  "rating": "B"
+ },
+ "hpt_causticsinklauncher_turret_tiny": {
+  "class": 0,
+  "kind": "uhsl",
+  "name": "Caustic Sink Launcher",
+  "rating": "I"
+ },
+ "hpt_chafflauncher_tiny": {
+  "class": 0,
+  "kind": "ucl",
+  "name": "Chaff Launcher",
+  "rating": "I"
+ },
+ "hpt_cloudscanner_size0_class1": {
+  "class": 0,
+  "kind": "ufsws",
+  "limit": 1,
+  "name": "Frame Shift Wake Scanner",
+  "rating": "E"
+ },
+ "hpt_cloudscanner_size0_class2": {
+  "class": 0,
+  "kind": "ufsws",
+  "limit": 1,
+  "name": "Frame Shift Wake Scanner",
+  "rating": "D"
+ },
+ "hpt_cloudscanner_size0_class3": {
+  "class": 0,
+  "kind": "ufsws",
+  "limit": 1,
+  "name": "Frame Shift Wake Scanner",
+  "rating": "C"
+ },
+ "hpt_cloudscanner_size0_class4": {
+  "class": 0,
+  "kind": "ufsws",
+  "limit": 1,
+  "name": "Frame Shift Wake Scanner",
+  "rating": "B"
+ },
+ "hpt_cloudscanner_size0_class5": {
+  "class": 0,
+  "kind": "ufsws",
+  "limit": 1,
+  "name": "Frame Shift Wake Scanner",
+  "rating": "A"
+ },
+ "hpt_crimescanner_size0_class1": {
+  "class": 0,
+  "kind": "ukws",
+  "limit": 1,
+  "name": "Kill Warrant Scanner",
+  "rating": "E"
+ },
+ "hpt_crimescanner_size0_class2": {
+  "class": 0,
+  "kind": "ukws",
+  "limit": 1,
+  "name": "Kill Warrant Scanner",
+  "rating": "D"
+ },
+ "hpt_crimescanner_size0_class3": {
+  "class": 0,
+  "kind": "ukws",
+  "limit": 1,
+  "name": "Kill Warrant Scanner",
+  "rating": "C"
+ },
+ "hpt_crimescanner_size0_class4": {
+  "class": 0,
+  "kind": "ukws",
+  "limit": 1,
+  "name": "Kill Warrant Scanner",
+  "rating": "B"
+ },
+ "hpt_crimescanner_size0_class5": {
+  "class": 0,
+  "kind": "ukws",
+  "limit": 1,
+  "name": "Kill Warrant Scanner",
+  "rating": "A"
+ },
+ "hpt_drunkmissilerack_fixed_medium": {
+  "class": 2,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Pack-Hound Missile Rack",
+  "rating": "B"
+ },
+ "hpt_dumbfiremissilerack_fixed_large": {
+  "class": 3,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Missile Rack",
+  "rating": "A"
+ },
+ "hpt_dumbfiremissilerack_fixed_medium": {
+  "class": 2,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Missile Rack",
+  "rating": "B"
+ },
+ "hpt_dumbfiremissilerack_fixed_medium_advanced": {
+  "class": 2,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Advanced Missile Rack",
+  "rating": "B"
+ },
+ "hpt_dumbfiremissilerack_fixed_medium_lasso": {
+  "class": 2,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Rocket Propelled FSD Disrupter",
+  "rating": "B"
+ },
+ "hpt_dumbfiremissilerack_fixed_small": {
+  "class": 1,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Missile Rack",
+  "rating": "B"
+ },
+ "hpt_dumbfiremissilerack_fixed_small_advanced": {
+  "class": 1,
+  "kind": "hmr",
+  "mount": "fixed",
+  "name": "Advanced Missile Rack",
+  "rating": "B"
+ },
+ "hpt_electroniccountermeasure_tiny": {
+  "class": 0,
+  "kind": "uec",
+  "name": "Electronic Countermeasure",
+  "rating": "F"
+ },
+ "hpt_flakmortar_fixed_medium": {
+  "class": 2,
+  "kind": "hex",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Remote Release Flak Launcher",
+  "rating": "B"
+ },
+ "hpt_flakmortar_turret_medium": {
+  "class": 2,
+  "kind": "hex",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Remote Release Flak Launcher",
+  "rating": "B"
+ },
+ "hpt_flechettelauncher_fixed_medium": {
+  "class": 2,
+  "kind": "hex",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Remote Release Flechette Launcher",
+  "rating": "B"
+ },
+ "hpt_flechettelauncher_turret_medium": {
+  "class": 2,
+  "kind": "hex",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Remote Release Flechette Launcher",
+  "rating": "B"
+ },
+ "hpt_guardian_gausscannon_fixed_medium": {
+  "class": 2,
+  "kind": "hexgg",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Gauss Cannon",
+  "rating": "B"
+ },
+ "hpt_guardian_gausscannon_fixed_small": {
+  "class": 1,
+  "kind": "hexgg",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Gauss Cannon",
+  "rating": "D"
+ },
+ "hpt_guardian_plasmalauncher_fixed_large": {
+  "class": 3,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Plasma Charger",
+  "rating": "C"
+ },
+ "hpt_guardian_plasmalauncher_fixed_medium": {
+  "class": 2,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Plasma Charger",
+  "rating": "B"
+ },
+ "hpt_guardian_plasmalauncher_fixed_small": {
+  "class": 1,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Plasma Charger",
+  "rating": "D"
+ },
+ "hpt_guardian_plasmalauncher_turret_large": {
+  "class": 3,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Plasma Charger",
+  "rating": "D"
+ },
+ "hpt_guardian_plasmalauncher_turret_medium": {
+  "class": 2,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Plasma Charger",
+  "rating": "E"
+ },
+ "hpt_guardian_plasmalauncher_turret_small": {
+  "class": 1,
+  "kind": "hexgp",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Plasma Charger",
+  "rating": "F"
+ },
+ "hpt_guardian_shardcannon_fixed_large": {
+  "class": 3,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Shard Cannon",
+  "rating": "C"
+ },
+ "hpt_guardian_shardcannon_fixed_medium": {
+  "class": 2,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Shard Cannon",
+  "rating": "A"
+ },
+ "hpt_guardian_shardcannon_fixed_small": {
+  "class": 1,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "fixed",
+  "name": "Guardian Shard Cannon",
+  "rating": "D"
+ },
+ "hpt_guardian_shardcannon_turret_large": {
+  "class": 3,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Shard Cannon",
+  "rating": "D"
+ },
+ "hpt_guardian_shardcannon_turret_medium": {
+  "class": 2,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Shard Cannon",
+  "rating": "A"
+ },
+ "hpt_guardian_shardcannon_turret_small": {
+  "class": 1,
+  "kind": "hexgs",
+  "limit": 4,
+  "mount": "turreted",
+  "name": "Guardian Shard Cannon",
+  "rating": "F"
+ },
+ "hpt_heatsinklauncher_turret_tiny": {
+  "class": 0,
+  "kind": "uhsl",
+  "name": "Heat Sink Launcher",
+  "rating": "I"
+ },
+ "hpt_human_extraction_fixed_medium": {
+  "class": 2,
+  "kind": "hmtm",
+  "mount": "fixed",
+  "name": "Sub-surface Extraction Missile",
+  "rating": "B"
+ },
+ "hpt_minelauncher_fixed_medium": {
+  "class": 2,
+  "kind": "hm",
+  "mount": "fixed",
+  "name": "Mine Launcher",
+  "rating": "I"
+ },
+ "hpt_minelauncher_fixed_small": {
+  "class": 1,
+  "kind": "hm",
+  "mount": "fixed",
+  "name": "Mine Launcher",
+  "rating": "I"
+ },
+ "hpt_minelauncher_fixed_small_impulse": {
+  "class": 1,
+  "kind": "hm",
+  "mount": "fixed",
+  "name": "Shock Mine Launcher",
+  "rating": "I"
+ },
+ "hpt_mining_abrblstr_fixed_small": {
+  "class": 1,
+  "kind": "hmtl",
+  "mount": "fixed",
+  "name": "Abrasion Blaster",
+  "rating": "D"
+ },
+ "hpt_mining_abrblstr_turret_small": {
+  "class": 1,
+  "kind": "hmtl",
+  "mount": "turreted",
+  "name": "Abrasion Blaster",
+  "rating": "D"
+ },
+ "hpt_mining_seismchrgwarhd_fixed_medium": {
+  "class": 2,
+  "kind": "hmtm",
+  "mount": "fixed",
+  "name": "Seismic Charge Launcher",
+  "rating": "B"
+ },
+ "hpt_mining_seismchrgwarhd_turret_medium": {
+  "class": 2,
+  "kind": "hmtm",
+  "mount": "turreted",
+  "name": "Seismic Charge Launcher",
+  "rating": "B"
+ },
+ "hpt_mining_subsurfdispmisle_fixed_medium": {
+  "class": 2,
+  "kind": "hmtm",
+  "mount": "fixed",
+  "name": "Sub-surface Displacement Missile",
+  "rating": "B"
+ },
+ "hpt_mining_subsurfdispmisle_fixed_small": {
+  "class": 1,
+  "kind": "hmtm",
+  "mount": "fixed",
+  "name": "Sub-surface Displacement Missile",
+  "rating": "B"
+ },
+ "hpt_mining_subsurfdispmisle_turret_medium": {
+  "class": 2,
+  "kind": "hmtm",
+  "mount": "turreted",
+  "name": "Sub-surface Displacement Missile",
+  "rating": "B"
+ },
+ "hpt_mining_subsurfdispmisle_turret_small": {
+  "class": 1,
+  "kind": "hmtm",
+  "mount": "turreted",
+  "name": "Sub-surface Displacement Missile",
+  "rating": "B"
+ },
+ "hpt_mininglaser_fixed_medium": {
+  "class": 2,
+  "kind": "hmtl",
+  "mount": "fixed",
+  "name": "Mining Laser",
+  "rating": "D"
+ },
+ "hpt_mininglaser_fixed_small": {
+  "class": 1,
+  "kind": "hmtl",
+  "mount": "fixed",
+  "name": "Mining Laser",
+  "rating": "D"
+ },
+ "hpt_mininglaser_fixed_small_advanced": {
+  "class": 1,
+  "kind": "hmtl",
+  "mount": "fixed",
+  "name": "Mining Lance Beam Laser",
+  "rating": "D"
+ },
+ "hpt_mininglaser_turret_medium": {
+  "class": 2,
+  "kind": "hmtl",
+  "mount": "turreted",
+  "name": "Mining Laser",
+  "rating": "D"
+ },
+ "hpt_mininglaser_turret_small": {
+  "class": 1,
+  "kind": "hmtl",
+  "mount": "turreted",
+  "name": "Mining Laser",
+  "rating": "D"
+ },
+ "hpt_miningtoolv2_fixed_large": {
+  "class": 3,
+  "kind": "hmtl",
+  "mount": "fixed",
+  "name": "Mining Volley Repeater",
+  "rating": "C",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "hpt_mkiiplasmashockautocannon_fixed_large": {
+  "class": 3,
+  "kind": "hpa",
+  "mount": "fixed",
+  "name": "Mk II Plasma Shock Accelerator",
+  "rating": "B",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "hpt_mrascanner_size0_class1": {
+  "class": 0,
+  "kind": "upwa",
+  "limit": 1,
+  "name": "Pulse Wave Analyser",
+  "rating": "E"
+ },
+ "hpt_mrascanner_size0_class2": {
+  "class": 0,
+  "kind": "upwa",
+  "limit": 1,
+  "name": "Pulse Wave Analyser",
+  "rating": "D"
+ },
+ "hpt_mrascanner_size0_class3": {
+  "class": 0,
+  "kind": "upwa",
+  "limit": 1,
+  "name": "Pulse Wave Analyser",
+  "rating": "C"
+ },
+ "hpt_mrascanner_size0_class4": {
+  "class": 0,
+  "kind": "upwa",
+  "limit": 1,
+  "name": "Pulse Wave Analyser",
+  "rating": "B"
+ },
+ "hpt_mrascanner_size0_class5": {
+  "class": 0,
+  "kind": "upwa",
+  "limit": 1,
+  "name": "Pulse Wave Analyser",
+  "rating": "A"
+ },
+ "hpt_multicannon_fixed_huge": {
+  "class": 4,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Multi-cannon",
+  "rating": "A"
+ },
+ "hpt_multicannon_fixed_large": {
+  "class": 3,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Multi-cannon",
+  "rating": "C"
+ },
+ "hpt_multicannon_fixed_medium": {
+  "class": 2,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Multi-cannon",
+  "rating": "E"
+ },
+ "hpt_multicannon_fixed_medium_advanced": {
+  "class": 2,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Advanced Multi-cannon",
+  "rating": "E"
+ },
+ "hpt_multicannon_fixed_small": {
+  "class": 1,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Multi-cannon",
+  "rating": "F"
+ },
+ "hpt_multicannon_fixed_small_advanced": {
+  "class": 1,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Advanced Multi-cannon",
+  "rating": "F"
+ },
+ "hpt_multicannon_fixed_small_strong": {
+  "class": 1,
+  "kind": "hmc",
+  "mount": "fixed",
+  "name": "Enforcer Cannon",
+  "rating": "F"
+ },
+ "hpt_multicannon_gimbal_huge": {
+  "class": 4,
+  "kind": "hmc",
+  "mount": "gimballed",
+  "name": "Multi-cannon",
+  "rating": "A"
+ },
+ "hpt_multicannon_gimbal_large": {
+  "class": 3,
+  "kind": "hmc",
+  "mount": "gimballed",
+  "name": "Multi-cannon",
+  "rating": "C"
+ },
+ "hpt_multicannon_gimbal_medium": {
+  "class": 2,
+  "kind": "hmc",
+  "mount": "gimballed",
+  "name": "Multi-cannon",
+  "rating": "F"
+ },
+ "hpt_multicannon_gimbal_small": {
+  "class": 1,
+  "kind": "hmc",
+  "mount": "gimballed",
+  "name": "Multi-cannon",
+  "rating": "G"
+ },
+ "hpt_multicannon_turret_large": {
+  "class": 3,
+  "kind": "hmc",
+  "mount": "turreted",
+  "name": "Multi-cannon",
+  "rating": "E"
+ },
+ "hpt_multicannon_turret_medium": {
+  "class": 2,
+  "kind": "hmc",
+  "mount": "turreted",
+  "name": "Multi-cannon",
+  "rating": "F"
+ },
+ "hpt_multicannon_turret_small": {
+  "class": 1,
+  "kind": "hmc",
+  "mount": "turreted",
+  "name": "Multi-cannon",
+  "rating": "G"
+ },
+ "hpt_plasmaaccelerator_fixed_huge": {
+  "class": 4,
+  "kind": "hpa",
+  "mount": "fixed",
+  "name": "Plasma Accelerator",
+  "rating": "A"
+ },
+ "hpt_plasmaaccelerator_fixed_large": {
+  "class": 3,
+  "kind": "hpa",
+  "mount": "fixed",
+  "name": "Plasma Accelerator",
+  "rating": "B"
+ },
+ "hpt_plasmaaccelerator_fixed_large_advanced": {
+  "class": 3,
+  "kind": "hpa",
+  "mount": "fixed",
+  "name": "Advanced Plasma Accelerator",
+  "rating": "B"
+ },
+ "hpt_plasmaaccelerator_fixed_medium": {
+  "class": 2,
+  "kind": "hpa",
+  "mount": "fixed",
+  "name": "Plasma Accelerator",
+  "rating": "C"
+ },
+ "hpt_plasmapointdefence_turret_tiny": {
+  "class": 0,
+  "kind": "upd",
+  "mount": "turreted",
+  "name": "Point Defence",
+  "rating": "I"
+ },
+ "hpt_plasmashockcannon_fixed_large": {
+  "class": 3,
+  "kind": "hexsc",
+  "mount": "fixed",
+  "name": "Shock Cannon",
+  "rating": "C"
+ },
+ "hpt_plasmashockcannon_fixed_medium": {
+  "class": 2,
+  "kind": "hexsc",
+  "mount": "fixed",
+  "name": "Shock Cannon",
+  "rating": "D"
+ },
+ "hpt_plasmashockcannon_fixed_small": {
+  "class": 1,
+  "kind": "hexsc",
+  "mount": "fixed",
+  "name": "Shock Cannon",
+  "rating": "D"
+ },
+ "hpt_plasmashockcannon_gimbal_large": {
+  "class": 3,
+  "kind": "hexsc",
+  "mount": "gimballed",
+  "name": "Shock Cannon",
+  "rating": "C"
+ },
+ "hpt_plasmashockcannon_gimbal_medium": {
+  "class": 2,
+  "kind": "hexsc",
+  "mount": "gimballed",
+  "name": "Shock Cannon",
+  "rating": "D"
+ },
+ "hpt_plasmashockcannon_gimbal_small": {
+  "class": 1,
+  "kind": "hexsc",
+  "mount": "gimballed",
+  "name": "Shock Cannon",
+  "rating": "E"
+ },
+ "hpt_plasmashockcannon_turret_large": {
+  "class": 3,
+  "kind": "hexsc",
+  "mount": "turreted",
+  "name": "Shock Cannon",
+  "rating": "D"
+ },
+ "hpt_plasmashockcannon_turret_medium": {
+  "class": 2,
+  "kind": "hexsc",
+  "mount": "turreted",
+  "name": "Shock Cannon",
+  "rating": "E"
+ },
+ "hpt_plasmashockcannon_turret_small": {
+  "class": 1,
+  "kind": "hexsc",
+  "mount": "turreted",
+  "name": "Shock Cannon",
+  "rating": "F"
+ },
+ "hpt_pulselaser_fixed_huge": {
+  "class": 4,
+  "kind": "hpl",
+  "mount": "fixed",
+  "name": "Pulse Laser",
+  "rating": "A"
+ },
+ "hpt_pulselaser_fixed_large": {
+  "class": 3,
+  "kind": "hpl",
+  "mount": "fixed",
+  "name": "Pulse Laser",
+  "rating": "D"
+ },
+ "hpt_pulselaser_fixed_medium": {
+  "class": 2,
+  "kind": "hpl",
+  "mount": "fixed",
+  "name": "Pulse Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaser_fixed_medium_disruptor": {
+  "class": 2,
+  "kind": "hpl",
+  "mount": "fixed",
+  "name": "Pulse Disruptor Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaser_fixed_small": {
+  "class": 1,
+  "kind": "hpl",
+  "mount": "fixed",
+  "name": "Pulse Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaser_gimbal_huge": {
+  "class": 4,
+  "kind": "hpl",
+  "mount": "gimballed",
+  "name": "Pulse Laser",
+  "rating": "A"
+ },
+ "hpt_pulselaser_gimbal_large": {
+  "class": 3,
+  "kind": "hpl",
+  "mount": "gimballed",
+  "name": "Pulse Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaser_gimbal_medium": {
+  "class": 2,
+  "kind": "hpl",
+  "mount": "gimballed",
+  "name": "Pulse Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaser_gimbal_small": {
+  "class": 1,
+  "kind": "hpl",
+  "mount": "gimballed",
+  "name": "Pulse Laser",
+  "rating": "G"
+ },
+ "hpt_pulselaser_turret_large": {
+  "class": 3,
+  "kind": "hpl",
+  "mount": "turreted",
+  "name": "Pulse Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaser_turret_medium": {
+  "class": 2,
+  "kind": "hpl",
+  "mount": "turreted",
+  "name": "Pulse Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaser_turret_small": {
+  "class": 1,
+  "kind": "hpl",
+  "mount": "turreted",
+  "name": "Pulse Laser",
+  "rating": "G"
+ },
+ "hpt_pulselaserburst_fixed_huge": {
+  "class": 4,
+  "kind": "hul",
+  "mount": "fixed",
+  "name": "Burst Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaserburst_fixed_large": {
+  "class": 3,
+  "kind": "hul",
+  "mount": "fixed",
+  "name": "Burst Laser",
+  "rating": "D"
+ },
+ "hpt_pulselaserburst_fixed_medium": {
+  "class": 2,
+  "kind": "hul",
+  "mount": "fixed",
+  "name": "Burst Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaserburst_fixed_small": {
+  "class": 1,
+  "kind": "hul",
+  "mount": "fixed",
+  "name": "Burst Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaserburst_fixed_small_scatter": {
+  "class": 1,
+  "kind": "hul",
+  "mount": "fixed",
+  "name": "Cytoscrambler Burst Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaserburst_gimbal_huge": {
+  "class": 4,
+  "kind": "hul",
+  "mount": "gimballed",
+  "name": "Burst Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaserburst_gimbal_large": {
+  "class": 3,
+  "kind": "hul",
+  "mount": "gimballed",
+  "name": "Burst Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaserburst_gimbal_medium": {
+  "class": 2,
+  "kind": "hul",
+  "mount": "gimballed",
+  "name": "Burst Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaserburst_gimbal_small": {
+  "class": 1,
+  "kind": "hul",
+  "mount": "gimballed",
+  "name": "Burst Laser",
+  "rating": "G"
+ },
+ "hpt_pulselaserburst_turret_large": {
+  "class": 3,
+  "kind": "hul",
+  "mount": "turreted",
+  "name": "Burst Laser",
+  "rating": "E"
+ },
+ "hpt_pulselaserburst_turret_medium": {
+  "class": 2,
+  "kind": "hul",
+  "mount": "turreted",
+  "name": "Burst Laser",
+  "rating": "F"
+ },
+ "hpt_pulselaserburst_turret_small": {
+  "class": 1,
+  "kind": "hul",
+  "mount": "turreted",
+  "name": "Burst Laser",
+  "rating": "G"
+ },
+ "hpt_railgun_fixed_medium": {
+  "class": 2,
+  "kind": "hrg",
+  "mount": "fixed",
+  "name": "Rail Gun",
+  "rating": "B"
+ },
+ "hpt_railgun_fixed_medium_burst": {
+  "class": 2,
+  "kind": "hrg",
+  "mount": "fixed",
+  "name": "Imperial Hammer Rail Gun",
+  "rating": "B"
+ },
+ "hpt_railgun_fixed_small": {
+  "class": 1,
+  "kind": "hrg",
+  "mount": "fixed",
+  "name": "Rail Gun",
+  "rating": "D"
+ },
+ "hpt_shieldbooster_size0_class1": {
+  "class": 0,
+  "kind": "usb",
+  "name": "Shield Booster",
+  "rating": "E"
+ },
+ "hpt_shieldbooster_size0_class2": {
+  "class": 0,
+  "kind": "usb",
+  "name": "Shield Booster",
+  "rating": "D"
+ },
+ "hpt_shieldbooster_size0_class3": {
+  "class": 0,
+  "kind": "usb",
+  "name": "Shield Booster",
+  "rating": "C"
+ },
+ "hpt_shieldbooster_size0_class4": {
+  "class": 0,
+  "kind": "usb",
+  "name": "Shield Booster",
+  "rating": "B"
+ },
+ "hpt_shieldbooster_size0_class5": {
+  "class": 0,
+  "kind": "usb",
+  "name": "Shield Booster",
+  "rating": "A"
+ },
+ "hpt_slugshot_fixed_large": {
+  "class": 3,
+  "kind": "hfc",
+  "mount": "fixed",
+  "name": "Fragment Cannon",
+  "rating": "C"
+ },
+ "hpt_slugshot_fixed_large_range": {
+  "class": 3,
+  "kind": "hfc",
+  "mount": "fixed",
+  "name": "Pacifier Frag-Cannon",
+  "rating": "C"
+ },
+ "hpt_slugshot_fixed_medium": {
+  "class": 2,
+  "kind": "hfc",
+  "mount": "fixed",
+  "name": "Fragment Cannon",
+  "rating": "A"
+ },
+ "hpt_slugshot_fixed_small": {
+  "class": 1,
+  "kind": "hfc",
+  "mount": "fixed",
+  "name": "Fragment Cannon",
+  "rating": "E"
+ },
+ "hpt_slugshot_gimbal_large": {
+  "class": 3,
+  "kind": "hfc",
+  "mount": "gimballed",
+  "name": "Fragment Cannon",
+  "rating": "C"
+ },
+ "hpt_slugshot_gimbal_medium": {
+  "class": 2,
+  "kind": "hfc",
+  "mount": "gimballed",
+  "name": "Fragment Cannon",
+  "rating": "D"
+ },
+ "hpt_slugshot_gimbal_small": {
+  "class": 1,
+  "kind": "hfc",
+  "mount": "gimballed",
+  "name": "Fragment Cannon",
+  "rating": "E"
+ },
+ "hpt_slugshot_turret_large": {
+  "class": 3,
+  "kind": "hfc",
+  "mount": "turreted",
+  "name": "Fragment Cannon",
+  "rating": "C"
+ },
+ "hpt_slugshot_turret_medium": {
+  "class": 2,
+  "kind": "hfc",
+  "mount": "turreted",
+  "name": "Fragment Cannon",
+  "rating": "D"
+ },
+ "hpt_slugshot_turret_small": {
+  "class": 1,
+  "kind": "hfc",
+  "mount": "turreted",
+  "name": "Fragment Cannon",
+  "rating": "E"
+ },
+ "hpt_xenoscanner_advanced_tiny": {
+  "class": 0,
+  "kind": "uex",
+  "limit": 1,
+  "name": "Pulse Wave Xeno Scanner",
+  "rating": "C"
+ },
+ "hpt_xenoscanner_basic_tiny": {
+  "class": 0,
+  "kind": "uex",
+  "limit": 1,
+  "name": "Xeno Scanner",
+  "rating": "E"
+ },
+ "hpt_xenoscannermk2_basic_tiny": {
+  "class": 0,
+  "kind": "uex",
+  "limit": 1,
+  "name": "Enhanced Xeno Scanner",
+  "rating": "C"
+ },
+ "int_buggybay_size2_class1": {
+  "class": 2,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "H"
+ },
+ "int_buggybay_size2_class2": {
+  "class": 2,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "G"
+ },
+ "int_buggybay_size4_class1": {
+  "class": 4,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "H"
+ },
+ "int_buggybay_size4_class2": {
+  "class": 4,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "G"
+ },
+ "int_buggybay_size6_class1": {
+  "class": 6,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "H"
+ },
+ "int_buggybay_size6_class2": {
+  "class": 6,
+  "kind": "ipvh",
+  "name": "Planetary Vehicle Hangar",
+  "rating": "G"
+ },
+ "int_cargorack_size1_class1": {
+  "class": 1,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 2)",
+  "rating": "E"
+ },
+ "int_cargorack_size2_class1": {
+  "class": 2,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 4)",
+  "rating": "E"
+ },
+ "int_cargorack_size3_class1": {
+  "class": 3,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 8)",
+  "rating": "E"
+ },
+ "int_cargorack_size4_class1": {
+  "class": 4,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 16)",
+  "rating": "E"
+ },
+ "int_cargorack_size5_class1": {
+  "class": 5,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 32)",
+  "rating": "E"
+ },
+ "int_cargorack_size6_class1": {
+  "class": 6,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 64)",
+  "rating": "E"
+ },
+ "int_cargorack_size7_class1": {
+  "class": 7,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 128)",
+  "rating": "E"
+ },
+ "int_cargorack_size8_class1": {
+  "class": 8,
+  "kind": "icr",
+  "name": "Cargo Rack (Cap: 256)",
+  "rating": "E"
+ },
+ "int_corrosionproofcargorack_size1_class1": {
+  "class": 1,
+  "kind": "icr",
+  "name": "Anti-Corrosion Cargo Rack (Cap: 1)",
+  "rating": "E"
+ },
+ "int_corrosionproofcargorack_size1_class2": {
+  "class": 1,
+  "kind": "icr",
+  "name": "Anti-Corrosion Cargo Rack (Cap: 2)",
+  "rating": "F"
+ },
+ "int_corrosionproofcargorack_size4_class1": {
+  "class": 4,
+  "kind": "icr",
+  "name": "Anti-Corrosion Cargo Rack (Cap: 16)",
+  "rating": "E"
+ },
+ "int_detailedsurfacescanner_tiny": {
+  "class": 1,
+  "kind": "iss",
+  "limit": 1,
+  "name": "Detailed Surface Scanner",
+  "rating": "I"
+ },
+ "int_dockingcomputer_advanced": {
+  "class": 1,
+  "kind": "ifa",
+  "limit": 1,
+  "name": "Advanced Docking Computer",
+  "rating": "E"
+ },
+ "int_dockingcomputer_standard": {
+  "class": 1,
+  "kind": "ifa",
+  "limit": 1,
+  "name": "Standard Docking Computer",
+  "rating": "E"
+ },
+ "int_dronecontrol_collection_size1_class1": {
+  "class": 1,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_collection_size1_class2": {
+  "class": 1,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_collection_size1_class3": {
+  "class": 1,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_collection_size1_class4": {
+  "class": 1,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_collection_size1_class5": {
+  "class": 1,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_collection_size3_class1": {
+  "class": 3,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_collection_size3_class2": {
+  "class": 3,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_collection_size3_class3": {
+  "class": 3,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_collection_size3_class4": {
+  "class": 3,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_collection_size3_class5": {
+  "class": 3,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_collection_size5_class1": {
+  "class": 5,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_collection_size5_class2": {
+  "class": 5,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_collection_size5_class3": {
+  "class": 5,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_collection_size5_class4": {
+  "class": 5,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_collection_size5_class5": {
+  "class": 5,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_collection_size7_class1": {
+  "class": 7,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_collection_size7_class2": {
+  "class": 7,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_collection_size7_class3": {
+  "class": 7,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_collection_size7_class4": {
+  "class": 7,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_collection_size7_class5": {
+  "class": 7,
+  "kind": "iclc",
+  "name": "Collector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_decontamination_size1_class1": {
+  "class": 1,
+  "kind": "idlc",
+  "name": "Decontamination Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_decontamination_size3_class1": {
+  "class": 3,
+  "kind": "idlc",
+  "name": "Decontamination Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_decontamination_size5_class1": {
+  "class": 5,
+  "kind": "idlc",
+  "name": "Decontamination Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_decontamination_size7_class1": {
+  "class": 7,
+  "kind": "idlc",
+  "name": "Decontamination Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_fueltransfer_size1_class1": {
+  "class": 1,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_fueltransfer_size1_class2": {
+  "class": 1,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_fueltransfer_size1_class3": {
+  "class": 1,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_fueltransfer_size1_class4": {
+  "class": 1,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_fueltransfer_size1_class5": {
+  "class": 1,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_fueltransfer_size3_class1": {
+  "class": 3,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_fueltransfer_size3_class2": {
+  "class": 3,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_fueltransfer_size3_class3": {
+  "class": 3,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_fueltransfer_size3_class4": {
+  "class": 3,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_fueltransfer_size3_class5": {
+  "class": 3,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_fueltransfer_size5_class1": {
+  "class": 5,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_fueltransfer_size5_class2": {
+  "class": 5,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_fueltransfer_size5_class3": {
+  "class": 5,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_fueltransfer_size5_class4": {
+  "class": 5,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_fueltransfer_size5_class5": {
+  "class": 5,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_fueltransfer_size7_class1": {
+  "class": 7,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_fueltransfer_size7_class2": {
+  "class": 7,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_fueltransfer_size7_class3": {
+  "class": 7,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_fueltransfer_size7_class4": {
+  "class": 7,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_fueltransfer_size7_class5": {
+  "class": 7,
+  "kind": "iftlc",
+  "name": "Fuel Transfer Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_prospector_size1_class1": {
+  "class": 1,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_prospector_size1_class2": {
+  "class": 1,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_prospector_size1_class3": {
+  "class": 1,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_prospector_size1_class4": {
+  "class": 1,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_prospector_size1_class5": {
+  "class": 1,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_prospector_size3_class1": {
+  "class": 3,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_prospector_size3_class2": {
+  "class": 3,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_prospector_size3_class3": {
+  "class": 3,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_prospector_size3_class4": {
+  "class": 3,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_prospector_size3_class5": {
+  "class": 3,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_prospector_size5_class1": {
+  "class": 5,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_prospector_size5_class2": {
+  "class": 5,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_prospector_size5_class3": {
+  "class": 5,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_prospector_size5_class4": {
+  "class": 5,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_prospector_size5_class5": {
+  "class": 5,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_prospector_size7_class1": {
+  "class": 7,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_prospector_size7_class2": {
+  "class": 7,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_prospector_size7_class3": {
+  "class": 7,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_prospector_size7_class4": {
+  "class": 7,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_prospector_size7_class5": {
+  "class": 7,
+  "kind": "iplc",
+  "name": "Prospector Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_recon_size1_class1": {
+  "class": 1,
+  "kind": "inlc",
+  "name": "Recon Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_recon_size3_class1": {
+  "class": 3,
+  "kind": "inlc",
+  "name": "Recon Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_recon_size5_class1": {
+  "class": 5,
+  "kind": "inlc",
+  "name": "Recon Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_recon_size7_class1": {
+  "class": 7,
+  "kind": "inlc",
+  "name": "Recon Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_repair_size1_class1": {
+  "class": 1,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_repair_size1_class2": {
+  "class": 1,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_repair_size1_class3": {
+  "class": 1,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_repair_size1_class4": {
+  "class": 1,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_repair_size1_class5": {
+  "class": 1,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_repair_size3_class1": {
+  "class": 3,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_repair_size3_class2": {
+  "class": 3,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_repair_size3_class3": {
+  "class": 3,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_repair_size3_class4": {
+  "class": 3,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_repair_size3_class5": {
+  "class": 3,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_repair_size5_class1": {
+  "class": 5,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_repair_size5_class2": {
+  "class": 5,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_repair_size5_class3": {
+  "class": 5,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_repair_size5_class4": {
+  "class": 5,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_repair_size5_class5": {
+  "class": 5,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_repair_size7_class1": {
+  "class": 7,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_repair_size7_class2": {
+  "class": 7,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_repair_size7_class3": {
+  "class": 7,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_repair_size7_class4": {
+  "class": 7,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_repair_size7_class5": {
+  "class": 7,
+  "kind": "irlc",
+  "name": "Repair Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_resourcesiphon_size1_class1": {
+  "class": 1,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_resourcesiphon_size1_class2": {
+  "class": 1,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_resourcesiphon_size1_class3": {
+  "class": 1,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_resourcesiphon_size1_class4": {
+  "class": 1,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_resourcesiphon_size1_class5": {
+  "class": 1,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_resourcesiphon_size3_class1": {
+  "class": 3,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_resourcesiphon_size3_class2": {
+  "class": 3,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_resourcesiphon_size3_class3": {
+  "class": 3,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_resourcesiphon_size3_class4": {
+  "class": 3,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_resourcesiphon_size3_class5": {
+  "class": 3,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_resourcesiphon_size5_class1": {
+  "class": 5,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_resourcesiphon_size5_class2": {
+  "class": 5,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_resourcesiphon_size5_class3": {
+  "class": 5,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_resourcesiphon_size5_class4": {
+  "class": 5,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_resourcesiphon_size5_class5": {
+  "class": 5,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_resourcesiphon_size7_class1": {
+  "class": 7,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "E"
+ },
+ "int_dronecontrol_resourcesiphon_size7_class2": {
+  "class": 7,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "D"
+ },
+ "int_dronecontrol_resourcesiphon_size7_class3": {
+  "class": 7,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "C"
+ },
+ "int_dronecontrol_resourcesiphon_size7_class4": {
+  "class": 7,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "B"
+ },
+ "int_dronecontrol_resourcesiphon_size7_class5": {
+  "class": 7,
+  "kind": "ihblc",
+  "name": "Hatch Breaker Limpet Controller",
+  "rating": "A"
+ },
+ "int_dronecontrol_unkvesselresearch": {
+  "class": 1,
+  "kind": "islc",
+  "name": "Research Limpet Controller",
+  "rating": "E"
+ },
+ "int_engine_size2_class1": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size2_class2": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size2_class3": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size2_class4": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size2_class5": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size2_class5_fast": {
+  "class": 2,
+  "kind": "ct",
+  "name": "Enhanced Performance Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size3_class1": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size3_class2": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size3_class3": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size3_class4": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size3_class5": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size3_class5_fast": {
+  "class": 3,
+  "kind": "ct",
+  "name": "Enhanced Performance Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size4_class1": {
+  "class": 4,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size4_class2": {
+  "class": 4,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size4_class3": {
+  "class": 4,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size4_class4": {
+  "class": 4,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size4_class5": {
+  "class": 4,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size5_class1": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size5_class2": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size5_class3": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size5_class4": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size5_class5": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size6_class1": {
+  "class": 6,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size6_class2": {
+  "class": 6,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size6_class3": {
+  "class": 6,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size6_class4": {
+  "class": 6,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size6_class5": {
+  "class": 6,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size7_class1": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size7_class2": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size7_class3": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size7_class4": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size7_class5": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_engine_size7_class5_gravityoptimised_mkii": {
+  "class": 7,
+  "kind": "ct",
+  "name": "Mk II Gravity Optimised Thrusters",
+  "rating": "A",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "int_engine_size8_class1": {
+  "class": 8,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "E"
+ },
+ "int_engine_size8_class2": {
+  "class": 8,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "D"
+ },
+ "int_engine_size8_class3": {
+  "class": 8,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "C"
+ },
+ "int_engine_size8_class4": {
+  "class": 8,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "B"
+ },
+ "int_engine_size8_class5": {
+  "class": 8,
+  "kind": "ct",
+  "name": "Thrusters",
+  "rating": "A"
+ },
+ "int_expmodulestabiliser_size3_class3": {
+  "class": 3,
+  "kind": "iex",
+  "limit": 1,
+  "name": "Experimental Weapon Stabiliser",
+  "rating": "F"
+ },
+ "int_expmodulestabiliser_size5_class3": {
+  "class": 5,
+  "kind": "iex",
+  "limit": 1,
+  "name": "Experimental Weapon Stabiliser",
+  "rating": "F"
+ },
+ "int_fighterbay_size5_class1": {
+  "class": 5,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_fighterbay_size6_class1": {
+  "class": 6,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_fighterbay_size7_class1": {
+  "class": 7,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_fighterbaymk2_size5_class1": {
+  "class": 5,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Mk II Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "explorer_nx",
+   "lakonminer",
+   "panthermkii"
+  ]
+ },
+ "int_fighterbaymk2_size6_class1": {
+  "class": 6,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Mk II Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "explorer_nx",
+   "lakonminer",
+   "panthermkii"
+  ]
+ },
+ "int_fighterbaymk2_size7_class1": {
+  "class": 7,
+  "kind": "ifh",
+  "limit": 1,
+  "name": "Mk II Vessel Hangar",
+  "rating": "D",
+  "ships": [
+   "explorer_nx",
+   "lakonminer",
+   "panthermkii"
+  ]
+ },
+ "int_fsdinterdictor_size1_class1": {
+  "class": 1,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "E"
+ },
+ "int_fsdinterdictor_size1_class2": {
+  "class": 1,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "D"
+ },
+ "int_fsdinterdictor_size1_class3": {
+  "class": 1,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "C"
+ },
+ "int_fsdinterdictor_size1_class4": {
+  "class": 1,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "B"
+ },
+ "int_fsdinterdictor_size1_class5": {
+  "class": 1,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "A"
+ },
+ "int_fsdinterdictor_size2_class1": {
+  "class": 2,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "E"
+ },
+ "int_fsdinterdictor_size2_class2": {
+  "class": 2,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "D"
+ },
+ "int_fsdinterdictor_size2_class3": {
+  "class": 2,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "C"
+ },
+ "int_fsdinterdictor_size2_class4": {
+  "class": 2,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "B"
+ },
+ "int_fsdinterdictor_size2_class5": {
+  "class": 2,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "A"
+ },
+ "int_fsdinterdictor_size3_class1": {
+  "class": 3,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "E"
+ },
+ "int_fsdinterdictor_size3_class2": {
+  "class": 3,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "D"
+ },
+ "int_fsdinterdictor_size3_class3": {
+  "class": 3,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "C"
+ },
+ "int_fsdinterdictor_size3_class4": {
+  "class": 3,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "B"
+ },
+ "int_fsdinterdictor_size3_class5": {
+  "class": 3,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "A"
+ },
+ "int_fsdinterdictor_size4_class1": {
+  "class": 4,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "E"
+ },
+ "int_fsdinterdictor_size4_class2": {
+  "class": 4,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "D"
+ },
+ "int_fsdinterdictor_size4_class3": {
+  "class": 4,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "C"
+ },
+ "int_fsdinterdictor_size4_class4": {
+  "class": 4,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "B"
+ },
+ "int_fsdinterdictor_size4_class5": {
+  "class": 4,
+  "kind": "ifsdi",
+  "limit": 1,
+  "name": "Frame Shift Drive Interdictor",
+  "rating": "A"
+ },
+ "int_fuelscoop_size1_class1": {
+  "class": 1,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size1_class2": {
+  "class": 1,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size1_class3": {
+  "class": 1,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size1_class4": {
+  "class": 1,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size1_class5": {
+  "class": 1,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size2_class1": {
+  "class": 2,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size2_class2": {
+  "class": 2,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size2_class3": {
+  "class": 2,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size2_class4": {
+  "class": 2,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size2_class5": {
+  "class": 2,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size3_class1": {
+  "class": 3,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size3_class2": {
+  "class": 3,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size3_class3": {
+  "class": 3,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size3_class4": {
+  "class": 3,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size3_class5": {
+  "class": 3,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size4_class1": {
+  "class": 4,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size4_class2": {
+  "class": 4,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size4_class3": {
+  "class": 4,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size4_class4": {
+  "class": 4,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size4_class5": {
+  "class": 4,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size5_class1": {
+  "class": 5,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size5_class2": {
+  "class": 5,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size5_class3": {
+  "class": 5,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size5_class4": {
+  "class": 5,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size5_class5": {
+  "class": 5,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size6_class1": {
+  "class": 6,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size6_class2": {
+  "class": 6,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size6_class3": {
+  "class": 6,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size6_class4": {
+  "class": 6,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size6_class5": {
+  "class": 6,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size7_class1": {
+  "class": 7,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size7_class2": {
+  "class": 7,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size7_class3": {
+  "class": 7,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size7_class4": {
+  "class": 7,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size7_class5": {
+  "class": 7,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fuelscoop_size8_class1": {
+  "class": 8,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "E"
+ },
+ "int_fuelscoop_size8_class2": {
+  "class": 8,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "D"
+ },
+ "int_fuelscoop_size8_class3": {
+  "class": 8,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "C"
+ },
+ "int_fuelscoop_size8_class4": {
+  "class": 8,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "B"
+ },
+ "int_fuelscoop_size8_class5": {
+  "class": 8,
+  "kind": "ifs",
+  "limit": 1,
+  "name": "Fuel Scoop",
+  "rating": "A"
+ },
+ "int_fueltank_size1_class3": {
+  "class": 1,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 2)",
+  "rating": "C"
+ },
+ "int_fueltank_size2_class3": {
+  "class": 2,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 4)",
+  "rating": "C"
+ },
+ "int_fueltank_size3_class3": {
+  "class": 3,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 8)",
+  "rating": "C"
+ },
+ "int_fueltank_size4_class3": {
+  "class": 4,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 16)",
+  "rating": "C"
+ },
+ "int_fueltank_size5_class3": {
+  "class": 5,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 32)",
+  "rating": "C"
+ },
+ "int_fueltank_size6_class3": {
+  "class": 6,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 64)",
+  "rating": "C"
+ },
+ "int_fueltank_size7_class3": {
+  "class": 7,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 128)",
+  "rating": "C"
+ },
+ "int_fueltank_size8_class3": {
+  "class": 8,
+  "kind": "cft",
+  "name": "Fuel Tank (Cap: 256)",
+  "rating": "C"
+ },
+ "int_guardianfsdbooster_size1": {
+  "class": 1,
+  "kind": "ifsdb",
+  "limit": 1,
+  "name": "Guardian Frame Shift Drive Booster",
+  "rating": "H"
+ },
+ "int_guardianfsdbooster_size2": {
+  "class": 2,
+  "kind": "ifsdb",
+  "limit": 1,
+  "name": "Guardian Frame Shift Drive Booster",
+  "rating": "H"
+ },
+ "int_guardianfsdbooster_size3": {
+  "class": 3,
+  "kind": "ifsdb",
+  "limit": 1,
+  "name": "Guardian Frame Shift Drive Booster",
+  "rating": "H"
+ },
+ "int_guardianfsdbooster_size4": {
+  "class": 4,
+  "kind": "ifsdb",
+  "limit": 1,
+  "name": "Guardian Frame Shift Drive Booster",
+  "rating": "H"
+ },
+ "int_guardianfsdbooster_size5": {
+  "class": 5,
+  "kind": "ifsdb",
+  "limit": 1,
+  "name": "Guardian Frame Shift Drive Booster",
+  "rating": "H"
+ },
+ "int_guardianhullreinforcement_size1_class1": {
+  "class": 1,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianhullreinforcement_size1_class2": {
+  "class": 1,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianhullreinforcement_size2_class1": {
+  "class": 2,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianhullreinforcement_size2_class2": {
+  "class": 2,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianhullreinforcement_size3_class1": {
+  "class": 3,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianhullreinforcement_size3_class2": {
+  "class": 3,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianhullreinforcement_size4_class1": {
+  "class": 4,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianhullreinforcement_size4_class2": {
+  "class": 4,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianhullreinforcement_size5_class1": {
+  "class": 5,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianhullreinforcement_size5_class2": {
+  "class": 5,
+  "kind": "ihrp",
+  "name": "Guardian Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianmodulereinforcement_size1_class1": {
+  "class": 1,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianmodulereinforcement_size1_class2": {
+  "class": 1,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianmodulereinforcement_size2_class1": {
+  "class": 2,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianmodulereinforcement_size2_class2": {
+  "class": 2,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianmodulereinforcement_size3_class1": {
+  "class": 3,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianmodulereinforcement_size3_class2": {
+  "class": 3,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianmodulereinforcement_size4_class1": {
+  "class": 4,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianmodulereinforcement_size4_class2": {
+  "class": 4,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianmodulereinforcement_size5_class1": {
+  "class": 5,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianmodulereinforcement_size5_class2": {
+  "class": 5,
+  "kind": "imrp",
+  "name": "Guardian Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianpowerdistributor_size1": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size2": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size3": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size4": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size5": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size6": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size7": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerdistributor_size8": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Guardian Hybrid Power Distributor",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size2": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size3": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size4": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size5": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size6": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size7": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianpowerplant_size8": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Guardian Hybrid Power Plant",
+  "rating": "A"
+ },
+ "int_guardianshieldreinforcement_size1_class1": {
+  "class": 1,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianshieldreinforcement_size1_class2": {
+  "class": 1,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianshieldreinforcement_size2_class1": {
+  "class": 2,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianshieldreinforcement_size2_class2": {
+  "class": 2,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianshieldreinforcement_size3_class1": {
+  "class": 3,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianshieldreinforcement_size3_class2": {
+  "class": 3,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianshieldreinforcement_size4_class1": {
+  "class": 4,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianshieldreinforcement_size4_class2": {
+  "class": 4,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "D"
+ },
+ "int_guardianshieldreinforcement_size5_class1": {
+  "class": 5,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "E"
+ },
+ "int_guardianshieldreinforcement_size5_class2": {
+  "class": 5,
+  "kind": "isrp",
+  "name": "Guardian Shield Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hullreinforcement_size1_class1": {
+  "class": 1,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_hullreinforcement_size1_class2": {
+  "class": 1,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hullreinforcement_size2_class1": {
+  "class": 2,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_hullreinforcement_size2_class2": {
+  "class": 2,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hullreinforcement_size3_class1": {
+  "class": 3,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_hullreinforcement_size3_class2": {
+  "class": 3,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hullreinforcement_size4_class1": {
+  "class": 4,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_hullreinforcement_size4_class2": {
+  "class": 4,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hullreinforcement_size5_class1": {
+  "class": 5,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_hullreinforcement_size5_class2": {
+  "class": 5,
+  "kind": "ihrp",
+  "name": "Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size2_class1": {
+  "class": 2,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size2_class2": {
+  "class": 2,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size2_class3": {
+  "class": 2,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size2_class4": {
+  "class": 2,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size2_class5": {
+  "class": 2,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size3_class1": {
+  "class": 3,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size3_class2": {
+  "class": 3,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size3_class3": {
+  "class": 3,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size3_class4": {
+  "class": 3,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size3_class5": {
+  "class": 3,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size4_class1": {
+  "class": 4,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size4_class2": {
+  "class": 4,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size4_class3": {
+  "class": 4,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size4_class4": {
+  "class": 4,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size4_class5": {
+  "class": 4,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size5_class1": {
+  "class": 5,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size5_class2": {
+  "class": 5,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size5_class3": {
+  "class": 5,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size5_class4": {
+  "class": 5,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size5_class5": {
+  "class": 5,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size6_class1": {
+  "class": 6,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size6_class2": {
+  "class": 6,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size6_class3": {
+  "class": 6,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size6_class4": {
+  "class": 6,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size6_class5": {
+  "class": 6,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size7_class1": {
+  "class": 7,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size7_class2": {
+  "class": 7,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size7_class3": {
+  "class": 7,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size7_class4": {
+  "class": 7,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size7_class5": {
+  "class": 7,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size8_class1": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "E"
+ },
+ "int_hyperdrive_overcharge_size8_class2": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "D"
+ },
+ "int_hyperdrive_overcharge_size8_class3": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "C"
+ },
+ "int_hyperdrive_overcharge_size8_class4": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "B"
+ },
+ "int_hyperdrive_overcharge_size8_class5": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Frame Shift Drive (SCO)",
+  "rating": "A"
+ },
+ "int_hyperdrive_overcharge_size8_class5_overchargebooster_mkii": {
+  "class": 8,
+  "exact_size": true,
+  "kind": "cfsdo",
+  "name": "Mk II Supercharge Optimised FSD (SCO)",
+  "rating": "A",
+  "ships": [
+   "explorer_nx"
+  ]
+ },
+ "int_hyperdrive_size2_class1": {
+  "class": 2,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size2_class2": {
+  "class": 2,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size2_class3": {
+  "class": 2,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size2_class4": {
+  "class": 2,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size2_class5": {
+  "class": 2,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_hyperdrive_size3_class1": {
+  "class": 3,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size3_class2": {
+  "class": 3,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size3_class3": {
+  "class": 3,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size3_class4": {
+  "class": 3,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size3_class5": {
+  "class": 3,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_hyperdrive_size4_class1": {
+  "class": 4,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size4_class2": {
+  "class": 4,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size4_class3": {
+  "class": 4,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size4_class4": {
+  "class": 4,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size4_class5": {
+  "class": 4,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_hyperdrive_size5_class1": {
+  "class": 5,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size5_class2": {
+  "class": 5,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size5_class3": {
+  "class": 5,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size5_class4": {
+  "class": 5,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size5_class5": {
+  "class": 5,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_hyperdrive_size6_class1": {
+  "class": 6,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size6_class2": {
+  "class": 6,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size6_class3": {
+  "class": 6,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size6_class4": {
+  "class": 6,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size6_class5": {
+  "class": 6,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_hyperdrive_size7_class1": {
+  "class": 7,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "E"
+ },
+ "int_hyperdrive_size7_class2": {
+  "class": 7,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "D"
+ },
+ "int_hyperdrive_size7_class3": {
+  "class": 7,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "C"
+ },
+ "int_hyperdrive_size7_class4": {
+  "class": 7,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "B"
+ },
+ "int_hyperdrive_size7_class5": {
+  "class": 7,
+  "kind": "cfsd",
+  "name": "Frame Shift Drive",
+  "rating": "A"
+ },
+ "int_largebuggybay_size2_class3": {
+  "class": 2,
+  "kind": "ipvh",
+  "name": "Large Planetary Vehicle Hangar",
+  "rating": "F"
+ },
+ "int_largebuggybay_size4_class3": {
+  "class": 4,
+  "kind": "ipvh",
+  "name": "Large Planetary Vehicle Hangar",
+  "rating": "F"
+ },
+ "int_largebuggybay_size6_class3": {
+  "class": 6,
+  "kind": "ipvh",
+  "name": "Large Planetary Vehicle Hangar",
+  "rating": "F"
+ },
+ "int_largecargorack_size7_class1": {
+  "class": 7,
+  "kind": "icr",
+  "name": "Mk II Cargo Rack (Cap: 192)",
+  "rating": "D",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "int_largecargorack_size8_class1": {
+  "class": 8,
+  "kind": "icr",
+  "name": "Mk II Cargo Rack (Cap: 384)",
+  "rating": "D",
+  "ships": [
+   "panthermkii"
+  ]
+ },
+ "int_lifesupport_size1_class1": {
+  "class": 1,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size1_class2": {
+  "class": 1,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size1_class3": {
+  "class": 1,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size1_class4": {
+  "class": 1,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size1_class5": {
+  "class": 1,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size2_class1": {
+  "class": 2,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size2_class2": {
+  "class": 2,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size2_class3": {
+  "class": 2,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size2_class4": {
+  "class": 2,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size2_class5": {
+  "class": 2,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size3_class1": {
+  "class": 3,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size3_class2": {
+  "class": 3,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size3_class3": {
+  "class": 3,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size3_class4": {
+  "class": 3,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size3_class5": {
+  "class": 3,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size4_class1": {
+  "class": 4,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size4_class2": {
+  "class": 4,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size4_class3": {
+  "class": 4,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size4_class4": {
+  "class": 4,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size4_class5": {
+  "class": 4,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size5_class1": {
+  "class": 5,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size5_class2": {
+  "class": 5,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size5_class3": {
+  "class": 5,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size5_class4": {
+  "class": 5,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size5_class5": {
+  "class": 5,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size6_class1": {
+  "class": 6,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size6_class2": {
+  "class": 6,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size6_class3": {
+  "class": 6,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size6_class4": {
+  "class": 6,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size6_class5": {
+  "class": 6,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size7_class1": {
+  "class": 7,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size7_class2": {
+  "class": 7,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size7_class3": {
+  "class": 7,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size7_class4": {
+  "class": 7,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size7_class5": {
+  "class": 7,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_lifesupport_size8_class1": {
+  "class": 8,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "E"
+ },
+ "int_lifesupport_size8_class2": {
+  "class": 8,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "D"
+ },
+ "int_lifesupport_size8_class3": {
+  "class": 8,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "C"
+ },
+ "int_lifesupport_size8_class4": {
+  "class": 8,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "B"
+ },
+ "int_lifesupport_size8_class5": {
+  "class": 8,
+  "kind": "cls",
+  "name": "Life Support",
+  "rating": "A"
+ },
+ "int_metaalloyhullreinforcement_size1_class1": {
+  "class": 1,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_metaalloyhullreinforcement_size1_class2": {
+  "class": 1,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_metaalloyhullreinforcement_size2_class1": {
+  "class": 2,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_metaalloyhullreinforcement_size2_class2": {
+  "class": 2,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_metaalloyhullreinforcement_size3_class1": {
+  "class": 3,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_metaalloyhullreinforcement_size3_class2": {
+  "class": 3,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_metaalloyhullreinforcement_size4_class1": {
+  "class": 4,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_metaalloyhullreinforcement_size4_class2": {
+  "class": 4,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_metaalloyhullreinforcement_size5_class1": {
+  "class": 5,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "E"
+ },
+ "int_metaalloyhullreinforcement_size5_class2": {
+  "class": 5,
+  "kind": "imahrp",
+  "name": "Meta Alloy Hull Reinforcement Package",
+  "rating": "D"
+ },
+ "int_mkii_passengercabin_size2_class1": {
+  "class": 2,
+  "kind": "ipc",
+  "name": "Mk II Economy Class Passenger Cabin",
+  "rating": "D",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size3_class1": {
+  "class": 3,
+  "kind": "ipc",
+  "name": "Mk II Economy Class Passenger Cabin",
+  "rating": "D",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size3_class2": {
+  "class": 3,
+  "kind": "ipc",
+  "name": "Mk II Business Class Passenger Cabin",
+  "rating": "C",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size4_class1": {
+  "class": 4,
+  "kind": "ipc",
+  "name": "Mk II Economy Class Passenger Cabin",
+  "rating": "D",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size4_class2": {
+  "class": 4,
+  "kind": "ipc",
+  "name": "Mk II Business Class Passenger Cabin",
+  "rating": "C",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size5_class1": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "Mk II Economy Class Passenger Cabin",
+  "rating": "D",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size5_class2": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "Mk II Business Class Passenger Cabin",
+  "rating": "C",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size6_class1": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "Mk II Economy Class Passenger Cabin",
+  "rating": "D",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkii_passengercabin_size6_class2": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "Mk II Business Class Passenger Cabin",
+  "rating": "C",
+  "ships": [
+   "mediumtransport01"
+  ]
+ },
+ "int_mkiiagileboost_engine_size5_class5": {
+  "class": 5,
+  "kind": "ct",
+  "name": "Mk II Agile Boost Thrusters",
+  "rating": "A",
+  "ships": [
+   "smallcombat01_nx"
+  ]
+ },
+ "int_mkiilargebuggybay_size2_class3": {
+  "class": 2,
+  "kind": "ipvh",
+  "name": "Mk II Large Planetary Vehicle Hangar",
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_mkiilargebuggybay_size4_class3": {
+  "class": 4,
+  "kind": "ipvh",
+  "name": "Mk II Large Planetary Vehicle Hangar",
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_mkiilargebuggybay_size6_class3": {
+  "class": 6,
+  "kind": "ipvh",
+  "name": "Mk II Large Planetary Vehicle Hangar",
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
+ },
+ "int_modulereinforcement_size1_class1": {
+  "class": 1,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_modulereinforcement_size1_class2": {
+  "class": 1,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_modulereinforcement_size2_class1": {
+  "class": 2,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_modulereinforcement_size2_class2": {
+  "class": 2,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_modulereinforcement_size3_class1": {
+  "class": 3,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_modulereinforcement_size3_class2": {
+  "class": 3,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_modulereinforcement_size4_class1": {
+  "class": 4,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_modulereinforcement_size4_class2": {
+  "class": 4,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_modulereinforcement_size5_class1": {
+  "class": 5,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "E"
+ },
+ "int_modulereinforcement_size5_class2": {
+  "class": 5,
+  "kind": "imrp",
+  "name": "Module Reinforcement Package",
+  "rating": "D"
+ },
+ "int_multidronecontrol_mining_size3_class1": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Mining Multi-Limpet Controller",
+  "rating": "E"
+ },
+ "int_multidronecontrol_mining_size3_class3": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Mining Multi-Limpet Controller",
+  "rating": "C"
+ },
+ "int_multidronecontrol_miningv2_size5_class5": {
+  "class": 5,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Mk II Mining Multi-Limpet Controller",
+  "rating": "A",
+  "ships": [
+   "lakonminer"
+  ]
+ },
+ "int_multidronecontrol_operations_size3_class3": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Operations Limpet Controller",
+  "rating": "C"
+ },
+ "int_multidronecontrol_operations_size3_class4": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Operations Limpet Controller",
+  "rating": "B"
+ },
+ "int_multidronecontrol_rescue_size3_class2": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Rescue Limpet Controller",
+  "rating": "D"
+ },
+ "int_multidronecontrol_rescue_size3_class3": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Rescue Limpet Controller",
+  "rating": "C"
+ },
+ "int_multidronecontrol_universal_size7_class3": {
+  "class": 7,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Universal Multi-Limpet Controller",
+  "rating": "C"
+ },
+ "int_multidronecontrol_universal_size7_class5": {
+  "class": 7,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Universal Multi-Limpet Controller",
+  "rating": "A"
+ },
+ "int_multidronecontrol_xeno_size3_class3": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Xeno Limpet Controller",
+  "rating": "C"
+ },
+ "int_multidronecontrol_xeno_size3_class4": {
+  "class": 3,
+  "kind": "imlc",
+  "limit": 1,
+  "name": "Xeno Limpet Controller",
+  "rating": "B"
+ },
+ "int_passengercabin_size2_class1": {
+  "class": 2,
+  "kind": "ipc",
+  "name": "Economy Class Passenger Cabin",
+  "rating": "E"
+ },
+ "int_passengercabin_size3_class1": {
+  "class": 3,
+  "kind": "ipc",
+  "name": "Economy Class Passenger Cabin",
+  "rating": "E"
+ },
+ "int_passengercabin_size3_class2": {
+  "class": 3,
+  "kind": "ipc",
+  "name": "Business Class Passenger Cabin",
+  "rating": "D"
+ },
+ "int_passengercabin_size4_class1": {
+  "class": 4,
+  "kind": "ipc",
+  "name": "Economy Class Passenger Cabin",
+  "rating": "E"
+ },
+ "int_passengercabin_size4_class2": {
+  "class": 4,
+  "kind": "ipc",
+  "name": "Business Class Passenger Cabin",
+  "rating": "D"
+ },
+ "int_passengercabin_size4_class3": {
+  "class": 4,
+  "kind": "ipc",
+  "name": "First Class Passenger Cabin",
+  "rating": "C"
+ },
+ "int_passengercabin_size5_class1": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "Economy Class Passenger Cabin",
+  "rating": "E"
+ },
+ "int_passengercabin_size5_class2": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "Business Class Passenger Cabin",
+  "rating": "D"
+ },
+ "int_passengercabin_size5_class3": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "First Class Passenger Cabin",
+  "rating": "C"
+ },
+ "int_passengercabin_size5_class4": {
+  "class": 5,
+  "kind": "ipc",
+  "name": "Luxury Class Passenger Cabin",
+  "rating": "B",
+  "ships": [
+   "belugaliner",
+   "dolphin",
+   "orca"
+  ]
+ },
+ "int_passengercabin_size6_class1": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "Economy Class Passenger Cabin",
+  "rating": "E"
+ },
+ "int_passengercabin_size6_class2": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "Business Class Passenger Cabin",
+  "rating": "D"
+ },
+ "int_passengercabin_size6_class3": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "First Class Passenger Cabin",
+  "rating": "C"
+ },
+ "int_passengercabin_size6_class4": {
+  "class": 6,
+  "kind": "ipc",
+  "name": "Luxury Class Passenger Cabin",
+  "rating": "B",
+  "ships": [
+   "belugaliner",
+   "dolphin",
+   "orca"
+  ]
+ },
+ "int_planetapproachsuite": {
+  "class": 1,
+  "kind": "ipas",
+  "name": "Planetary Approach Suite",
+  "rating": "I"
+ },
+ "int_powerdistributor_size1_class1": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size1_class2": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size1_class3": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size1_class4": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size1_class5": {
+  "class": 1,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size2_class1": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size2_class2": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size2_class3": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size2_class4": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size2_class5": {
+  "class": 2,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size3_class1": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size3_class2": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size3_class3": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size3_class4": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size3_class5": {
+  "class": 3,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size4_class1": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size4_class2": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size4_class3": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size4_class4": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size4_class5": {
+  "class": 4,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size5_class1": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size5_class2": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size5_class3": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size5_class4": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size5_class5": {
+  "class": 5,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size6_class1": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size6_class2": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size6_class3": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size6_class4": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size6_class5": {
+  "class": 6,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size7_class1": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size7_class2": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size7_class3": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size7_class4": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size7_class5": {
+  "class": 7,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerdistributor_size8_class1": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "E"
+ },
+ "int_powerdistributor_size8_class2": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "D"
+ },
+ "int_powerdistributor_size8_class3": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "C"
+ },
+ "int_powerdistributor_size8_class4": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "B"
+ },
+ "int_powerdistributor_size8_class5": {
+  "class": 8,
+  "kind": "cpd",
+  "name": "Power Distributor",
+  "rating": "A"
+ },
+ "int_powerplant_size2_class1": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size2_class2": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size2_class3": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size2_class4": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size2_class5": {
+  "class": 2,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size3_class1": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size3_class2": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size3_class3": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size3_class4": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size3_class5": {
+  "class": 3,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size4_class1": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size4_class2": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size4_class3": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size4_class4": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size4_class5": {
+  "class": 4,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size5_class1": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size5_class2": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size5_class3": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size5_class4": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size5_class5": {
+  "class": 5,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size6_class1": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size6_class2": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size6_class3": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size6_class4": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size6_class5": {
+  "class": 6,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size7_class1": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size7_class2": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size7_class3": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size7_class4": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size7_class5": {
+  "class": 7,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_powerplant_size8_class1": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "E"
+ },
+ "int_powerplant_size8_class2": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "D"
+ },
+ "int_powerplant_size8_class3": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "C"
+ },
+ "int_powerplant_size8_class4": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "B"
+ },
+ "int_powerplant_size8_class5": {
+  "class": 8,
+  "kind": "cpp",
+  "name": "Power Plant",
+  "rating": "A"
+ },
+ "int_refinery_size1_class1": {
+  "class": 1,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "E"
+ },
+ "int_refinery_size1_class2": {
+  "class": 1,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "D"
+ },
+ "int_refinery_size1_class3": {
+  "class": 1,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "C"
+ },
+ "int_refinery_size1_class4": {
+  "class": 1,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "B"
+ },
+ "int_refinery_size1_class5": {
+  "class": 1,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "A"
+ },
+ "int_refinery_size2_class1": {
+  "class": 2,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "E"
+ },
+ "int_refinery_size2_class2": {
+  "class": 2,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "D"
+ },
+ "int_refinery_size2_class3": {
+  "class": 2,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "C"
+ },
+ "int_refinery_size2_class4": {
+  "class": 2,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "B"
+ },
+ "int_refinery_size2_class5": {
+  "class": 2,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "A"
+ },
+ "int_refinery_size3_class1": {
+  "class": 3,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "E"
+ },
+ "int_refinery_size3_class2": {
+  "class": 3,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "D"
+ },
+ "int_refinery_size3_class3": {
+  "class": 3,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "C"
+ },
+ "int_refinery_size3_class4": {
+  "class": 3,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "B"
+ },
+ "int_refinery_size3_class5": {
+  "class": 3,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "A"
+ },
+ "int_refinery_size4_class1": {
+  "class": 4,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "E"
+ },
+ "int_refinery_size4_class2": {
+  "class": 4,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "D"
+ },
+ "int_refinery_size4_class3": {
+  "class": 4,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "C"
+ },
+ "int_refinery_size4_class4": {
+  "class": 4,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "B"
+ },
+ "int_refinery_size4_class5": {
+  "class": 4,
+  "kind": "ir",
+  "limit": 1,
+  "name": "Refinery",
+  "rating": "A"
+ },
+ "int_repairer_size1_class1": {
+  "class": 1,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size1_class2": {
+  "class": 1,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size1_class3": {
+  "class": 1,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size1_class4": {
+  "class": 1,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size1_class5": {
+  "class": 1,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size2_class1": {
+  "class": 2,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size2_class2": {
+  "class": 2,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size2_class3": {
+  "class": 2,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size2_class4": {
+  "class": 2,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size2_class5": {
+  "class": 2,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size3_class1": {
+  "class": 3,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size3_class2": {
+  "class": 3,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size3_class3": {
+  "class": 3,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size3_class4": {
+  "class": 3,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size3_class5": {
+  "class": 3,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size4_class1": {
+  "class": 4,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size4_class2": {
+  "class": 4,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size4_class3": {
+  "class": 4,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size4_class4": {
+  "class": 4,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size4_class5": {
+  "class": 4,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size5_class1": {
+  "class": 5,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size5_class2": {
+  "class": 5,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size5_class3": {
+  "class": 5,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size5_class4": {
+  "class": 5,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size5_class5": {
+  "class": 5,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size6_class1": {
+  "class": 6,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size6_class2": {
+  "class": 6,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size6_class3": {
+  "class": 6,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size6_class4": {
+  "class": 6,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size6_class5": {
+  "class": 6,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size7_class1": {
+  "class": 7,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size7_class2": {
+  "class": 7,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size7_class3": {
+  "class": 7,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size7_class4": {
+  "class": 7,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size7_class5": {
+  "class": 7,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_repairer_size8_class1": {
+  "class": 8,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "E"
+ },
+ "int_repairer_size8_class2": {
+  "class": 8,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "D"
+ },
+ "int_repairer_size8_class3": {
+  "class": 8,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "C"
+ },
+ "int_repairer_size8_class4": {
+  "class": 8,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "B"
+ },
+ "int_repairer_size8_class5": {
+  "class": 8,
+  "kind": "iafmu",
+  "name": "Auto Field-Maintenance Unit",
+  "rating": "A"
+ },
+ "int_sensors_size1_class1": {
+  "class": 1,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size1_class2": {
+  "class": 1,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size1_class3": {
+  "class": 1,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size1_class4": {
+  "class": 1,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size1_class5": {
+  "class": 1,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size2_class1": {
+  "class": 2,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size2_class2": {
+  "class": 2,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size2_class3": {
+  "class": 2,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size2_class4": {
+  "class": 2,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size2_class5": {
+  "class": 2,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size3_class1": {
+  "class": 3,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size3_class2": {
+  "class": 3,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size3_class3": {
+  "class": 3,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size3_class4": {
+  "class": 3,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size3_class5": {
+  "class": 3,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size4_class1": {
+  "class": 4,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size4_class2": {
+  "class": 4,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size4_class3": {
+  "class": 4,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size4_class4": {
+  "class": 4,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size4_class5": {
+  "class": 4,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size5_class1": {
+  "class": 5,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size5_class2": {
+  "class": 5,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size5_class3": {
+  "class": 5,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size5_class4": {
+  "class": 5,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size5_class5": {
+  "class": 5,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size6_class1": {
+  "class": 6,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size6_class2": {
+  "class": 6,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size6_class3": {
+  "class": 6,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size6_class4": {
+  "class": 6,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size6_class5": {
+  "class": 6,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size7_class1": {
+  "class": 7,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size7_class2": {
+  "class": 7,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size7_class3": {
+  "class": 7,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size7_class4": {
+  "class": 7,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size7_class5": {
+  "class": 7,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_sensors_size8_class1": {
+  "class": 8,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "E"
+ },
+ "int_sensors_size8_class2": {
+  "class": 8,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "D"
+ },
+ "int_sensors_size8_class3": {
+  "class": 8,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "C"
+ },
+ "int_sensors_size8_class4": {
+  "class": 8,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "B"
+ },
+ "int_sensors_size8_class5": {
+  "class": 8,
+  "kind": "cs",
+  "name": "Sensors",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size1_class1": {
+  "class": 1,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size1_class2": {
+  "class": 1,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size1_class3": {
+  "class": 1,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size1_class4": {
+  "class": 1,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size1_class5": {
+  "class": 1,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size2_class1": {
+  "class": 2,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size2_class2": {
+  "class": 2,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size2_class3": {
+  "class": 2,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size2_class4": {
+  "class": 2,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size2_class5": {
+  "class": 2,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size3_class1": {
+  "class": 3,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size3_class2": {
+  "class": 3,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size3_class3": {
+  "class": 3,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size3_class4": {
+  "class": 3,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size3_class5": {
+  "class": 3,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size4_class1": {
+  "class": 4,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size4_class2": {
+  "class": 4,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size4_class3": {
+  "class": 4,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size4_class4": {
+  "class": 4,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size4_class5": {
+  "class": 4,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size5_class1": {
+  "class": 5,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size5_class2": {
+  "class": 5,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size5_class3": {
+  "class": 5,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size5_class4": {
+  "class": 5,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size5_class5": {
+  "class": 5,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size6_class1": {
+  "class": 6,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size6_class2": {
+  "class": 6,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size6_class3": {
+  "class": 6,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size6_class4": {
+  "class": 6,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size6_class5": {
+  "class": 6,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size7_class1": {
+  "class": 7,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size7_class2": {
+  "class": 7,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size7_class3": {
+  "class": 7,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size7_class4": {
+  "class": 7,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size7_class5": {
+  "class": 7,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldcellbank_size8_class1": {
+  "class": 8,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "E"
+ },
+ "int_shieldcellbank_size8_class2": {
+  "class": 8,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "D"
+ },
+ "int_shieldcellbank_size8_class3": {
+  "class": 8,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "C"
+ },
+ "int_shieldcellbank_size8_class4": {
+  "class": 8,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "B"
+ },
+ "int_shieldcellbank_size8_class5": {
+  "class": 8,
+  "kind": "iscb",
+  "name": "Shield Cell Bank",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size1_class1": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size1_class2": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size1_class3": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size1_class3_fast": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size1_class5": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size1_class5_strong": {
+  "class": 1,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size2_class1": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size2_class2": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size2_class3": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size2_class3_fast": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size2_class4": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size2_class5": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size2_class5_strong": {
+  "class": 2,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size3_class1": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size3_class2": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size3_class3": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size3_class3_fast": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size3_class4": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size3_class5": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size3_class5_strong": {
+  "class": 3,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size4_class1": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size4_class2": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size4_class3": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size4_class3_fast": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size4_class4": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size4_class5": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size4_class5_strong": {
+  "class": 4,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size5_class1": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size5_class2": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size5_class3": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size5_class3_fast": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size5_class4": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size5_class5": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size5_class5_strong": {
+  "class": 5,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size6_class1": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size6_class2": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size6_class3": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size6_class3_fast": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size6_class4": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size6_class5": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size6_class5_strong": {
+  "class": 6,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size7_class1": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size7_class2": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size7_class3": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size7_class3_fast": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size7_class4": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size7_class5": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size7_class5_strong": {
+  "class": 7,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size8_class1": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "E"
+ },
+ "int_shieldgenerator_size8_class2": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "D"
+ },
+ "int_shieldgenerator_size8_class3": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size8_class3_fast": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Bi-Weave Shield Generator",
+  "rating": "C"
+ },
+ "int_shieldgenerator_size8_class4": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "B"
+ },
+ "int_shieldgenerator_size8_class5": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Shield Generator",
+  "rating": "A"
+ },
+ "int_shieldgenerator_size8_class5_strong": {
+  "class": 8,
+  "kind": "isg",
+  "limit": 1,
+  "name": "Prismatic Shield Generator",
+  "rating": "A"
+ },
+ "int_supercruiseassist": {
+  "class": 1,
+  "kind": "ifa",
+  "limit": 1,
+  "name": "Supercruise Assist",
+  "rating": "E"
+ },
+ "modularcargobaydoor": {
+  "class": 1,
+  "kind": "cch",
+  "name": "Cargo Hatch",
+  "rating": "H"
+ }
+}

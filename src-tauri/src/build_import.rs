@@ -64,14 +64,16 @@ fn s<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
 }
 
 /// The difference between the ship as flown and a pasted build.
-pub fn import(state: &AppState, ship_id: Option<i64>, text: &str) -> Result<ImportedBuild, String> {
+pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: &str) -> Result<ImportedBuild, String> {
     let app = ed_galaxy::loadout::paste_app_name(text);
     if app.as_deref() == Some(ed_galaxy::loadout::CORIOLIS_JSON) {
         return Err("that is Coriolis's JSON export, which names modules its own way; use Export → SLEF in Coriolis (EDSY's SLEF works too)".into());
     }
     let target = ed_galaxy::loadout::loadout_from_paste(text).map_err(|e| e.to_string())?;
-    let current = commands::ship_loadout(state, ship_id)?;
-    let current_raw: Value = serde_json::from_str(&commands::loadout_raw(state, ship_id)?).map_err(|e| e.to_string())?;
+    let current = commands::ship_loadout(state, ship_id, hull)?;
+    let current_raw: Value = serde_json::from_str(&commands::loadout_raw(state, ship_id, hull)?).map_err(|e| e.to_string())?;
+    let table = commands::slots();
+    let hull_table = s(&current_raw, "Ship").and_then(|sym| table.hull(sym));
     let ship_matches = s(&target, "Ship")
         .zip(s(&current_raw, "Ship"))
         .is_some_and(|(a, b)| a.eq_ignore_ascii_case(b));
@@ -93,6 +95,22 @@ pub fn import(state: &AppState, ship_id: Option<i64>, text: &str) -> Result<Impo
         let have = current.modules.iter().find(|c| c.slot.eq_ignore_ascii_case(slot));
         let swap = !have.is_some_and(|c| c.item.eq_ignore_ascii_case(item));
         if swap {
+            // A build the tables say cannot be: the slot is not the hull's,
+            // or the module does not fit it. Said, not silently planned.
+            if let Some(h) = hull_table {
+                match h.slot(slot) {
+                    None => skipped.push(format!("{slot_name}: the {} has no such slot; {item_name} left out", h.name)),
+                    Some(sl) => {
+                        if let Err(e) = table.fits(h, sl, item) {
+                            skipped.push(format!("{slot_name}: {e}; {item_name} left out"));
+                            continue;
+                        }
+                    }
+                }
+                if h.slot(slot).is_none() {
+                    continue;
+                }
+            }
             swaps.push(Swap {
                 slot: slot.to_string(),
                 slot_name: slot_name.clone(),

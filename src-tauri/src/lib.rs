@@ -491,6 +491,8 @@ pub fn run() {
             commands::check_experimental,
             commands::ship_modules,
             commands::ships_list,
+            commands::hulls_list,
+            commands::slot_options,
             commands::service_options,
             commands::carrier_status,
             commands::ship_slef,

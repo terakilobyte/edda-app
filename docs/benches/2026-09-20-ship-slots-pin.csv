@@ -1,0 +1,200 @@
+# Pin: our slot table against the vendored Coriolis sizes (hardpoints, internal, military, core) and against the commander's own Loadouts (every fitted slot named in the table). Coriolis folds the Type-11's limpet/hangar slots and the Panther's cargo slots away; ours keeps them, so those two internal rows DIFFER by design.
+check,ship,ours,reference,verdict
+hardpoints,Adder,1/1/2,1/1/2,agree
+internal,Adder,1/1/1/2/2/3/3,1/1/1/2/2/3/3,agree
+military,Adder,,,agree
+core,Adder,3/3/3/1/2/3/3,3/3/3/1/2/3/3,agree
+hardpoints,Anaconda,1/1/2/2/3/3/3/4,1/1/2/2/3/3/3/4,agree
+internal,Anaconda,1/2/4/4/4/5/5/5/6/6/6/7,1/2/4/4/4/5/5/5/6/6/6/7,agree
+military,Anaconda,5,5,agree
+core,Anaconda,8/7/6/5/8/8/5,8/7/6/5/8/8/5,agree
+hardpoints,Asp Explorer,1/1/1/1/2/2,1/1/1/1/2/2,agree
+internal,Asp Explorer,1/2/2/3/3/3/5/6,1/2/2/3/3/3/5/6,agree
+military,Asp Explorer,,,agree
+core,Asp Explorer,5/5/5/4/4/5/5,5/5/5/4/4/5/5,agree
+hardpoints,Asp Scout,1/1/2/2,1/1/2/2,agree
+internal,Asp Scout,1/2/2/3/3/4/5,1/2/2/3/3/4/5,agree
+military,Asp Scout,,,agree
+core,Asp Scout,4/4/4/3/4/4/4,4/4/4/3/4/4/4,agree
+hardpoints,Beluga Liner,2/2/2/2/2,2/2/2/2/2,agree
+internal,Beluga Liner,1/3/3/3/3/4/5/5/6/6/6/6,1/3/3/3/3/4/5/5/6/6/6/6,agree
+military,Beluga Liner,,,agree
+core,Beluga Liner,6/7/7/8/6/5/7,6/7/7/8/6/5/7,agree
+hardpoints,Cobra Mk III,1/1/2/2,1/1/2/2,agree
+internal,Cobra Mk III,1/1/2/2/2/4/4/4,1/1/2/2/2/4/4/4,agree
+military,Cobra Mk III,,,agree
+core,Cobra Mk III,4/4/4/3/3/3/4,4/4/4/3/3/3/4,agree
+hardpoints,Cobra Mk IV,1/1/1/2/2,1/1/1/2/2,agree
+internal,Cobra Mk IV,1/1/2/2/3/3/4/4/4/4,1/1/2/2/3/3/4/4/4/4,agree
+military,Cobra Mk IV,,,agree
+core,Cobra Mk IV,4/4/4/3/3/3/4,4/4/4/3/3/3/4,agree
+hardpoints,Cobra Mk V,1/1/2/2/2,1/1/2/2/2,agree
+internal,Cobra Mk V,1/2/3/3/3/4/4/4/5,1/2/3/3/3/4/4/4/5,agree
+military,Cobra Mk V,,,agree
+core,Cobra Mk V,4/4/4/3/4/3/4,4/4/4/3/4/3/4,agree
+hardpoints,Corsair,2/2/2/3/3/3,2/2/2/3/3/3,agree
+internal,Corsair,1/2/3/4/5/5/5/6/6/6,1/2/3/4/5/5/5/6/6/6,agree
+military,Corsair,,,agree
+core,Corsair,7/7/5/4/7/6/5,7/7/5/4/7/6/5,agree
+hardpoints,Imperial Cutter,2/2/2/2/3/3/4,2/2/2/2/3/3/4,agree
+internal,Imperial Cutter,1/3/4/5/5/6/6/6/8/8,1/3/4/5/5/6/6/6/8/8,agree
+military,Imperial Cutter,5/5,5/5,agree
+core,Imperial Cutter,8/8/7/7/7/7/6,8/8/7/7/7/7/6,agree
+hardpoints,Diamondback Scout,1/1/2/2,1/1/2/2,agree
+internal,Diamondback Scout,1/1/2/3/3/3,1/1/2/3/3/3,agree
+military,Diamondback Scout,,,agree
+core,Diamondback Scout,4/4/4/2/3/2/4,4/4/4/2/3/2/4,agree
+hardpoints,Diamondback Explorer,2/2/3,2/2/3,agree
+internal,Diamondback Explorer,1/1/2/2/3/3/4/4,1/1/2/2/3/3/4/4,agree
+military,Diamondback Explorer,,,agree
+core,Diamondback Explorer,4/4/5/3/4/3/5,4/4/5/3/4/3/5,agree
+hardpoints,Dolphin,1/1,1/1,agree
+internal,Dolphin,1/1/2/2/2/3/4/4/5,1/1/2/2/2/3/4/4/5,agree
+military,Dolphin,,,agree
+core,Dolphin,4/5/4/4/3/3/4,4/5/4/4/3/3/4,agree
+hardpoints,Eagle,1/1/1,1/1/1,agree
+internal,Eagle,1/1/1/1/2/3,1/1/1/1/2/3,agree
+military,Eagle,2,2,agree
+core,Eagle,2/3/3/1/2/2/2,2/3/3/1/2/2/2,agree
+hardpoints,Imperial Courier,2/2/2,2/2/2,agree
+internal,Imperial Courier,1/1/1/2/2/2/3/3,1/1/1/2/2/2/3/3,agree
+military,Imperial Courier,,,agree
+core,Imperial Courier,4/3/3/1/3/2/3,4/3/3/1/3/2/3,agree
+hardpoints,Imperial Eagle,1/1/2,1/1/2,agree
+internal,Imperial Eagle,1/1/1/1/2/3,1/1/1/1/2/3,agree
+military,Imperial Eagle,2,2,agree
+core,Imperial Eagle,3/3/3/1/2/2/2,3/3/3/1/2/2/2,agree
+hardpoints,Imperial Clipper,2/2/3/3,2/2/3/3,agree
+internal,Imperial Clipper,1/2/2/3/3/4/4/6/7,1/2/2/3/3/4/4/6/7,agree
+military,Imperial Clipper,,,agree
+core,Imperial Clipper,6/6/5/5/6/5/4,6/6/5/5/6/5/4,agree
+hardpoints,Caspian Explorer,2/2/2/2/2/2/3,2/2/2/2/2/2/3,agree
+internal,Caspian Explorer,1/1/1/2/3/4/4/5/5/5/5/6/6/7,1/1/1/2/3/4/4/5/5/5/5/6/6/7,agree
+military,Caspian Explorer,,,agree
+core,Caspian Explorer,8/7/8/5/7/8/7,8/7/8/5/7/8/7,agree
+hardpoints,Federal Corvette,1/1/2/2/3/4/4,1/1/2/2/3/4/4,agree
+internal,Federal Corvette,1/3/4/4/5/5/6/6/7/7/7,1/3/4/4/5/5/6/6/7/7/7,agree
+military,Federal Corvette,5/5,5/5,agree
+core,Federal Corvette,8/7/6/5/8/8/5,8/7/6/5/8/8/5,agree
+hardpoints,Federal Dropship,2/2/2/2/3,2/2/2/2/3,agree
+internal,Federal Dropship,1/2/3/3/4/5/5/6,1/2/3/3/4/5/5/6,agree
+military,Federal Dropship,4/4,4/4,agree
+core,Federal Dropship,6/6/5/5/6/4/4,6/6/5/5/6/4/4,agree
+hardpoints,Federal Assault Ship,2/2/3/3,2/2/3/3,agree
+internal,Federal Assault Ship,1/2/2/3/4/5/5,1/2/2/3/4/5/5,agree
+military,Federal Assault Ship,4/4,4/4,agree
+core,Federal Assault Ship,6/6/5/5/6/4/4,6/6/5/5/6/4/4,agree
+hardpoints,Federal Gunship,1/1/2/2/2/2/3,1/1/2/2/2/2/3,agree
+internal,Federal Gunship,1/2/2/5/6/6,1/2/2/5/6/6,agree
+military,Federal Gunship,4/4/4,4/4/4,agree
+core,Federal Gunship,6/6/5/5/7/5/4,6/6/5/5/7/5/4,agree
+hardpoints,Fer-de-Lance,2/2/2/2/4,2/2/2/2/4,agree
+internal,Fer-de-Lance,1/1/2/4/4/5,1/1/2/4/4/5,agree
+military,Fer-de-Lance,,,agree
+core,Fer-de-Lance,6/5/4/4/6/4/3,6/5/4/4/6/4/3,agree
+hardpoints,Hauler,1,1,agree
+internal,Hauler,1/1/1/2/3/3,1/1/1/2/3/3,agree
+military,Hauler,,,agree
+core,Hauler,2/2/2/1/1/1/2,2/2/2/1/1/1/2,agree
+hardpoints,Keelback,1/1/2/2,1/1/2/2,agree
+internal,Keelback,1/2/2/3/4/5/5,1/2/2/3/4/5/5,agree
+military,Keelback,,,agree
+core,Keelback,4/4/4/1/3/2/4,4/4/4/1/3/2/4,agree
+hardpoints,Krait Phantom,2/2/3/3,2/2/3/3,agree
+internal,Krait Phantom,1/2/3/3/3/5/5/5/6,1/2/3/3/3/5/5/5/6,agree
+military,Krait Phantom,,,agree
+core,Krait Phantom,7/6/5/4/7/6/5,7/6/5/4/7/6/5,agree
+hardpoints,Krait Mk II,2/2/3/3/3,2/2/3/3/3,agree
+internal,Krait Mk II,1/2/3/3/4/5/5/6/6,1/2/3/3/4/5/5/6/6,agree
+military,Krait Mk II,,,agree
+core,Krait Mk II,7/6/5/4/7/6/5,7/6/5/4/7/6/5,agree
+hardpoints,Type-11 Prospector,1/1/1/1/2/2/2/3,1/1/1/1/2/2/2/3,agree
+internal,Type-11 Prospector,1/1/2/3/4/5/5/5/5/6/6/6,1/1/2/3/4/5/5/6/6/6,DIFFER
+military,Type-11 Prospector,,,agree
+core,Type-11 Prospector,6/5/5/3/7/3/5,6/5/5/3/7/3/5,agree
+hardpoints,Mamba,1/1/3/3/4,1/1/3/3/4,agree
+internal,Mamba,1/2/2/3/4/5,1/2/2/3/4/5,agree
+military,Mamba,,,agree
+core,Mamba,6/5/4/4/6/4/3,6/5/4/4/6/4/3,agree
+hardpoints,Mandalay,1/1/2/2/2/2,1/1/2/2/2/2,agree
+internal,Mandalay,1/1/1/2/3/3/4/4/5/6,1/1/1/2/3/3/4/4/5/6,agree
+military,Mandalay,,,agree
+core,Mandalay,5/5/5/4/5/5/5,5/5/5/4/5/5/5,agree
+coriolis,Lynx Highliner,,,no Coriolis data
+hardpoints,Orca,2/2/3,2/2/3,agree
+internal,Orca,1/2/2/3/4/5/5/5/6,1/2/2/3/4/5/5/5/6,agree
+military,Orca,,,agree
+core,Orca,5/6/5/6/5/4/5,5/6/5/6/5/4/5,agree
+hardpoints,Panther Clipper Mk II,1/1/1/1/2/2/2/2/3/3,1/1/1/1/2/2/2/2/3/3,agree
+internal,Panther Clipper Mk II,1/2/4/5/5/6/6/6/7/7/8/8,1/2/4/5/5/6/6/6/7/8,DIFFER
+military,Panther Clipper Mk II,,,agree
+core,Panther Clipper Mk II,8/8/7/5/7/5/7,8/8/7/5/7/5/7,agree
+hardpoints,Python,2/2/3/3/3,2/2/3/3/3,agree
+internal,Python,1/2/3/3/4/5/5/6/6/6,1/2/3/3/4/5/5/6/6/6,agree
+military,Python,,,agree
+core,Python,7/6/5/4/7/6/5,7/6/5/4/7/6/5,agree
+hardpoints,Python Mk II,2/2/3/3/3/3,2/2/3/3/3/3,agree
+internal,Python Mk II,1/1/2/3/4/6,1/1/2/3/4/6,agree
+military,Python Mk II,,,agree
+core,Python Mk II,6/6/5/4/6/5/4,6/6/5/4/6/5/4,agree
+hardpoints,Sidewinder,1/1,1/1,agree
+internal,Sidewinder,1/1/1/1/2/2,1/1/1/1/2/2,agree
+military,Sidewinder,,,agree
+core,Sidewinder,2/2/2/1/1/1/1,2/2/2/1/1/1/1,agree
+hardpoints,Kestrel Mk II,1/1/3/3/3,1/1/3/3/3,agree
+internal,Kestrel Mk II,1/2/2/2/3/4/5,1/2/2/2/3/4/5,agree
+military,Kestrel Mk II,4,4,agree
+core,Kestrel Mk II,5/5/4/1/5/2/4,5/5/4/1/5/2/4,agree
+hardpoints,Type-6 Transporter,1/1,1/1,agree
+internal,Type-6 Transporter,1/2/2/3/4/4/5/5,1/2/2/3/4/4/5/5,agree
+military,Type-6 Transporter,,,agree
+core,Type-6 Transporter,3/4/4/2/3/2/4,3/4/4/2/3/2/4,agree
+hardpoints,Type-7 Transporter,1/1/1/1,1/1/1/1,agree
+internal,Type-7 Transporter,1/2/3/3/5/5/5/6/6/6,1/2/3/3/5/5/5/6/6/6,agree
+military,Type-7 Transporter,,,agree
+core,Type-7 Transporter,5/5/5/4/4/3/5,5/5/5/4/4/3/5,agree
+hardpoints,Type-8 Transporter,1/1/1/1/1/2,1/1/1/1/1/2,agree
+internal,Type-8 Transporter,1/2/4/5/5/6/6/6/7,1/2/4/5/5/6/6/6/7,agree
+military,Type-8 Transporter,,,agree
+core,Type-8 Transporter,5/5/5/3/4/3/5,5/5/5/3/4/3/5,agree
+hardpoints,Type-9 Heavy,1/1/2/2/2,1/1/2/2/2,agree
+internal,Type-9 Heavy,1/2/3/3/4/4/5/6/7/8/8,1/2/3/3/4/4/5/6/7/8/8,agree
+military,Type-9 Heavy,,,agree
+core,Type-9 Heavy,6/7/6/5/6/4/6,6/7/6/5/6/4/6,agree
+hardpoints,Type-10 Defender,1/1/2/2/2/3/3/3/3,1/1/2/2/2/3/3/3/3,agree
+internal,Type-10 Defender,1/2/3/3/4/4/5/6/7/8,1/2/3/3/4/4/5/6/7/8,agree
+military,Type-10 Defender,5/5,5/5,agree
+core,Type-10 Defender,8/7/7/5/7/4/6,8/7/7/5/7/4/6,agree
+hardpoints,Alliance Chieftain,1/1/1/2/3/3,1/1/1/2/3/3,agree
+internal,Alliance Chieftain,1/2/2/4/5/6,1/2/2/4/5/6,agree
+military,Alliance Chieftain,4/4/4,4/4/4,agree
+core,Alliance Chieftain,6/6/5/5/6/4/4,6/6/5/5/6/4/4,agree
+hardpoints,Alliance Crusader,1/1/1/2/2/3,1/1/1/2/2/3,agree
+internal,Alliance Crusader,1/2/2/3/3/5/6,1/2/2/3/3/5/6,agree
+military,Alliance Crusader,4/4/4,4/4/4,agree
+core,Alliance Crusader,6/6/5/5/6/4/4,6/6/5/5/6/4/4,agree
+hardpoints,Alliance Challenger,1/1/1/2/2/2/3,1/1/1/2/2/2/3,agree
+internal,Alliance Challenger,1/2/2/3/3/6/6,1/2/2/3/3/6/6,agree
+military,Alliance Challenger,4/4/4,4/4/4,agree
+core,Alliance Challenger,6/6/5/5/6/4/4,6/6/5/5/6/4/4,agree
+coriolis,Viper Mk III,,,no Coriolis data
+hardpoints,Viper Mk IV,1/1/2/2,1/1/2/2,agree
+internal,Viper Mk IV,1/1/1/2/2/3/4/4,1/1/1/2/2/3/4/4,agree
+military,Viper Mk IV,3,3,agree
+core,Viper Mk IV,4/4/4/2/3/3/4,4/4/4/2/3/3/4,agree
+hardpoints,Vulture,3/3,3/3,agree
+internal,Vulture,1/1/1/1/2/4/5,1/1/1/1/2/4/5,agree
+military,Vulture,5,5,agree
+core,Vulture,4/5/4/3/5/4/3,4/5/4/3/5/4/3,agree
+journal,Asp Explorer,19 fitted slots named,0 not in table,agree
+journal,Anaconda,38 fitted slots named,0 not in table,agree
+journal,Python,28 fitted slots named,0 not in table,agree
+journal,Python Mk II,27 fitted slots named,0 not in table,agree
+journal,Type-11 Prospector,33 fitted slots named,0 not in table,agree
+journal,Panther Clipper Mk II,37 fitted slots named,0 not in table,agree
+journal,Kestrel Mk II,26 fitted slots named,0 not in table,agree
+journal,Mandalay,23 fitted slots named,0 not in table,agree
+journal,Python Mk II,27 fitted slots named,0 not in table,agree
+journal,Caspian Explorer,16 fitted slots named,0 not in table,agree
+journal,Krait Mk II,17 fitted slots named,0 not in table,agree
+journal,Type-10 Defender,38 fitted slots named,0 not in table,agree
