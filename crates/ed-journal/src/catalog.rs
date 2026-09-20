@@ -21,6 +21,9 @@ use std::collections::HashMap;
 
 const MATERIAL_CSV: &str = include_str!("../data/material.csv");
 const COMMODITY_CSV: &str = include_str!("../data/commodity.csv");
+/// EDCD FDevIDs `rare_commodity.csv`: the 142 rare goods, absent from the
+/// commodity table and so from every market and cargo name until 2026-09-20.
+const RARE_COMMODITY_CSV: &str = include_str!("../data/rare_commodity.csv");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
@@ -103,6 +106,14 @@ impl Catalog {
                     grade,
                     Kind::Material,
                 );
+            }
+        }
+
+        let mut rare_reader = csv::Reader::from_reader(RARE_COMMODITY_CSV.as_bytes());
+        for row in rare_reader.records().flatten() {
+            // id,symbol,market_id,category,name
+            if let (Some(symbol), Some(category), Some(name)) = (row.get(1), row.get(3), row.get(4)) {
+                push(symbol, name, category, "Rare", 0, Kind::Commodity);
             }
         }
 

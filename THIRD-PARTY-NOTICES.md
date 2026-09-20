@@ -103,8 +103,11 @@ Frontier's factual ID assignments (commodity and material symbols, display
 names, categories) as collected and maintained by the Elite Dangerous
 Community Developers. Reproduced in this tree as:
 
-- `crates/ed-journal/data/commodity.csv` and `material.csv`, embedded into
-  `ed-journal` at compile time (`crates/ed-journal/src/catalog.rs`);
+- `crates/ed-journal/data/commodity.csv`, `material.csv`, `rare_commodity.csv`,
+  `outfitting.csv`, `shipyard.csv`, `microresources.csv` and `engineers.csv`
+  (upstream c356129, 2026-09-05), embedded into `ed-journal` at compile time
+  as the printed names of materials, commodities, modules, ships and
+  engineers (`catalog.rs`, `modules.rs`, `ships.rs`);
 - `crates/ed-api/src/fdev_data.rs`, a generated table from `commodity.csv`
   and `rare_commodity.csv`, regenerated as the game adds items.
 
