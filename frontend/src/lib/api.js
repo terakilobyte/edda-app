@@ -201,6 +201,7 @@ export const COMMANDS = {
   // Missions
   missions: ["missions", ["activeOnly"], { activeOnly: true }],
   missionStack: ["mission_stack"],
+  missionsHere: ["missions_here"],
   // Voice, callouts, overlay
   voiceStatus: ["voice_status"],
   voiceModels: ["voice_models"],
@@ -289,7 +290,7 @@ export const {
   targetMacroEnabledGet, targetMacroEnabledSet, gameRouteMaxGet, gameRouteMaxSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest,
   routePlotTest, mapSetupTest, mapSetupSay, mapSetupCancel, mapSetupTarget, routePlotInGame, targetKeyStatus, targetTriggerCapture, targetTriggerClear, mapPointCapture, mapPointsGet, mapDelaySet, mapPointsClear, macroRecordStart, macroRecordStop,
   galaxyNear, nameComplete, serviceOptions,
-  powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions, missionStack,
+  powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions, missionStack, missionsHere,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
   getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, setOverlayInteractive, overlayVisible, aiAsk, aiReset,

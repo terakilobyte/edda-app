@@ -57,6 +57,19 @@ redirects to a new drop-off is announced as a reroute, not a
 completion. Wing missions carry a wing marker on the Missions tab and
 the HUD.
 
+**Stacks in numbers, and hand-ins at the dock.** Stacking mode's board
+now carries the stack's figures under the givers, every one a stated
+field summed and never an estimate: the kills that clear the stack (the
+largest per-giver sum, since one giver's missions progress one after
+another), the kills still to make, every kill count added (what one kill
+is worth in mission credit, all givers together), the stack's value, what
+is ready to collect and what a wing shares. Dock where missions are ready
+to hand in and the tab and HUD say how many and for how much, and the
+ship computer says it once per dock (its own callout kind, so it can be
+silenced). The paid reward replaces the offer once the game pays. Both
+ideas are based on ODEliteTracker (WarmedxMints), whose approach to
+mission stacks we studied; no code was copied.
+
 **Missions: hand in where you took the mission.** The Missions tab's
 "Hand in" column showed the station the game lists as the mission's
 destination, which for a kill mission is a station in the *target*

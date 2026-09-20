@@ -1,11 +1,11 @@
 <script>
   // Missions from the journal, including game-reported cargo-depot progress.
   import { onDestroy } from "svelte";
-  import { missions, missionStack } from "./api.js";
+  import { missions, missionStack, missionsHere } from "./api.js";
   import { fmtCr, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
   import { KEYS, persisted } from "./storage.svelte.js";
-  import { giverLabel, giverTitle, stackSummary } from "./stacking.js";
+  import { giverLabel, giverTitle, stackSummary, stackEconomics, handInsLabel } from "./stacking.js";
 
   let list = $state([]);
   let showAll = $state(false);
@@ -14,9 +14,11 @@
   // the HUD window; the board is shown here too, where the box is ticked.
   const stackingMode = persisted(KEYS.stackingMode, false, { sync: true });
   let stack = $state(null);
+  // What is ready to hand in where you are docked (None otherwise).
+  let here = $state(null);
   onDestroy(() => stackingMode.dispose());
 
-  const res = journalResource(async () => { list = await missions(!showAll); stack = await missionStack(); });
+  const res = journalResource(async () => { list = await missions(!showAll); stack = await missionStack(); here = await missionsHere(); });
   const refresh = res.refresh;
   const error = $derived(res.error);
 
@@ -45,6 +47,9 @@
       <div class="stat"><div class="label">In play</div><div class="value">{list.length}</div></div>
       <div class="stat"><div class="label">Ready to turn in</div><div class="value ok">{list.filter((m) => m.status === "ready_to_turn_in").length}</div></div>
       <div class="stat"><div class="label">Rewards pending</div><div class="value">{fmtCr(rewardTotal)}</div></div>
+      {#if here}
+        <div class="stat" title={here.missions.map((m) => m.title).join("\n")}><div class="label">Ready here · {here.station}</div><div class="value ok">{here.missions.length} · {fmtCr(here.credits)}</div></div>
+      {/if}
     </div>
   {/if}
 
@@ -56,6 +61,7 @@
         {#each stack.givers as g (g.faction)}
           <span class="pill {g.duplicate ? 'warn' : g.ready === g.missions ? 'ok' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
         {/each}
+        {#if stackEconomics(stack)}<div class="small muted" style="flex-basis:100%" title="Every figure is a stated field summed: kill counts and rewards as the game gave them. Kills that clear the stack are the largest per-giver sum; credited is every kill count added, because one kill counts for every giver at once.">{stackEconomics(stack)}</div>{/if}
       {:else}
         <span class="muted small">No massacre missions in play — the board fills as you accept them.</span>
       {/if}

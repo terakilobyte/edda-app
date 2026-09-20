@@ -83,7 +83,11 @@ pub struct Mission {
     pub hand_in_system: Option<String>,
     pub hand_in_station: Option<String>,
     pub expiry: Option<String>,
+    /// The credits: as offered at acceptance, then the paid figure from
+    /// `MissionCompleted.Reward` once turned in (the game states both).
     pub reward: Option<i64>,
+    /// What an altruism mission took, from `MissionCompleted.Donated`.
+    pub donated: Option<i64>,
     pub wing: bool,
     pub status: MissionStatus,
     pub ended: Option<String>,
@@ -187,6 +191,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                     hand_in_station: docked.as_ref().map(|(_, st)| st.clone()),
                     expiry: s(&v, "Expiry"),
                     reward: i(&v, "Reward"),
+                    donated: None,
                     wing: v.get("Wing").and_then(Value::as_bool).unwrap_or(false),
                     status: MissionStatus::Active,
                     ended: None,
@@ -235,6 +240,11 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                         "MissionCompleted" => {
                             m.status = MissionStatus::Completed;
                             m.ended = Some(ts.clone());
+                            // The paid figure wins over the offer.
+                            if let Some(paid) = i(&v, "Reward") {
+                                m.reward = Some(paid);
+                            }
+                            m.donated = i(&v, "Donated").or_else(|| i(&v, "Donation"));
                         }
                         "MissionFailed" => {
                             m.status = MissionStatus::Failed;
@@ -340,13 +350,41 @@ pub struct StackGiver {
 }
 
 /// The board view for stacking mode.
+///
+/// The figures are the game's stated fields summed, never an estimate
+/// (the 2026-09-19 ruling): every kill count and reward is what
+/// `MissionAccepted` said. Kill credit is consecutive within one giver
+/// and concurrent across givers, so the kills that clear the stack are
+/// the largest per-giver sum, and every kill counts for every giver at
+/// once — which is why `kills_credited` runs to several times
+/// `kills_needed`. The idea of putting these numbers next to the givers
+/// comes from ODEliteTracker (WarmedxMints), studied 2026-09-20; no code
+/// was copied.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Stack {
     pub target_faction: String,
+    /// Where the kills happen, when the missions agree (the most common
+    /// stated destination system).
+    pub target_system: Option<String>,
     pub givers: Vec<StackGiver>,
     /// Live massacres against some OTHER target, so the display can say
     /// they exist rather than silently omit them.
     pub other_targets: usize,
+    /// Kills that clear the whole stack as accepted: the largest per-giver
+    /// sum of kill counts over every live mission against the target.
+    pub kills_needed: i64,
+    /// Kills still to make: the largest per-giver sum over the missions
+    /// the game has not yet completed (ready ones are done).
+    pub kills_remaining: i64,
+    /// Every kill count in the stack added up: what the kills are worth in
+    /// mission credit, all givers together.
+    pub kills_credited: i64,
+    /// Rewards of every live mission against the target, as stated.
+    pub value: i64,
+    /// Rewards of the missions ready to turn in now.
+    pub value_ready: i64,
+    /// Rewards of the wing missions, which a wing shares.
+    pub value_shareable: i64,
 }
 
 /// Every giver the commander already holds a massacre from against one
@@ -402,7 +440,84 @@ pub fn stacking_givers(live: &[Mission]) -> Option<Stack> {
         .iter()
         .filter(|m| m.target_faction.as_deref() != Some(target.as_str()))
         .count();
-    Some(Stack { target_faction: target, givers, other_targets })
+
+    let mine: Vec<&&Mission> = massacres.iter().filter(|m| m.target_faction.as_deref() == Some(target.as_str())).collect();
+    let mut per_giver_all: BTreeMap<String, i64> = BTreeMap::new();
+    let mut per_giver_open: BTreeMap<String, i64> = BTreeMap::new();
+    let mut systems: BTreeMap<&str, usize> = BTreeMap::new();
+    let (mut kills_credited, mut value, mut value_ready, mut value_shareable) = (0, 0, 0, 0);
+    for m in &mine {
+        let kills = m.kill_count.unwrap_or(0);
+        let giver = m.faction.to_lowercase();
+        *per_giver_all.entry(giver.clone()).or_default() += kills;
+        if m.status == MissionStatus::Active {
+            *per_giver_open.entry(giver).or_default() += kills;
+        }
+        kills_credited += kills;
+        let reward = m.reward.unwrap_or(0);
+        value += reward;
+        if m.status == MissionStatus::ReadyToTurnIn {
+            value_ready += reward;
+        }
+        if m.wing {
+            value_shareable += reward;
+        }
+        if let Some(sys) = m.destination_system.as_deref() {
+            *systems.entry(sys).or_default() += 1;
+        }
+    }
+    let target_system = systems.iter().max_by_key(|(name, n)| (**n, std::cmp::Reverse(**name))).map(|(s, _)| s.to_string());
+    Some(Stack {
+        target_faction: target,
+        target_system,
+        givers,
+        other_targets,
+        kills_needed: per_giver_all.values().copied().max().unwrap_or(0),
+        kills_remaining: per_giver_open.values().copied().max().unwrap_or(0),
+        kills_credited,
+        value,
+        value_ready,
+        value_shareable,
+    })
+}
+
+/// The missions ready to turn in at THIS dock: `ReadyToTurnIn` with the
+/// hand-in station here (and the system, when the mission names one).
+/// The idea — say it at the dock, not at the board — is ODEliteTracker's
+/// (studied 2026-09-20; no code copied); the facts are the game's.
+pub fn ready_here<'a>(live: &'a [Mission], system: &str, station: &str) -> Vec<&'a Mission> {
+    live.iter()
+        .filter(|m| m.status == MissionStatus::ReadyToTurnIn)
+        .filter(|m| m.hand_in_station.as_deref().is_some_and(|st| st.eq_ignore_ascii_case(station)))
+        .filter(|m| m.hand_in_system.as_deref().is_none_or(|sy| sy.eq_ignore_ascii_case(system)))
+        .collect()
+}
+
+/// What is ready to hand in where the commander is docked.
+#[derive(Debug, Clone, Serialize)]
+pub struct HandIns {
+    pub system: String,
+    pub station: String,
+    pub missions: Vec<Mission>,
+    /// The stated rewards of those missions, added up.
+    pub credits: i64,
+}
+
+/// The hand-ins at the current dock, or None when not docked or nothing
+/// is ready here. Reads the derived `location` table for the dock.
+pub fn hand_ins_here(conn: &Connection, now: &str) -> Result<Option<HandIns>> {
+    let Some(loc) = crate::query::location(conn)? else { return Ok(None) };
+    if !loc.docked {
+        return Ok(None);
+    }
+    let (Some(system), Some(station)) = (loc.system_name, loc.station_name) else { return Ok(None) };
+    let live = active(conn, now)?;
+    let here: Vec<Mission> = ready_here(&live, &system, &station).into_iter().cloned().collect();
+    if here.is_empty() {
+        return Ok(None);
+    }
+    let credits = here.iter().map(|m| m.reward.unwrap_or(0)).sum();
+    Ok(Some(HandIns { system, station, missions: here, credits }))
 }
 
 #[cfg(test)]
@@ -560,6 +675,62 @@ mod tests {
         assert_eq!(ptn.missions, 1, "only this target's missions are counted");
     }
 
+    /// Pre-registered before the function was written (2026-09-20), from
+    /// the fixture: HIP 90112 Jet Central Corp. holds 72 + 48 = 120, the
+    /// largest per-giver sum, so 120 kills clear the stack as accepted;
+    /// its ready mission is done, so the largest OPEN sum is Pilots Trade
+    /// Network's or Natural HIP 90112 Party's 72; every kill count added
+    /// is 824. Rewards are given here (the fixture has none): 1,000,000
+    /// each, so value 20M, ready 12M (twelve ready), all wing.
+    #[test]
+    fn the_stacks_figures_are_the_stated_fields_summed() {
+        let mut missions = the_stack();
+        for m in missions.iter_mut() {
+            m.reward = Some(1_000_000);
+            m.destination_system = Some("Anana".into());
+        }
+        let stack = stacking_givers(&missions).expect("a live stack");
+        assert_eq!(stack.kills_needed, 120, "the largest per-giver sum");
+        assert_eq!(stack.kills_remaining, 72, "the largest per-giver sum of what is still open");
+        assert_eq!(stack.kills_credited, 824, "every kill count added");
+        assert_eq!(stack.value, 20_000_000);
+        assert_eq!(stack.value_ready, 12_000_000);
+        assert_eq!(stack.value_shareable, 20_000_000, "all wing");
+        assert_eq!(stack.target_system.as_deref(), Some("Anana"));
+    }
+
+    /// At the dock: only the ready missions whose hand-in is this station.
+    #[test]
+    fn ready_here_is_this_stations_ready_missions_only() {
+        let mut a = m(1, "2026-09-16T10:00:00Z", "A", Some(10), None, MissionStatus::ReadyToTurnIn);
+        a.hand_in_system = Some("Puneith".into());
+        a.hand_in_station = Some("Wheelock Port".into());
+        let mut b = m(2, "2026-09-16T10:00:00Z", "B", Some(10), None, MissionStatus::Active);
+        b.hand_in_system = Some("Puneith".into());
+        b.hand_in_station = Some("Wheelock Port".into());
+        let mut c = m(3, "2026-09-16T10:00:00Z", "C", Some(10), None, MissionStatus::ReadyToTurnIn);
+        c.hand_in_system = Some("Ahayan".into());
+        c.hand_in_station = Some("Goeppert-Mayer Vision".into());
+        let live = vec![a, b, c];
+        let here: Vec<i64> = ready_here(&live, "Puneith", "wheelock port").iter().map(|m| m.id).collect();
+        assert_eq!(here, vec![1], "ready and here; not the active one, not the other station");
+        assert!(ready_here(&live, "Puneith", "Nowhere").is_empty());
+    }
+
+    /// The paid reward replaces the offer once the game pays.
+    #[test]
+    fn the_paid_reward_wins_over_the_offer() {
+        let conn = db();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',9,'2026-08-26T13:30:00Z','MissionCompleted','{"timestamp":"2026-08-26T13:30:00Z","event":"MissionCompleted","MissionID":2,"Reward":400000}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
+        let hit = ms.iter().find(|m| m.id == 2).unwrap();
+        assert_eq!(hit.reward, Some(400_000), "offered 389,952; paid 400,000");
+        assert_eq!(ms.iter().find(|m| m.id == 1).unwrap().reward, Some(2_433_946), "still the offer while live");
+    }
+
     /// A courier-only board, or nothing live at all, has no stack.
     #[test]
     fn a_stack_needs_a_massacre() {
@@ -594,6 +765,7 @@ mod tests {
             hand_in_station: None,
             expiry: expiry.map(str::to_string),
             reward: None,
+            donated: None,
             wing: true,
             status,
             ended: None,
