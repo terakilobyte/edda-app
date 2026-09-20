@@ -1,0 +1,174 @@
+{
+  "krait_phantom": {
+    "edID": 128839281,
+    "eddbID": 37,
+    "properties": {
+      "name": "Krait Phantom",
+      "manufacturer": "Faulcon DeLacy",
+      "class": 2,
+      "hullCost": 35741519,
+      "speed": 250,
+      "boost": 350,
+      "minthrust": 64.00,
+      "boostInt": 4.5,
+      "heatCapacity": 300,
+      "boostEnergy": 13,
+      "baseShieldStrength": 200,
+      "baseArmour": 180,
+      "hardness": 55,
+      "hullMass": 270,
+      "masslock": 14,
+      "pipSpeed": 0.09,
+      "pitch": 26,
+      "roll": 90,
+      "yaw": 10,
+      "crew": 2,
+      "reserveFuelCapacity": 0.63
+    },
+    "retailCost": 37472252,
+    "bulkheads": [
+      {
+        "id": "3B",
+        "edID": 128839283,
+        "eddbID": 1768,
+        "grp": "bh",
+        "cost": 0,
+        "mass": 0,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 0.8,
+        "name": "Lightweight Alloy"
+      },
+      {
+        "id": "3C",
+        "edID": 128839284,
+        "eddbID": 1769,
+        "grp": "bh",
+        "cost": 14988900,
+        "mass": 26,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 1.52,
+        "name": "Reinforced Alloy"
+      },
+      {
+        "id": "3D",
+        "edID": 128839285,
+        "eddbID": 1770,
+        "grp": "bh",
+        "cost": 33725026,
+        "mass": 53,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 2.5,
+        "name": "Military Grade Composite"
+      },
+      {
+        "id": "3E",
+        "edID": 128839286,
+        "eddbID": 1771,
+        "grp": "bh",
+        "cost": 79703480,
+        "mass": 53,
+        "causres": 0,
+        "explres": -0.5,
+        "kinres": -0.75,
+        "thermres": 0.5,
+        "hullboost": 2.5,
+        "name": "Mirrored Surface Composite"
+      },
+      {
+        "id": "3F",
+        "edID": 128839287,
+        "eddbID": 1772,
+        "grp": "bh",
+        "cost": 88322097,
+        "mass": 53,
+        "causres": 0,
+        "explres": 0.2,
+        "kinres": 0.25,
+        "thermres": -0.4,
+        "hullboost": 2.5,
+        "name": "Reactive Surface Composite"
+      }
+    ],
+    "slots": {
+      "standard": [
+        7,
+        6,
+        5,
+        4,
+        7,
+        6,
+        5
+      ],
+      "hardpoints": [
+        3,
+        3,
+        2,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        6,
+        5,
+        5,
+        5,
+        3,
+        3,
+        3,
+        2,
+        1,
+        {
+          "class": 1,
+          "name": "PlanetaryApproachSuite",
+          "eligible": {
+            "pas": 1
+          }
+        }
+      ]
+    },
+    "defaults": {
+      "standard": [
+        "7E",
+        "6E",
+        "5E",
+        "4E",
+        "7E",
+        "6E",
+        "5C"
+      ],
+      "hardpoints": [
+        0,
+        0,
+        "17",
+        "17",
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        "4j",
+        "04",
+        "04",
+        "04",
+        0,
+        "",
+        0,
+        "00",
+        0,
+        "4F"
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "ed-ships"
+version = "0.1.0"
+edition = "2021"
+description = "Ship performance from a build: mass, jump range, power, from Coriolis's vendored figures and the journal's engineered values"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ed-journal = { path = "../ed-journal" }
+ed-engineering = { path = "../ed-engineering" }

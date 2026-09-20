@@ -1,0 +1,19 @@
+{
+  "source": "EDSY v4.24.1.1, 2026-09-19, the maintainer's Type-10 Defender (journal ShipID 37, ident WI-12T) loaded from its journal Loadout via the SLEF link; figures read off the Outfitting summary bars",
+  "loadout_file": "loadout_37.json",
+  "journal": { "unladen_mass": 1883.199951, "max_jump_range": 19.558407, "fuel_main": 64, "fuel_reserve": 0.77, "cargo_capacity": 4 },
+  "edsy": {
+    "mass": { "cur_t": 1948.0, "max_t": 1951.2, "fuel_t": 64, "cargo_t": 4, "note": "CUR is hull + modules + full main tank + reserve, no cargo; MAX adds the 4 t cargo" },
+    "jump_ly": { "cur": 19.05, "laden": 19.01, "unladen": 19.05, "max": 19.56 },
+    "range_ly": { "cur": 95.70, "laden": 95.50, "unladen": 95.70 },
+    "speed_ms": { "cur": 160, "laden": 174, "unladen": 174, "max": 175 },
+    "boost_ms": { "cur": 213, "laden": 213, "unladen": 213, "max": 214 },
+    "power": { "retracted_pct": 65.1, "deployed_pct": 77.9 },
+    "thermal_pct": { "idle": 32.3, "thrust": 33.6, "fsd": 63.0, "weapons": 40.2, "weapons_all": 52.4 },
+    "shields": { "raw": 2339.2, "sys_pct": 33.3, "sys": 3506.4, "kin_pct": 52.9, "kin": 7451.5, "thm_pct": 58.9, "thm": 8528.0, "exp_pct": 65.7, "exp": 10233.6, "build_s": 378, "regen_s": 381 },
+    "armour": { "raw": 1044.0, "hardness": 75, "kin_pct": -20.0, "kin": 870.0, "thm_pct": 0.0, "thm": 1044.0, "exp_pct": -40.0, "exp": 745.7 },
+    "weapons": { "raw_dps": 64.4, "thm_pct": 100, "sustained_cur_pct": 41.3, "sustained_max_pct": 88.5, "duration_cur_s": 15, "duration_max_s": 79 },
+    "handling": { "pitch": 19.34, "roll": 38.69, "yaw": 7.74, "pitch_max": 21.28 },
+    "ship": { "top_speed": 180, "boost_speed": 220, "min_thrust_pct": 83.33, "boost_cost_mw": 19, "boost_interval_s": 6, "base_shields": 320, "base_armour": 580, "hardness": 75, "heat_capacity": 335, "hull_mass": 1200, "mass_lock": 26 }
+  }
+}

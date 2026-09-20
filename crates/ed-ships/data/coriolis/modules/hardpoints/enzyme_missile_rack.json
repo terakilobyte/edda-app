@@ -1,0 +1,72 @@
+{
+  "tbem": [
+    {
+      "experimental": true,
+      "rating": "B",
+      "class": 2,
+      "grp": "tbem",
+      "id": "xt",
+      "eddbID": 0,
+      "edID": 128833995,
+      "fireint": 2.0,
+      "mount": "F",
+      "cost": 480501,
+      "mass": 4,
+      "integrity": 51,
+      "power": 1.2,
+      "damage": 5,
+      "distdraw": 0.08,
+      "thermload": 1.5,
+      "piercing": 60,
+      "shotspeed": 750,
+      "clip": 8,
+      "ammo": 64,
+      "reload": 5,
+      "breachdmg": 0,
+      "breachmin": 0.8,
+      "breachmax": 1,
+      "symbol": "Hpt_CausticMissile_Fixed_Medium",
+      "damagedist": {
+        "E": 1
+      }
+    },
+    {
+      "experimental": true,
+      "rating": "B",
+      "class": 2,
+      "grp": "tbem",
+      "id": "5Z",
+      "fireint": 2.0,
+      "mount": "F",
+      "cost": 480501,
+      "mass": 4,
+      "integrity": 51,
+      "power": 1.2,
+      "damage": 5,
+      "distdraw": 0.08,
+      "thermload": 1.5,
+      "piercing": 60,
+      "shotspeed": 750,
+      "clip": 7,
+      "ammo": 40,
+      "name": "Caust Enzyme (High Cap)",
+      "preEngineered": {
+        "reengineerable": false,
+        "gradeChangeable": false,
+        "blueprints": ["Weapon_HighCapacity"],
+        "grade": 1,
+        "canApplyExperimental": false,
+        "description": "This module has been pre-engineered with Grade 5 High Cap modifications.",
+        "availability": "CG"
+      },
+      "reload": 5,
+      "breachdmg": 0,
+      "breachmin": 0.8,
+      "breachmax": 1,
+      "symbol": "Hpt_CausticMissile_Fixed_Medium",
+      "damagedist": {
+        "E": 1
+      }
+    }
+  ]
+}

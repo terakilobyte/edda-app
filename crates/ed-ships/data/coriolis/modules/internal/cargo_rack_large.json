@@ -1,0 +1,34 @@
+{
+  "crl": [
+    {
+      "cargo": 192,
+      "class": 7,
+      "cost": 1958680,
+      "edID": 129034963,
+      "grp": "crl",
+      "id": "5L",
+      "rating": "D",
+      "mass": 0,
+      "name": "MkII Cargo Rack",
+      "symbol": "Int_LargeCargoRack_Size7_Class1",
+      "ukName": "Mk II Cargo Rack",
+      "ukDiscript": "Panther Clipper storage rack for use in automated cargo transfer system.",
+      "restriction": "Cargo"
+    },
+    {
+      "cargo": 384,
+      "class": 8,
+      "cost": 4929317,
+      "edID": 129034964,
+      "grp": "crl",
+      "id": "5M",
+      "rating": "D",
+      "mass": 0,
+      "name": "MkII Cargo Rack",
+      "symbol": "Int_LargeCargoRack_Size8_class1",
+      "ukName": "Mk II Cargo Rack",
+      "ukDiscript": "Panther Clipper storage rack for use in automated cargo transfer system.",
+      "restriction": "Cargo"
+    }
+  ]
+}

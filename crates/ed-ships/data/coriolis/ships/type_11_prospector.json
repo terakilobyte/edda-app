@@ -1,0 +1,240 @@
+{
+  "type_11_prospector": {
+    "edID": 129036130,
+    "properties": {
+      "name": "Type-11 Prospector",
+      "manufacturer": "Lakon",
+      "class": 2,
+      "hullCost": 66346710,
+      "speed": 272,
+      "boost": 367,
+      "minthrust": 70.5,
+      "boostEnergy": 25,
+      "boostInt": 6,
+      "heatCapacity": 289,
+      "baseShieldStrength": 275,
+      "baseArmour": 350,
+      "hardness": 58,
+      "hullMass": 320,
+      "masslock": 16,
+      "pipSpeed": 0.17307692307692,
+      "fighterHangars": true,
+      "pitch": 25,
+      "roll": 37.5,
+      "yaw": 22,
+      "crew": 3,
+      "reserveFuelCapacity": 0.77
+    },
+    "retailCost": 67861850,
+    "bulkheads": [
+      {
+        "id": "Bx",
+        "edID": 129036132,
+        "grp": "bh",
+        "cost": 0,
+        "mass": 0,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 0.8,
+        "name": "Lightweight Alloy"
+      },
+      {
+        "id": "By",
+        "edID": 129036133,
+        "grp": "bh",
+        "cost": 27144740,
+        "mass": 32,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 1.52,
+        "name": "Reinforced Alloy"
+      },
+      {
+        "id": "Bz",
+        "edID": 129036134,
+        "grp": "bh",
+        "cost": 61075670,
+        "mass": 63,
+        "causres": 0,
+        "explres": -0.4,
+        "kinres": -0.2,
+        "thermres": 0,
+        "hullboost": 2.5,
+        "name": "Military Grade Composite"
+      },
+      {
+        "id": "BA",
+        "edID": 129036135,
+        "grp": "bh",
+        "cost": 144342150,
+        "mass": 63,
+        "causres": 0,
+        "explres": -0.5,
+        "kinres": -0.75,
+        "thermres": 0.5,
+        "hullboost": 2.5,
+        "name": "Mirrored Surface Composite"
+      },
+      {
+        "id": "BB",
+        "edID": 129036136,
+        "grp": "bh",
+        "cost": 159950380,
+        "mass": 63,
+        "causres": 0,
+        "explres": 0.2,
+        "kinres": 0.25,
+        "thermres": -0.4,
+        "hullboost": 2.5,
+        "name": "Reactive Surface Composite"
+      }
+    ],
+    "slots": {
+      "standard": [
+        6,
+        5,
+        5,
+        3,
+        7,
+        3,
+        5
+      ],
+      "hardpoints": [
+        {
+          "class": 3,
+          "name": "Mining",
+          "eligible": {
+            "abl": 1,
+            "ml": 1,
+            "mvr": 1,
+            "pwa": 1,
+            "scl": 1,
+            "sdm": 1
+          }
+        },
+        {
+          "class": 2,
+          "name": "Mining",
+          "eligible": {
+            "abl": 1,
+            "ml": 1,
+            "pwa": 1,
+            "scl": 1,
+            "sdm": 1
+          }
+        },
+        {
+          "class": 2,
+          "name": "Mining",
+          "eligible": {
+            "abl": 1,
+            "ml": 1,
+            "pwa": 1,
+            "scl": 1,
+            "sdm": 1
+          }
+        },
+        2,
+        {
+          "class": 1,
+          "name": "Mining",
+          "eligible": {
+            "abl": 1,
+            "ml": 1,
+            "pwa": 1,
+            "scl": 1,
+            "sdm": 1
+          }
+        },
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        6,
+        6,
+        6,
+        5,
+        5,
+        {
+          "class": 5,
+          "name": "Limpets",
+          "eligible": {
+            "cc": 1,
+            "dtl": 1,
+            "fx": 1,
+            "hb": 1,
+            "mlc": 1,
+            "pc": 1,
+            "rpl": 1,
+            "rcpl": 1,
+            "rsl": 1
+          }
+        },
+        {
+          "class": 5,
+          "name": "Fighter",
+          "eligible": {
+            "fh": 1
+          }
+        },
+        4,
+        3,
+        2,
+        1,
+        1,
+        {
+          "class": 1,
+          "name": "PlanetaryApproachSuite",
+          "eligible": {
+            "pas": 1
+          }
+        }
+      ]
+    },
+    "defaults": {
+      "standard": [
+        "6E",
+        "5E",
+        "FN",
+        "3E",
+        "7E",
+        "3E",
+        "5C"
+      ],
+      "hardpoints": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        17,
+        17
+      ],
+      "internal": [
+        "04",
+        "04",
+        "4e",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        "3x",
+        "3w",
+        "4F"
+      ]
+    }
+  }
+}

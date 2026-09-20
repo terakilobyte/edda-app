@@ -1,0 +1,18 @@
+# Ship physics phase 1 (mass, jump, power) against EDSY 4.24.1.1 on the maintainer's Type-10 Defender as flown (journal
+# ShipID 37, 18 engineered modules), 2026-09-19. Ours: crates/ed-ships (Coriolis's vendored figures + the journal's rolled
+# values); EDSY's: the Outfitting summary bars after loading the same Loadout by SLEF link. Fixture:
+# crates/ed-ships/tests/fixtures/edsy_type10_37.json; the pin is the test the_type_10_as_flown_matches_edsy_on_mass_jump_and_power.
+# VERDICT: all eight figures within tolerance. Two things learned: (1) the journal lists two fixed parts Coriolis does not
+# price (the cockpit, 0 t; the cargo hatch, 0 t and 0.6 MW) — both are now known parts, not "unknown"; (2) EDSY puts the
+# 0.77 t fuel reserve on the scales (mass 1,948.0) but NOT in the jump — with it in the jump we were 0.01 ly low (19.0396
+# vs 19.05); without it ours and the journal's own MaxJumpRange agree to the hundredth. Tolerances: mass 0.1 t, jump 0.01 ly,
+# power 0.1 %.
+figure,ours,edsy_or_journal,tolerance,verdict
+unladen_mass_t,1883.2,1883.199951 (journal),0.1,pass
+full_mass_t (tank + reserve),1948.0,1948.0,0.1,pass
+jump_full_tank_ly,19.05,19.05,0.01,pass
+jump_laden_ly,19.01,19.01,0.01,pass
+jump_max_ly,19.56,19.56 (EDSY) / 19.558407 (journal),0.01,pass
+power_retracted_pct,65.1,65.1,0.1,pass
+power_deployed_pct,77.9,77.9,0.1,pass
+power_capacity_mw,50.27,50.273998 (journal PowerCapacity),n/a,same source

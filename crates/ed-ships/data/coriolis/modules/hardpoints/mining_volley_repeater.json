@@ -1,0 +1,39 @@
+{
+  "mvr": [
+        {
+        "breachdmg": 0.3,
+        "breachmax": 0.2,
+        "shotspeed": 167,
+        "breachmin": 0.1,
+        "class": 3,
+        "cost": 149910,
+        "damage": 0.3,
+        "chargetime": 0,
+        "damagedist": {
+            "T": 1
+        },
+        "distdraw": 2,
+        "edID": 129036137,
+        "falloff": 500,
+        "fireint": 0.05,
+        "burst": 1,
+        "burstrof": 0,
+        "ammo": 1,
+        "clip": 1,
+        "grp": "mvr",
+        "id": "7V",
+        "reload": 4,
+        "integrity": 61,
+        "mass": 8,
+        "mount": "F",
+        "ship": "type_11_prospector",
+        "piercing": 18,
+        "power": 1.50,
+        "range": 500,
+        "rating": "C",
+        "thermload": 0.4,
+        "name": "Mining Volley Repeater",
+        "symbol": "Hpt_MiningToolV2_Fixed_Large"
+        }
+    ]
+}

@@ -675,6 +675,48 @@ pub(crate) fn access_for(
     Some((access, reachable, max_reachable_grade))
 }
 
+/// What the ship weighs, jumps and draws, as flown and with the plan
+/// applied at a full roll (EDSY's convention). Phase 1 of the ship
+/// physics: mass, jump, power — pinned against EDSY in `ed_ships`.
+#[derive(Debug, Serialize)]
+pub struct Performance {
+    pub before: ed_ships::Summary,
+    pub after: Option<ed_ships::Summary>,
+    /// Items Coriolis's data does not know: counted as 0 t and 0 MW.
+    pub unknown_items: Vec<String>,
+    /// Plan rows the figures could not follow, with why.
+    pub notes: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn build_performance(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+    plan: Option<Vec<ProposedEngineering>>,
+) -> Result<Performance, String> {
+    let raw = loadout_raw(&state, ship_id)?;
+    let loadout: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
+    let catalog = ed_ships::Catalog::load();
+    let build = ed_ships::Build::from_loadout(&catalog, &loadout);
+    let before = build.summary();
+    let mut notes = Vec::new();
+    let after = plan.filter(|p| !p.is_empty()).map(|items| {
+        let mut planned = build.clone();
+        for p in &items {
+            match ed_engineering::journal::symbol_for_blueprint(&p.blueprint, &p.module_type) {
+                Some(fd) => {
+                    if let Err(e) = planned.plan(&catalog, &p.slot, fd, p.grade) {
+                        notes.push(format!("{}: {e}", ed_journal::modules::slot_name(&p.slot)));
+                    }
+                }
+                None => notes.push(format!("{}: no journal symbol for {} / {}", ed_journal::modules::slot_name(&p.slot), p.module_type, p.blueprint)),
+            }
+        }
+        planned.summary()
+    });
+    Ok(Performance { before, after, unknown_items: build.unknown_items.clone(), notes })
+}
+
 /// A pasted build (EDSY or Coriolis SLEF) against the ship as flown: the
 /// modules to swap and the engineering to do. See `build_import`.
 #[tauri::command]
