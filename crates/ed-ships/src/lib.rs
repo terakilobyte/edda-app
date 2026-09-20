@@ -172,6 +172,44 @@ fn field_for_label(label: &str) -> &str {
     }
 }
 
+/// The base figures for a journal item: a module from the tables; a
+/// bulkhead from the ship (they live on the hull, by grade: lightweight,
+/// reinforced, military, mirrored, reactive); the fixed parts the journal
+/// lists but no build tool prices (the cockpit weighs nothing; the cargo
+/// hatch draws its 0.6 MW). None when the tables do not know the item.
+fn base_for(catalog: &Catalog, ship: Option<&Ship>, item: &str) -> Option<(String, HashMap<String, f64>)> {
+    if let Some(base) = catalog.module(item) {
+        return Some((base.group.clone(), base.stats.clone()));
+    }
+    let lower = item.to_ascii_lowercase();
+    if lower.contains("_armour_") {
+        let index = match () {
+            _ if lower.contains("grade1") => 0,
+            _ if lower.contains("grade2") => 1,
+            _ if lower.contains("grade3") => 2,
+            _ if lower.contains("mirrored") => 3,
+            _ if lower.contains("reactive") => 4,
+            _ => 0,
+        };
+        let mass = ship.and_then(|s| s.bulkhead_mass.get(index)).copied().unwrap_or(0.0);
+        return Some(("bh".to_string(), HashMap::from([("mass".to_string(), mass)])));
+    }
+    if lower.ends_with("_cockpit") {
+        return Some(("cockpit".to_string(), HashMap::from([("mass".to_string(), 0.0)])));
+    }
+    if lower.contains("cargobaydoor") {
+        return Some(("hatch".to_string(), HashMap::from([("mass".to_string(), 0.0), ("power".to_string(), 0.6)])));
+    }
+    None
+}
+
+/// The note a commander reads: the outfitting name, no vendor named
+/// (maintainer, 2026-09-20: "let's not reference coriolis, and why are we
+/// not showing the friendly name here?").
+fn no_figures(item: &str) -> String {
+    format!("{}: no figures for it yet", ed_journal::modules::item_name(item))
+}
+
 /// A module as fitted (or planned) in one slot.
 #[derive(Debug, Clone, Serialize)]
 pub struct Fitted {
@@ -242,19 +280,8 @@ impl Build {
                 continue;
             }
             let item = m["Item"].as_str().unwrap_or("").to_string();
-            let lower = item.to_ascii_lowercase();
-            let (known, group, mut stats) = match catalog.module(&item) {
-                Some(base) => (true, base.group.clone(), base.stats.clone()),
-                None if lower.contains("_armour_") => {
-                    // Bulkheads live on the ship, by grade.
-                    let grade = lower.rsplit("grade").next().and_then(|g| g.parse::<usize>().ok()).unwrap_or(1);
-                    let mass = ship.as_ref().and_then(|s| s.bulkhead_mass.get(grade.saturating_sub(1))).copied().unwrap_or(0.0);
-                    (true, "bh".to_string(), HashMap::from([("mass".to_string(), mass)]))
-                }
-                // Fixed parts the journal lists but no build tool prices: the
-                // cockpit weighs nothing; the cargo hatch draws its 0.6 MW.
-                None if lower.ends_with("_cockpit") => (true, "cockpit".to_string(), HashMap::from([("mass".to_string(), 0.0)])),
-                None if lower.contains("cargobaydoor") => (true, "hatch".to_string(), HashMap::from([("mass".to_string(), 0.0), ("power".to_string(), 0.6)])),
+            let (known, group, mut stats) = match base_for(catalog, ship.as_ref(), &item) {
+                Some((group, stats)) => (true, group, stats),
                 None => {
                     unknown_items.push(item.clone());
                     (false, String::new(), HashMap::new())
@@ -289,23 +316,15 @@ impl Build {
     /// swap): the slot takes the new item's base figures, unengineered,
     /// with the old module's on/priority; an empty slot gets a new row.
     pub fn refit(&mut self, catalog: &Catalog, slot: &str, item: &str) -> Result<(), String> {
-        let base = catalog.module(item).ok_or_else(|| format!("{item}: Coriolis has no figures for it"))?;
+        let (group, stats) = base_for(catalog, self.ship.as_ref(), item).ok_or_else(|| no_figures(item))?;
         match self.modules.iter_mut().find(|m| m.slot.eq_ignore_ascii_case(slot)) {
             Some(fitted) => {
                 fitted.item = item.to_string();
                 fitted.known = true;
-                fitted.group = base.group.clone();
-                fitted.stats = base.stats.clone();
+                fitted.group = group;
+                fitted.stats = stats;
             }
-            None => self.modules.push(Fitted {
-                slot: slot.to_string(),
-                item: item.to_string(),
-                known: true,
-                group: base.group.clone(),
-                on: true,
-                priority: 1,
-                stats: base.stats.clone(),
-            }),
+            None => self.modules.push(Fitted { slot: slot.to_string(), item: item.to_string(), known: true, group, on: true, priority: 1, stats }),
         }
         Ok(())
     }
@@ -314,13 +333,14 @@ impl Build {
     /// grade at the best end of its range, on the module's BASE figures
     /// (a plan replaces whatever is rolled now).
     pub fn plan(&mut self, catalog: &Catalog, slot: &str, blueprint_fdname: &str, grade: i64) -> Result<(), String> {
+        let ship = self.ship.clone();
         let fitted = self.modules.iter_mut().find(|m| m.slot.eq_ignore_ascii_case(slot)).ok_or_else(|| format!("no module in slot {slot}"))?;
-        let base = catalog.module(&fitted.item).ok_or_else(|| format!("{}: Coriolis has no figures for it", fitted.item))?;
-        let bp = catalog.blueprint(blueprint_fdname).ok_or_else(|| format!("no blueprint {blueprint_fdname} in Coriolis's data"))?;
+        let (_, base) = base_for(catalog, ship.as_ref(), &fitted.item).ok_or_else(|| no_figures(&fitted.item))?;
+        let bp = catalog.blueprint(blueprint_fdname).ok_or_else(|| format!("no figures for the blueprint {blueprint_fdname}"))?;
         let features = bp.grades.get(&grade).ok_or_else(|| format!("{blueprint_fdname} has no grade {grade}"))?;
-        fitted.stats = base.stats.clone();
+        fitted.stats = base.clone();
         for (k, (_, best)) in features {
-            if let Some(b) = base.stats.get(k) {
+            if let Some(b) = base.get(k) {
                 fitted.stats.insert(k.clone(), b * (1.0 + best));
             }
         }
@@ -437,7 +457,13 @@ mod tests {
         let n = build.modules.len();
         build.refit(&c, "Slot99_Size1", "int_shieldcellbank_size1_class1").unwrap();
         assert_eq!(build.modules.len(), n + 1);
-        assert!(build.refit(&c, "MainEngines", "int_no_such_thing").is_err());
+        let err = build.refit(&c, "MainEngines", "int_no_such_thing").unwrap_err();
+        assert!(!err.to_lowercase().contains("coriolis"), "{err}");
+        // A bulkhead swap is by grade on the hull, not a module lookup: the
+        // maintainer's imported Type-10 wanted reactive armour.
+        let before = build.summary().unladen_mass;
+        build.refit(&c, "Armour", "type9_military_armour_reactive").unwrap();
+        assert!(build.summary().unladen_mass > before, "reactive armour weighs more than lightweight");
     }
 
     /// A planned roll changes the figures the way the blueprint says: a
