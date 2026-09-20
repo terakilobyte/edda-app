@@ -9,13 +9,18 @@ notes" in the app and on the site alike.
 
 ## 0.3.5
 
-Missions now hand in where you took them, kill counts are gone (the
-journal cannot see every kill the game credits), and a completion is
-announced once, by the game's own signal. Your fleet carrier's real hold, tank and balance come from
-Frontier's API once you link your account. The Mining tab knows where
-to surface-mine the Rhino goods, uranium included. The web planner takes
-a Coriolis JSON export. And two launch-time scans that cost a
-seven-year journal seconds at every start and on every wake are gone.
+Missions now hand in where you took them, and kill counts are gone: the
+journal cannot see every kill the game credits, so a mission's status
+comes from the game and is announced once. The Ships tab plans a whole
+build at once, imports one from EDSY or Coriolis and shows what the
+plan does to mass, jump range and power, checked against EDSY on real
+ships. Your fleet carrier's real hold, tank and balance come from
+Frontier's API once you link your account, now a step in setup. The
+Mining tab knows where to surface-mine the Rhino goods, uranium
+included. The engineer table was audited and two entries corrected. The
+web planner takes a Coriolis JSON export. And two launch-time scans
+that cost a seven-year journal seconds at every start and on every wake
+are gone.
 
 **Missions: hand in where you took the mission.** The Missions tab's
 "Hand in" column showed the station the game lists as the mission's
@@ -100,7 +105,9 @@ Juri Ishmaak, the three scanners to grade 3) and a test now holds it. A
 system in the Galaxy tab's services results plots a route, like
 everywhere else. The Rhino's Large and Mk II Large
 Planetary Vehicle Hangars are named like outfitting. The "What's new"
-sheet closes when you click outside it.
+sheet closes when you click outside it. The carrier card on the Ships tab has an
+"Update now" button, since Frontier is only ever asked when the journal
+shows carrier activity or you ask.
 
 ## 0.3.4
 
