@@ -7,6 +7,15 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.3.6
+
+The 0.3.5 release would not start: it closed a second after launch, every
+time. The Frontier account link's plugin was registered only in
+development builds while the start-up code used it in every build, and
+the released build stopped there. Nothing else changed. If your 0.3.5
+closes at launch it cannot update itself, so download 0.3.6 from the site
+and install it over the top; your data and settings are untouched.
+
 ## 0.3.5
 
 A big one. Your fleet carrier's real hold, tank and balance now come
