@@ -37,7 +37,7 @@
     {#if status.link !== "linked"}
       <button disabled={busy || status.link === "unavailable"} onclick={() => run(capiLinkStart)}>Link Frontier account</button>
     {:else}
-      <button class="quiet" disabled={busy} onclick={() => run(capiRefreshCarrier, "Carrier refreshed.")}>Refresh carrier now</button>
+      <button class="quiet" disabled={busy} onclick={() => run(capiRefreshCarrier, "Updated from Frontier.")}>Update now</button>
       <button class="quiet" disabled={busy} onclick={() => run(capiUnlink, "Unlinked. The token is gone from this PC.")}>Unlink</button>
     {/if}
   </div>
