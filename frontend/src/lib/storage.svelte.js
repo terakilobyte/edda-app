@@ -5,7 +5,7 @@
 export const KEYS = Object.freeze({
   tab: "edda.tab",                                  // last main-window tab
   onboardingComplete: "edda.onboarding.complete",   // "1" once setup was finished
-  onboardingStep: "edda.onboarding.step",           // 0–7 while setup is in progress
+  onboardingStep: "edda.onboarding.step",           // 0–7 while setup is in progress (8 steps)
   onboardingSpoken: "edda.onboarding.spoken",       // JSON: step indices already narrated (each only once, ever)
   pinnedLoop: "edda.pinnedLoop",                    // JSON: trade loop shown on the HUD
   hudAlpha: "edda.hudAlpha",                        // HUD background opacity, 0–1 (Settings → HUD; storage is the bus)
