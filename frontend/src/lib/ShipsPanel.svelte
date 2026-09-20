@@ -2,7 +2,7 @@
   import { ownCarriers } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
-  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport, importBuild } from "./api.js";
+  import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, listBlueprintNames, buildPlanReport, importBuild, capiRefreshCarrier } from "./api.js";
   import { ship } from "./ship.svelte.js";
   import { fmtInt, fmtTs, fmtAge } from "./format.js";
   import { requestPlan } from "./engineering.svelte.js";
@@ -122,6 +122,17 @@
   async function loadCarriers() {
     try { const r = await carrierStatus(); carriers = r.carriers ?? []; live = r.live ?? null; } catch { carriers = []; live = null; }
   }
+  // "Update now" (maintainer, 2026-09-19): Frontier is never polled, so
+  // the hold is as old as the last carrier event or press. This press
+  // asks Frontier again, cooldown or not, and re-reads the card.
+  let updating = $state(false);
+  let updateMsg = $state("");
+  async function updateCarrier() {
+    updating = true; updateMsg = "";
+    try { await capiRefreshCarrier(); await loadCarriers(); updateMsg = "Updated from Frontier."; }
+    catch (e) { updateMsg = String(e); }
+    finally { updating = false; }
+  }
   // Item 53: one line per stored ship saying where it is and how fresh that is.
   const whereabouts = (l) => {
     const at = [l.station, l.system].filter(Boolean).join(", ");
@@ -195,7 +206,7 @@
            show the inventory at all"), so without the link nothing is
            shown. -->
       {#if live && c.callsign && live.callsign === c.callsign}
-        <div class="small" style="margin-top:0.4rem"><strong>Frontier reports</strong> <span class="muted">fetched {fmtAge((Date.now() - new Date(live.fetched_at)) / 3600e3)} ago</span>
+        <div class="small" style="margin-top:0.4rem"><strong>Frontier reports</strong> <span class="muted">fetched {fmtAge((Date.now() - new Date(live.fetched_at)) / 3600e3)} ago</span> <button class="mini" onclick={updateCarrier} disabled={updating} title="Ask Frontier for the carrier's hold, tank and balance right now">{updating ? "Updating…" : "Update now"}</button>{#if updateMsg}<span class="muted"> · {updateMsg}</span>{/if}
           · tank {fmtInt(live.fuel_t)} t · balance {fmtInt(live.balance_cr)} cr{live.reserved_cr ? ` (${fmtInt(live.reserved_cr)} reserved for upkeep)` : ""}{live.state && live.state !== "normalOperation" ? ` · ${live.state}` : ""}{live.current_jump ? ` · jump plotted to ${live.current_jump}` : ""}</div>
         {#if live.hold.length}
           <div class="table-wrap" style="margin-top:0.3rem"><table>
