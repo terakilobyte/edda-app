@@ -104,9 +104,13 @@ mod search_fragment_tests {
     }
 }
 
-/// EDCD's outfitting table (FDevIDs `outfitting.csv`, vendored): the base
-/// row per symbol (the `entitlement` column empty — pre-engineered and
-/// Powerplay variants share a symbol and are not told apart by a Loadout).
+/// EDCD's outfitting table (FDevIDs `outfitting.csv`, vendored): the FIRST
+/// row per symbol (rows are in id order, so the base module precedes the
+/// pre-engineered and Powerplay variants that share its symbol — a Loadout
+/// cannot tell those apart). The `entitlement` column is NOT a filter:
+/// Guardian, AX and Odyssey-era modules carry one on their base row, and
+/// skipping them sent the maintainer's Guardian weapons to the hand table
+/// as "Guardian Weapon" (2026-09-20).
 /// Frontier's own `*_Localised` strings agree with it on every one of the
 /// 156 modules in the maintainer's journal (2026-09-20), so it is the
 /// printed name; the hand table below is only the fallback for a symbol
@@ -126,7 +130,7 @@ fn outfitting_table() -> &'static std::collections::HashMap<String, OutfittingRo
         for line in csv.lines().skip(1) {
             // id,symbol,category,name,mount,guidance,ship,class,rating,entitlement
             let cols: Vec<&str> = line.split(',').collect();
-            if cols.len() < 10 || !cols[9].trim().is_empty() {
+            if cols.len() < 10 {
                 continue;
             }
             map.entry(cols[1].trim().to_ascii_lowercase()).or_insert(OutfittingRow {
@@ -447,12 +451,12 @@ mod tests {
         );
         assert_eq!(
             item_name("int_guardianfsdbooster_size5"),
-            "Guardian FSD Booster 5"
+            "Guardian FSD Booster 5H"
         );
         // The Rhino's hangars, as the maintainer's Type-11 carries one (2026-09-18).
-        assert_eq!(item_name("int_mkiilargebuggybay_size4_class3_free"), "Mk II Large Planetary Vehicle Hangar 4C");
-        assert_eq!(item_name("int_largebuggybay_size6_class3"), "Large Planetary Vehicle Hangar 6C");
-        assert_eq!(item_name("int_buggybay_size2_class2"), "Planetary Vehicle Hangar 2D");
+        assert_eq!(item_name("int_mkiilargebuggybay_size4_class3_free"), "Mk II Large Planetary Vehicle Hangar 4F");
+        assert_eq!(item_name("int_largebuggybay_size6_class3"), "Large Planetary Vehicle Hangar 6F");
+        assert_eq!(item_name("int_buggybay_size2_class2"), "Planetary Vehicle Hangar 2G");
         assert_eq!(
             item_name("hpt_beamlaser_gimbal_medium"),
             "Beam Laser (gimballed, medium)"

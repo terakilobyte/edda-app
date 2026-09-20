@@ -103,7 +103,19 @@ pub fn import(state: &AppState, ship_id: Option<i64>, text: &str) -> Result<Impo
         }
         let Some(eng) = m.get("Engineering") else { continue };
         let Some(module_type) = ed_engineering::journal::module_type_for_item(item) else {
-            skipped.push(format!("{slot_name}: {item_name} is engineered in the build but EDDA has no blueprints for it"));
+            // Guardian weapons and the like take no engineer: the build has
+            // one bought pre-engineered (a technology broker's). Nothing to
+            // plan; if the ship lacks it, it is already in the swaps.
+            let mods = eng
+                .get("BlueprintName")
+                .and_then(Value::as_str)
+                .map(|b| b.trim_start_matches("Weapon_").trim_start_matches("Misc_").to_string())
+                .unwrap_or_default();
+            skipped.push(format!(
+                "{slot_name}: {item_name} comes pre-engineered as bought{}; no engineer works it, so there is nothing to plan for it{}",
+                if mods.is_empty() { String::new() } else { format!(" ({mods})") },
+                if swap { " — it is in the modules to swap" } else { "" }
+            ));
             continue;
         };
         let blueprint = s(eng, "BlueprintName").and_then(|sym| ed_engineering::journal::blueprint_for_symbol(sym, module_type));
