@@ -383,6 +383,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   the route planner's drive only). Experimental effects arrive as journal
   symbols; `experimental_for_symbol` maps the 90 of them to blueprint-data
   names (from Coriolis's specials list; three matched by hand).
+- **Frontier link in first-run setup** (2026-09-19, maintainer: "we also
+  need to include authing to fdev in the setup flow"). Step 7 of 8,
+  "Frontier account", between Galaxy-map interaction and Ready: the same
+  card as Settings → Frontier account (`FrontierLink.svelte`), with the
+  narration and the page saying what it is for (the carrier's real hold),
+  where the login happens (Frontier, in the browser) and what never
+  leaves the PC (nothing from Frontier reaches EDDA's servers). Optional,
+  skippable, revisitable. The narrated-steps set is by index, so a
+  commander who finished setup before this change has the old "Ready"
+  index marked heard and hears the new step on a revisit — harmless.
 - **Plan the whole build at once** (2026-09-19, maintainer: "my type 10
   has 9 weapon hardpoints — I'd like to be able to plan out all 9 at once
   and get the list. It should generalize to planning all hardpoints").

@@ -59,6 +59,10 @@ into the Ships tab's plan and EDDA works out what separates your ship
 from it: the modules to swap, then every engineering job to reach the
 build, continuing from what is already rolled. The one material list,
 shopping list and engineer itinerary follow from there.
+**Frontier account in setup.** First-run setup now offers the Frontier
+account link as its own step, optional and skippable, with the same card
+Settings uses and the same promise: the login is Frontier's, in your
+browser, and nothing from Frontier is sent to EDDA's servers.
 
 **Your carrier's real hold, from Frontier.** Settings → Frontier
 account links EDDA to your Frontier account (the standard Frontier
