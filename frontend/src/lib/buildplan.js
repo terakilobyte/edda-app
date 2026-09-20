@@ -90,3 +90,80 @@ export function savedFrom(rows) {
   for (const r of rows) out[r.slot] = { blueprint: r.blueprint, target_grade: Number(r.target_grade), experimental: r.experimental, include: r.include };
   return out;
 }
+
+/**
+ * Slot names folded into ranges: ["Large hardpoint 1", "Large hardpoint 2",
+ * "Large hardpoint 4", "Utility 1"] → "Large hardpoints 1–2, 4; Utility 1".
+ * One line for nine lasers instead of nine lines (maintainer, 2026-09-19:
+ * "seems a bit spammy and repeated").
+ */
+export function compactSlots(names) {
+  const groups = new Map();
+  for (const n of names) {
+    const m = /^(.*?)\s*(\d+)$/.exec(n);
+    if (!m) { groups.set(n, null); continue; }
+    if (!groups.has(m[1])) groups.set(m[1], []);
+    groups.get(m[1]).push(Number(m[2]));
+  }
+  const parts = [];
+  for (const [prefix, nums] of groups) {
+    if (!nums) { parts.push(prefix); continue; }
+    nums.sort((a, b) => a - b);
+    const ranges = [];
+    let start = nums[0], prev = nums[0];
+    for (const n of nums.slice(1)) {
+      if (n === prev + 1) { prev = n; continue; }
+      ranges.push(start === prev ? `${start}` : `${start}–${prev}`);
+      start = prev = n;
+    }
+    ranges.push(start === prev ? `${start}` : `${start}–${prev}`);
+    // "Large hardpoints 1–4" reads right; "Utilitys" does not: only the word that takes an s gets one.
+    const plural = nums.length > 1 && /hardpoint$/i.test(prefix) ? `${prefix}s` : prefix;
+    parts.push(`${plural} ${ranges.join(", ")}`);
+  }
+  return parts.join("; ");
+}
+
+const jobKey = (it) => `${it.blueprint} G${it.target_grade}`;
+
+/** The itinerary, one line per engineer, each job grouped by blueprint and grade. */
+export function itinerary(report) {
+  return (report?.engineers ?? []).map((stop) => {
+    const mine = report.items.filter((it) => it.assigned_to === stop.engineer);
+    const groups = new Map();
+    for (const it of mine) {
+      const k = jobKey(it);
+      if (!groups.has(k)) groups.set(k, { what: k, module_type: it.module_type, slots: [] });
+      groups.get(k).slots.push(it.slot_name);
+    }
+    const jobs = [...groups.values()]
+      .map((g) => ({ what: g.what, module_type: g.module_type, count: g.slots.length, slots: compactSlots(g.slots) }))
+      .sort((a, b) => b.count - a.count || a.what.localeCompare(b.what));
+    return { engineer: stop.engineer, rank: stop.rank, jobs };
+  });
+}
+
+/**
+ * What no unlocked engineer can do at the asked grade, grouped, with the
+ * way out: who takes it part-way today, and who to unlock for the rest.
+ */
+export function blocked(report) {
+  const groups = new Map();
+  for (const it of report?.items ?? []) {
+    if (!it.blueprint || it.reachable) continue;
+    const k = `${it.module_type}|${jobKey(it)}`;
+    if (!groups.has(k)) {
+      groups.set(k, {
+        what: jobKey(it),
+        module_type: it.module_type,
+        target_grade: it.target_grade,
+        max_reachable_grade: it.max_reachable_grade ?? null,
+        today: it.engineers.filter((e) => e.unlocked && it.max_reachable_grade && e.max_grade >= it.max_reachable_grade).map((e) => e.engineer),
+        unlock: it.engineers.filter((e) => !e.unlocked && e.max_grade >= it.target_grade).map((e) => ({ engineer: e.engineer, status: e.status })),
+        slots: [],
+      });
+    }
+    groups.get(k).slots.push(it.slot_name);
+  }
+  return [...groups.values()].map((g) => ({ ...g, count: g.slots.length, slots: compactSlots(g.slots) }));
+}
