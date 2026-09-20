@@ -9,23 +9,35 @@ notes" in the app and on the site alike.
 
 ## 0.3.5
 
-Missions now hand in where you took them, kill counts are gone (the
-journal cannot see every kill the game credits), and a completion is
-announced once, by the game's own signal. Your fleet carrier's real hold, tank and balance come from
-Frontier's API once you link your account. The Mining tab knows where
-to surface-mine the Rhino goods, uranium included. The web planner takes
-a Coriolis JSON export. And two launch-time scans that cost a
-seven-year journal seconds at every start and on every wake are gone.
+A big one. Your fleet carrier's real hold, tank and balance now come
+from Frontier's API once you link your account, and the link is a step
+in setup from now on. EDDA no longer tries to count mission kills: the
+journal cannot see every kill the game credits, so a mission's status
+comes from the game and is announced once. And a large step for
+engineering: the Ships tab plans a whole build at once, imports one from
+EDSY or Coriolis, shows what the plan does to mass, jump range and
+power (checked against EDSY on real ships), and every engineer who can
+do a job is listed with the grade they reach after an audit of the
+engineer table. Also: where to surface-mine the Rhino goods, uranium
+included; the web planner takes a Coriolis JSON export; and two
+launch-time scans that cost a seven-year journal seconds at every
+start and on every wake are gone.
 
-**Missions: hand in where you took the mission.** The Missions tab's
-"Hand in" column showed the station the game lists as the mission's
-destination, which for a kill mission is a station in the *target*
-system, where the kills happen, not where you turn in. Measured on the
-maintainer's own journal: 74 of 74 massacre missions named a station he
-never docked at. The hand-in is now the station you accepted the
-mission at, and it moves only when the game redirects you. The target
-system is shown under the target count instead. A tester's report ("EDDA
-keeps saying Yamazaki Port") found this; thank you.
+**Your carrier's real hold, from Frontier.** Settings → Frontier
+account links EDDA to your Frontier account (the standard Frontier
+sign-in, in your browser, back to the app). Once linked, the carrier
+card on the Ships tab shows what Frontier reports: the hold per
+commodity, the tank, the balance, reserved upkeep and open orders, with
+the time it was fetched. It refreshes when the journal shows carrier
+activity and on demand, at most every fifteen minutes otherwise. This
+runs entirely in the app: EDDA's server never sees your token or a byte
+of the data. Without a link the card says so, and no all-time figure
+stands in for the real hold.
+
+**Frontier account in setup.** First-run setup now offers the Frontier
+account link as its own step, optional and skippable, with the same card
+Settings uses and the same promise: the login is Frontier's, in your
+browser, and nothing from Frontier is sent to EDDA's servers.
 
 **Kill counts are gone. Completions come from the game, once.** The
 journal records a kill only when your ship finished scanning the target
@@ -45,6 +57,16 @@ redirects to a new drop-off is announced as a reroute, not a
 completion. Wing missions carry a wing marker on the Missions tab and
 the HUD.
 
+**Missions: hand in where you took the mission.** The Missions tab's
+"Hand in" column showed the station the game lists as the mission's
+destination, which for a kill mission is a station in the *target*
+system, where the kills happen, not where you turn in. Measured on the
+maintainer's own journal: 74 of 74 massacre missions named a station he
+never docked at. The hand-in is now the station you accepted the
+mission at, and it moves only when the game redirects you. The target
+system is shown under the target count instead. A tester's report ("EDDA
+keeps saying Yamazaki Port") found this; thank you.
+
 **Plan the whole build.** The Ships tab's "Plan build" lets you choose a
 blueprint, grade and experimental for every module on a ship — "same for
 all 9" copies one laser's plan onto the rest — and gives one answer for
@@ -59,10 +81,6 @@ into the Ships tab's plan and EDDA works out what separates your ship
 from it: the modules to swap, then every engineering job to reach the
 build, continuing from what is already rolled. The one material list,
 shopping list and engineer itinerary follow from there.
-**Frontier account in setup.** First-run setup now offers the Frontier
-account link as its own step, optional and skippable, with the same card
-Settings uses and the same promise: the login is Frontier's, in your
-browser, and nothing from Frontier is sent to EDDA's servers.
 
 **What the plan does to the ship.** The build plan now shows the ship as
 flown and with the plan applied: unladen mass, jump range (full tank,
@@ -72,16 +90,16 @@ shows them. The figures are checked against EDSY on real ships and stay
 within a tenth of a tonne and a hundredth of a light-year. Speed, shields
 and weapons follow.
 
-**Your carrier's real hold, from Frontier.** Settings → Frontier
-account links EDDA to your Frontier account (the standard Frontier
-sign-in, in your browser, back to the app). Once linked, the carrier
-card on the Ships tab shows what Frontier reports: the hold per
-commodity, the tank, the balance, reserved upkeep and open orders, with
-the time it was fetched. It refreshes when the journal shows carrier
-activity and on demand, at most every fifteen minutes otherwise. This
-runs entirely in the app: EDDA's server never sees your token or a byte
-of the data. Without a link the card says so, and no all-time figure
-stands in for the real hold.
+**Engineers: everyone who can do the job, with how far they go.** The
+Engineering tab listed only the engineers who offer the grade you asked
+for, and it asks for the top grade by default, so an engineer who stops
+one grade short vanished: The Dweller takes pulse lasers to grade 4 and
+was not shown for them. Every engineer who works the blueprint is now
+listed with the grade they reach. The engineer table was audited against
+Inara and the wiki at the same time; two entries were wrong and are
+fixed (Lori Jameson, Life Support to grade 4; Juri Ishmaak, wake, kill
+warrant and manifest scanners to grade 3), and a test now holds the
+data to the audited table.
 
 **Where to surface-mine.** The September mining update's 22
 Rhino-mined goods, uranium among them, were missing from the Mining
@@ -109,19 +127,12 @@ from where it left off (about 2 ms). Both were on the roadmap when
 0.3.4 shipped; the second may be part of what one tester saw as CPU
 use at idle.
 
-**Smaller.** The Engineering tab lists every engineer who works a
-blueprint with the grade they reach, not just those offering the grade
-you asked for (The Dweller takes pulse lasers to grade 4 and was not
-shown for them); the engineer table was audited against Inara and the
-wiki, two entries corrected (Lori Jameson, Life Support to grade 4;
-Juri Ishmaak, the three scanners to grade 3) and a test now holds it. A
-system in the Galaxy tab's services results plots a route, like
-everywhere else. The Rhino's Large and Mk II Large
-Planetary Vehicle Hangars are named like outfitting. The "What's new"
-sheet closes when you click outside it. Every ship, module, material and
-commodity name EDDA prints is now the game's own spelling, held to
-EDCD's tables and to the strings in your journal by tests; rare goods
-have names too.
+**Smaller.** A system in the Galaxy tab's services results plots a
+route, like everywhere else. The Rhino's Large and Mk II Large Planetary
+Vehicle Hangars are named like outfitting. The "What's new" sheet closes
+when you click outside it. Every ship, module, material and commodity
+name EDDA prints is now the game's own spelling, held to EDCD's tables
+and to the strings in your journal by tests; rare goods have names too.
 
 ## 0.3.4
 
@@ -403,6 +414,7 @@ yourself, and a quieter voice on a trade run.
 
 **Your data, your choice.** Onboarding and Settings now ask where
 searches should run. **Use local data** keeps everything on this machine.
+
 **Use the remote API** sends the search to the community server, which
 holds the whole galaxy and answers in well under a second — no multi-
 gigabyte download, and nothing about you is stored. Routes and trade
