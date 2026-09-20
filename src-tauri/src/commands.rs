@@ -688,11 +688,19 @@ pub struct Performance {
     pub notes: Vec<String>,
 }
 
+/// A module an imported build wants in a slot the ship fills otherwise.
+#[derive(Debug, serde::Deserialize)]
+pub struct ProposedSwap {
+    pub slot: String,
+    pub item: String,
+}
+
 #[tauri::command]
 pub async fn build_performance(
     state: State<'_, AppState>,
     ship_id: Option<i64>,
     plan: Option<Vec<ProposedEngineering>>,
+    swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<Performance, String> {
     let raw = loadout_raw(&state, ship_id)?;
     let loadout: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
@@ -700,8 +708,18 @@ pub async fn build_performance(
     let build = ed_ships::Build::from_loadout(&catalog, &loadout);
     let before = build.summary();
     let mut notes = Vec::new();
-    let after = plan.filter(|p| !p.is_empty()).map(|items| {
+    let swaps = swaps.unwrap_or_default();
+    let plan = plan.unwrap_or_default();
+    let after = (!swaps.is_empty() || !plan.is_empty()).then(|| {
         let mut planned = build.clone();
+        // Swaps first: an imported build's new modules at their base figures,
+        // then the plan's blueprints on top of them.
+        for s in &swaps {
+            if let Err(e) = planned.refit(&catalog, &s.slot, &s.item) {
+                notes.push(format!("{}: {e}", ed_journal::modules::slot_name(&s.slot)));
+            }
+        }
+        let items = plan;
         for p in &items {
             match ed_engineering::journal::symbol_for_blueprint(&p.blueprint, &p.module_type) {
                 Some(fd) => {

@@ -93,7 +93,7 @@ export const COMMANDS = {
   shipSlef: ["ship_slef", ["shipId", "proposed", "plan"], { shipId: null, proposed: null, plan: null }],
   buildPlanReport: ["build_plan_report", "*"],
   importBuild: ["import_build", ["shipId", "text"]],
-  buildPerformance: ["build_performance", ["shipId", "plan"], { shipId: null, plan: null }],
+  buildPerformance: ["build_performance", ["shipId", "plan", "swaps"], { shipId: null, plan: null, swaps: null }],
   shipLinks: ["ship_links", ["shipId"], { shipId: null }],
   materialShopping: ["material_shopping", "*"],
   // Galaxy

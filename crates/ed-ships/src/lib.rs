@@ -285,6 +285,31 @@ impl Build {
         }
     }
 
+    /// A module the ship does not have yet in a slot (an imported build's
+    /// swap): the slot takes the new item's base figures, unengineered,
+    /// with the old module's on/priority; an empty slot gets a new row.
+    pub fn refit(&mut self, catalog: &Catalog, slot: &str, item: &str) -> Result<(), String> {
+        let base = catalog.module(item).ok_or_else(|| format!("{item}: Coriolis has no figures for it"))?;
+        match self.modules.iter_mut().find(|m| m.slot.eq_ignore_ascii_case(slot)) {
+            Some(fitted) => {
+                fitted.item = item.to_string();
+                fitted.known = true;
+                fitted.group = base.group.clone();
+                fitted.stats = base.stats.clone();
+            }
+            None => self.modules.push(Fitted {
+                slot: slot.to_string(),
+                item: item.to_string(),
+                known: true,
+                group: base.group.clone(),
+                on: true,
+                priority: 1,
+                stats: base.stats.clone(),
+            }),
+        }
+        Ok(())
+    }
+
     /// A planned blueprint at a full roll on one slot: every feature of the
     /// grade at the best end of its range, on the module's BASE figures
     /// (a plan replaces whatever is rolled now).
@@ -393,6 +418,26 @@ mod tests {
         let pct = |draw: f64| 100.0 * draw / s.power_capacity;
         near(pct(s.power_retracted), pin["edsy"]["power"]["retracted_pct"].as_f64().unwrap(), 0.1, "power retracted %");
         near(pct(s.power_deployed), pin["edsy"]["power"]["deployed_pct"].as_f64().unwrap(), 0.1, "power deployed %");
+    }
+
+    /// An imported build's swap: a heavier module in a slot weighs more
+    /// and draws more, and an empty slot can take one.
+    #[test]
+    fn a_refit_takes_the_new_modules_figures() {
+        let c = Catalog::load();
+        let loadout = fixture("loadout_37.json");
+        let mut build = Build::from_loadout(&c, &loadout);
+        let before = build.summary();
+        // The Type-10's 7D thrusters for 7A: heavier, hungrier.
+        build.refit(&c, "MainEngines", "int_engine_size7_class5").unwrap();
+        let after = build.summary();
+        assert!(after.unladen_mass > before.unladen_mass, "{before:?} -> {after:?}");
+        assert!(after.power_retracted > before.power_retracted);
+        // An empty slot gets a row.
+        let n = build.modules.len();
+        build.refit(&c, "Slot99_Size1", "int_shieldcellbank_size1_class1").unwrap();
+        assert_eq!(build.modules.len(), n + 1);
+        assert!(build.refit(&c, "MainEngines", "int_no_such_thing").is_err());
     }
 
     /// A planned roll changes the figures the way the blueprint says: a

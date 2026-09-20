@@ -50,11 +50,14 @@
   // against EDSY in ed_ships; shown whenever the rows change.
   let perf = $state(null);
   let perfSeq = 0;
+  let imported = $state(null);   // the last imported build (its swaps feed the figures)
   async function refreshPerformance() {
     if (!selected) { perf = null; return; }
     const seq = ++perfSeq;
     try {
-      const r = await buildPerformance(selected.ship_id, proposedFor(rows));
+      // An imported build's swaps count too: the new modules at their base figures, then the plan.
+      const swaps = (imported?.swaps ?? []).map((s) => ({ slot: s.slot, item: s.want_item }));
+      const r = await buildPerformance(selected.ship_id, proposedFor(rows), swaps);
       if (seq === perfSeq) perf = r;
     } catch (e) { if (seq === perfSeq) perf = { error: String(e) }; }
   }
@@ -91,7 +94,6 @@
   // A build from EDSY or Coriolis (their SLEF export) becomes the plan:
   // what to swap, then the engineering to reach it.
   let importText = $state("");
-  let imported = $state(null);
   let importBusy = $state(false);
   async function runImport() {
     if (!selected || !importText.trim()) return;
@@ -178,7 +180,7 @@
 
   async function pick(s) {
     selected = s; build = null; msg = "";
-    planReport = null; planMsg = "";
+    planReport = null; planMsg = ""; imported = null;
     try { build = await shipModules(s.ship_id); } catch (e) { msg = String(e); }
     // The plan follows the ship: each has its own.
     if (planning && build) await startPlanning();
