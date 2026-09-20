@@ -4,6 +4,8 @@
 // is asked for. No Svelte here so it can be tested.
 
 const TOP_GRADE = 5;
+/** The swap that clears a slot (the backend's `ed_ships::EMPTY`). */
+export const EMPTY = "empty";
 
 /**
  * One plan row per slot when the slot table is given (every slot of the
@@ -24,11 +26,14 @@ export function planRows(modules, saved = {}, slots = null) {
     const s = saved?.[slot] ?? {};
     const fittedGrade = m?.grade ?? 0;
     const fittedBlueprint = m?.blueprint ?? "";
-    const candidate = s.swap ? (slotInfo?.candidates ?? []).find((c) => c.item.toLowerCase() === String(s.swap).toLowerCase()) : null;
-    const swap = candidate ? candidate.item : null;
-    const from = swap ? 0 : fittedGrade;
-    const blueprint = swap ? s.blueprint ?? "" : s.blueprint ?? fittedBlueprint;
-    const module_type = swap ? candidate.module_type ?? null : m?.module_type ?? null;
+    const emptied = s.swap === EMPTY && (slotInfo?.can_empty ?? true);
+    const candidate = s.swap && !emptied ? findCandidate(slotInfo?.candidates ?? [], s.swap, s.preset ?? null) : null;
+    const swap = emptied ? EMPTY : candidate ? candidate.item : null;
+    const preset = candidate?.preset ?? null;
+    // A pre-engineered module comes with its grade; a plain swap starts at 0.
+    const from = swap ? (candidate?.preset_grade ?? 0) : fittedGrade;
+    const blueprint = swap ? (candidate?.preset_blueprint ?? s.blueprint ?? "") : s.blueprint ?? fittedBlueprint;
+    const module_type = emptied ? null : swap ? candidate.module_type ?? null : m?.module_type ?? null;
     return {
       slot,
       slot_name: slotInfo?.slot_name ?? m.slot_name,
@@ -40,8 +45,9 @@ export function planRows(modules, saved = {}, slots = null) {
       fitted_blueprint: fittedBlueprint,
       fitted_module_type: m?.module_type ?? null,
       swap,
-      item: swap ?? m?.item ?? slotInfo?.fitted ?? null,
-      item_name: swap ? candidate.item_name : m?.item_name ?? slotInfo?.fitted_name ?? null,
+      preset,
+      item: emptied ? null : swap ?? m?.item ?? slotInfo?.fitted ?? null,
+      item_name: emptied ? null : swap ? candidate.item_name : m?.item_name ?? slotInfo?.fitted_name ?? null,
       module_type,
       blueprint: module_type ? blueprint : "",
       from_grade: from,
@@ -54,24 +60,39 @@ export function planRows(modules, saved = {}, slots = null) {
   return (modules ?? []).filter((m) => m.module_type).map((m) => shape(m, null));
 }
 
+/** The candidate with this item and (when given) this pre-engineered variant. */
+export function findCandidate(candidates, item, preset = null) {
+  const want = String(item).toLowerCase();
+  return candidates.find((c) => c.item.toLowerCase() === want && (c.preset ?? null) === (preset ?? null)) ?? null;
+}
+
+/** The key a swap dropdown option carries: item, and the variant when there is one. */
+export const swapKey = (item, preset = null) => (item ? `${item}|${preset ?? ""}` : "");
+
 /**
  * A row with another module swapped into its slot (a candidate from the
- * slot table), or, with `candidate` null or the fitted module itself, back
- * to what is fitted. A swap starts over: grade 0, no blueprint, not
- * included until one is picked.
+ * slot table), emptied (`candidate.item === EMPTY`), or, with `candidate`
+ * null or the fitted module itself, back to what is fitted. A swap starts
+ * over: grade 0, no blueprint, not included until one is picked — except
+ * a pre-engineered module, which comes at its grade with its blueprint,
+ * so only an experimental is left to plan.
  */
 export function withSwap(row, candidate) {
-  if (!candidate || (row.fitted_item && candidate.item.toLowerCase() === row.fitted_item.toLowerCase())) {
+  if (!candidate || (row.fitted_item && !candidate.preset && candidate.item.toLowerCase() === row.fitted_item.toLowerCase())) {
     const blueprint = row.fitted_blueprint ?? "";
     const type = row.fitted_module_type ?? null;
-    return { ...row, swap: null, item: row.fitted_item, item_name: row.fitted_name, module_type: type, blueprint: type ? blueprint : "", from_grade: row.fitted_grade ?? 0, target_grade: TOP_GRADE, experimental: "", include: Boolean(type) && Boolean(blueprint) && (row.fitted_grade ?? 0) < TOP_GRADE };
+    return { ...row, swap: null, preset: null, item: row.fitted_item, item_name: row.fitted_name, module_type: type, blueprint: type ? blueprint : "", from_grade: row.fitted_grade ?? 0, target_grade: TOP_GRADE, experimental: "", include: Boolean(type) && Boolean(blueprint) && (row.fitted_grade ?? 0) < TOP_GRADE };
   }
-  return { ...row, swap: candidate.item, item: candidate.item, item_name: candidate.item_name, module_type: candidate.module_type ?? null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false };
+  if (candidate.item === EMPTY) {
+    return { ...row, swap: EMPTY, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false };
+  }
+  const from = candidate.preset_grade ?? 0;
+  return { ...row, swap: candidate.item, preset: candidate.preset ?? null, item: candidate.item, item_name: candidate.item_name, module_type: candidate.module_type ?? null, blueprint: candidate.preset_blueprint ?? "", from_grade: from, target_grade: TOP_GRADE, experimental: "", include: false };
 }
 
 /** The swaps the rows carry, shaped for the backend. */
 export function swapsFrom(rows) {
-  return rows.filter((r) => r.swap).map((r) => ({ slot: r.slot, item: r.swap }));
+  return rows.filter((r) => r.swap).map((r) => (r.preset ? { slot: r.slot, item: r.swap, preset: r.preset } : { slot: r.slot, item: r.swap }));
 }
 
 /** Copy one row's choices onto every row of the same module type ("all 9 pulse lasers"). */
@@ -131,6 +152,7 @@ export function savedFrom(rows) {
   for (const r of rows) {
     const s = { blueprint: r.blueprint, target_grade: Number(r.target_grade), experimental: r.experimental, include: r.include };
     if (r.swap) s.swap = r.swap;
+    if (r.preset) s.preset = r.preset;
     out[r.slot] = s;
   }
   return out;
@@ -213,7 +235,7 @@ export function blocked(report) {
   return [...groups.values()].map((g) => ({ ...g, count: g.slots.length, slots: compactSlots(g.slots) }));
 }
 
-const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_module_type: null, swap: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
+const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_module_type: null, swap: null, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
 
 /**
  * An imported build laid over the rows: every module the build has where
@@ -227,7 +249,10 @@ export function applyImport(rows, imported) {
   const bySlot = new Map((imported?.items ?? []).map((it) => [it.slot, it]));
   const swapBySlot = new Map((imported?.swaps ?? []).map((sw) => [sw.slot, sw]));
   const lay = (r, it, sw) => {
-    const swapped = sw ? { swap: sw.want_item, item: sw.want_item, item_name: sw.want, module_type: it?.module_type ?? null, from_grade: 0 } : {};
+    const emptied = sw?.want_item === EMPTY;
+    const swapped = emptied
+      ? { swap: EMPTY, preset: null, item: null, item_name: null, module_type: null, from_grade: 0 }
+      : sw ? { swap: sw.want_item, preset: sw.preset ?? null, item: sw.want_item, item_name: sw.want, module_type: it?.module_type ?? null, from_grade: 0 } : {};
     if (!it) return { ...r, ...swapped, blueprint: "", experimental: "", include: false };
     return {
       ...r,

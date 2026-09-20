@@ -113,7 +113,12 @@ planned from its stock fit — swap modules in, plan the engineering, or
 import a build for it and get the gap from stock. Every hull's exact
 slots, by the journal's own names, are held in a table checked against
 your own ships' Loadouts; the figures, the material list and the SLEF
-export all carry the swaps.
+export all carry the swaps. Every slot but a core one can be emptied
+("remove — leave empty"), and the technology brokers' pre-engineered
+modules are offered with their engineering already on: the SCO drive V1
+in every size comes with Increased Range and Fast Boot at grade 5, so the
+planner takes its fixed figures (read from a real drive in the journal)
+and leaves only an experimental to plan.
 
 **Import a build, get the gap.** Paste an EDSY or Coriolis SLEF export
 into the Ships tab's plan and EDDA works out what separates your ship
