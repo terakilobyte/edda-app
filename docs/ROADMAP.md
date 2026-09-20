@@ -393,6 +393,23 @@ verdicts live in the CSV headers under `docs/benches/`.
   skippable, revisitable. The narrated-steps set is by index, so a
   commander who finished setup before this change has the old "Ready"
   index marked heard and hears the new step on a revisit — harmless.
+- **Shopping list: the game's material names, one trader ask** (2026-09-20,
+  maintainer flying the build plan: "Still short after trading: 5 Abnormal
+  Compact Emission Data … these can be traded for at the encoded trader.
+  Are we missing info?" and "what's our timeout?"). Two defects. (1) EDEngineer
+  spells one ship material differently from the game ("Emission" for
+  "Emissions"); the gap report keys the hold by the game's names, so the
+  plan read short 5 while 84 sat aboard, and the shopping list — which
+  only knows the game's names — could not even name the trader kind.
+  Measured across all 258 ingredient names: exactly one ship material
+  differs; the rest of the mismatches are suit/weapon materials and
+  tech-broker commodities, another namespace. Canonicalised at load, held
+  by a test against `material.csv`. (2) The trader stops asked the API
+  once per kind for the same unsplit list; in his log the first ask
+  stalled for the full 15 s timeout and the second answered in 2.6 s, so
+  "could not reach the API" stood beside a stop that could. One ask,
+  split client-side, tried once more after a stall. Server note for
+  Statler: a 300 ly nearest-service query at 2.6 s, and one 15 s stall.
 - **Plan the whole build at once** (2026-09-19, maintainer: "my type 10
   has 9 weapon hardpoints — I'd like to be able to plan out all 9 at once
   and get the list. It should generalize to planning all hardpoints").

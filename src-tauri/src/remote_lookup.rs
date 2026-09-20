@@ -289,6 +289,28 @@ pub async fn nearest_material_traders(state: &AppState, system: &str, kind: &str
     Some(split_by_economy(hits, economies, limit))
 }
 
+/// Every material trader around a system, unsplit: one ask that
+/// `traders_of_kind` divides per kind. `None` when the API gave no answer.
+pub async fn nearest_material_traders_all(state: &AppState, system: &str, radius_ly: f64) -> Option<Vec<StationWithService>> {
+    let req = NearestServiceRequest {
+        system: Some(system.to_string()),
+        service: "material_trader".into(),
+        min_pad: None,
+        radius_ly,
+        include_carriers: false,
+    };
+    nearest_service(state, &req).await.map(|(_, hits)| hits)
+}
+
+/// The traders of one kind out of one unsplit answer (see
+/// `nearest_material_traders_all`); an unknown kind is an empty, known list.
+pub fn traders_of_kind(hits: &[StationWithService], kind: &str, limit: usize) -> TraderHits {
+    match trader_economies(kind) {
+        Some(economies) => split_by_economy(hits.to_vec(), economies, limit),
+        None => TraderHits { stations: Vec::new(), kind_known: true },
+    }
+}
+
 /// Material traders around a system, and whether their KIND is known.
 /// A trader's kind follows its station's economy, and the API publishes
 /// no station economy today (measured 2026-09-12: null on 100 of 100
