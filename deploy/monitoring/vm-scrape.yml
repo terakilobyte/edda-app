@@ -13,3 +13,21 @@ scrape_configs:
       - targets: ["127.0.0.1:8788"]
         labels:
           service: edda-eddn
+  # Host Health dashboard (node_* series): prometheus-node-exporter, bound
+  # to loopback by setup-monitoring.sh. Absent until the 2026-09-20 no-data
+  # audit (docs/benches/2026-09-20-dashboard-no-data-audit.csv) — every
+  # panel on that dashboard read "No data" because nothing scraped it.
+  - job_name: node
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+        labels:
+          service: node
+  # Server dashboard, Postgres row (pg_* series): prometheus-postgres-exporter,
+  # same audit, same cause.
+  - job_name: postgres
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["127.0.0.1:9187"]
+        labels:
+          service: postgres

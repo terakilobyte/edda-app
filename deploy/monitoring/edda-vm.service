@@ -10,6 +10,9 @@ ExecStart=/usr/local/bin/victoria-metrics \
     -storageDataPath=/var/lib/edda/metrics \
     -retentionPeriod=180d \
     -promscrape.config=/etc/edda/vm-scrape.yml
+# SIGHUP re-reads -promscrape.config: setup-monitoring.sh reload-or-restarts
+# after installing vm-scrape.yml so a re-run picks up new scrape jobs.
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5
 NoNewPrivileges=true

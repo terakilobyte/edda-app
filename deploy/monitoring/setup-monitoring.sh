@@ -21,6 +21,37 @@ install -m 644 vm-scrape.yml /etc/edda/vm-scrape.yml
 install -m 644 edda-vm.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now edda-vm.service
+# A re-run must pick up new scrape jobs: SIGHUP (ExecReload) re-reads
+# -promscrape.config; a fresh install just starts.
+systemctl reload-or-restart edda-vm.service
+
+echo "== host + postgres exporters (loopback only) =="
+# The Host Health dashboard reads node_* and the Server dashboard's
+# Postgres row reads pg_*; neither had an exporter until the 2026-09-20
+# no-data audit (docs/benches/2026-09-20-dashboard-no-data-audit.csv):
+# every one of those panels sat on "No data" because nothing scraped
+# them. Both are Ubuntu 24.04 universe packages. The package postinst
+# starts each exporter on 0.0.0.0 with the stock defaults; the defaults
+# below rebind them to loopback and the restart makes it so. The gap is
+# a few seconds behind ufw's default-deny (bootstrap.sh), so never
+# reachable, but the verify block at the end still checks the binds.
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq prometheus-node-exporter prometheus-postgres-exporter
+cat > /etc/default/prometheus-node-exporter <<'ENV'
+ARGS="--web.listen-address=127.0.0.1:9100"
+ENV
+# The postgres exporter connects as the `prometheus` role over the unix
+# socket (peer auth, no password to store); pg_monitor covers
+# pg_stat_database and pg_database_size — the panels' entire need.
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='prometheus'" | grep -q 1; then
+    sudo -u postgres psql -q -c "CREATE ROLE prometheus LOGIN"
+fi
+sudo -u postgres psql -q -c "GRANT pg_monitor TO prometheus"
+cat > /etc/default/prometheus-postgres-exporter <<'ENV'
+DATA_SOURCE_NAME='user=prometheus host=/run/postgresql dbname=edda'
+ARGS="--web.listen-address=127.0.0.1:9187"
+ENV
+systemctl enable --now prometheus-node-exporter prometheus-postgres-exporter
+systemctl restart prometheus-node-exporter prometheus-postgres-exporter
 
 echo "== grafana oss (official repo) =="
 if ! command -v grafana-server >/dev/null; then
@@ -93,5 +124,7 @@ echo "== verify (loopback) =="
 sleep 3
 curl -s -o /dev/null -w 'victoria-metrics: %{http_code}\n' 127.0.0.1:8428/health
 curl -s -o /dev/null -w 'grafana: %{http_code}\n' 127.0.0.1:3000/api/health
-ss -tlnp | grep -E '8428|3000' | grep 127.0.0.1 || echo "WARNING: something bound beyond loopback"
+curl -s 127.0.0.1:9100/metrics | grep -c '^node_' | sed 's/^/node-exporter series: /'
+curl -s 127.0.0.1:9187/metrics | grep -c '^pg_' | sed 's/^/postgres-exporter series: /'
+ss -tlnp | grep -E ':(8428|3000|9100|9187) ' | grep -v 127.0.0.1 && echo "WARNING: something bound beyond loopback" || true
 echo "MONITORING-READY (tunnel: ssh -L 3000:127.0.0.1:3000 root@box; creds in /etc/edda/grafana-admin)"

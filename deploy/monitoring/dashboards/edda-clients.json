@@ -412,7 +412,7 @@
       "datasource": {
         "uid": "edda-vm"
       },
-      "description": "A local-mode search that came back empty over a coverage gap (no observed board where it looked). Pre-registered reading: near zero after a week = rare papercut, keep the offer UI; a constant drumbeat = the next task is coverage itself.",
+      "description": "EMITTER PENDING (2026-09-20 no-data audit): no client code emits a callsite matching edda::coverage_gap::* yet, so this reads empty until it lands. A local-mode search that came back empty over a coverage gap (no observed board where it looked). Pre-registered reading: near zero after a week = rare papercut, keep the offer UI; a constant drumbeat = the next task is coverage itself.",
       "targets": [
         {
           "expr": "sum by (path) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"path\", \"$1\", \"callsite\", \"edda::coverage_gap::([a-z_]+)::.*\"))",
@@ -438,7 +438,8 @@
           "expr": "sum by (kind) (label_replace(increase(edda_client_events_total{callsite=~\"edda::coverage_gap::.*\"}[1h]), \"kind\", \"$1\", \"callsite\", \"edda::coverage_gap::[a-z_]+::([a-z_]+)\"))",
           "legendFormat": "{{kind}}"
         }
-      ]
+      ],
+      "description": "EMITTER PENDING (2026-09-20 no-data audit): no client code emits a callsite matching edda::coverage_gap::* yet, so this reads empty until it lands."
     },
     {
       "id": 21,
@@ -453,7 +454,7 @@
       "datasource": {
         "uid": "edda-vm"
       },
-      "description": "1 \u2212 remote share. data_source_remote is a feature flag; batches without it are local or not yet chosen.",
+      "description": "EMITTER PENDING (2026-09-20 no-data audit): the client's feature_flags() sends only auto_update, the voice engine and capi_linked; data_source_remote is not among them yet, so this reads 100% until it lands. 1 \u2212 remote share. data_source_remote is a feature flag; batches without it are local or not yet chosen.",
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -486,7 +487,7 @@
       "datasource": {
         "uid": "edda-vm"
       },
-      "description": "Commanders who turned the gap offer into a standing answer.",
+      "description": "EMITTER PENDING (2026-09-20 no-data audit): api_fallback_always is not a feature flag the client sends yet, so this reads 0 until it lands. Commanders who turned the gap offer into a standing answer.",
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
