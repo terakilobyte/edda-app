@@ -694,7 +694,7 @@ pub(crate) fn access_for(
 pub struct Performance {
     pub before: ed_ships::Summary,
     pub after: Option<ed_ships::Summary>,
-    /// Items Coriolis's data does not know: counted as 0 t and 0 MW.
+    /// Items the figures do not know yet: counted as 0 t and 0 MW.
     pub unknown_items: Vec<String>,
     /// Plan rows the figures could not follow, with why.
     pub notes: Vec<String>,
