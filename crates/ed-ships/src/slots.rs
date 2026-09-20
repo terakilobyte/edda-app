@@ -108,9 +108,40 @@ fn family_kinds(group: &str) -> &'static [&'static str] {
     }
 }
 
+/// The swap that removes a module: the slot is left empty. Every slot but
+/// a core one may be (maintainer, 2026-09-20: "need the option to remove an
+/// item, i.e. leave empty on every slot").
+pub const EMPTY: &str = "empty";
+
+/// A module a technology broker sells already engineered: the plain item's
+/// symbol with a fixed engineering block and no engineer named — the way it
+/// reads in the journal (the maintainer's Kestrel, 2026-08-23: a size 4 SCO
+/// drive from the human broker with Increased Range grade 5 at quality 1.0,
+/// Mass Manager added by him the next day). `data/preengineered.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Preset {
+    pub id: String,
+    /// The journal item symbol, lowercase.
+    pub item: String,
+    /// The printed name ("Frame Shift Drive (SCO) 5A · pre-engineered V1").
+    pub name: String,
+    /// human | guardian
+    pub broker: String,
+    /// The journal's blueprint symbol (`FSD_LongRange`).
+    pub blueprint: String,
+    pub level: i64,
+    pub quality: f64,
+    /// The fixed engineering as the journal's `Modifiers` state it: label
+    /// -> multiplier on the base value (Mass 1.3, FSDOptimalMass 1.7, ...).
+    /// Read from a real Loadout, so the figures are the game's, not a roll.
+    #[serde(default)]
+    pub modifiers: HashMap<String, f64>,
+}
+
 pub struct Slots {
     hulls: HashMap<String, Hull>,
     kinds: HashMap<String, ModuleKind>,
+    presets: Vec<Preset>,
 }
 
 impl Slots {
@@ -124,7 +155,17 @@ impl Slots {
             })
             .collect();
         let kinds = serde_json::from_str(include_str!("../data/module_kinds.json")).expect("module_kinds.json parses");
-        Slots { hulls, kinds }
+        let presets: Vec<Preset> = serde_json::from_str(include_str!("../data/preengineered.json")).expect("preengineered.json parses");
+        Slots { hulls, kinds, presets }
+    }
+
+    /// The pre-engineered variants sold of this item.
+    pub fn presets_for(&self, item: &str) -> Vec<&Preset> {
+        self.presets.iter().filter(|p| p.item.eq_ignore_ascii_case(item)).collect()
+    }
+
+    pub fn preset(&self, id: &str) -> Option<&Preset> {
+        self.presets.iter().find(|p| p.id == id)
     }
 
     /// By the journal's ship symbol or the printed name.
@@ -147,6 +188,9 @@ impl Slots {
     /// Whether `item` may go in `slot` of `hull`; the reason when not, as
     /// the commander reads it.
     pub fn fits(&self, hull: &Hull, slot: &Slot, item: &str) -> Result<(), String> {
+        if item.eq_ignore_ascii_case(EMPTY) {
+            return if slot.group == "core" { Err(format!("{} cannot be empty", ed_journal::modules::slot_name(&slot.slot))) } else { Ok(()) };
+        }
         let Some(k) = self.kind(item) else { return Err(format!("{} is not a module the outfitting tables know", ed_journal::modules::item_name(item))) };
         let allowed: Vec<&str> = if slot.only.is_empty() { family_kinds(&slot.group).to_vec() } else { slot.only.iter().map(String::as_str).collect() };
         if !allowed.iter().any(|a| *a == k.kind) {
@@ -177,7 +221,7 @@ impl Slots {
     /// Every module that fits `slot` of `hull`: by kind name, then class
     /// (largest first), then rating.
     pub fn candidates(&self, hull: &Hull, slot: &Slot) -> Vec<(&str, &ModuleKind)> {
-        let mut out: Vec<(&str, &ModuleKind)> = self.kinds.iter().filter(|(item, _)| self.fits(hull, slot, item).is_ok()).map(|(item, k)| (item.as_str(), k)).collect();
+        let mut out: Vec<(&str, &ModuleKind)> = self.kinds.iter().filter(|(item, _)| !item.eq_ignore_ascii_case(EMPTY) && self.fits(hull, slot, item).is_ok()).map(|(item, k)| (item.as_str(), k)).collect();
         out.sort_by(|a, b| a.1.name.cmp(&b.1.name).then(b.1.class.cmp(&a.1.class)).then(a.1.rating.cmp(&b.1.rating)).then(a.1.mount.cmp(&b.1.mount)));
         out
     }
@@ -328,6 +372,27 @@ mod tests {
             let n = s.candidates(h, h.slot("Armour").unwrap()).len();
             assert!(n >= 5, "{}: {n} bulkheads", h.name);
         }
+    }
+
+    /// Any slot but a core one may be emptied; the pre-engineered drives are
+    /// known by item, all sizes, from the human broker.
+    #[test]
+    fn empty_is_a_swap_everywhere_but_the_core_and_presets_are_known() {
+        let s = slots();
+        let t10 = s.hull("type9_military").unwrap();
+        assert!(s.fits(t10, t10.slot("LargeHardpoint1").unwrap(), EMPTY).is_ok());
+        assert!(s.fits(t10, t10.slot("Slot01_Size8").unwrap(), EMPTY).is_ok());
+        assert!(s.fits(t10, t10.slot("Military01").unwrap(), EMPTY).is_ok());
+        assert!(s.fits(t10, t10.slot("PowerPlant").unwrap(), EMPTY).is_err(), "a core slot cannot be empty");
+        assert!(s.fits(t10, t10.slot("Armour").unwrap(), EMPTY).is_err());
+        assert!(s.candidates(t10, t10.slot("Slot01_Size8").unwrap()).iter().all(|(i, _)| *i != EMPTY), "empty is not a module");
+        let v1 = s.presets_for("int_hyperdrive_overcharge_size4_class5");
+        assert_eq!(v1.len(), 1);
+        assert_eq!((v1[0].blueprint.as_str(), v1[0].level, v1[0].broker.as_str()), ("FSD_LongRange", 5, "human"));
+        assert_eq!(v1[0].modifiers.get("FSDOptimalMass"), Some(&1.7), "the fixed figure beats a grade 5 roll");
+        assert_eq!(v1[0].modifiers.get("BootTime"), Some(&0.2), "Fast Boot grade 5 as well");
+        assert!(s.presets_for("int_hyperdrive_size4_class5").is_empty(), "the plain drive has no pre-engineered variant");
+        assert_eq!(s.preset("sco_v1_7").map(|p| p.item.as_str()), Some("int_hyperdrive_overcharge_size7_class5"));
     }
 
     #[test]

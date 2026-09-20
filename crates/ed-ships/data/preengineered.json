@@ -1,0 +1,121 @@
+[
+ {
+  "id": "sco_v1_2",
+  "item": "int_hyperdrive_overcharge_size2_class5",
+  "name": "Frame Shift Drive (SCO) 2A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_3",
+  "item": "int_hyperdrive_overcharge_size3_class5",
+  "name": "Frame Shift Drive (SCO) 3A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_4",
+  "item": "int_hyperdrive_overcharge_size4_class5",
+  "name": "Frame Shift Drive (SCO) 4A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_5",
+  "item": "int_hyperdrive_overcharge_size5_class5",
+  "name": "Frame Shift Drive (SCO) 5A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_6",
+  "item": "int_hyperdrive_overcharge_size6_class5",
+  "name": "Frame Shift Drive (SCO) 6A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_7",
+  "item": "int_hyperdrive_overcharge_size7_class5",
+  "name": "Frame Shift Drive (SCO) 7A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ },
+ {
+  "id": "sco_v1_8",
+  "item": "int_hyperdrive_overcharge_size8_class5",
+  "name": "Frame Shift Drive (SCO) 8A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "level": 5,
+  "quality": 1.0,
+  "modifiers": {
+   "Mass": 1.3,
+   "Integrity": 0.7,
+   "PowerDraw": 1.15,
+   "BootTime": 0.2,
+   "FSDOptimalMass": 1.7,
+   "FSDHeatRate": 1.2
+  }
+ }
+]

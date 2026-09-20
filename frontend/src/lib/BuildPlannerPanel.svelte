@@ -11,7 +11,7 @@
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
-  import { planRows, withSwap, swapsFrom, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
+  import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { useTabActive } from "./lifecycle.svelte.js";
 
@@ -52,6 +52,7 @@
   const experimentalsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length === 0);
   const gradesFor = (row) => (blueprintsFor(row.module_type).find((b) => b.name === row.blueprint)?.grades ?? [1, 2, 3, 4, 5]).filter((g) => g > row.from_grade);
   const candidatesFor = (slot) => slots.find((s) => s.slot === slot)?.candidates ?? [];
+  const canEmpty = (slot) => slots.find((s) => s.slot === slot)?.can_empty ?? false;
   // Candidates grouped by kind for the swap dropdown ("Pulse Laser" → its sizes, ratings and mounts).
   const kindsFor = (slot) => {
     const groups = new Map();
@@ -139,9 +140,12 @@
     planReport = null;
     savePlan();
   }
-  // Another module in the slot, from what the slot takes; "" is the fitted module (or empty) again.
-  async function swapTo(i, item) {
-    const candidate = item ? candidatesFor(rows[i].slot).find((c) => c.item === item) ?? null : null;
+  // Another module in the slot, from what the slot takes; "" is the fitted
+  // module (or empty) again; EMPTY clears the slot; "item|preset" is a
+  // pre-engineered variant.
+  async function swapTo(i, key) {
+    const [item, preset] = key.split("|");
+    const candidate = key === EMPTY ? { item: EMPTY } : item ? findCandidate(candidatesFor(rows[i].slot), item, preset || null) : null;
     rows = rows.map((x, j) => (j === i ? withSwap(x, candidate) : x));
     planReport = null;
     savePlan();
@@ -271,7 +275,7 @@
 
   {#if build}
     <div class="row" style="margin-top:0.7rem; gap:0.6rem; flex-wrap:wrap; align-items:center">
-      <span class="muted small">{plannedCount} of {engineerable} engineerable modules planned{swapCount ? ` · ${swapCount} swap${swapCount === 1 ? "" : "s"}` : ""} · fitted engineering continues to the top grade unless you change it · Swap to offers only what the slot takes</span>
+      <span class="muted small">{plannedCount} of {engineerable} engineerable modules planned{swapCount ? ` · ${swapCount} swap${swapCount === 1 ? "" : "s"}` : ""} · fitted engineering continues to the top grade unless you change it · Swap to offers only what the slot takes, "remove" on every slot but the core, and the brokers' pre-engineered modules with their engineering already on</span>
       <button class="quiet" onclick={() => includeAll(true)}>Include all chosen</button>
       <button class="quiet" onclick={() => includeAll(false)}>Include none</button>
     </div>
@@ -283,20 +287,21 @@
             <tr class={isPlanned(r) ? "eng" : r.swap ? "swap" : ""}>
               <td>{#if r.module_type}<input type="checkbox" checked={r.include && hasWork(r)} disabled={!hasWork(r)} onchange={(e) => update(i, { include: e.currentTarget.checked })} title={hasWork(r) ? "Include this module in the plan" : "Nothing to do: at the top grade and no experimental chosen"} />{/if}</td>
               <td class="small muted" title={r.size != null ? `${r.slot_name} · size ${r.size}` : r.slot_name}>{r.slot_name}</td>
-              <td>{#if r.swap}<span class="muted">{r.fitted_name ?? "empty"}</span> → <strong>{r.item_name}</strong>{:else}{r.item_name ?? "empty"}{/if}</td>
+              <td>{#if r.swap}<span class="muted">{r.fitted_name ?? "empty"}</span> → <strong>{r.item_name ?? "empty"}</strong>{:else}{r.item_name ?? "empty"}{/if}</td>
               <td>
                 {#if candidatesFor(r.slot).length}
-                  <select value={r.swap ?? ""} onchange={(e) => swapTo(i, e.currentTarget.value)} title="Every module this slot takes">
+                  <select value={r.swap === EMPTY ? EMPTY : swapKey(r.swap, r.preset)} onchange={(e) => swapTo(i, e.currentTarget.value)} title="Every module this slot takes">
                     <option value="">{r.fitted_name ? `keep: ${r.fitted_name}` : "leave empty"}</option>
+                    {#if r.fitted_name && canEmpty(r.slot)}<option value={EMPTY}>remove — leave empty</option>{/if}
                     {#each kindsFor(r.slot) as [kind, cs]}
                       <optgroup label={kind}>
-                        {#each cs as c}<option value={c.item}>{c.item_name}</option>{/each}
+                        {#each cs as c}<option value={swapKey(c.item, c.preset)}>{c.item_name}</option>{/each}
                       </optgroup>
                     {/each}
                   </select>
                 {:else}<span class="muted">—</span>{/if}
               </td>
-              <td class="small muted">{r.swap ? "new" : r.from_grade ? `G${r.from_grade}` : "—"}</td>
+              <td class="small muted">{r.swap === EMPTY ? "—" : r.swap && r.preset ? `bought G${r.from_grade}` : r.swap ? "new" : r.from_grade ? `G${r.from_grade}` : "—"}</td>
               {#if r.module_type}
                 <td>
                   <select value={r.blueprint} onchange={(e) => update(i, { blueprint: e.currentTarget.value })}>
@@ -320,7 +325,7 @@
                 </td>
                 <td>{#if (counts.get(r.module_type) ?? 0) > 1}<button class="quiet small" onclick={() => copyToAll(i)} title="Give every {r.module_type} on this ship the same plan">same for all {counts.get(r.module_type)}</button>{/if}</td>
               {:else}
-                <td colspan="4" class="muted small">{r.item ? "no engineer works this" : ""}</td>
+                <td colspan="4" class="muted small">{r.swap === EMPTY ? "slot cleared" : r.item ? "no engineer works this" : ""}</td>
               {/if}
             </tr>
           {/each}

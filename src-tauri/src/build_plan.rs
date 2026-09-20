@@ -160,7 +160,7 @@ pub fn assign(jobs: &[Job]) -> (Vec<PlanEngineer>, Vec<String>) {
 
 /// The report, everything but the trader lookup (which is async and done
 /// by the command).
-pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items: &[PlanItem], swaps: &[(String, String)], minimum: bool, complete: bool) -> Result<BuildPlanReport, String> {
+pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items: &[PlanItem], swaps: &[commands::ProposedSwap], minimum: bool, complete: bool) -> Result<BuildPlanReport, String> {
     if items.is_empty() && swaps.is_empty() {
         return Err("nothing planned: pick a blueprint for at least one module".into());
     }
@@ -180,7 +180,9 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     let mut jobs: Vec<Job> = Vec::new();
     for it in items {
         let module = loadout.modules.iter().find(|m| m.slot == it.slot);
-        let swapped = swaps.iter().find(|(s, _)| s.eq_ignore_ascii_case(&it.slot)).map(|(_, item)| ed_journal::modules::item_name(item));
+        let swapped = swaps.iter().find(|s| s.slot.eq_ignore_ascii_case(&it.slot)).map(|s| {
+            s.preset.as_deref().and_then(|id| commands::slots().preset(id)).map(|p| p.name.clone()).unwrap_or_else(|| ed_journal::modules::item_name(&s.item))
+        });
         let (slot_name, item_name) = match (module, swapped) {
             (_, Some(name)) => (ed_journal::modules::slot_name(&it.slot), name),
             (Some(m), None) => (m.slot_name.clone(), m.item_name.clone()),
@@ -245,7 +247,11 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     // pooled with the rest, commodities listed to buy.
     let jc = ed_journal::Catalog::load();
     let mut unlocks = Vec::new();
-    for (slot, item) in swaps {
+    for s in swaps {
+        let (slot, item) = (&s.slot, &s.item);
+        if item.eq_ignore_ascii_case(ed_ships::EMPTY) {
+            continue;
+        }
         let item_name = ed_journal::modules::item_name(item);
         let Some(recipe) = catalog.unlock_recipe(&item_name) else { continue };
         let mut mats = Vec::new();

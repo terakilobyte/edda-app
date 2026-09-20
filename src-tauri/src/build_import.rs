@@ -25,7 +25,11 @@ pub struct Swap {
     /// What is fitted now (None for an empty slot).
     pub have: Option<String>,
     pub want: String,
+    /// The item symbol, or `empty` when the build leaves the slot empty.
     pub want_item: String,
+    /// The pre-engineered variant the build has (bought engineering, no
+    /// engineer named), when the item is one.
+    pub preset: Option<String>,
 }
 
 /// One engineered module of the target build, as a plan row.
@@ -91,9 +95,24 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
         }
         let Some(item) = s(m, "Item") else { continue };
         let slot_name = ed_journal::modules::slot_name(slot);
-        let item_name = ed_journal::modules::item_name(item);
+        let mut item_name = ed_journal::modules::item_name(item);
         let have = current.modules.iter().find(|c| c.slot.eq_ignore_ascii_case(slot));
-        let swap = !have.is_some_and(|c| c.item.eq_ignore_ascii_case(item));
+        // Bought engineered (no engineer named): a pre-engineered variant.
+        let eng_block = m.get("Engineering");
+        let preset = eng_block
+            .filter(|e| s(e, "Engineer").is_none())
+            .and_then(|e| {
+                let bp = s(e, "BlueprintName")?;
+                let level = e.get("Level").and_then(Value::as_i64)?;
+                table.presets_for(item).into_iter().find(|p| p.blueprint.eq_ignore_ascii_case(bp) && p.level == level).cloned()
+            });
+        if let Some(p) = &preset {
+            item_name = p.name.clone();
+        }
+        let have_preset = have.and_then(|c| c.blueprint_symbol.as_deref()).zip(have.and_then(|c| c.grade)).is_some_and(|(bp, g)| {
+            have.is_some_and(|c| c.engineer.is_none()) && preset.as_ref().is_some_and(|p| p.blueprint.eq_ignore_ascii_case(bp) && p.level == g)
+        });
+        let swap = !have.is_some_and(|c| c.item.eq_ignore_ascii_case(item)) || (preset.is_some() && !have_preset);
         if swap {
             // A build the tables say cannot be: the slot is not the hull's,
             // or the module does not fit it. Said, not silently planned.
@@ -117,6 +136,7 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
                 have: have.map(|c| c.item_name.clone()),
                 want: item_name.clone(),
                 want_item: item.to_string(),
+                preset: preset.as_ref().map(|p| p.id.clone()),
             });
         }
         let Some(eng) = m.get("Engineering") else { continue };
@@ -146,14 +166,16 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
             .map(str::to_string)
             .or_else(|| s(eng, "ExperimentalEffect").and_then(ed_engineering::journal::experimental_for_symbol).map(str::to_string));
         let same_blueprint = !swap && have.is_some_and(|c| c.blueprint.as_deref().zip(blueprint).is_some_and(|(a, b)| a.eq_ignore_ascii_case(b)));
-        let from_grade = if same_blueprint { have.and_then(|c| c.grade).unwrap_or(0) } else { 0 };
+        // A pre-engineered module comes with its grade: nothing to roll,
+        // only an experimental to add (the maintainer's Kestrel drive).
+        let from_grade = if same_blueprint { have.and_then(|c| c.grade).unwrap_or(0) } else if preset.is_some() { level } else { 0 };
         let same_experimental = !swap
             && match (&experimental, have.and_then(|c| c.experimental.as_deref())) {
                 (None, _) => true,
                 (Some(x), Some(y)) => x.eq_ignore_ascii_case(y),
                 (Some(_), None) => false,
             };
-        let done = same_blueprint && from_grade >= level && same_experimental;
+        let done = (same_blueprint || preset.is_some()) && from_grade >= level && same_experimental;
         items.push(ImportedItem {
             slot: slot.to_string(),
             slot_name,
@@ -165,6 +187,32 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
             experimental,
             done,
         });
+    }
+    // Slots the ship fills and the build leaves empty: a swap to nothing
+    // (maintainer, 2026-09-20: "need the option to remove an item").
+    if let Some(h) = hull_table {
+        let wanted: std::collections::HashSet<String> = target
+            .get("Modules")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|m| s(m, "Slot"))
+            .map(str::to_ascii_lowercase)
+            .collect();
+        for c in &current.modules {
+            let Some(sl) = h.slot(&c.slot) else { continue };
+            if sl.group == "core" || wanted.contains(&c.slot.to_ascii_lowercase()) {
+                continue;
+            }
+            swaps.push(Swap {
+                slot: c.slot.clone(),
+                slot_name: c.slot_name.clone(),
+                have: Some(c.item_name.clone()),
+                want: "empty".into(),
+                want_item: ed_ships::EMPTY.into(),
+                preset: None,
+            });
+        }
     }
     Ok(ImportedBuild { app, ship, ship_name, ship_matches, swaps, items, skipped })
 }

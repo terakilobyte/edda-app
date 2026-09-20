@@ -407,6 +407,24 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Empty slots and pre-engineered modules as swaps** (2026-09-20,
+  maintainer: "need the option to remove an item, i.e. leave empty on
+  every slot"; "missing the guardian fsd … The technology broker one is
+  equivalent to grade 5 engineered in both fast boot and increased
+  range"). `ed_ships::EMPTY` is a swap every slot but a core one takes
+  (refit removes the module; the SLEF drops it; an imported build that
+  leaves a fitted slot empty says so as a swap). The brokers'
+  pre-engineered modules have no symbol of their own — the journal shows
+  the plain item with an engineering block and no engineer — so they are
+  `data/preengineered.json` presets: the SCO drive V1 in sizes 2–8, its
+  fixed multipliers read from the maintainer's Kestrel the evening it was
+  bought (optimal mass ×1.7, boot ×0.2, mass ×1.3, power ×1.15, integrity
+  ×0.7, heat ×1.2) and pinned; offered next to the plain module, applied
+  as fixed figures (not a roll), written into the SLEF as modifiers;
+  imports recognise a bought one and plan only the experimental. Sizes
+  other than 4 assume the same multipliers (the game's double-engineered
+  items are defined that way); a journal Loadout of another size would
+  confirm.
 - **Module swaps and unowned hulls in the Build planner** (2026-09-20,
   maintainer: "on the build planner tab we should let players swap
   modules out too, which means we need to ensure we only allow selecting

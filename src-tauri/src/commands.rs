@@ -762,11 +762,16 @@ pub struct Performance {
     pub notes: Vec<String>,
 }
 
-/// A module an imported build wants in a slot the ship fills otherwise.
-#[derive(Debug, serde::Deserialize)]
+/// A module to put in a slot instead of what is there: an imported
+/// build's, or one the commander picked in the planner. `item` may be
+/// `empty` (the slot is cleared); `preset` names a pre-engineered variant
+/// (see `ed_ships::Preset`) whose engineering the swap carries.
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct ProposedSwap {
     pub slot: String,
     pub item: String,
+    #[serde(default)]
+    pub preset: Option<String>,
 }
 
 #[tauri::command]
@@ -779,8 +784,7 @@ pub async fn build_performance(
 ) -> Result<Performance, String> {
     let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let loadout: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
-    let pairs: Vec<(String, String)> = swaps.iter().flatten().map(|s| (s.slot.clone(), s.item.clone())).collect();
-    check_swaps(&loadout, &pairs)?;
+    check_swaps(&loadout, swaps.as_deref().unwrap_or_default())?;
     let catalog = ed_ships::Catalog::load();
     let build = ed_ships::Build::from_loadout(&catalog, &loadout);
     let before = build.summary();
@@ -794,6 +798,14 @@ pub async fn build_performance(
         for s in &swaps {
             if let Err(e) = planned.refit(&catalog, &s.slot, &s.item) {
                 notes.push(format!("{}: {e}", ed_journal::modules::slot_name(&s.slot)));
+                continue;
+            }
+            // A pre-engineered module carries its bought engineering: the
+            // journal's fixed multipliers on the base figures.
+            if let Some(preset) = s.preset.as_deref().and_then(|id| slots().preset(id)) {
+                if let Err(e) = planned.apply_preset(&s.slot, preset) {
+                    notes.push(format!("{}: {e}", ed_journal::modules::slot_name(&s.slot)));
+                }
             }
         }
         let items = plan;
@@ -831,7 +843,7 @@ pub async fn build_plan_report(
     complete: Option<bool>,
     swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<crate::build_plan::BuildPlanReport, String> {
-    let swaps: Vec<(String, String)> = swaps.unwrap_or_default().into_iter().map(|s| (s.slot, s.item)).collect();
+    let swaps = swaps.unwrap_or_default();
     let mut report = crate::build_plan::report(state.inner(), ship_id, hull.as_deref(), &items, &swaps, minimum.unwrap_or(false), complete.unwrap_or(true))?;
     if let Some(shopping) = report.shopping.as_mut() {
         fill_traders(&state, shopping).await;
@@ -995,19 +1007,59 @@ pub struct ProposedEngineering {
 /// grade's nominal values, which is what a plan (not yet rolled) means.
 /// Swapped modules into a Loadout: the slot takes the new item with no
 /// engineering; an empty slot gets a new entry.
-pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[(String, String)]) -> Result<(), String> {
+pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[ProposedSwap]) -> Result<(), String> {
     let modules = data.get_mut("Modules").and_then(serde_json::Value::as_array_mut).ok_or("Loadout has no Modules")?;
-    for (slot, item) in swaps {
-        match modules.iter_mut().find(|m| m["Slot"].as_str().is_some_and(|s| s.eq_ignore_ascii_case(slot))) {
+    for s in swaps {
+        let (slot, item) = (&s.slot, &s.item);
+        if item.eq_ignore_ascii_case(ed_ships::EMPTY) {
+            modules.retain(|m| !m["Slot"].as_str().is_some_and(|x| x.eq_ignore_ascii_case(slot)));
+            continue;
+        }
+        // A pre-engineered module: the bought blueprint at its grade, no
+        // engineer, as the journal writes it.
+        let engineering = s.preset.as_deref().and_then(|id| slots().preset(id)).map(|p| {
+            // The modifiers as the journal writes them, from the base figures
+            // the tables know (a label whose base is unknown is left out).
+            let catalog = ed_ships::Catalog::load();
+            let base = catalog.module(item);
+            let modifiers: Vec<serde_json::Value> = p
+                .modifiers
+                .iter()
+                .filter_map(|(label, ratio)| {
+                    let field = match label.as_str() {
+                        "Mass" => "mass",
+                        "PowerDraw" => "power",
+                        "FSDOptimalMass" => "optmass",
+                        "Integrity" => "integrity",
+                        "BootTime" => "boot",
+                        "FSDHeatRate" => "fsdheat",
+                        _ => return None,
+                    };
+                    let original = base?.stats.get(field).copied()?;
+                    Some(serde_json::json!({ "Label": label, "Value": original * ratio, "OriginalValue": original }))
+                })
+                .collect();
+            serde_json::json!({ "BlueprintName": p.blueprint, "Level": p.level, "Quality": p.quality, "Modifiers": modifiers })
+        });
+        match modules.iter_mut().find(|m| m["Slot"].as_str().is_some_and(|x| x.eq_ignore_ascii_case(slot))) {
             Some(m) => {
                 m["Item"] = serde_json::Value::String(item.to_ascii_lowercase());
                 if let Some(o) = m.as_object_mut() {
                     o.remove("Engineering");
                     o.remove("Item_Localised");
                     o.remove("Value");
+                    if let Some(e) = engineering {
+                        o.insert("Engineering".into(), e);
+                    }
                 }
             }
-            None => modules.push(serde_json::json!({ "Slot": slot, "Item": item.to_ascii_lowercase(), "On": true, "Priority": 1 })),
+            None => {
+                let mut m = serde_json::json!({ "Slot": slot, "Item": item.to_ascii_lowercase(), "On": true, "Priority": 1 });
+                if let Some(e) = engineering {
+                    m["Engineering"] = e;
+                }
+                modules.push(m);
+            }
         }
     }
     Ok(())
@@ -1057,9 +1109,9 @@ pub async fn ship_slef(
     let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let mut data: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     // Swapped modules first, unengineered; the plan's blueprints go on top.
-    let pairs: Vec<(String, String)> = swaps.iter().flatten().map(|s| (s.slot.clone(), s.item.clone())).collect();
-    check_swaps(&data, &pairs)?;
-    apply_swaps(&mut data, &pairs)?;
+    let swaps = swaps.unwrap_or_default();
+    check_swaps(&data, &swaps)?;
+    apply_swaps(&mut data, &swaps)?;
     if let Some(proposed) = &proposed {
         apply_proposed_engineering(&mut data, proposed)?;
     }
@@ -1137,6 +1189,12 @@ pub struct SlotCandidate {
     pub mount: Option<String>,
     /// Blueprint-data module type, when engineers work it.
     pub module_type: Option<String>,
+    /// A pre-engineered variant: its id, the blueprint it comes with (the
+    /// blueprint data's name) and the grade. None for the plain module.
+    pub preset: Option<String>,
+    pub preset_blueprint: Option<String>,
+    pub preset_grade: Option<i64>,
+    pub broker: Option<String>,
 }
 
 /// One slot of the ship with what is in it and what could be.
@@ -1148,6 +1206,8 @@ pub struct SlotOptions {
     pub size: i64,
     pub fitted: Option<String>,
     pub fitted_name: Option<String>,
+    /// The slot may be left empty (every slot but a core one).
+    pub can_empty: bool,
     pub candidates: Vec<SlotCandidate>,
 }
 
@@ -1179,17 +1239,44 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
                 size: s.size,
                 fitted_name: f.as_deref().map(ed_journal::modules::item_name),
                 fitted: f,
+                can_empty: s.group != "core",
                 candidates: table
                     .candidates(h, s)
                     .into_iter()
-                    .map(|(item, k)| SlotCandidate {
-                        item: item.to_string(),
-                        item_name: ed_journal::modules::item_name(item),
-                        kind: k.name.clone(),
-                        class: k.class,
-                        rating: k.rating.clone(),
-                        mount: k.mount.clone(),
-                        module_type: ed_engineering::journal::module_type_for_item(item).map(str::to_string),
+                    .flat_map(|(item, k)| {
+                        let module_type = ed_engineering::journal::module_type_for_item(item).map(str::to_string);
+                        let plain = SlotCandidate {
+                            item: item.to_string(),
+                            item_name: ed_journal::modules::item_name(item),
+                            kind: k.name.clone(),
+                            class: k.class,
+                            rating: k.rating.clone(),
+                            mount: k.mount.clone(),
+                            module_type: module_type.clone(),
+                            preset: None,
+                            preset_blueprint: None,
+                            preset_grade: None,
+                            broker: None,
+                        };
+                        // The pre-engineered variants right after the plain module.
+                        let variants: Vec<SlotCandidate> = table
+                            .presets_for(item)
+                            .into_iter()
+                            .map(|p| SlotCandidate {
+                                item: item.to_string(),
+                                item_name: p.name.clone(),
+                                kind: format!("{}, pre-engineered", k.name),
+                                class: k.class,
+                                rating: k.rating.clone(),
+                                mount: k.mount.clone(),
+                                module_type: module_type.clone(),
+                                preset: Some(p.id.clone()),
+                                preset_blueprint: module_type.as_deref().and_then(|mt| ed_engineering::journal::blueprint_for_symbol(&p.blueprint, mt)).map(str::to_string),
+                                preset_grade: Some(p.level),
+                                broker: Some(p.broker.clone()),
+                            })
+                            .collect();
+                        std::iter::once(plain).chain(variants)
                     })
                     .collect(),
             }
@@ -1200,7 +1287,7 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
 /// Swaps checked against the hull's slots: the slot exists, the module
 /// fits it, and the whole fit keeps to the one-per-ship limits. The
 /// reasons, when any.
-pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[(String, String)]) -> Result<(), String> {
+pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[ProposedSwap]) -> Result<(), String> {
     if swaps.is_empty() {
         return Ok(());
     }
@@ -1208,7 +1295,16 @@ pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[(String, String)
     let ship = loadout["Ship"].as_str().unwrap_or("");
     let Some(h) = table.hull(ship) else { return Ok(()) };
     let mut problems = Vec::new();
-    for (slot, item) in swaps {
+    for s in swaps {
+        if let Some(id) = s.preset.as_deref() {
+            match table.preset(id) {
+                None => problems.push(format!("{}: no pre-engineered variant {id}", ed_journal::modules::slot_name(&s.slot))),
+                Some(p) if !p.item.eq_ignore_ascii_case(&s.item) => problems.push(format!("{}: {} is not a variant of {}", ed_journal::modules::slot_name(&s.slot), p.name, ed_journal::modules::item_name(&s.item))),
+                _ => {}
+            }
+        }
+    }
+    for (slot, item) in swaps.iter().map(|s| (&s.slot, &s.item)) {
         match h.slot(slot) {
             None => problems.push(format!("the {} has no slot {}", h.name, ed_journal::modules::slot_name(slot))),
             Some(s) => {
@@ -1223,9 +1319,9 @@ pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[(String, String)
         .into_iter()
         .flatten()
         .filter_map(|m| Some((m["Slot"].as_str()?.to_string(), m["Item"].as_str()?.to_string())))
-        .filter(|(slot, _)| !swaps.iter().any(|(s, _)| s.eq_ignore_ascii_case(slot)))
+        .filter(|(slot, _)| !swaps.iter().any(|s| s.slot.eq_ignore_ascii_case(slot)))
         .collect();
-    fit.extend(swaps.iter().cloned());
+    fit.extend(swaps.iter().map(|s| (s.slot.clone(), s.item.clone())));
     problems.extend(table.over_limit(&fit));
     if problems.is_empty() { Ok(()) } else { Err(problems.join("; ")) }
 }

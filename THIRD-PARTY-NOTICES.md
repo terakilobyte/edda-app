@@ -228,6 +228,12 @@ markup or data file is vendored or redistributed; the generator
 (`docs/benches/knobs/gen_ship_slots.py`) reads a local copy the
 maintainer fetches and is not part of the build.
 
+`crates/ed-ships/data/preengineered.json` lists the modules technology
+brokers sell already engineered (the SCO drive V1 in every size: Increased
+Range grade 5, no experimental), as read from the maintainer's own journal
+(a `TechnologyBroker` unlock and the `Loadout` that followed) and the
+game's published module list.
+
 ## 8. npm packages (`frontend/`)
 
 69 packages, from `npm ls --all`:

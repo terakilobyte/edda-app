@@ -18,7 +18,7 @@
 mod data;
 pub mod slots;
 
-pub use slots::{Hull, ModuleKind, Slot, Slots};
+pub use slots::{Hull, ModuleKind, Preset, Slot, Slots, EMPTY};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -319,6 +319,10 @@ impl Build {
     /// swap): the slot takes the new item's base figures, unengineered,
     /// with the old module's on/priority; an empty slot gets a new row.
     pub fn refit(&mut self, catalog: &Catalog, slot: &str, item: &str) -> Result<(), String> {
+        if item.eq_ignore_ascii_case(slots::EMPTY) {
+            self.modules.retain(|m| !m.slot.eq_ignore_ascii_case(slot));
+            return Ok(());
+        }
         let (group, stats) = base_for(catalog, self.ship.as_ref(), item).ok_or_else(|| no_figures(item))?;
         match self.modules.iter_mut().find(|m| m.slot.eq_ignore_ascii_case(slot)) {
             Some(fitted) => {
@@ -328,6 +332,25 @@ impl Build {
                 fitted.stats = stats;
             }
             None => self.modules.push(Fitted { slot: slot.to_string(), item: item.to_string(), known: true, group, on: true, priority: 1, stats }),
+        }
+        Ok(())
+    }
+
+    /// A pre-engineered module's fixed engineering on one slot: every
+    /// modifier the journal states, as a multiplier on the module's base
+    /// figure (the maintainer's Kestrel drive: optimal mass ×1.7, boot
+    /// time ×0.2 — more than any grade 5 roll gives).
+    pub fn apply_preset(&mut self, slot: &str, preset: &slots::Preset) -> Result<(), String> {
+        let fitted = self
+            .modules
+            .iter_mut()
+            .find(|m| m.slot.eq_ignore_ascii_case(slot))
+            .ok_or_else(|| format!("nothing fitted in {}", ed_journal::modules::slot_name(slot)))?;
+        for (label, ratio) in &preset.modifiers {
+            let field = field_for_label(label);
+            if let Some(v) = fitted.stats.get_mut(field) {
+                *v *= ratio;
+            }
         }
         Ok(())
     }
@@ -402,6 +425,27 @@ impl Build {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The maintainer's Kestrel drive as bought (2026-08-23T21:54Z Loadout):
+    /// a 4A SCO drive with the human broker's fixed engineering. Mass 13.0,
+    /// power 0.5175 MW, optimal mass 994.5 t — the journal's own figures.
+    #[test]
+    fn the_pre_engineered_drive_takes_the_journals_fixed_figures() {
+        let catalog = Catalog::load();
+        let table = slots::Slots::load();
+        let loadout = serde_json::json!({ "Ship": "smallcombat01_nx", "Modules": [
+            { "Slot": "FrameShiftDrive", "Item": "int_hyperdrive_overcharge_size4_class5", "On": true, "Priority": 0 }
+        ], "FuelCapacity": { "Main": 16.0 }, "CargoCapacity": 0 });
+        let mut build = Build::from_loadout(&catalog, &loadout);
+        let base = build.modules[0].stat("optmass");
+        assert!((base - 585.0).abs() < 0.01, "base optimal mass {base}");
+        let preset = table.preset("sco_v1_4").expect("the size 4 V1");
+        build.apply_preset("FrameShiftDrive", preset).unwrap();
+        let fsd = &build.modules[0];
+        assert!((fsd.stat("optmass") - 994.5).abs() < 0.01, "{}", fsd.stat("optmass"));
+        assert!((fsd.stat("mass") - 13.0).abs() < 0.01, "{}", fsd.stat("mass"));
+        assert!((fsd.stat("power") - 0.5175).abs() < 0.0001, "{}", fsd.stat("power"));
+    }
 
     fn fixture(name: &str) -> Value {
         let path = format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));

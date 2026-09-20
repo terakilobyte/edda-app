@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planRows, withSwap, swapsFrom, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked, applyImport } from "../lib/buildplan.js";
+import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked, applyImport } from "../lib/buildplan.js";
 
 // A Type-10's business end: nine hardpoints, one already engineered.
 const modules = [
@@ -165,11 +165,16 @@ describe("applyImport", () => {
 // The slot table for a stub hull: two hardpoints (one empty), a cargo slot
 // nobody engineers. Candidates are what the slot takes.
 const slots = [
-  { slot: "LargeHardpoint1", slot_name: "Large hardpoint 1", group: "hardpoint", size: 3, fitted: "hpt_pulselaser_gimbal_large", fitted_name: "Pulse Laser 3C/G",
+  { slot: "LargeHardpoint1", slot_name: "Large hardpoint 1", group: "hardpoint", size: 3, can_empty: true, fitted: "hpt_pulselaser_gimbal_large", fitted_name: "Pulse Laser 3C/G",
     candidates: [
       { item: "hpt_pulselaser_gimbal_large", item_name: "Pulse Laser 3C/G", kind: "Pulse Laser", module_type: "Pulse Laser" },
       { item: "hpt_beamlaser_gimbal_large", item_name: "Beam Laser 3C/G", kind: "Beam Laser", module_type: "Beam Laser" },
       { item: "hpt_guardian_gausscannon_fixed_medium", item_name: "Guardian Gauss Cannon (fixed, medium)", kind: "Guardian Gauss Cannon", module_type: null },
+    ] },
+  { slot: "FrameShiftDrive", slot_name: "Frame Shift Drive", group: "core", size: 4, can_empty: false, fitted: "int_hyperdrive_size4_class5", fitted_name: "Frame Shift Drive 4A",
+    candidates: [
+      { item: "int_hyperdrive_overcharge_size4_class5", item_name: "Frame Shift Drive (SCO) 4A", kind: "Frame Shift Drive (SCO)", module_type: "Frame Shift Drive" },
+      { item: "int_hyperdrive_overcharge_size4_class5", item_name: "Frame Shift Drive (SCO) 4A · pre-engineered V1 (Increased Range G5 + Fast Boot G5)", kind: "Frame Shift Drive (SCO), pre-engineered", module_type: "Frame Shift Drive", preset: "sco_v1_4", preset_blueprint: "Increased FSD Range", preset_grade: 5 },
     ] },
   { slot: "LargeHardpoint2", slot_name: "Large hardpoint 2", group: "hardpoint", size: 3, fitted: null, fitted_name: null,
     candidates: [{ item: "hpt_pulselaser_gimbal_large", item_name: "Pulse Laser 3C/G", kind: "Pulse Laser", module_type: "Pulse Laser" }] },
@@ -181,11 +186,11 @@ const fitted = [{ slot: "LargeHardpoint1", slot_name: "Large hardpoint 1", item:
 describe("swaps: only what the slot takes, starting over", () => {
   it("one row per slot with the slot table, empty slots included, non-engineerable ones without a plan", () => {
     const rows = planRows(fitted, {}, slots);
-    expect(rows.map((r) => r.slot)).toEqual(["LargeHardpoint1", "LargeHardpoint2", "Slot01_Size8"]);
+    expect(rows.map((r) => r.slot)).toEqual(["LargeHardpoint1", "FrameShiftDrive", "LargeHardpoint2", "Slot01_Size8"]);
     expect(rows[0]).toMatchObject({ item_name: "Pulse Laser 3C/G", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, include: true, swap: null });
-    expect(rows[1]).toMatchObject({ item: null, item_name: null, module_type: null, include: false });
-    expect(rows[2]).toMatchObject({ item_name: "Cargo Rack 8E", module_type: null, blueprint: "", include: false });
-    expect(hasWork(rows[2])).toBe(false);
+    expect(rows[2]).toMatchObject({ item: null, item_name: null, module_type: null, include: false });
+    expect(rows[3]).toMatchObject({ item_name: "Cargo Rack 8E", module_type: null, blueprint: "", include: false });
+    expect(hasWork(rows[3])).toBe(false);
     expect(planRequest(rows)).toHaveLength(1);
   });
 
@@ -194,7 +199,7 @@ describe("swaps: only what the slot takes, starting over", () => {
     const beam = slots[0].candidates[1];
     const swapped = withSwap(rows[0], beam);
     expect(swapped).toMatchObject({ swap: "hpt_beamlaser_gimbal_large", item_name: "Beam Laser 3C/G", module_type: "Beam Laser", from_grade: 0, blueprint: "", include: false });
-    expect(swapsFrom([swapped, rows[1], rows[2]])).toEqual([{ slot: "LargeHardpoint1", item: "hpt_beamlaser_gimbal_large" }]);
+    expect(swapsFrom([swapped, rows[1], rows[2], rows[3]])).toEqual([{ slot: "LargeHardpoint1", item: "hpt_beamlaser_gimbal_large" }]);
     const back = withSwap(swapped, null);
     expect(back).toMatchObject({ swap: null, item_name: "Pulse Laser 3C/G", module_type: "Pulse Laser", from_grade: 2, blueprint: "Focused Weapon", include: true });
     // Picking the fitted module itself is no swap.
@@ -211,7 +216,7 @@ describe("swaps: only what the slot takes, starting over", () => {
 
   it("the saved plan carries the swap and restores it, module type included", () => {
     const rows = planRows(fitted, {}, slots);
-    const swapped = [withSwap(rows[0], slots[0].candidates[1]), rows[1], rows[2]];
+    const swapped = [withSwap(rows[0], slots[0].candidates[1]), rows[1], rows[2], rows[3]];
     const saved = savedFrom(swapped);
     expect(saved.LargeHardpoint1.swap).toBe("hpt_beamlaser_gimbal_large");
     expect(saved.Slot01_Size8.swap).toBeUndefined();
@@ -228,7 +233,43 @@ describe("swaps: only what the slot takes, starting over", () => {
       swaps: [{ slot: "LargeHardpoint2", slot_name: "Large hardpoint 2", have: null, want: "Pulse Laser 3C/G", want_item: "hpt_pulselaser_gimbal_large" }],
       items: [{ slot: "LargeHardpoint2", slot_name: "Large hardpoint 2", item_name: "Pulse Laser 3C/G", module_type: "Pulse Laser", blueprint: "Long Range Weapon", from_grade: 0, target_grade: 5, experimental: null, done: false }],
     });
-    expect(out[1]).toMatchObject({ swap: "hpt_pulselaser_gimbal_large", module_type: "Pulse Laser", blueprint: "Long Range Weapon", include: true });
+    expect(out[2]).toMatchObject({ swap: "hpt_pulselaser_gimbal_large", module_type: "Pulse Laser", blueprint: "Long Range Weapon", include: true });
     expect(swapsFrom(out)).toEqual([{ slot: "LargeHardpoint2", item: "hpt_pulselaser_gimbal_large" }]);
+  });
+
+  // Maintainer, 2026-09-20: "need the option to remove an item, i.e. leave
+  // empty on every slot" — every slot but a core one.
+  it("a slot can be emptied, saved so, and restored; the core cannot", () => {
+    const rows = planRows(fitted, {}, slots);
+    const cleared = withSwap(rows[0], { item: EMPTY });
+    expect(cleared).toMatchObject({ swap: EMPTY, item: null, item_name: null, module_type: null, include: false });
+    expect(swapsFrom([cleared])).toEqual([{ slot: "LargeHardpoint1", item: EMPTY }]);
+    const saved = savedFrom([cleared, rows[1], rows[2], rows[3]]);
+    expect(saved.LargeHardpoint1.swap).toBe(EMPTY);
+    expect(planRows(fitted, saved, slots)[0].swap).toBe(EMPTY);
+    // A saved "empty" on a core slot is ignored: the drive stays.
+    expect(planRows(fitted, { FrameShiftDrive: { swap: EMPTY } }, slots)[1]).toMatchObject({ swap: null, item: "int_hyperdrive_size4_class5" });
+    expect(withSwap(cleared, null).swap).toBeNull();
+  });
+
+  // The maintainer's Kestrel drive (2026-08-23): bought from the human
+  // broker with Increased Range G5 and Fast Boot G5 already on; only an
+  // experimental is left to plan.
+  it("a pre-engineered variant comes at its grade with its blueprint, so only an experimental is work", () => {
+    const rows = planRows(fitted, {}, slots);
+    const v1 = findCandidate(slots[1].candidates, "int_hyperdrive_overcharge_size4_class5", "sco_v1_4");
+    expect(v1.preset).toBe("sco_v1_4");
+    expect(findCandidate(slots[1].candidates, "int_hyperdrive_overcharge_size4_class5").preset).toBeUndefined();
+    const drive = withSwap(rows[1], v1);
+    expect(drive).toMatchObject({ swap: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4", module_type: "Frame Shift Drive", blueprint: "Increased FSD Range", from_grade: 5, include: false });
+    expect(hasWork(drive)).toBe(false);
+    expect(hasWork({ ...drive, experimental: "Mass Manager", include: true })).toBe(true);
+    expect(planRequest([{ ...drive, experimental: "Mass Manager", include: true }])).toEqual([{ slot: "FrameShiftDrive", module_type: "Frame Shift Drive", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Mass Manager" }]);
+    expect(swapsFrom([drive])).toEqual([{ slot: "FrameShiftDrive", item: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4" }]);
+    const saved = savedFrom([rows[0], drive, rows[2], rows[3]]);
+    expect(planRows(fitted, saved, slots)[1]).toMatchObject({ preset: "sco_v1_4", from_grade: 5, blueprint: "Increased FSD Range" });
+    expect(swapKey("a", "b")).toBe("a|b");
+    expect(swapKey("a")).toBe("a|");
+    expect(swapKey(null)).toBe("");
   });
 });
