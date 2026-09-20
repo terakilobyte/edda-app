@@ -28,9 +28,10 @@ fn every_module_symbol_prints_edcds_name() {
     // A symbol's printed name is its FIRST row: pre-engineered and Powerplay
     // variants ("Enduring Feedback Rail Gun") share the base symbol and a
     // Loadout cannot tell them apart, so the base name is the honest one.
+    // Entitled rows (Guardian, AX, Odyssey-era) are modules like any other.
     let mut seen = std::collections::HashSet::new();
     for r in rows(include_str!("../data/outfitting.csv")) {
-        if !r["entitlement"].is_empty() || !seen.insert(r["symbol"].to_ascii_lowercase()) {
+        if !seen.insert(r["symbol"].to_ascii_lowercase()) {
             continue;
         }
         let ours = ed_journal::modules::item_name(&r["symbol"]);
