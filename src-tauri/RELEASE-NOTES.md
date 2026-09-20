@@ -67,7 +67,8 @@ mission at, and it moves only when the game redirects you. The target
 system is shown under the target count instead. A tester's report ("EDDA
 keeps saying Yamazaki Port") found this; thank you.
 
-**Plan the whole build.** The Ships tab's "Plan build" lets you choose a
+**Plan the whole build.** The new Build planner tab (Plan build on the
+Ships tab opens it on that ship) lets you choose a
 blueprint, grade and experimental for every module on a ship — "same for
 all 9" copies one laser's plan onto the rest — and gives one answer for
 the lot: every material pooled against what you carry, one shopping list

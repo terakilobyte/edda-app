@@ -26,6 +26,8 @@
   import { help as helpStore } from "./lib/help.svelte.js";
   import { eng as engStore } from "./lib/engineering.svelte.js";
   import ShipsPanel from "./lib/ShipsPanel.svelte";
+  import BuildPlannerPanel from "./lib/BuildPlannerPanel.svelte";
+  import { planner } from "./lib/planner.svelte.js";
   import Onboarding from "./lib/Onboarding.svelte";
   import WhatsNew from "./lib/WhatsNew.svelte";
   import { releaseNotesGet } from "./lib/api.js";
@@ -48,6 +50,7 @@
     ["combat", "Combat"],
     ["powerplay", "Powerplay"],
     ["ships", "Ships"],
+    ["planner", "Build planner"],
     ["engineering", "Engineering"],
     ["voice", "Voice"],
     ["settings", "Settings"],
@@ -66,6 +69,8 @@
   $effect(() => { if (helpStore.requested) pick("help"); });
   // The Ships tab can hand a module to the Engineering tab.
   $effect(() => { if (engStore.openTab) { pick("engineering"); engStore.openTab = false; } });
+  // The Ships tab's Plan build lands on the Build planner with that ship.
+  $effect(() => { if (planner.openTab) { pick("planner"); planner.openTab = false; } });
   let sync = $state(null); // {file, done, total}
   let synced = $state(false);
   let game = $state(null); // {running}
@@ -249,6 +254,7 @@
           {:else if k === "engineering"}<EngineeringPanel />
           {:else if k === "inventory"}<InventoryPanel />
           {:else if k === "ships"}<ShipsPanel />
+          {:else if k === "planner"}<BuildPlannerPanel />
           {:else if k === "voice"}<VoiceSettings />
           {:else if k === "settings"}<SystemSettings onSetup={repeatOnboarding} />
           {:else if k === "report"}<ReportPanel />
