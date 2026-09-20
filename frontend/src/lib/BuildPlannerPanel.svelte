@@ -26,7 +26,12 @@
   let planBusy = $state(false);
   let planMsg = $state("");
   let planPicked = $state(new Set());
-  const planKey = (id) => `${KEYS.buildPlan}.${id}`;
+  // The saved plan is keyed by ShipID AND hull: the game hands a sold
+  // ship's ID to the next one bought, and a plan for a Type-10 must never
+  // surface on whatever ship inherits its number (maintainer, 2026-09-20:
+  // "if the build in memory is associated with a different ship it
+  // shouldn't show").
+  const planKey = (id) => { const s = ships.find((x) => x.ship_id === id); return `${KEYS.buildPlan}.${id}.${(s?.ship ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`; };
   const counts = $derived(groupCounts(rows));
   const plannedCount = $derived(rows.filter(isPlanned).length);
   const blueprintsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length > 0);
