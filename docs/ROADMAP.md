@@ -407,6 +407,26 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Where to get what is short** (2026-09-20, maintainer: "if someone is
+  genuinely short, why doesn't edda know where to get them? … we could
+  look in the data we know and go 'oh you got this here before', even if
+  it isn't the exact material but could be traded for the needed
+  material … for the technology broker components we could refer to the
+  recipe for the component and break it down"). Measured first: the
+  vendored site list covered raw 6/28, manufactured 47/64, encoded 6/45
+  materials (10 sites), so most shortfalls read "no known farm site".
+  Now, for every material still short after trading: the commander's
+  own pickups from the journal (system, body, units, pickups, distance —
+  one pass over the event log for all materials, `witnessed_sources_all`),
+  the community sites, and the ways the kind is obtained
+  (`methods_for_kind`: surface prospecting and crystal shards; HGE by
+  system state, salvage, missions; ship and wake scans, data points, the
+  two crash sites; and the trader rates). Own pickups also feed the
+  farm-then-trade solver, so "farm Iron where you found it before, trade
+  6:1" appears. Swaps to technology-broker modules break down into their
+  unlock recipe (`unlock_recipe`, Guardian and Human types of the
+  blueprint data): materials pool into the plan, commodities are listed
+  to buy.
 - **Build planner is its own tab** (2026-09-20, maintainer, first flight of
   the plan: the Import build and include buttons were "a hell of a lot
   smaller than other buttons", and "it might be good to have a build

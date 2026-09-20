@@ -21,16 +21,29 @@ pub struct WitnessedSource {
 /// most units first.
 pub fn witnessed_sources(conn: &Connection, material: &str) -> Result<Vec<WitnessedSource>> {
     let want = material.to_lowercase();
+    Ok(witnessed_sources_all(conn)?.into_iter().filter(|(k, _)| k.name == want || k.symbol == want).flat_map(|(_, v)| v).collect())
+}
+
+/// A material as the pickup names it: display name and symbol, lowercase.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WitnessedKey {
+    pub name: String,
+    pub symbol: String,
+}
+
+/// Every material the commander has ever picked up and where, in one pass
+/// over the journal (the build plan asks for several materials at once,
+/// and each pass reads the whole event log). Most units first per material.
+pub fn witnessed_sources_all(conn: &Connection) -> Result<Vec<(WitnessedKey, Vec<WitnessedSource>)>> {
     let mut stmt = conn.prepare(
         "SELECT event, raw FROM events
          WHERE event IN ('FSDJump','Location','CarrierJump','ApproachBody','LeaveBody','Touchdown','Liftoff','SupercruiseEntry','MaterialCollected')
          ORDER BY ts, file, offset",
     )?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-
     let mut system: Option<String> = None;
     let mut body: Option<String> = None;
-    let mut acc: HashMap<(String, Option<String>), WitnessedSource> = HashMap::new();
+    let mut acc: HashMap<WitnessedKey, HashMap<(String, Option<String>), WitnessedSource>> = HashMap::new();
     for row in rows {
         let (event, raw) = row?;
         let v: serde_json::Value = match serde_json::from_str(&raw) {
@@ -45,27 +58,17 @@ pub fn witnessed_sources(conn: &Connection, material: &str) -> Result<Vec<Witnes
             }
             "ApproachBody" | "Touchdown" => body = s("Body").or(body.take()),
             "LeaveBody" | "SupercruiseEntry" => body = None,
-            "Liftoff" => {}
             "MaterialCollected" => {
-                let name = s("Name_Localised")
-                    .or_else(|| s("Name"))
-                    .unwrap_or_default();
-                let sym = s("Name").unwrap_or_default();
-                if name.to_lowercase() != want && sym.to_lowercase() != want {
-                    continue;
-                }
+                let sym = s("Name").unwrap_or_default().to_lowercase();
+                let name = s("Name_Localised").map(|n| n.to_lowercase()).unwrap_or_else(|| sym.clone());
                 let Some(sys) = system.clone() else { continue };
                 let count = v.get("Count").and_then(|c| c.as_i64()).unwrap_or(1);
                 let ts = s("timestamp").unwrap_or_default();
                 let e = acc
+                    .entry(WitnessedKey { name, symbol: sym })
+                    .or_default()
                     .entry((sys.clone(), body.clone()))
-                    .or_insert(WitnessedSource {
-                        system: sys,
-                        body: body.clone(),
-                        count: 0,
-                        pickups: 0,
-                        last: ts.clone(),
-                    });
+                    .or_insert(WitnessedSource { system: sys, body: body.clone(), count: 0, pickups: 0, last: ts.clone() });
                 e.count += count;
                 e.pickups += 1;
                 if ts > e.last {
@@ -75,7 +78,15 @@ pub fn witnessed_sources(conn: &Connection, material: &str) -> Result<Vec<Witnes
             _ => {}
         }
     }
-    let mut out: Vec<_> = acc.into_values().collect();
-    out.sort_by(|a, b| b.count.cmp(&a.count).then(b.last.cmp(&a.last)));
+    let mut out: Vec<(WitnessedKey, Vec<WitnessedSource>)> = acc
+        .into_iter()
+        .map(|(k, m)| {
+            let mut v: Vec<_> = m.into_values().collect();
+            v.sort_by(|a, b| b.count.cmp(&a.count).then(b.last.cmp(&a.last)));
+            (k, v)
+        })
+        .collect();
+    out.sort_by(|a, b| a.0.name.cmp(&b.0.name));
     Ok(out)
 }
+

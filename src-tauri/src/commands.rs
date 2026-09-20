@@ -295,6 +295,21 @@ pub struct ShoppingReport {
     /// Farm-then-trade plans for what is still short after trading.
     pub farm: Vec<FarmPlan>,
     pub origin_system: Option<String>,
+    /// For every material still short: where the commander found it
+    /// before, the community's sites, and how its kind is obtained.
+    pub sources: Vec<ShortSource>,
+}
+
+/// Where to get one material that is still short after trading.
+#[derive(Debug, Serialize)]
+pub struct ShortSource {
+    pub material: String,
+    pub kind: String,
+    pub needed: i64,
+    /// The commander's own pickups of this material, most units first.
+    pub witnessed: Vec<WitnessedAt>,
+    pub known: Vec<KnownSiteAt>,
+    pub methods: Vec<String>,
 }
 
 /// Shared by the command and the ship computer tool: gap → surplus → trades
@@ -394,7 +409,14 @@ pub(crate) fn shopping_from_need(
     };
     // What trading can't cover: farm something (ideally high grade, same
     // group) at a known site and trade it in. Direct pickups included.
-    let farmable: Vec<(String, String, Option<String>, Option<String>)> =
+    // Community sites, and the commander's own pickups: "you got this
+    // here before", for the material itself or for one that trades into
+    // it (maintainer, 2026-09-20).
+    let witnessed_all = ed_store::materials::witnessed_sources_all(conn).unwrap_or_default();
+    let display_of = |k: &ed_store::materials::WitnessedKey| -> String {
+        jc.by_symbol(&k.symbol).or_else(|| jc.by_name(&k.name)).map(|i| i.name.clone()).unwrap_or_else(|| k.name.clone())
+    };
+    let mut farmable: Vec<(String, String, Option<String>, Option<String>)> =
         ed_engineering::sources::all()
             .into_iter()
             .filter(|s| s.system.is_some())
@@ -405,6 +427,16 @@ pub(crate) fn shopping_from_need(
                     .collect::<Vec<_>>()
             })
             .collect();
+    for (key, sites) in &witnessed_all {
+        let name = display_of(key);
+        for w in sites.iter().take(3) {
+            let site = match &w.body {
+                Some(b) => format!("where you picked it up before ({} units, {} pickups): {b}", w.count, w.pickups),
+                None => format!("where you picked it up before ({} units, {} pickups)", w.count, w.pickups),
+            };
+            farmable.push((name.clone(), site, Some(w.system.clone()), w.body.clone()));
+        }
+    }
     let farm: Vec<FarmPlan> = list
         .still_short
         .iter()
@@ -451,12 +483,40 @@ pub(crate) fn shopping_from_need(
         .iter()
         .map(|k| TraderStop { kind: *k, nearest: Vec::new(), kind_known: true, asked: false })
         .collect();
+    let sources: Vec<ShortSource> = list
+        .still_short
+        .iter()
+        .map(|(name, n)| {
+            let kind = meta.iter().find(|m| m.name.eq_ignore_ascii_case(name)).map(|m| format!("{:?}", m.kind)).unwrap_or_default();
+            let mut witnessed: Vec<WitnessedAt> = witnessed_all
+                .iter()
+                .filter(|(k, _)| display_of(k).eq_ignore_ascii_case(name))
+                .flat_map(|(_, v)| v.iter().cloned())
+                .map(|source| WitnessedAt { distance_ly: dist(&source.system), source })
+                .collect();
+            witnessed.truncate(5);
+            let mut known: Vec<KnownSiteAt> = ed_engineering::sources::for_material(name)
+                .into_iter()
+                .map(|site| KnownSiteAt { distance_ly: site.system.as_deref().and_then(dist), site })
+                .collect();
+            known.sort_by(|a, b| a.distance_ly.unwrap_or(f64::MAX).partial_cmp(&b.distance_ly.unwrap_or(f64::MAX)).unwrap());
+            ShortSource {
+                material: name.clone(),
+                needed: *n,
+                methods: ed_engineering::sources::methods_for_kind(&kind).iter().map(|s| s.to_string()).collect(),
+                kind,
+                witnessed,
+                known,
+            }
+        })
+        .collect();
     Ok(ShoppingReport {
         short,
         list,
         traders,
         farm,
         origin_system,
+        sources,
     })
 }
 
@@ -763,8 +823,10 @@ pub async fn build_plan_report(
     items: Vec<crate::build_plan::PlanItem>,
     minimum: Option<bool>,
     complete: Option<bool>,
+    swaps: Option<Vec<ProposedSwap>>,
 ) -> Result<crate::build_plan::BuildPlanReport, String> {
-    let mut report = crate::build_plan::report(state.inner(), ship_id, &items, minimum.unwrap_or(false), complete.unwrap_or(true))?;
+    let swaps: Vec<(String, String)> = swaps.unwrap_or_default().into_iter().map(|s| (s.slot, s.item)).collect();
+    let mut report = crate::build_plan::report(state.inner(), ship_id, &items, &swaps, minimum.unwrap_or(false), complete.unwrap_or(true))?;
     if let Some(shopping) = report.shopping.as_mut() {
         fill_traders(&state, shopping).await;
     }

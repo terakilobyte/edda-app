@@ -80,13 +80,30 @@
         </div>
       </div>
     {/each}
-    {#each shopping.list.still_short.filter(([m]) => !shopping.farm.some((p) => p.material === m)) as [m, n]}
-      <p class="small muted">{n} {m}: no known farm site vendored — ask the ship computer where you've collected it before.</p>
+    {#each shopping.sources ?? [] as src}
+      <div class="small source" style="margin:0.5rem 0">
+        <strong>{src.needed} {src.material}</strong> <span class="muted">{src.kind ? src.kind.toLowerCase() : ""}</span> — where to get it:
+        {#if src.witnessed.length}
+          <div style="margin:0.2rem 0 0.2rem 1rem"><span class="ok">You picked it up before</span>
+            {#each src.witnessed as w}
+              <span class="pill">{w.system}{w.body ? ` · ${w.body}` : ""} · {w.count} unit{w.count === 1 ? "" : "s"} over {w.pickups} pickup{w.pickups === 1 ? "" : "s"}{w.distance_ly != null ? ` · ${w.distance_ly.toFixed(0)} ly` : ""}
+                <button class="mini" onclick={() => requestRoute(w.system)} title="Plot a route there in the Route tab">route</button></span>
+            {/each}
+          </div>
+        {/if}
+        {#each src.known as k}
+          <div style="margin:0.2rem 0 0.2rem 1rem"><strong>{k.site}</strong>{k.system ? ` · ${k.system}${k.body ? ` ${k.body}` : ""}` : ""}{k.distance_ly != null ? ` · ${k.distance_ly.toFixed(0)} ly` : ""}: <span class="muted">{k.method}</span>{#if k.system}<button class="mini" onclick={() => requestRoute(k.system)} style="margin-left:0.3rem">route</button>{/if}</div>
+        {/each}
+        {#each src.methods as m}
+          <div class="muted" style="margin:0.15rem 0 0 1rem">{m}</div>
+        {/each}
+      </div>
     {/each}
   {/if}
 {/if}
 
 <style>
+  .source { border-top: 1px solid var(--line); padding-top: 0.4rem; }
   tr.dim { opacity: 0.5; }
   .mini { font-size: 0.7rem; padding: 0 0.4rem; }
 </style>

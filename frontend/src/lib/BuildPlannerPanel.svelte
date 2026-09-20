@@ -112,7 +112,8 @@
     if (selectedId == null) return;
     planBusy = true; planMsg = "";
     try {
-      planReport = await buildPlanReport({ shipId: selectedId, items: planRequest(rows) });
+      const swaps = (imported?.swaps ?? []).map((s) => ({ slot: s.slot, item: s.want_item }));
+      planReport = await buildPlanReport({ shipId: selectedId, items: planRequest(rows), swaps });
       planPicked = new Set((planReport.shopping?.list?.trades ?? []).map((_, i) => i));
     } catch (e) { planReport = null; planMsg = String(e); } finally { planBusy = false; }
   }
@@ -267,7 +268,7 @@
       </table>
     </div>
     <div class="row" style="margin-top:0.6rem">
-      <button onclick={runPlan} disabled={planBusy || plannedCount === 0}>{planBusy ? "Working…" : "Materials for this build"}</button>
+      <button onclick={runPlan} disabled={planBusy || (plannedCount === 0 && !(imported?.swaps?.length))}>{planBusy ? "Working…" : "Materials for this build"}</button>
       {#if planMsg}<span class="muted small">{planMsg}</span>{/if}
     </div>
 
@@ -292,6 +293,15 @@
           </tbody>
         </table>
       </div>
+
+      {#if planReport.unlocks?.length}
+        <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
+        {#each planReport.unlocks as u}
+          <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong> <span class="muted">({u.slot_name}) · {u.broker} technology broker</span>
+            <div style="margin-left:1rem">{u.materials.map((l) => `${l.need} ${l.material}${l.have >= l.need ? " ✓" : ` (have ${l.have})`}`).join(", ")}{#if u.commodities.length}<span class="muted"> · commodities to buy: {u.commodities.map(([c, n]) => `${n} ${c}`).join(", ")}</span>{/if}</div>
+          </div>
+        {/each}
+      {/if}
 
       <h3 style="margin-top:0.8rem">Engineers to visit <span class="muted">fewest stops that cover the plan</span></h3>
       {#each itinerary(planReport) as stop}
