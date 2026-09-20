@@ -407,6 +407,16 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Guardian and Thargoid materials are never traded** (2026-09-20,
+  maintainer: "we seem to suggest trading for guardian technology
+  components and whatnot is possible. It is not" — the list had offered
+  5 Sensor Fragment → 45 Guardian Technology Component at 1:9). EDCD's
+  material table gives those materials the trader group `None`; the
+  solver now drops any such material at the door, as a thing to give or
+  to get, so they fall to "still short" with their own ways (sentinels,
+  obelisks and relic pylons at Guardian sites; Thargoid combat and
+  wreckage) instead of a trade that does not exist. Pinned by a test
+  with the maintainer's two lines.
 - **Where to get what is short** (2026-09-20, maintainer: "if someone is
   genuinely short, why doesn't edda know where to get them? … we could
   look in the data we know and go 'oh you got this here before', even if

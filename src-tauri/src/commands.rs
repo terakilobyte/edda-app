@@ -487,7 +487,9 @@ pub(crate) fn shopping_from_need(
         .still_short
         .iter()
         .map(|(name, n)| {
-            let kind = meta.iter().find(|m| m.name.eq_ignore_ascii_case(name)).map(|m| format!("{:?}", m.kind)).unwrap_or_default();
+            let found = meta.iter().find(|m| m.name.eq_ignore_ascii_case(name));
+            let kind = found.map(|m| format!("{:?}", m.kind)).unwrap_or_default();
+            let group = found.map(|m| m.group.clone()).unwrap_or_default();
             let mut witnessed: Vec<WitnessedAt> = witnessed_all
                 .iter()
                 .filter(|(k, _)| display_of(k).eq_ignore_ascii_case(name))
@@ -503,7 +505,7 @@ pub(crate) fn shopping_from_need(
             ShortSource {
                 material: name.clone(),
                 needed: *n,
-                methods: ed_engineering::sources::methods_for_kind(&kind).iter().map(|s| s.to_string()).collect(),
+                methods: ed_engineering::sources::methods_for(&kind, &group, name).iter().map(|s| s.to_string()).collect(),
                 kind,
                 witnessed,
                 known,

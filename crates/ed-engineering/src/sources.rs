@@ -54,6 +54,26 @@ mod tests {
 /// encoded can be farmed at crash sites and traded, manufactured can be
 /// obtained in various ways"). Mechanics, not coordinates.
 pub fn methods_for_kind(kind: &str) -> &'static [&'static str] {
+    methods_for(kind, "", "")
+}
+
+/// The ways, with the material's own group and name considered: Guardian
+/// and Thargoid materials (trader group `None`) are not traded and come
+/// from their own sites, whatever their kind.
+pub fn methods_for(kind: &str, group: &str, name: &str) -> &'static [&'static str] {
+    let untradeable = group.eq_ignore_ascii_case("none");
+    let n = name.to_ascii_lowercase();
+    if untradeable && (n.starts_with("guardian") || n.contains("obelisk")) {
+        return &[
+            "Guardian materials are not traded at material traders. Power cells, power conduits, technology components and sentinel parts drop from the sentinels at Guardian ruins and structures; the obelisk data patterns come from scanning the obelisks there.",
+            "Blueprint segments (weapon, module, vessel) come from the ancient relic pylons at the corresponding Guardian structures, one per activation; the site can be repeated after relogging.",
+        ];
+    }
+    if untradeable {
+        return &[
+            "Thargoid materials are not traded at material traders. They come from Thargoid combat and wreckage: destroyed interceptors and scouts, crashed Thargoid ships, Thargoid structures and barnacles, and the wakes and scans of Thargoid vessels.",
+        ];
+    }
     match kind.to_ascii_lowercase().as_str() {
         "raw" => &[
             "Prospect a planet's surface in the SRV: outcrops, metallic meteorites and geological sites on rocky, high-metal-content and icy bodies; the system map lists a body's materials and their share.",
@@ -82,5 +102,8 @@ mod method_tests {
             assert!(!super::methods_for_kind(k).is_empty(), "{k}");
         }
         assert!(super::methods_for_kind("Odyssey").is_empty());
+        assert!(super::methods_for("Manufactured", "None", "Guardian Technology Component")[0].contains("not traded"));
+        assert!(super::methods_for("Encoded", "None", "Thargoid Wake Data")[0].contains("Thargoid"));
+        assert!(super::methods_for("Raw", "4", "Iron")[0].contains("Prospect"));
     }
 }
