@@ -407,6 +407,18 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Customisable HUD** (2026-09-20, maintainer: "I'd like to get the
+  customizeable hud in too"). The overlay's nine lines are now named
+  sections (`frontend/src/lib/hudLayout.js`: location, Powerplay, next,
+  route, gauges, trade, missions, callouts) with a layout — order, hidden,
+  compact — written by Settings → HUD → Layout and read by the overlay
+  over the storage bus, live like opacity and scale. Presets Combat,
+  Trade, Explore, Default; a layout can be remembered per ship (JSON map
+  by ShipID) and wins over the shared one while that ship is flown.
+  Compact drops the label, shrinks the pills and shows fewer items (three
+  hops, two missions, two callouts). Still one window: separate movable
+  widgets were offered and not asked for; the shaping is pure and tested
+  (`hudLayout.test.js`), a stored layout of any shape is made whole.
 - **Ship physics, phase 1: mass, jump, power** (2026-09-19, maintainer:
   "can we work out ship physics like weight and whatnot like edsy and
   coriolis do to see what the perf would be after engineering?" — and

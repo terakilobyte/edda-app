@@ -101,6 +101,14 @@ fixed (Lori Jameson, Life Support to grade 4; Juri Ishmaak, wake, kill
 warrant and manifest scanners to grade 3), and a test now holds the
 data to the audited table.
 
+**Make the HUD yours.** Settings → HUD → Layout lists everything the
+overlay can show — system and dock, Powerplay, next system, route,
+fuel and cargo, trade route, missions, callouts — and lets you hide any
+of them, put them in your order, and mark any as compact. Combat, Trade
+and Explore presets are one click, and a layout can be remembered for
+the ship you are flying so the Type-10 and the explorer each keep their
+own. Changes apply on the HUD as you make them.
+
 **Where to surface-mine.** The September mining update's 22
 Rhino-mined goods, uranium among them, were missing from the Mining
 tab's search because no hotspot or ring answers for them. They are in

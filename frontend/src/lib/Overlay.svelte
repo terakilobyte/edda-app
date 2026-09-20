@@ -20,6 +20,8 @@
   import { fmtInt } from "./format.js";
   import { prioClass, fuelPct, fuelLabel } from "./ui.js";
   import { KEYS, persisted } from "./storage.svelte.js";
+  import { ship, start as startShip, stop as stopShip } from "./ship.svelte.js";
+  import { resolve as resolveLayout, isHidden, isCompact } from "./hudLayout.js";
   import { journalResource, useListeners } from "./lifecycle.svelte.js";
   // Item 43: the next-target box lights while the drive is actually
   // supercharged (JetConeBoost in the journal), and cools after 10 s.
@@ -54,6 +56,14 @@
   // transparent panel); only non-numbers fall back.
   const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
   const alpha = $derived(Math.min(1, Math.max(0, num(hudAlpha.value, 1))));
+  // Customisable HUD (maintainer, 2026-09-20): which sections, in what
+  // order, which compact — Settings → HUD writes, storage is the bus, and
+  // a layout remembered for the ship being flown wins over the global one.
+  const hudLayout = persisted(KEYS.hudLayout, null, { json: true, sync: true });
+  const hudLayoutByShip = persisted(KEYS.hudLayoutByShip, {}, { json: true, sync: true });
+  const layout = $derived(resolveLayout(hudLayout.value, hudLayoutByShip.value, ship.currentId));
+  const show = (id) => !isHidden(layout, id);
+  const compact = (id) => (isCompact(layout, id) ? "compact" : "");
   const scale = $derived(Math.min(1.5, Math.max(0.7, num(hudScale.value, 1))));
   const listeners = useListeners();
 
@@ -76,6 +86,7 @@
   onMount(async () => {
     startFollow();
     startTradeFollow();
+    startShip();
     try {
       // History gets a short life on the HUD -- it is context, not news.
       callouts = (await recentCallouts()).slice(-MAX).reverse().map((c) => ({ ...c, at: Date.now() - 30_000 }));
@@ -95,7 +106,7 @@
     listeners.add(onOverlayInteractive((e) => { interactive = !!e.payload; }));
     pruneTimer = setInterval(prune, 5000);
   });
-  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); stackingMode.dispose(); stopFollow(); stopTradeFollow(); });
+  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); stackingMode.dispose(); hudLayout.dispose(); hudLayoutByShip.dispose(); stopFollow(); stopTradeFollow(); stopShip(); });
 
   function startDrag(e) {
     if (!interactive) return;
@@ -127,128 +138,134 @@
       onmousedown={(e) => { e.stopPropagation(); getCurrentWindow().startResizeDragging("SouthEast").catch((err) => console.error("resize drag refused:", err)); }}>◢</div>
   {/if}
 
-  <div class="line big">
-    <span class="sys">{status?.location?.system_name ?? "—"}</span>
-    {#if status?.location?.docked}
-      <span class="pill cyan">Docked · {status.location.station_name}</span>
-    {/if}
-  </div>
-
-  <div class="line">
-    {#if status?.controlling_power}
-      <span class="pill accent">{status.controlling_power}</span>
-      <span class="pill">{status.power_state ?? "?"}</span>
-    {:else}
-      <span class="pill">No Powerplay control</span>
-    {/if}
-  </div>
-
-  {#if status?.nav?.target_system}
-    <div class="line">
-      <span class="lbl">Next</span>
-      <span>{status.nav.target_system}</span>
-      <span class="pill {status.nav.scoopable === false ? 'warn' : status.nav.scoopable ? 'ok' : ''}">
-        {status.nav.star_class ?? "?"}{status.nav.scoopable === false ? " · no scoop" : ""}
-      </span>
-      {#if status.nav.remaining_jumps != null}
-        <span class="num">{status.nav.remaining_jumps} jump{status.nav.remaining_jumps === 1 ? "" : "s"}</span>
+  {#each layout.order as id (id)}
+    {#if !show(id)}
+      <!-- hidden in Settings → HUD -->
+    {:else if id === "location"}
+      <div class="line big {compact(id)}">
+        <span class="sys">{status?.location?.system_name ?? "—"}</span>
+        {#if status?.location?.docked}
+          <span class="pill cyan">Docked · {status.location.station_name}</span>
+        {/if}
+      </div>
+    {:else if id === "powerplay"}
+      <div class="line {compact(id)}">
+        {#if status?.controlling_power}
+          <span class="pill accent">{status.controlling_power}</span>
+          <span class="pill">{status.power_state ?? "?"}</span>
+        {:else}
+          <span class="pill">No Powerplay control</span>
+        {/if}
+      </div>
+    {:else if id === "next"}
+      {#if status?.nav?.target_system}
+        <div class="line {compact(id)}">
+          <span class="lbl">Next</span>
+          <span>{status.nav.target_system}</span>
+          <span class="pill {status.nav.scoopable === false ? 'warn' : status.nav.scoopable ? 'ok' : ''}">
+            {status.nav.star_class ?? "?"}{status.nav.scoopable === false ? " · no scoop" : ""}
+          </span>
+          {#if status.nav.remaining_jumps != null}
+            <span class="num">{status.nav.remaining_jumps} jump{status.nav.remaining_jumps === 1 ? "" : "s"}</span>
+          {/if}
+        </div>
       {/if}
-    </div>
-  {/if}
-
-  {#if follow.active}
-    <div class="line route follow">
-      <span class="lbl">{follow.jumps_left} left</span>
-      {#each follow.ahead.slice(0, 5) as h, i}
-        <span class="hop {i === 0 ? 'now' : ''} {h.class === 'neutron' ? 'cyan' : ''} {h.refuel && !h.fuel_optional ? 'stop' : ''} {i === 0 && supercharged ? 'charged' : ''}" title="{h.name} · {h.class}{follow.ahead[i + 1]?.boosted ? ' · supercharge out of here' : ''}{h.refuel && !h.fuel_optional ? ' · fuel here' : h.scoopable ? ' · fuel available, not needed' : ', no scoop'}{h.fuel_after != null ? ' · ' + h.fuel_after.toFixed(1) + ' t after' : ''}">
-          {h.class === "neutron" ? "N" : h.class === "white_dwarf" ? "WD" : h.class === "unknown" ? "?" : h.class.toUpperCase()}{h.refuel && !h.fuel_optional ? "⛽" : ""}{follow.ahead[i + 1]?.boosted ? "⚡" : ""}
-        </span>
-      {/each}
-      {#if follow.ahead.length > 5}<span class="muted small">…{follow.destination}</span>{/if}
-      {#if interactive}<button class="quiet small" onclick={targetNext} title="Target the next system">▶</button>{/if}
-    </div>
-  {:else if ahead.length}
-    <div class="line route">
-      <span class="lbl">Route</span>
-      {#each ahead.slice(0, 5) as h}
-        <span class="hop {h.hazard ? 'bad' : h.opposing ? 'warn' : ''} {fuelMark(h) ? 'stop' : ''}" title="{h.system} · class {h.star_class}{fuelMark(h) ? ' · fuel here (' + fuelMark(h).via + ')' : ''}{h.hazard ? ' · ' + h.hazard : ''}{h.controlling_power ? ' · ' + h.controlling_power + (h.power_state ? ' ' + h.power_state : '') : ''}{h.dock ? ' · dock: ' + h.dock.station : ''}">
-          {h.star_class}{fuelMark(h) ? "⛽" : ""}{h.dock ? "⚓" : ""}
-        </span>
-      {/each}
-      {#if ahead.length > 5}<span class="muted small">+{ahead.length - 5}</span>{/if}
-    </div>
-  {/if}
-
-  <div class="line gauges">
-    <div class="gauge">
-      <span class="lbl">Fuel</span>
-      <div class="bar"><div class="bar-fill {fuel != null && fuel < 25 ? 'bad' : ''}" style="width:{fuel ?? 0}%"></div></div>
-      <span class="num">{fuelLabel(status)}</span>
-    </div>
-    <div class="gauge">
-      <span class="lbl">Cargo</span>
-      <div class="bar"><div class="bar-fill" style="width:{status?.cargo_capacity ? Math.round((status.cargo_count / status.cargo_capacity) * 100) : 0}%"></div></div>
-      <span class="num">{fmtInt(status?.cargo_count)} / {fmtInt(status?.cargo_capacity)}</span>
-    </div>
-  </div>
-
-  {#if tradeFollow.active}
-    <!-- The FOLLOWED trade route (maintainer spec 2026-09-05): each stop with
-         its goods, the current one highlighted. Supersedes the passive
-         pinned loop while active. -->
-    <div class="line loop trade">
-      <span class="lbl">TRADE ROUTE{tradeFollow.lap > 1 ? ` · lap ${tradeFollow.lap}` : ""}</span>
-      {#if interactive}<button class="quiet small" title="Stop following" onclick={stopTrade}>✕</button>{/if}
-      <span>
-        {#each tradeFollow.stops as s, i}
-          {#if i > 0} → {/if}<strong class={i === tradeFollow.at ? "now" : "muted"}>{s.station}</strong>
-          <span class="muted small">({s.system}){#each s.sell as g} sell {g.commodity} ×{g.tons}{/each}{#each s.buy as g} buy {g.commodity} ×{g.tons}{/each}</span>
+    {:else if id === "route"}
+      {#if follow.active}
+        <div class="line route follow {compact(id)}">
+          <span class="lbl">{follow.jumps_left} left</span>
+          {#each follow.ahead.slice(0, isCompact(layout, id) ? 3 : 5) as h, i}
+            <span class="hop {i === 0 ? 'now' : ''} {h.class === 'neutron' ? 'cyan' : ''} {h.refuel && !h.fuel_optional ? 'stop' : ''} {i === 0 && supercharged ? 'charged' : ''}" title="{h.name} · {h.class}{follow.ahead[i + 1]?.boosted ? ' · supercharge out of here' : ''}{h.refuel && !h.fuel_optional ? ' · fuel stop' : ''}">
+              {h.class === "neutron" ? "N" : h.class === "white_dwarf" ? "WD" : h.class === "unknown" ? "?" : h.class.toUpperCase()}{h.refuel && !h.fuel_optional ? "⛽" : ""}{follow.ahead[i + 1]?.boosted ? "⚡" : ""}
+            </span>
+          {/each}
+          {#if follow.ahead.length > 5}<span class="muted small">…{follow.destination}</span>{/if}
+          {#if interactive}<button class="quiet small" onclick={targetNext} title="Target the next system">▶</button>{/if}
+        </div>
+      {:else if ahead.length}
+        <div class="line route {compact(id)}">
+          <span class="lbl">Route</span>
+          {#each ahead.slice(0, isCompact(layout, id) ? 3 : 5) as h}
+            <span class="hop {h.hazard ? 'bad' : h.opposing ? 'warn' : ''} {fuelMark(h) ? 'stop' : ''}" title="{h.system} · class {h.star_class}{fuelMark(h) ? ' · fuel here (' + fuelMark(h).via + ')' : ''}{h.hazard ? ' · ' + h.hazard : ''}{h.controlling_power ? ' · ' + h.controlling_power : ''}">
+              {h.star_class}{fuelMark(h) ? "⛽" : ""}{h.dock ? "⚓" : ""}
+            </span>
+          {/each}
+          {#if ahead.length > 5}<span class="muted small">+{ahead.length - 5}</span>{/if}
+        </div>
+      {/if}
+    {:else if id === "gauges"}
+      <div class="line gauges {compact(id)}">
+        <div class="gauge">
+          <span class="lbl">Fuel</span>
+          <div class="bar"><div class="bar-fill {fuel != null && fuel < 25 ? 'bad' : ''}" style="width:{fuel ?? 0}%"></div></div>
+          <span class="num">{fuelLabel(status)}</span>
+        </div>
+        <div class="gauge">
+          <span class="lbl">Cargo</span>
+          <div class="bar"><div class="bar-fill" style="width:{status?.cargo_capacity ? Math.round((status.cargo_count / status.cargo_capacity) * 100) : 0}%"></div></div>
+          <span class="num">{fmtInt(status?.cargo_count)} / {fmtInt(status?.cargo_capacity)}</span>
+        </div>
+      </div>
+    {:else if id === "trade"}
+      {#if tradeFollow.active}
+        <!-- The FOLLOWED trade route (maintainer spec 2026-09-05): each stop with
+             its goods, the current one highlighted. Supersedes the passive
+             pinned loop while active. -->
+        <div class="line loop trade {compact(id)}">
+          <span class="lbl">TRADE ROUTE{tradeFollow.lap > 1 ? ` · lap ${tradeFollow.lap}` : ""}</span>
+          {#if interactive}<button class="quiet small" title="Stop following" onclick={stopTrade}>✕</button>{/if}
+          <span>
+            {#each tradeFollow.stops as s, i}
+              {#if i > 0} → {/if}<strong class={i === tradeFollow.at ? "now" : "muted"}>{s.station}</strong>
+              <span class="muted small">({s.system}){#each s.sell as g} sell {g.commodity} ×{g.tons}{/each}{#each s.buy as g} buy {g.commodity} ×{g.tons}{/each}</span>
+            {/each}
+          </span>
+        </div>
+      {:else if pinned?.stops}
+        <div class="line loop {compact(id)}">
+          <span class="lbl">Ring</span>{#if interactive}<button class="quiet small" title="Clear" onclick={clearPinned}>✕</button>{/if}
+          <span>{#each pinned.stops as s, i}{#if i > 0} → {/if}<strong>{s.station}</strong> <span class="muted">({s.system}) {s.buy}</span>{/each} → back</span>
+        </div>
+      {:else if pinned}
+        <div class="line loop {compact(id)}">
+          <span class="lbl">Loop</span>{#if interactive}<button class="quiet small" title="Clear" onclick={clearPinned}>✕</button>{/if}
+          <span><strong>{pinned.a.station}</strong> <span class="muted">({pinned.a.system})</span> buy {pinned.a.buy} →
+            <strong>{pinned.b.station}</strong> <span class="muted">({pinned.b.system})</span> buy {pinned.b.buy} → back</span>
+        </div>
+      {/if}
+    {:else if id === "missions"}
+      {#if stackingMode.value && stack}
+        <div class="line missions {compact(id)}">
+          <span class="lbl">Stack</span>
+          <span class="pill accent">{stack.target_faction}</span>
+          <span class="muted small">{stackSummary(stack)}</span>
+        </div>
+        <div class="line givers {compact(id)}">
+          {#each stack.givers as g (g.faction)}
+            <span class="giver {g.duplicate ? 'dup' : ''} {g.ready === g.missions ? 'done' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
+          {/each}
+        </div>
+      {:else if activeMissions.length}
+        <div class="line missions {compact(id)}">
+          <span class="lbl">Missions</span>
+          {#each activeMissions.slice(0, isCompact(layout, id) ? 2 : 3) as m}
+            <span class="pill {m.status === 'ready_to_turn_in' ? 'ok' : ''}" title={m.title}>
+              {m.wing ? "▲ " : ""}{m.kill_count ? `${m.kill_count} ${m.target_faction ?? ""}` : m.kind === "assassinate" ? `${m.target}` : m.title.slice(0, 28)}{m.status === "ready_to_turn_in" ? " ✓" : ""}
+            </span>
+          {/each}
+          {#if activeMissions.length > 3}<span class="muted small">+{activeMissions.length - 3}</span>{/if}
+        </div>
+      {/if}
+    {:else if id === "callouts"}
+      <ul class="callouts {compact(id)}">
+        {#each callouts.slice(0, isCompact(layout, id) ? 2 : MAX) as c, i (c.ts + c.text + i)}
+          <li class="{prioClass(c.priority)} {i === 0 ? 'latest' : ''} {c.kind === 'you' || c.kind === 'you…' ? 'you' : ''} {c.kind === 'you…' ? 'live' : ''}">
+            <span class="kind">{c.kind === "you…" ? "🎙" : c.kind}</span>{c.text}
+          </li>
         {/each}
-      </span>
-    </div>
-  {:else if pinned?.stops}
-    <div class="line loop">
-      <span class="lbl">Ring</span>{#if interactive}<button class="quiet small" title="Clear" onclick={clearPinned}>✕</button>{/if}
-      <span>{#each pinned.stops as s, i}{#if i > 0} → {/if}<strong>{s.station}</strong> <span class="muted">({s.system}) {s.buy}</span>{/each} → back</span>
-    </div>
-  {:else if pinned}
-    <div class="line loop">
-      <span class="lbl">Loop</span>{#if interactive}<button class="quiet small" title="Clear" onclick={clearPinned}>✕</button>{/if}
-      <span><strong>{pinned.a.station}</strong> <span class="muted">({pinned.a.system})</span> buy {pinned.a.buy} →
-        <strong>{pinned.b.station}</strong> <span class="muted">({pinned.b.system})</span> buy {pinned.b.buy} → back</span>
-    </div>
-  {/if}
-
-  {#if stackingMode.value && stack}
-    <div class="line missions">
-      <span class="lbl">Stack</span>
-      <span class="pill accent">{stack.target_faction}</span>
-      <span class="muted small">{stackSummary(stack)}</span>
-    </div>
-    <div class="line givers">
-      {#each stack.givers as g (g.faction)}
-        <span class="giver {g.duplicate ? 'dup' : ''} {g.ready === g.missions ? 'done' : ''}" title={giverTitle(g)}>{giverLabel(g)}</span>
-      {/each}
-    </div>
-  {:else if activeMissions.length}
-    <div class="line missions">
-      <span class="lbl">Missions</span>
-      {#each activeMissions.slice(0, 3) as m}
-        <span class="pill {m.status === 'ready_to_turn_in' ? 'ok' : ''}" title={m.title}>
-          {m.wing ? "▲ " : ""}{m.kill_count ? `${m.kill_count} ${m.target_faction ?? ""}` : m.kind === "assassinate" ? `${m.target}` : m.title.slice(0, 28)}{m.status === "ready_to_turn_in" ? " ✓" : ""}
-        </span>
-      {/each}
-      {#if activeMissions.length > 3}<span class="muted small">+{activeMissions.length - 3}</span>{/if}
-    </div>
-  {/if}
-
-  <ul class="callouts">
-    {#each callouts as c, i (c.ts + c.text + i)}
-      <li class="{prioClass(c.priority)} {i === 0 ? 'latest' : ''} {c.kind === 'you' || c.kind === 'you…' ? 'you' : ''} {c.kind === 'you…' ? 'live' : ''}">
-        <span class="kind">{c.kind === "you…" ? "🎙" : c.kind}</span>{c.text}
-      </li>
-    {/each}
-  </ul>
+      </ul>
+    {/if}
+  {/each}
 </div>
 
 <style>
@@ -349,4 +366,12 @@
   .giver.dup { border-color: #ffb300aa; color: var(--warn); }
   .giver.done { opacity: 0.6; }
   .callouts li.you.live { font-style: italic; opacity: 0.85; }
+  /* A compact section: smaller, no label, fewer items (Settings → HUD). */
+  .line.compact { font-size: 0.74rem; gap: 0.3rem; }
+  .line.compact .lbl { display: none; }
+  .big.compact .sys { font-size: 1rem; }
+  .line.compact .pill, .line.compact .hop, .line.compact .giver { padding: 0 0.3rem; font-size: 0.7rem; }
+  .gauges.compact .gauge { min-width: 110px; }
+  .callouts.compact li { font-size: 0.72rem; }
+  .callouts.compact .kind { min-width: 3rem; }
 </style>
