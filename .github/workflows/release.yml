@@ -156,7 +156,7 @@ jobs:
       # showed it (2026-09-20). Nothing uploads until this passes.
       - name: Smoke launch (release binary)
         shell: bash
-        run: scripts/smoke-launch.sh target/release/edda.exe
+        run: bash scripts/smoke-launch.sh target/release/edda.exe
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -221,7 +221,7 @@ jobs:
           cp "$rpm" "out/EDDA_${v}_x86_64.rpm"
           ls -la out
       - name: Smoke launch (release binary, under Xvfb)
-        run: scripts/smoke-launch.sh target/release/edda
+        run: bash scripts/smoke-launch.sh target/release/edda
       - uses: actions/upload-artifact@v4
         with:
           name: linux
