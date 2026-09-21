@@ -491,8 +491,9 @@ pub fn run() {
                 let secs: u64 = secs.parse().unwrap_or(5);
                 tracing::info!(version = env!("CARGO_PKG_VERSION"), "smoke: setup complete");
                 let h = app.handle().clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_secs(secs));
+                // On the app's runtime, not a thread of its own (contracts.rs).
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(secs)).await;
                     h.exit(0);
                 });
             }
