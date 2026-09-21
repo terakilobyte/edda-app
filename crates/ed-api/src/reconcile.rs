@@ -295,6 +295,19 @@ pub fn publish_overlay(
         updates = apply_stats.updates,
         "reconcile: applied and hashed"
     );
+    // The highway sub-index for the new version, BEFORE the manifest points
+    // at it: the serving process then opens both together and the first
+    // plot after the rebuild is a boosted one (2026-09-21: 311 jumps to
+    // Colonia in the minute the highway was still building). A failure
+    // here is logged, not fatal: the server builds lazily as the belt.
+    match Galaxy::open(&staging).context("opening the applied index for the highway build") {
+        Ok(applied) => {
+            if let Err(error) = crate::galaxy_service::build_highway_blocking(&applied, artifact_dir, version) {
+                tracing::warn!(%error, version, "reconcile: highway sub-index not built; the server will build it lazily");
+            }
+        }
+        Err(error) => tracing::warn!(%error, version, "reconcile: highway sub-index not built; the server will build it lazily"),
+    }
     std::fs::rename(&staging, &published).context("atomically publishing applied index")?;
 
     let mut overlays = product.overlays.clone();

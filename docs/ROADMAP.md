@@ -407,6 +407,23 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **The highway sub-index is built before a routing version is published**
+  (2026-09-21, maintainer: "why the hell did a plot from the bubble to
+  colonia in my explorer just recommend 310 jumps? replotting showed a
+  correct route" and "wondering if we shouldn't hotswap the rebuilt
+  indexes"). Measured from the log: two plots a minute apart, same ship
+  and range, 311 hops in 655 ms then 59 in 1273 ms; the second was no
+  cache hit. The cause was a documented choice in `galaxy_service.rs`: a
+  plot arriving before the new version's neutron highway sub-index was
+  built ran without it, served as a bare-range route and never cached. The
+  daily reconcile had just republished. Now: `build_highway_blocking` is
+  shared, and both publishers (reconcile, adopt) build `.highway/<version>`
+  before the manifest points at the version; the route handler waits up
+  to 45 s for a missing one (`edda_route_highway_wait_seconds`); a plot
+  that still ran without it says `highway_pending` (never cached,
+  `edda_route_highway_pending_total`), the client logs it and the Route
+  tab says so. Pinned: the builder test in `galaxy_service.rs`; the
+  plot test asserts the flag both ways.
 - **0.3.5 crashed at launch in every release build; 0.3.6 is the fix**
   (2026-09-20, maintainer: "why does the prod app immediately crash?").
   The deep-link plugin was registered under `#[cfg(debug_assertions)]`

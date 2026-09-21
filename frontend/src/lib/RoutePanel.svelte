@@ -176,6 +176,9 @@
     <p class="error">{error}</p>
 
   {/if}
+  {#if route?.highway_pending}
+    <p class="warn small bounded">Plotted without the neutron highway: the route server was still rebuilding it after its daily update, so this route has no supercharges. Replot in a minute for the boosted route.</p>
+  {/if}
   {#if route && route.ship_has_scoop === false && route.refuel_stops > 0}
     <p class="warn small bounded">No fuel scoop fitted: this route relies on {route.refuel_stops} scoop stop{route.refuel_stops === 1 ? "" : "s"}. It can be plotted, not followed.</p>
   {/if}

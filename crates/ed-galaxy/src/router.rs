@@ -210,6 +210,11 @@ pub struct Route {
     /// way can then happen in flight rather than at a station.
     #[serde(default)]
     pub ship_has_afmu: Option<bool>,
+    /// The plan was made while the server had no neutron highway sub-index
+    /// for its routing version (a plot in the minute after a rebuild): a
+    /// bare-range answer, boosts not considered. Replot for the real one.
+    #[serde(default)]
+    pub highway_pending: bool,
 }
 
 /// Rewrite a plan's scoop stops to the fewest the tank needs
@@ -674,6 +679,7 @@ fn reconstruct(
         });
     }
     Route {
+        highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,

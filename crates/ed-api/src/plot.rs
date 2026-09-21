@@ -481,19 +481,26 @@ impl RouteService {
         }
         let galaxy = std::sync::Arc::clone(&handle.galaxy);
         let neutrons = handle.neutrons.clone();
+        let wants_boost = req.supercharge;
         let outcome = tokio::task::spawn_blocking(move || {
             ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &Control::none())
         })
         .await
         .map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?;
         let outcome = match outcome {
-            Ok(route) => {
-                let route = std::sync::Arc::new(route);
+            Ok(mut route) => {
                 // A plot made before this version's highway sub-index
                 // exists is a fallback answer (bare range, no boosts);
-                // serve it, never store it — the next request replots
-                // with the highway once the lazy build lands (6-10 s on
-                // the box, 2026-09-11).
+                // serve it, SAY SO, never store it — the next request
+                // replots with the highway once the build lands. The
+                // publishers now build the highway before the manifest
+                // moves, so this is the belt, and it is counted.
+                let highway_less = handle.neutrons.is_none() && wants_boost;
+                if highway_less {
+                    route.highway_pending = true;
+                    metrics::counter!("edda_route_highway_pending_total").increment(1);
+                }
+                let route = std::sync::Arc::new(route);
                 if handle.neutrons.is_some() {
                     self.store(key, std::sync::Arc::clone(&route));
                 }
@@ -653,8 +660,9 @@ mod lane_tests {
         };
         for _ in 0..2 {
             let (_, outcome, _) = svc.plot(&pending, &api).await.unwrap();
-            let PlotOutcome::Route(_, cached) = outcome else { panic!("a route") };
+            let PlotOutcome::Route(route, cached) = outcome else { panic!("a route") };
             assert!(!cached, "no highway yet: every plot is live, none is stored");
+            assert!(route.highway_pending, "and the answer says it was made without the highway");
         }
 
         let ready = crate::galaxy_service::GalaxyHandle {
@@ -666,6 +674,8 @@ mod lane_tests {
         let (_, second, _) = svc.plot(&ready, &api).await.unwrap();
         assert!(matches!(first, PlotOutcome::Route(_, false)), "the first plot with the highway is live");
         assert!(matches!(second, PlotOutcome::Route(_, true)), "and the second is served from the cache");
+        let PlotOutcome::Route(route, _) = second else { panic!("a route") };
+        assert!(!route.highway_pending, "a plot with the highway is the real answer");
     }
 
     #[tokio::test]

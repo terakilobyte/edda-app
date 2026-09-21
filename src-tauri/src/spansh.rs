@@ -411,6 +411,7 @@ pub async fn import_spansh_route(state: State<'_, AppState>, link: String) -> Re
     let learned = resolve_unknown_stars(&state, &mut hops).await;
     tracing::info!(job = %job, jumps = hops.len().saturating_sub(1), boosted = boosted_jumps, refuel = refuel_stops, learned, "imported Spansh route");
     Ok(Route {
+        highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,

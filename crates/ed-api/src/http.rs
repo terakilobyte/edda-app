@@ -1,3 +1,8 @@
+/// How long a supercharged plot waits for a missing highway sub-index
+/// before answering without it (the lazy build is 6-10 s on the box, up
+/// to a minute over a fresh full galaxy).
+const HIGHWAY_WAIT: std::time::Duration = std::time::Duration::from_secs(45);
+
 use std::{
     io::SeekFrom,
     path::{Component, Path, PathBuf},
@@ -571,7 +576,7 @@ async fn plot_route(
         outcome_counter("rate_limited");
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
-    let handle = match state.galaxy.current().await {
+    let mut handle = match state.galaxy.current().await {
         Ok(Some(handle)) => handle,
         Ok(None) => {
             outcome_counter("no_index");
@@ -583,6 +588,23 @@ async fn plot_route(
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
+    // A supercharged plot wants the highway sub-index. The publishers build
+    // it before a version is pointed at; if it is nonetheless missing (a
+    // failed build, a version from before this rule), wait a bounded while
+    // for the lazy build rather than answer with a bare-range route the
+    // commander would have to notice and replot (2026-09-21: 311 jumps to
+    // Colonia). Past the wait the plot runs and says `highway_pending`.
+    if handle.neutrons.is_none() && body.supercharge.unwrap_or(true) {
+        let waited = std::time::Instant::now();
+        while handle.neutrons.is_none() && waited.elapsed() < HIGHWAY_WAIT {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            if let Ok(Some(h)) = state.galaxy.current().await {
+                handle = h;
+            }
+        }
+        metrics::histogram!("edda_route_highway_wait_seconds").record(waited.elapsed().as_secs_f64());
+        tracing::info!(ready = handle.neutrons.is_some(), waited_ms = waited.elapsed().as_millis() as u64, "route: waited for the highway sub-index");
+    }
     let started = std::time::Instant::now();
     // Two lanes (Phase A step 3): every outcome past resolution is
     // labelled with its lane so the dashboards can show the interactive
