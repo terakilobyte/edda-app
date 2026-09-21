@@ -255,9 +255,14 @@ pub fn run() {
             }
         },
     ));
-    // CAPI deep-link spike (dev builds only): a second launch via
-    // edda:// must reach THIS instance, and the plugin delivers the URL.
-    #[cfg(debug_assertions)]
+    // The Frontier link's callback (edda://auth) arrives through this
+    // plugin, IN EVERY BUILD. It sat under #[cfg(debug_assertions)] from
+    // the deep-link spike, while setup() below calls app.deep_link() in
+    // every build -- and Tauri's state::<T>() panics when the type is not
+    // managed. Every release build of 0.3.5 died in setup, after "voice
+    // discovered" and before "overlay ready" (maintainer, 2026-09-20: "why
+    // does the prod app immediately crash?"); the debug builds he flew had
+    // the plugin and never showed it.
     let builder = builder.plugin(tauri_plugin_deep_link::init());
     builder
         // Remembers where each window was left -- the HUD in particular, so

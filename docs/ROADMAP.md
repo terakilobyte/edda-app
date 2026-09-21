@@ -407,6 +407,20 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **0.3.5 crashed at launch in every release build; 0.3.6 is the fix**
+  (2026-09-20, maintainer: "why does the prod app immediately crash?").
+  The deep-link plugin was registered under `#[cfg(debug_assertions)]`
+  while `setup()` called `app.deep_link()` in every build; Tauri's
+  `state::<T>()` panics on an unmanaged type, so the released binary
+  died after "voice discovered" and before "overlay ready", three times
+  in the maintainer's log, with nothing written (a panic in a GUI
+  process has no stderr). The flight gate did not catch it because the
+  maintainer flies the debug build, which had the plugin. Lessons: (1)
+  a `cfg(debug_assertions)` divergence at start-up is invisible to the
+  flight; the audit found no other; (2) a crashed 0.3.5 cannot update
+  itself (the check runs after setup), so those installs need the 0.3.6
+  installer by hand — the notes say so. A release-build smoke launch in
+  CI is the open item.
 - **Empty slots and pre-engineered modules as swaps** (2026-09-20,
   maintainer: "need the option to remove an item, i.e. leave empty on
   every slot"; "missing the guardian fsd … The technology broker one is
