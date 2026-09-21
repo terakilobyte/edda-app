@@ -204,6 +204,22 @@ pub fn run() {
     // process or buffered lines are lost.
     let _log_guard = ed_store::observe::init(&db, true).ok();
     metrics::install();
+    // A panic in a GUI process has no stderr anyone sees. The released
+    // 0.3.5 died in setup three times on the maintainer's machine and the
+    // log showed "voice discovered" and nothing else (2026-09-20). From
+    // here on a panic is the last line of edda.log, given a moment to
+    // reach the file before the process goes.
+    {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let location = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+            let message = info.payload().downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| info.payload().downcast_ref::<String>().cloned()).unwrap_or_default();
+            tracing::error!(%location, %message, "PANIC: the app is going down");
+            eprintln!("[edda] PANIC at {location}: {message}");
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            previous(info);
+        }));
+    }
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
         platform = platform::name(),
@@ -343,7 +359,12 @@ pub fn run() {
                 // with nothing to read, and the commander should know why.
                 announcer.deliver(vec![(callouts::Callout::new("session", "", 2, false, note), None)]);
             }
-            app_update::spawn_update_watch(handle.clone());
+            // EDDA_NO_UPDATE: a smoke launch (CI) must not go looking for a release.
+            if std::env::var("EDDA_NO_UPDATE").is_err() {
+                app_update::spawn_update_watch(handle.clone());
+            } else {
+                tracing::info!("app update check disabled by EDDA_NO_UPDATE");
+            }
             {
                 let running = state.game_running.clone();
                 let announcer = announcer.clone();
@@ -460,6 +481,21 @@ pub fn run() {
                 });
             } else {
                 tracing::info!("EDDN feed disabled by EDDA_NO_EDDN");
+            }
+
+            // A smoke launch (CI, on the RELEASE binary: scripts/smoke-launch.sh):
+            // setup has run to the end with every plugin registered, so the
+            // process says so and leaves. Anything that dies before this line
+            // never ships (the 0.3.5 lesson, 2026-09-20).
+            if let Ok(secs) = std::env::var("EDDA_SMOKE_EXIT") {
+                let secs: u64 = secs.parse().unwrap_or(5);
+                tracing::info!(version = env!("CARGO_PKG_VERSION"), "smoke: setup complete");
+                let h = app.handle().clone();
+                // On the app's runtime, not a thread of its own (contracts.rs).
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(secs)).await;
+                    h.exit(0);
+                });
             }
 
             Ok(())
