@@ -122,6 +122,15 @@ jobs:
 
       - name: Rust tests
         run: cargo test --workspace
+      # The launch harness release.yml relies on, proven on every PR with the
+      # debug binary (the release binary is smoked in release.yml).
+      - name: Smoke launch (debug binary)
+        shell: bash
+        run: |
+          cargo build -p edda
+          if [[ "$RUNNER_OS" == "Linux" ]]; then sudo apt-get install -y xvfb; fi
+          bin=target/debug/edda; [[ "$RUNNER_OS" == "Windows" ]] && bin=target/debug/edda.exe
+          scripts/smoke-launch.sh "$bin"
 
       # These reset and share one database, so they run in one thread.
       - name: Rust tests against Postgres (the ignored integration suite)
@@ -166,6 +175,15 @@ jobs:
 
       - name: Rust tests
         run: cargo test --workspace
+      # The launch harness release.yml relies on, proven on every PR with the
+      # debug binary (the release binary is smoked in release.yml).
+      - name: Smoke launch (debug binary)
+        shell: bash
+        run: |
+          cargo build -p edda
+          if [[ "$RUNNER_OS" == "Linux" ]]; then sudo apt-get install -y xvfb; fi
+          bin=target/debug/edda; [[ "$RUNNER_OS" == "Windows" ]] && bin=target/debug/edda.exe
+          scripts/smoke-launch.sh "$bin"
 
   # Licence and advisory gate (maintainer, 2026-09-09): every dependency's
   # licence must be on the allow list in deny.toml, for every target — the

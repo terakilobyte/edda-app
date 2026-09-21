@@ -424,6 +424,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   `edda_route_highway_pending_total`), the client logs it and the Route
   tab says so. Pinned: the builder test in `galaxy_service.rs`; the
   plot test asserts the flag both ways.
+- **Never again: the release binary is launched before it ships**
+  (2026-09-21, maintainer: "sequence it, fix it, never again"). The
+  sequence, cause, fix and gate are in
+  `docs/2026-09-21-0.3.5-launch-crash.md`. Landed: a panic hook that
+  makes a start-up panic the last line of `edda.log`; `EDDA_SMOKE_EXIT`
+  (setup runs to the end, logs "smoke: setup complete", exits 0);
+  `scripts/smoke-launch.sh` (fails on non-zero exit, timeout, or a log
+  without the line); `release.yml` smokes the signed Windows and Xvfb
+  Linux binaries before upload; `ci.yml` smokes the debug binary on every
+  PR. Not covered, by design: crashes after setup and anything needing a
+  journal — the flight's job.
 - **0.3.5 crashed at launch in every release build; 0.3.6 is the fix**
   (2026-09-20, maintainer: "why does the prod app immediately crash?").
   The deep-link plugin was registered under `#[cfg(debug_assertions)]`
