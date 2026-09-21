@@ -131,6 +131,17 @@ fn publish_from(
     let (stats, files, bytes) = result?;
 
     std::fs::create_dir_all(artifact_dir.join("routing"))?;
+    // The highway sub-index first (see reconcile.rs): a version is never
+    // pointed at before its highway exists, unless the build fails, in
+    // which case the server builds it lazily.
+    match ed_galaxy::Galaxy::open(&staging) {
+        Ok(built) => {
+            if let Err(error) = crate::galaxy_service::build_highway_blocking(&built, artifact_dir, version) {
+                tracing::warn!(%error, version, "publish: highway sub-index not built; the server will build it lazily");
+            }
+        }
+        Err(error) => tracing::warn!(%error, version, "publish: highway sub-index not built; the server will build it lazily"),
+    }
     std::fs::rename(&staging, &published).context("atomically publishing routing index")?;
 
     let existing = read_current_manifest(artifact_dir)?;

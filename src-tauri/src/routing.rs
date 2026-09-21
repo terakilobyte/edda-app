@@ -1183,6 +1183,9 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             .map_err(|error| format!("route server answer unreadable: {error}"))?;
         let boosted = route.hops.iter().filter(|h| h.boosted).count();
         tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, "route planned by API");
+        if route.highway_pending {
+            tracing::warn!(hops = route.hops.len(), to = %query.to, "route planned by API without the neutron highway (server rebuilding it): a bare-range route; replot in a minute");
+        }
         return Ok(route);
     }
 }

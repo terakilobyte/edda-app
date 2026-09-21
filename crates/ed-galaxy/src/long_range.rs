@@ -186,6 +186,7 @@ fn direct_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> 
     let arrive = req.fuel.map(|m| if b_scoop { m.capacity } else { fuel_after });
     let refuel = req.fuel.is_some() && b_scoop && fuel_after < req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     Some(Route {
+        highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,
@@ -267,6 +268,7 @@ fn scoop_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, fuel: f32) -> O
     let b_scoop = g.scoopable(to);
     let arrive_b = if b_scoop { m.capacity } else { after_b };
     Some(Route {
+        highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,
@@ -387,6 +389,7 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
     }
     let total = hops.last().map(|h| h.total_ly).unwrap_or(d1);
     Some(Route {
+        highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,
@@ -3568,6 +3571,7 @@ mod tests {
             hop("Shore", 37.5, Some(24.0)),
         ];
         let mut route = crate::router::Route {
+            highway_pending: false,
             range_ly: m.range_at(m.capacity), hops, jumps: 4, total_ly: 150.0,
             straight_ly: 150.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0,
             refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None,
@@ -3721,7 +3725,7 @@ mod tests {
     /// stop -- so without the rule this test would hang.
     #[test]
     fn a_slow_variant_is_cancelled_once_another_has_a_route() {
-        let dummy = || Route { range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
+        let dummy = || Route { highway_pending: false, range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
         let started = std::time::Instant::now();
         let (results, finished) = run_variants(3, Some(std::time::Duration::from_millis(50)), None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
             if i == 1 {

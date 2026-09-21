@@ -3278,6 +3278,7 @@ mod tests {
     #[test]
     fn advance_text_counts_down_and_flags_scoops() {
         let route = Route {
+            highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,
@@ -3332,6 +3333,7 @@ mod tests {
         hops[2].distance_ly = 90.0; // supercharged off the neutron: 4x allowance
         hops[3].distance_ly = 33.0;
         let route = Route {
+            highway_pending: false,
             variants_run: 0, variants_finished: 0, ship_has_scoop: None,
             fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None,
             range_ly: 37.6, hops, jumps: 3, total_ly: 0.0, straight_ly: 0.0,
@@ -3373,6 +3375,7 @@ mod tests {
         )
         .unwrap();
         let route = Route {
+            highway_pending: false,
         variants_run: 0,
         variants_finished: 0,
         ship_has_scoop: None,
