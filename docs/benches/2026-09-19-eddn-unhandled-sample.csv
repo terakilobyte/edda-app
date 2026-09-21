@@ -1,0 +1,29 @@
+# VERDICT: of 3,284 frames in 300 s (10.9/s, 04:14Z) the listener acts fully on 63.4% (Scan, fssbodysignals, commodity, Docked, navroute, outfitting, shipyard, SAASignalsFound), takes only the system row from a further 9.9% (FSDJump, Location, CarrierJump: position, population, security, allegiance, power — dropping Factions, SystemEconomy/Government, Conflicts, ThargoidWar, and the Docked-shaped station identity Location/CarrierJump carry) and does nothing with 26.7%. Of the unhandled: fsssignaldiscovered 8.9% (per-system signal list; in a 90 s follow-up 906 of 1,699 signals were FleetCarrier with name+callsign, 242 ResourceExtraction, 156 Installation, 99 Outpost, 42 SquadronCarrier), dockinggranted 4.8% (MarketID, StationName, StationType, LandingPad — a second identity source incl. SpaceConstructionDepot), fssdiscoveryscan 4.7% (BodyCount/NonBodyCount per system), scanbarycentre 2.8% (orbital elements), fssallbodiesfound 2.3%, approachsettlement 1.0% (settlement identity: MarketID, services, economy, body lat/long), codexentry 0.9%, dockingdenied 0.7%, fcmaterials_capi 0.2% (carrier bartender items), scanorganic 0.2%, navbeaconscan 0.2%. Compared with 2026-09-09 (15.3/s, 4,605 frames): Scan, fssbodysignals, navroute and SAASignalsFound moved from dropped to handled; the unhandled residue is signals, docking, discovery counts and surface/codex data. Sampler: docs/benches/knobs/eddn_unhandled_sample.py (pyzmq).
+# EDDN firehose sample, 300 s, 3284 frames, 2026-09-19T04:14:20Z; classification against ed-eddn at a8a6390
+kind,frames,share_pct,handling,fields_dropped
+journal:Scan,1250,38.1,full,
+fsssignaldiscovered/1,293,8.9,unhandled,signals[SignalName SignalType IsStation]
+journal:FSDJump,270,8.2,system row only,Factions SystemFaction SystemEconomy SystemSecondEconomy SystemGovernment Conflicts ThargoidWar PowerplayState*Progress
+fssbodysignals/1,235,7.2,full,
+dockinggranted/1,157,4.8,unhandled,LandingPad MarketID StationName StationType
+fssdiscoveryscan/1,154,4.7,unhandled,BodyCount NonBodyCount SystemName
+commodity/3,146,4.4,full,
+journal:Docked,142,4.3,full,
+navroute/1,140,4.3,full,
+scanbarycentre/1,92,2.8,unhandled,BodyID SemiMajorAxis Eccentricity OrbitalInclination Periapsis OrbitalPeriod AscendingNode MeanAnomaly
+fssallbodiesfound/1,75,2.3,unhandled,SystemName Count
+outfitting/2,69,2.1,full,
+shipyard/2,50,1.5,full,
+journal:Location,49,1.5,system row only,Factions SystemEconomy SystemGovernment + when Docked: StationName StationType MarketID StationServices StationEconomy StationGovernment DistFromStarLS
+journal:SAASignalsFound,40,1.2,full,
+approachsettlement/1,34,1.0,unhandled,Name MarketID StationFaction StationGovernment StationServices StationEconomy StationEconomies BodyID BodyName Latitude Longitude StationAllegiance
+codexentry/1,28,0.9,unhandled,EntryID Name SubCategory Category Region BodyID BodyName Latitude Longitude NearestDestination VoucherAmount
+dockingdenied/1,24,0.7,unhandled,Reason MarketID StationName StationType
+outfitting/3,11,0.3,full,
+fcmaterials_capi/1,8,0.2,unhandled,MarketID CarrierID Items{sales purchases}
+scanorganic/1,7,0.2,unhandled,ScanType Genus Species Variant BodyID BodyName Latitude Longitude
+journal:CarrierJump,5,0.2,system row only,as Location
+navbeaconscan/1,5,0.2,unhandled,NumBodies
+total full,2083,63.4,,
+total system row only,324,9.9,,
+total unhandled,877,26.7,,
