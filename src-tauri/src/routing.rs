@@ -1102,7 +1102,10 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             let mut m = with_planned_cargo(*m, query.cargo_t);
             m.reserve = query.reserve_t.unwrap_or(0.0).max(0.0);
             apply_safe_margins(&mut m, query.safe_margins.unwrap_or(false));
-            tracing::info!(ship = %label, full_tank_range = m.range_at(m.capacity), "plotting via API with fuel model");
+            // Every input that can change the answer is in the line: two plots a
+            // minute apart returned 311 and 59 hops for one ship and the log
+            // could not say what differed (maintainer, 2026-09-21).
+            tracing::info!(ship = %label, full_tank_range = m.range_at(m.capacity), from = %from, to = %query.to, supercharge = ?query.supercharge, white_dwarfs = ?query.white_dwarfs, start_fuel = now, cargo_t = ?query.cargo_t, reserve_t = ?query.reserve_t, safe_margins = ?query.safe_margins, "plotting via API with fuel model");
             (Some(m), Some(*b), Some(*now))
         }
         (Some((_, b, _, _)), false) => (None, Some(*b), None),
@@ -1178,7 +1181,8 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             .json()
             .await
             .map_err(|error| format!("route server answer unreadable: {error}"))?;
-        tracing::info!(hops = route.hops.len(), ms, retried_with_coords, "route planned by API");
+        let boosted = route.hops.iter().filter(|h| h.boosted).count();
+        tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, "route planned by API");
         return Ok(route);
     }
 }
