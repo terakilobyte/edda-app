@@ -86,9 +86,21 @@ pub struct ModuleKind {
     /// hangars, luxury cabins, Mk II racks); empty means every hull.
     #[serde(default)]
     pub ships: Vec<String>,
-    /// How many a ship may carry, when limited (one shield generator, one hangar, ...).
+    /// How many of its pool a ship may carry, when limited (one shield
+    /// generator, one hangar, four experimental weapons, ...).
     #[serde(default)]
     pub limit: Option<i64>,
+    /// The pool that limit counts over. A pool is not a kind: every AX and
+    /// Guardian weapon shares "hex"; the docking computer ("ifa_dc") and the
+    /// supercruise assist ("ifa_sc") are one kind but two pools.
+    #[serde(default)]
+    pub limit_group: Option<String>,
+    /// A pool this module widens, and by how much: the Experimental Weapon
+    /// Stabiliser allows one more experimental weapon (class 3) or two (class 5).
+    #[serde(default)]
+    pub unlimit: Option<String>,
+    #[serde(default)]
+    pub unlimit_count: i64,
     /// Must be exactly the slot's size (SCO drives).
     #[serde(default)]
     pub exact_size: bool,
@@ -112,6 +124,8 @@ fn family_kinds(group: &str) -> &'static [&'static str] {
 /// a core one may be (maintainer, 2026-09-20: "need the option to remove an
 /// item, i.e. leave empty on every slot").
 pub const EMPTY: &str = "empty";
+/// The limit pool every experimental weapon (AX and Guardian) shares.
+pub const EXPERIMENTAL_POOL: &str = "hex";
 
 /// A module a technology broker sells already engineered: the plain item's
 /// symbol with a fixed engineering block and no engineer named — the way it
@@ -182,7 +196,10 @@ impl Slots {
     }
 
     pub fn kind(&self, item: &str) -> Option<&ModuleKind> {
-        self.kinds.get(&item.to_ascii_lowercase())
+        let item = item.to_ascii_lowercase();
+        // The `_free` early-access variant of a module is that module (the
+        // Type-11's hangar as delivered: `int_mkiilargebuggybay_size4_class3_free`).
+        self.kinds.get(&item).or_else(|| self.kinds.get(item.strip_suffix("_free")?))
     }
 
     /// Whether `item` may go in `slot` of `hull`; the reason when not, as
@@ -226,21 +243,40 @@ impl Slots {
         out
     }
 
-    /// Modules a ship may carry only so many of: "two shield generators"
-    /// and the like, over the whole fit (fitted plus swapped).
+    /// Modules a ship may carry only so many of, over the whole fit (fitted
+    /// plus swapped): "two shield generators" and the like. Counted by pool,
+    /// with the stabiliser's allowance — the kind-wise count called the
+    /// maintainer's Python Mk II as flown (six shard cannons on a class 5
+    /// stabiliser, a docking computer beside a supercruise assist)
+    /// impossible (2026-09-26); the journal is the measurement.
     pub fn over_limit(&self, items: &[(String, String)]) -> Vec<String> {
         let mut count: HashMap<&str, (i64, &ModuleKind)> = HashMap::new();
+        let mut widened: HashMap<&str, i64> = HashMap::new();
         for (_, item) in items {
-            if let Some(k) = self.kind(item) {
-                if k.limit.is_some() {
-                    count.entry(k.kind.as_str()).or_insert((0, k)).0 += 1;
-                }
+            let Some(k) = self.kind(item) else { continue };
+            if let (Some(pool), Some(_)) = (k.limit_group.as_deref(), k.limit) {
+                count.entry(pool).or_insert((0, k)).0 += 1;
+            }
+            if let Some(pool) = k.unlimit.as_deref() {
+                *widened.entry(pool).or_insert(0) += k.unlimit_count;
             }
         }
         let mut out: Vec<String> = count
-            .values()
-            .filter(|(n, k)| Some(*n) > k.limit)
-            .map(|(n, k)| format!("{n} × {}: a ship carries at most {}", k.name.to_ascii_lowercase(), k.limit.unwrap_or(0)))
+            .iter()
+            .filter_map(|(pool, (n, k))| {
+                let extra = widened.get(pool).copied().unwrap_or(0);
+                let cap = k.limit? + extra;
+                if *n <= cap {
+                    return None;
+                }
+                let what = if *pool == EXPERIMENTAL_POOL { "experimental weapons (AX and Guardian together)".to_string() } else { k.name.to_ascii_lowercase() };
+                let how = match (*pool == EXPERIMENTAL_POOL, extra) {
+                    (true, 0) => "; an Experimental Weapon Stabiliser allows one more (class 3) or two more (class 5)",
+                    (true, _) => " with the stabiliser fitted",
+                    _ => "",
+                };
+                Some(format!("{n} × {what}: a ship carries at most {cap}{how}"))
+            })
             .collect();
         out.sort();
         out
@@ -420,6 +456,49 @@ mod tests {
         assert_eq!(notes.len(), 1, "{notes:?}");
         assert!(notes[0].contains("shield generator"), "{notes:?}");
         assert!(s.over_limit(&[("Slot01_Size8".into(), "int_shieldgenerator_size8_class5".into())]).is_empty());
+    }
+
+    #[test]
+    fn experimental_weapons_share_one_pool_and_the_stabiliser_widens_it() {
+        let s = slots();
+        let fit = |items: &[&str]| -> Vec<(String, String)> { items.iter().enumerate().map(|(i, it)| (format!("Hardpoint{i}"), (*it).to_string())).collect() };
+        // Four AX multi-cannons and an AX missile rack: five in the one pool of four.
+        let notes = s.over_limit(&fit(&["hpt_atmulticannon_fixed_medium"; 4]).into_iter().chain(fit(&["hpt_atdumbfiremissile_fixed_medium"])).collect::<Vec<_>>());
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(notes[0].starts_with("5 × experimental weapons") && notes[0].contains("at most 4;"), "{notes:?}");
+        // The maintainer's Python Mk II as flown (2026-09-26): four large and two medium
+        // shards on a class 5 stabiliser, a docking computer beside a supercruise assist.
+        let mut ship = fit(&["hpt_guardian_shardcannon_fixed_large", "hpt_guardian_shardcannon_fixed_large", "hpt_guardian_shardcannon_fixed_large", "hpt_guardian_shardcannon_fixed_large", "hpt_guardian_shardcannon_fixed_medium", "hpt_guardian_shardcannon_fixed_medium"]);
+        ship.push(("Slot01_Size6".into(), "int_expmodulestabiliser_size5_class3".into()));
+        ship.push(("Slot05_Size1".into(), "int_supercruiseassist".into()));
+        ship.push(("Slot06_Size1".into(), "int_dockingcomputer_advanced".into()));
+        assert!(s.over_limit(&ship).is_empty(), "{:?}", s.over_limit(&ship));
+        // Without the stabiliser those six are two over; the class 3 allows five.
+        ship.retain(|(_, it)| !it.contains("stabiliser"));
+        assert!(s.over_limit(&ship)[0].contains("at most 4;"), "{:?}", s.over_limit(&ship));
+        ship.push(("Slot01_Size6".into(), "int_expmodulestabiliser_size3_class3".into()));
+        assert!(s.over_limit(&ship)[0].contains("at most 5 with the stabiliser"), "{:?}", s.over_limit(&ship));
+        // Two docking computers are still one too many; so are two stabilisers.
+        ship.push(("Slot04_Size2".into(), "int_dockingcomputer_standard".into()));
+        ship.push(("Slot03_Size3".into(), "int_expmodulestabiliser_size3_class3".into()));
+        let notes = s.over_limit(&ship);
+        assert!(notes.iter().any(|n| n.starts_with("2 × ") && n.contains("docking computer")), "{notes:?}");
+        assert!(notes.iter().any(|n| n.starts_with("2 × experimental weapon stabiliser")), "{notes:?}");
+        // Flak launchers, a shutdown field neutraliser and a xeno scanner are not in any
+        // pool together: the kind-wise rule capped them, the game does not.
+        let mut open = fit(&["hpt_flakmortar_fixed_medium"; 5]);
+        open.push(("TinyHardpoint1".into(), "hpt_antiunknownshutdown_tiny".into()));
+        open.push(("TinyHardpoint2".into(), "hpt_xenoscanner_basic_tiny".into()));
+        assert!(s.over_limit(&open).is_empty(), "{:?}", s.over_limit(&open));
+    }
+
+    #[test]
+    fn a_free_early_access_module_is_its_paid_kind() {
+        let s = slots();
+        let k = s.kind("int_mkiilargebuggybay_size4_class3_free").expect("the Type-11's hangar as delivered");
+        assert_eq!(k.kind, "ipvh");
+        assert!(k.ships.iter().any(|h| h == "lakonminer"), "{:?}", k.ships);
+        assert!(s.kind("int_nothing_free").is_none());
     }
 
     #[test]

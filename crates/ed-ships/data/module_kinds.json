@@ -1112,14 +1112,12 @@
  "hpt_antiunknownshutdown_tiny": {
   "class": 0,
   "kind": "uex",
-  "limit": 1,
   "name": "Shutdown Field Neutraliser",
   "rating": "F"
  },
  "hpt_antiunknownshutdown_tiny_v2": {
   "class": 0,
   "kind": "uex",
-  "limit": 1,
   "name": "Thargoid Pulse Neutraliser",
   "rating": "E"
  },
@@ -1127,6 +1125,7 @@
   "class": 3,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "AX Missile Rack",
   "rating": "C"
@@ -1135,6 +1134,7 @@
   "class": 3,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Enhanced AX Missile Rack",
   "rating": "B"
@@ -1143,6 +1143,7 @@
   "class": 2,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "AX Missile Rack",
   "rating": "E"
@@ -1151,6 +1152,7 @@
   "class": 2,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Enhanced AX Missile Rack",
   "rating": "D"
@@ -1159,6 +1161,7 @@
   "class": 3,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "AX Missile Rack",
   "rating": "E"
@@ -1167,6 +1170,7 @@
   "class": 3,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Enhanced AX Missile Rack",
   "rating": "D"
@@ -1175,6 +1179,7 @@
   "class": 2,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "AX Missile Rack",
   "rating": "F"
@@ -1183,6 +1188,7 @@
   "class": 2,
   "kind": "hexxm",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Enhanced AX Missile Rack",
   "rating": "E"
@@ -1191,6 +1197,7 @@
   "class": 3,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "AX Multi-Cannon",
   "rating": "C"
@@ -1199,6 +1206,7 @@
   "class": 3,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "B"
@@ -1207,6 +1215,7 @@
   "class": 2,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "AX Multi-Cannon",
   "rating": "E"
@@ -1215,6 +1224,7 @@
   "class": 2,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "D"
@@ -1223,6 +1233,7 @@
   "class": 3,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "gimballed",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "C"
@@ -1231,6 +1242,7 @@
   "class": 2,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "gimballed",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "E"
@@ -1239,6 +1251,7 @@
   "class": 3,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "AX Multi-Cannon",
   "rating": "E"
@@ -1247,6 +1260,7 @@
   "class": 3,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "D"
@@ -1255,6 +1269,7 @@
   "class": 2,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "AX Multi-Cannon",
   "rating": "F"
@@ -1263,6 +1278,7 @@
   "class": 2,
   "kind": "hexxc",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Enhanced AX Multi-Cannon",
   "rating": "E"
@@ -1474,6 +1490,7 @@
   "class": 0,
   "kind": "ucs",
   "limit": 1,
+  "limit_group": "ucs",
   "name": "Manifest Scanner",
   "rating": "E"
  },
@@ -1481,6 +1498,7 @@
   "class": 0,
   "kind": "ucs",
   "limit": 1,
+  "limit_group": "ucs",
   "name": "Manifest Scanner",
   "rating": "D"
  },
@@ -1488,6 +1506,7 @@
   "class": 0,
   "kind": "ucs",
   "limit": 1,
+  "limit_group": "ucs",
   "name": "Manifest Scanner",
   "rating": "C"
  },
@@ -1495,6 +1514,7 @@
   "class": 0,
   "kind": "ucs",
   "limit": 1,
+  "limit_group": "ucs",
   "name": "Manifest Scanner",
   "rating": "B"
  },
@@ -1502,6 +1522,7 @@
   "class": 0,
   "kind": "ucs",
   "limit": 1,
+  "limit_group": "ucs",
   "name": "Manifest Scanner",
   "rating": "A"
  },
@@ -1509,6 +1530,7 @@
   "class": 2,
   "kind": "hex",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Enzyme Missile Rack",
   "rating": "B"
@@ -1529,6 +1551,7 @@
   "class": 0,
   "kind": "ufsws",
   "limit": 1,
+  "limit_group": "ufsws",
   "name": "Frame Shift Wake Scanner",
   "rating": "E"
  },
@@ -1536,6 +1559,7 @@
   "class": 0,
   "kind": "ufsws",
   "limit": 1,
+  "limit_group": "ufsws",
   "name": "Frame Shift Wake Scanner",
   "rating": "D"
  },
@@ -1543,6 +1567,7 @@
   "class": 0,
   "kind": "ufsws",
   "limit": 1,
+  "limit_group": "ufsws",
   "name": "Frame Shift Wake Scanner",
   "rating": "C"
  },
@@ -1550,6 +1575,7 @@
   "class": 0,
   "kind": "ufsws",
   "limit": 1,
+  "limit_group": "ufsws",
   "name": "Frame Shift Wake Scanner",
   "rating": "B"
  },
@@ -1557,6 +1583,7 @@
   "class": 0,
   "kind": "ufsws",
   "limit": 1,
+  "limit_group": "ufsws",
   "name": "Frame Shift Wake Scanner",
   "rating": "A"
  },
@@ -1564,6 +1591,7 @@
   "class": 0,
   "kind": "ukws",
   "limit": 1,
+  "limit_group": "ukws",
   "name": "Kill Warrant Scanner",
   "rating": "E"
  },
@@ -1571,6 +1599,7 @@
   "class": 0,
   "kind": "ukws",
   "limit": 1,
+  "limit_group": "ukws",
   "name": "Kill Warrant Scanner",
   "rating": "D"
  },
@@ -1578,6 +1607,7 @@
   "class": 0,
   "kind": "ukws",
   "limit": 1,
+  "limit_group": "ukws",
   "name": "Kill Warrant Scanner",
   "rating": "C"
  },
@@ -1585,6 +1615,7 @@
   "class": 0,
   "kind": "ukws",
   "limit": 1,
+  "limit_group": "ukws",
   "name": "Kill Warrant Scanner",
   "rating": "B"
  },
@@ -1592,6 +1623,7 @@
   "class": 0,
   "kind": "ukws",
   "limit": 1,
+  "limit_group": "ukws",
   "name": "Kill Warrant Scanner",
   "rating": "A"
  },
@@ -1653,7 +1685,6 @@
  "hpt_flakmortar_fixed_medium": {
   "class": 2,
   "kind": "hex",
-  "limit": 4,
   "mount": "fixed",
   "name": "Remote Release Flak Launcher",
   "rating": "B"
@@ -1661,7 +1692,6 @@
  "hpt_flakmortar_turret_medium": {
   "class": 2,
   "kind": "hex",
-  "limit": 4,
   "mount": "turreted",
   "name": "Remote Release Flak Launcher",
   "rating": "B"
@@ -1669,7 +1699,6 @@
  "hpt_flechettelauncher_fixed_medium": {
   "class": 2,
   "kind": "hex",
-  "limit": 4,
   "mount": "fixed",
   "name": "Remote Release Flechette Launcher",
   "rating": "B"
@@ -1677,7 +1706,6 @@
  "hpt_flechettelauncher_turret_medium": {
   "class": 2,
   "kind": "hex",
-  "limit": 4,
   "mount": "turreted",
   "name": "Remote Release Flechette Launcher",
   "rating": "B"
@@ -1686,6 +1714,7 @@
   "class": 2,
   "kind": "hexgg",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Gauss Cannon",
   "rating": "B"
@@ -1694,6 +1723,7 @@
   "class": 1,
   "kind": "hexgg",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Gauss Cannon",
   "rating": "D"
@@ -1702,6 +1732,7 @@
   "class": 3,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Plasma Charger",
   "rating": "C"
@@ -1710,6 +1741,7 @@
   "class": 2,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Plasma Charger",
   "rating": "B"
@@ -1718,6 +1750,7 @@
   "class": 1,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Plasma Charger",
   "rating": "D"
@@ -1726,6 +1759,7 @@
   "class": 3,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Plasma Charger",
   "rating": "D"
@@ -1734,6 +1768,7 @@
   "class": 2,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Plasma Charger",
   "rating": "E"
@@ -1742,6 +1777,7 @@
   "class": 1,
   "kind": "hexgp",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Plasma Charger",
   "rating": "F"
@@ -1750,6 +1786,7 @@
   "class": 3,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Shard Cannon",
   "rating": "C"
@@ -1758,6 +1795,7 @@
   "class": 2,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Shard Cannon",
   "rating": "A"
@@ -1766,6 +1804,7 @@
   "class": 1,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "fixed",
   "name": "Guardian Shard Cannon",
   "rating": "D"
@@ -1774,6 +1813,7 @@
   "class": 3,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Shard Cannon",
   "rating": "D"
@@ -1782,6 +1822,7 @@
   "class": 2,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Shard Cannon",
   "rating": "A"
@@ -1790,6 +1831,7 @@
   "class": 1,
   "kind": "hexgs",
   "limit": 4,
+  "limit_group": "hex",
   "mount": "turreted",
   "name": "Guardian Shard Cannon",
   "rating": "F"
@@ -1943,6 +1985,7 @@
   "class": 0,
   "kind": "upwa",
   "limit": 1,
+  "limit_group": "upwa",
   "name": "Pulse Wave Analyser",
   "rating": "E"
  },
@@ -1950,6 +1993,7 @@
   "class": 0,
   "kind": "upwa",
   "limit": 1,
+  "limit_group": "upwa",
   "name": "Pulse Wave Analyser",
   "rating": "D"
  },
@@ -1957,6 +2001,7 @@
   "class": 0,
   "kind": "upwa",
   "limit": 1,
+  "limit_group": "upwa",
   "name": "Pulse Wave Analyser",
   "rating": "C"
  },
@@ -1964,6 +2009,7 @@
   "class": 0,
   "kind": "upwa",
   "limit": 1,
+  "limit_group": "upwa",
   "name": "Pulse Wave Analyser",
   "rating": "B"
  },
@@ -1971,6 +2017,7 @@
   "class": 0,
   "kind": "upwa",
   "limit": 1,
+  "limit_group": "upwa",
   "name": "Pulse Wave Analyser",
   "rating": "A"
  },
@@ -2463,6 +2510,7 @@
   "class": 0,
   "kind": "uex",
   "limit": 1,
+  "limit_group": "uex",
   "name": "Pulse Wave Xeno Scanner",
   "rating": "C"
  },
@@ -2470,6 +2518,7 @@
   "class": 0,
   "kind": "uex",
   "limit": 1,
+  "limit_group": "uex",
   "name": "Xeno Scanner",
   "rating": "E"
  },
@@ -2477,6 +2526,7 @@
   "class": 0,
   "kind": "uex",
   "limit": 1,
+  "limit_group": "uex",
   "name": "Enhanced Xeno Scanner",
   "rating": "C"
  },
@@ -2631,6 +2681,7 @@
   "class": 1,
   "kind": "iss",
   "limit": 1,
+  "limit_group": "iss",
   "name": "Detailed Surface Scanner",
   "rating": "I"
  },
@@ -2638,6 +2689,7 @@
   "class": 1,
   "kind": "ifa",
   "limit": 1,
+  "limit_group": "ifa_dc",
   "name": "Advanced Docking Computer",
   "rating": "E"
  },
@@ -2645,6 +2697,7 @@
   "class": 1,
   "kind": "ifa",
   "limit": 1,
+  "limit_group": "ifa_dc",
   "name": "Standard Docking Computer",
   "rating": "E"
  },
@@ -3537,20 +3590,27 @@
   "class": 3,
   "kind": "iex",
   "limit": 1,
+  "limit_group": "iex",
   "name": "Experimental Weapon Stabiliser",
-  "rating": "F"
+  "rating": "F",
+  "unlimit": "hex",
+  "unlimit_count": 1
  },
  "int_expmodulestabiliser_size5_class3": {
   "class": 5,
   "kind": "iex",
   "limit": 1,
+  "limit_group": "iex",
   "name": "Experimental Weapon Stabiliser",
-  "rating": "F"
+  "rating": "F",
+  "unlimit": "hex",
+  "unlimit_count": 2
  },
  "int_fighterbay_size5_class1": {
   "class": 5,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3573,6 +3633,7 @@
   "class": 6,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3595,6 +3656,7 @@
   "class": 7,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3617,6 +3679,7 @@
   "class": 5,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3629,6 +3692,7 @@
   "class": 6,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3641,6 +3705,7 @@
   "class": 7,
   "kind": "ifh",
   "limit": 1,
+  "limit_group": "ifh",
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
@@ -3653,6 +3718,7 @@
   "class": 1,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "E"
  },
@@ -3660,6 +3726,7 @@
   "class": 1,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "D"
  },
@@ -3667,6 +3734,7 @@
   "class": 1,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "C"
  },
@@ -3674,6 +3742,7 @@
   "class": 1,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "B"
  },
@@ -3681,6 +3750,7 @@
   "class": 1,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "A"
  },
@@ -3688,6 +3758,7 @@
   "class": 2,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "E"
  },
@@ -3695,6 +3766,7 @@
   "class": 2,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "D"
  },
@@ -3702,6 +3774,7 @@
   "class": 2,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "C"
  },
@@ -3709,6 +3782,7 @@
   "class": 2,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "B"
  },
@@ -3716,6 +3790,7 @@
   "class": 2,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "A"
  },
@@ -3723,6 +3798,7 @@
   "class": 3,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "E"
  },
@@ -3730,6 +3806,7 @@
   "class": 3,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "D"
  },
@@ -3737,6 +3814,7 @@
   "class": 3,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "C"
  },
@@ -3744,6 +3822,7 @@
   "class": 3,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "B"
  },
@@ -3751,6 +3830,7 @@
   "class": 3,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "A"
  },
@@ -3758,6 +3838,7 @@
   "class": 4,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "E"
  },
@@ -3765,6 +3846,7 @@
   "class": 4,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "D"
  },
@@ -3772,6 +3854,7 @@
   "class": 4,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "C"
  },
@@ -3779,6 +3862,7 @@
   "class": 4,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "B"
  },
@@ -3786,6 +3870,7 @@
   "class": 4,
   "kind": "ifsdi",
   "limit": 1,
+  "limit_group": "ifsdi",
   "name": "Frame Shift Drive Interdictor",
   "rating": "A"
  },
@@ -3793,6 +3878,7 @@
   "class": 1,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3800,6 +3886,7 @@
   "class": 1,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3807,6 +3894,7 @@
   "class": 1,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3814,6 +3902,7 @@
   "class": 1,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3821,6 +3910,7 @@
   "class": 1,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -3828,6 +3918,7 @@
   "class": 2,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3835,6 +3926,7 @@
   "class": 2,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3842,6 +3934,7 @@
   "class": 2,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3849,6 +3942,7 @@
   "class": 2,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3856,6 +3950,7 @@
   "class": 2,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -3863,6 +3958,7 @@
   "class": 3,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3870,6 +3966,7 @@
   "class": 3,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3877,6 +3974,7 @@
   "class": 3,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3884,6 +3982,7 @@
   "class": 3,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3891,6 +3990,7 @@
   "class": 3,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -3898,6 +3998,7 @@
   "class": 4,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3905,6 +4006,7 @@
   "class": 4,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3912,6 +4014,7 @@
   "class": 4,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3919,6 +4022,7 @@
   "class": 4,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3926,6 +4030,7 @@
   "class": 4,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -3933,6 +4038,7 @@
   "class": 5,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3940,6 +4046,7 @@
   "class": 5,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3947,6 +4054,7 @@
   "class": 5,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3954,6 +4062,7 @@
   "class": 5,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3961,6 +4070,7 @@
   "class": 5,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -3968,6 +4078,7 @@
   "class": 6,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -3975,6 +4086,7 @@
   "class": 6,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -3982,6 +4094,7 @@
   "class": 6,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -3989,6 +4102,7 @@
   "class": 6,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -3996,6 +4110,7 @@
   "class": 6,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -4003,6 +4118,7 @@
   "class": 7,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -4010,6 +4126,7 @@
   "class": 7,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -4017,6 +4134,7 @@
   "class": 7,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -4024,6 +4142,7 @@
   "class": 7,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -4031,6 +4150,7 @@
   "class": 7,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -4038,6 +4158,7 @@
   "class": 8,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "E"
  },
@@ -4045,6 +4166,7 @@
   "class": 8,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "D"
  },
@@ -4052,6 +4174,7 @@
   "class": 8,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "C"
  },
@@ -4059,6 +4182,7 @@
   "class": 8,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "B"
  },
@@ -4066,6 +4190,7 @@
   "class": 8,
   "kind": "ifs",
   "limit": 1,
+  "limit_group": "ifs",
   "name": "Fuel Scoop",
   "rating": "A"
  },
@@ -4121,6 +4246,7 @@
   "class": 1,
   "kind": "ifsdb",
   "limit": 1,
+  "limit_group": "ifsdb",
   "name": "Guardian Frame Shift Drive Booster",
   "rating": "H"
  },
@@ -4128,6 +4254,7 @@
   "class": 2,
   "kind": "ifsdb",
   "limit": 1,
+  "limit_group": "ifsdb",
   "name": "Guardian Frame Shift Drive Booster",
   "rating": "H"
  },
@@ -4135,6 +4262,7 @@
   "class": 3,
   "kind": "ifsdb",
   "limit": 1,
+  "limit_group": "ifsdb",
   "name": "Guardian Frame Shift Drive Booster",
   "rating": "H"
  },
@@ -4142,6 +4270,7 @@
   "class": 4,
   "kind": "ifsdb",
   "limit": 1,
+  "limit_group": "ifsdb",
   "name": "Guardian Frame Shift Drive Booster",
   "rating": "H"
  },
@@ -4149,6 +4278,7 @@
   "class": 5,
   "kind": "ifsdb",
   "limit": 1,
+  "limit_group": "ifsdb",
   "name": "Guardian Frame Shift Drive Booster",
   "rating": "H"
  },
@@ -4921,19 +5051,64 @@
   "class": 2,
   "kind": "ipvh",
   "name": "Large Planetary Vehicle Hangar",
-  "rating": "F"
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
  },
  "int_largebuggybay_size4_class3": {
   "class": 4,
   "kind": "ipvh",
   "name": "Large Planetary Vehicle Hangar",
-  "rating": "F"
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
  },
  "int_largebuggybay_size6_class3": {
   "class": 6,
   "kind": "ipvh",
   "name": "Large Planetary Vehicle Hangar",
-  "rating": "F"
+  "rating": "F",
+  "ships": [
+   "anaconda",
+   "belugaliner",
+   "cutter",
+   "explorer_nx",
+   "federation_corvette",
+   "federation_gunship",
+   "independant_trader",
+   "krait_mkii",
+   "lakonminer",
+   "panthermkii",
+   "type9",
+   "type9_military",
+   "typex_2"
+  ]
  },
  "int_largecargorack_size7_class1": {
   "class": 7,
@@ -5349,19 +5524,9 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
-   "anaconda",
-   "belugaliner",
-   "cutter",
    "explorer_nx",
-   "federation_corvette",
-   "federation_gunship",
-   "independant_trader",
-   "krait_mkii",
    "lakonminer",
-   "panthermkii",
-   "type9",
-   "type9_military",
-   "typex_2"
+   "panthermkii"
   ]
  },
  "int_mkiilargebuggybay_size4_class3": {
@@ -5370,19 +5535,9 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
-   "anaconda",
-   "belugaliner",
-   "cutter",
    "explorer_nx",
-   "federation_corvette",
-   "federation_gunship",
-   "independant_trader",
-   "krait_mkii",
    "lakonminer",
-   "panthermkii",
-   "type9",
-   "type9_military",
-   "typex_2"
+   "panthermkii"
   ]
  },
  "int_mkiilargebuggybay_size6_class3": {
@@ -5391,19 +5546,9 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
-   "anaconda",
-   "belugaliner",
-   "cutter",
    "explorer_nx",
-   "federation_corvette",
-   "federation_gunship",
-   "independant_trader",
-   "krait_mkii",
    "lakonminer",
-   "panthermkii",
-   "type9",
-   "type9_military",
-   "typex_2"
+   "panthermkii"
   ]
  },
  "int_modulereinforcement_size1_class1": {
@@ -5470,6 +5615,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Mining Multi-Limpet Controller",
   "rating": "E"
  },
@@ -5477,6 +5623,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Mining Multi-Limpet Controller",
   "rating": "C"
  },
@@ -5484,6 +5631,7 @@
   "class": 5,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Mk II Mining Multi-Limpet Controller",
   "rating": "A",
   "ships": [
@@ -5494,6 +5642,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Operations Limpet Controller",
   "rating": "C"
  },
@@ -5501,6 +5650,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Operations Limpet Controller",
   "rating": "B"
  },
@@ -5508,6 +5658,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Rescue Limpet Controller",
   "rating": "D"
  },
@@ -5515,6 +5666,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Rescue Limpet Controller",
   "rating": "C"
  },
@@ -5522,6 +5674,7 @@
   "class": 7,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Universal Multi-Limpet Controller",
   "rating": "C"
  },
@@ -5529,6 +5682,7 @@
   "class": 7,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Universal Multi-Limpet Controller",
   "rating": "A"
  },
@@ -5536,6 +5690,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Xeno Limpet Controller",
   "rating": "C"
  },
@@ -5543,6 +5698,7 @@
   "class": 3,
   "kind": "imlc",
   "limit": 1,
+  "limit_group": "imlc",
   "name": "Xeno Limpet Controller",
   "rating": "B"
  },
@@ -5644,6 +5800,12 @@
   "class": 1,
   "kind": "ipas",
   "name": "Planetary Approach Suite",
+  "rating": "I"
+ },
+ "int_planetapproachsuite_advanced": {
+  "class": 1,
+  "kind": "ipas",
+  "name": "Advanced Planetary Approach Suite",
   "rating": "I"
  },
  "int_powerdistributor_size1_class1": {
@@ -6100,6 +6262,7 @@
   "class": 1,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "E"
  },
@@ -6107,6 +6270,7 @@
   "class": 1,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "D"
  },
@@ -6114,6 +6278,7 @@
   "class": 1,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "C"
  },
@@ -6121,6 +6286,7 @@
   "class": 1,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "B"
  },
@@ -6128,6 +6294,7 @@
   "class": 1,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "A"
  },
@@ -6135,6 +6302,7 @@
   "class": 2,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "E"
  },
@@ -6142,6 +6310,7 @@
   "class": 2,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "D"
  },
@@ -6149,6 +6318,7 @@
   "class": 2,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "C"
  },
@@ -6156,6 +6326,7 @@
   "class": 2,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "B"
  },
@@ -6163,6 +6334,7 @@
   "class": 2,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "A"
  },
@@ -6170,6 +6342,7 @@
   "class": 3,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "E"
  },
@@ -6177,6 +6350,7 @@
   "class": 3,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "D"
  },
@@ -6184,6 +6358,7 @@
   "class": 3,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "C"
  },
@@ -6191,6 +6366,7 @@
   "class": 3,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "B"
  },
@@ -6198,6 +6374,7 @@
   "class": 3,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "A"
  },
@@ -6205,6 +6382,7 @@
   "class": 4,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "E"
  },
@@ -6212,6 +6390,7 @@
   "class": 4,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "D"
  },
@@ -6219,6 +6398,7 @@
   "class": 4,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "C"
  },
@@ -6226,6 +6406,7 @@
   "class": 4,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "B"
  },
@@ -6233,6 +6414,7 @@
   "class": 4,
   "kind": "ir",
   "limit": 1,
+  "limit_group": "ir",
   "name": "Refinery",
   "rating": "A"
  },
@@ -6960,6 +7142,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -6967,6 +7150,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -6974,6 +7158,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -6981,6 +7166,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -6988,6 +7174,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -6995,6 +7182,7 @@
   "class": 1,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7002,6 +7190,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7009,6 +7198,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7016,6 +7206,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7023,6 +7214,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7030,6 +7222,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7037,6 +7230,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7044,6 +7238,7 @@
   "class": 2,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7051,6 +7246,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7058,6 +7254,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7065,6 +7262,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7072,6 +7270,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7079,6 +7278,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7086,6 +7286,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7093,6 +7294,7 @@
   "class": 3,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7100,6 +7302,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7107,6 +7310,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7114,6 +7318,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7121,6 +7326,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7128,6 +7334,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7135,6 +7342,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7142,6 +7350,7 @@
   "class": 4,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7149,6 +7358,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7156,6 +7366,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7163,6 +7374,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7170,6 +7382,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7177,6 +7390,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7184,6 +7398,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7191,6 +7406,7 @@
   "class": 5,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7198,6 +7414,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7205,6 +7422,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7212,6 +7430,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7219,6 +7438,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7226,6 +7446,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7233,6 +7454,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7240,6 +7462,7 @@
   "class": 6,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7247,6 +7470,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7254,6 +7478,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7261,6 +7486,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7268,6 +7494,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7275,6 +7502,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7282,6 +7510,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7289,6 +7518,7 @@
   "class": 7,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7296,6 +7526,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "E"
  },
@@ -7303,6 +7534,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "D"
  },
@@ -7310,6 +7542,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "C"
  },
@@ -7317,6 +7550,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Bi-Weave Shield Generator",
   "rating": "C"
  },
@@ -7324,6 +7558,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "B"
  },
@@ -7331,6 +7566,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Shield Generator",
   "rating": "A"
  },
@@ -7338,6 +7574,7 @@
   "class": 8,
   "kind": "isg",
   "limit": 1,
+  "limit_group": "isg",
   "name": "Prismatic Shield Generator",
   "rating": "A"
  },
@@ -7345,6 +7582,7 @@
   "class": 1,
   "kind": "ifa",
   "limit": 1,
+  "limit_group": "ifa_sc",
   "name": "Supercruise Assist",
   "rating": "E"
  },
