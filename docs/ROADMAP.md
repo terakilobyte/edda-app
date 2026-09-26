@@ -492,6 +492,35 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Module limits are pools, not kinds** (2026-09-26). Importing an
+  EDSY build onto the maintainer's Python Mk II failed: "2 × advanced
+  docking computer: a ship carries at most 1; 6 × guardian shard cannon:
+  a ship carries at most 4" — for the ship as flown, which the game had
+  allowed. The swap logic was right (a swapped slot's old module left
+  the count); the limit table was wrong three ways. `over_limit` counted
+  per module kind, but the game's limit is a named pool: every AX and
+  Guardian weapon shares one pool of four (so 4 AX multi-cannons + 1 AX
+  missile rack is over, which the kind-wise count allowed), the docking
+  computer and the supercruise assist are one kind but two pools, and the
+  Experimental Weapon Stabiliser widens the weapon pool by one (class 3)
+  or two (class 5) — the maintainer's six shards ride a class 5. The
+  generator also fell back to the kind when a module had no pool, which
+  capped flak launchers at four and the shutdown field neutraliser at one
+  beside a xeno scanner; the game does neither. `module_kinds.json` now
+  carries `limit_group`, `unlimit` and `unlimit_count` from EDSY's own
+  pool table (data of 2026-09-23), `over_limit` counts by pool with the
+  allowance and says how to widen it, and `kind()` reads a `_free`
+  early-access variant as its paid module (the Type-11's hangar). Two
+  pins added to `gen_ship_slots.py` and the CSV
+  (`docs/benches/2026-09-26-ship-slots-pin.csv`, 218 agree, the two
+  by-design rows differ): every Loadout in the store keeps within every
+  pool, and every fitted module is known and on a hull it is sold for —
+  the second found the Advanced Planetary Approach Suite, on every ship
+  since the 2026 update, missing from the table; added. Refreshing from EDSY's current data also brought
+  its corrections: the Large Planetary Vehicle Hangar and the Vessel
+  Hangar are bound to the 13 fighter-capable hulls, the Mk II hangar to
+  the Caspian, Type-11 and Panther Mk II, and the Type-11's FighterBay01
+  takes a vehicle hangar — to be flown before release.
 - **Stack economics and hand-ins at the dock, from ODEliteTracker's
   ideas** (2026-09-20; the maintainer: "let's make sure we aren't missing
   anything", and "since we aren't copying code, just ideas, make sure we

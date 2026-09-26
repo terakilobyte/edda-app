@@ -11,8 +11,8 @@ converted to JSON (see docs/benches/knobs/eddb_to_json.js).
 
 Outputs (checked in):
   crates/ed-ships/data/ship_slots.json    per hull: slots with journal name, size, what fits
-  crates/ed-ships/data/module_kinds.json  per module symbol: kind, class, hull binding, one-per-ship limit
-Pin (stdout, CSV): sizes vs Coriolis; slot names vs the store's Loadouts.
+  crates/ed-ships/data/module_kinds.json  per module symbol: kind, class, hull binding, limit pool and count
+Pin (stdout, CSV): sizes vs Coriolis; slot names, limit pools and fitted modules vs the store's Loadouts.
 
 Usage:
   node docs/benches/knobs/eddb_to_json.js <eddb.js> <eddb.json>
@@ -68,10 +68,19 @@ def main():
             k["mount"] = {"F": "fixed", "G": "gimballed", "T": "turreted"}.get(m["mount"], m["mount"])
         if m.get("reserved"):
             k["ships"] = sorted(shipid_to_fd[str(s)].lower() for s in m["reserved"] if str(s) in shipid_to_fd)
-        if m.get("limit") and m["limit"] in limits:
+        # A limit is a named pool, not a module kind: every experimental
+        # weapon (AX and Guardian alike) shares the one pool of four, the
+        # docking computer and the supercruise assist are two pools of one
+        # although one kind, and the Experimental Weapon Stabiliser widens
+        # the weapon pool. Only the module's own pool counts — falling back
+        # to the kind capped flak launchers and shutdown field neutralisers
+        # the game does not (2026-09-26, the six-shard Python Mk II).
+        if m.get("limit") in limits:
             k["limit"] = limits[m["limit"]]
-        elif m["mtype"] in limits:
-            k["limit"] = limits[m["mtype"]]
+            k["limit_group"] = m["limit"]
+        if m.get("unlimit"):
+            k["unlimit"] = m["unlimit"]
+            k["unlimit_count"] = m.get("unlimitcount", 1)
         if m.get("noundersize"):
             k["exact_size"] = True
         kinds[fd.lower()] = k
@@ -143,8 +152,10 @@ def main():
         entry["stock"] = stock
         out[s["fdname"].lower()] = entry
 
-    # The Planetary Approach Suite is its own module kind in the journal.
+    # The Planetary Approach Suite is its own module kind in the journal; the
+    # Advanced one is on every ship since the 2026 update (pin 4 found it missing).
     kinds.setdefault("int_planetapproachsuite", {"kind": "ipas", "class": 1, "rating": "I", "name": "Planetary Approach Suite"})
+    kinds.setdefault("int_planetapproachsuite_advanced", {"kind": "ipas", "class": 1, "rating": "I", "name": "Advanced Planetary Approach Suite"})
 
     json.dump(out, open(OUT_SLOTS, "w", encoding="utf-8", newline="\n"), indent=1, sort_keys=True)
     json.dump(kinds, open(OUT_KINDS, "w", encoding="utf-8", newline="\n"), indent=1, sort_keys=True)
@@ -187,6 +198,36 @@ def main():
             journal = {m["Slot"] for m in v.get("Modules", []) if not re.match(r"(?i)(decal|paintjob|shipkit|bobble|weaponcolour|enginecolour|vesselvoice|shipname|shipid|string|datalinkscanner|codexscanner|discoveryscanner|cargohatch|shipcockpit|hologram)", m["Slot"])}
             missing = sorted(j for j in journal if j.lower() not in ours)
             print(f"journal,{e['name']},{len(journal)} fitted slots named,{len(missing)} not in table{(': ' + ' '.join(missing)) if missing else ''},{'agree' if not missing else 'DIFFER'}")
+            # ---- pin 3: the limit pools against the same Loadouts. A fit the
+            # game allowed is the measurement: every ship as flown keeps within
+            # every pool once the stabiliser is counted.
+            pool, raised = {}, {}
+            for m in v.get("Modules", []):
+                k = kinds.get(m["Item"].lower())
+                if not k:
+                    continue
+                if k.get("limit_group"):
+                    pool[k["limit_group"]] = pool.get(k["limit_group"], 0) + 1
+                if k.get("unlimit"):
+                    raised[k["unlimit"]] = raised.get(k["unlimit"], 0) + k["unlimit_count"]
+            over = [f"{g} {n} over {limits[g] + raised.get(g, 0)}" for g, n in sorted(pool.items()) if n > limits[g] + raised.get(g, 0)]
+            print(f"limits,{e['name']},{len(pool)} pools counted,{' '.join(over) if over else 'within every pool'},{'DIFFER' if over else 'agree'}")
+            # ---- pin 4: every fitted module is in the table (the `_free`
+            # early-access variants read as their paid module) and a
+            # hull-bound one is on a hull it is sold for.
+            unknown, offhull = [], []
+            for m in v.get("Modules", []):
+                item = m["Item"].lower()
+                if re.match(r"(?i)(decal|paintjob|shipkit|bobble|weaponcolour|enginecolour|vesselvoice|shipname|shipid|string|datalinkscanner|codexscanner|discoveryscanner|cargohatch|shipcockpit|hologram)", m["Slot"]) or item.endswith("_armour_grade1") or "_armour_" in item:
+                    continue
+                k = kinds.get(item) or kinds.get(item.removesuffix("_free"))
+                if k is None:
+                    unknown.append(item)
+                elif k.get("ships") and symbol.lower() not in k["ships"]:
+                    offhull.append(item)
+            bad = [f"unknown: {' '.join(unknown)}" if unknown else "", f"not sold for this hull: {' '.join(offhull)}" if offhull else ""]
+            bad = [b for b in bad if b]
+            print(f"modules,{e['name']},{len(v.get('Modules', []))} fitted,{'; '.join(bad) if bad else 'every module known and on its hull'},{'DIFFER' if bad else 'agree'}")
 
 
 if __name__ == "__main__":

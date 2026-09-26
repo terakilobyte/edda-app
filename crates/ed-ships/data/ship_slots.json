@@ -5184,7 +5184,8 @@
    {
     "group": "internal",
     "only": [
-     "ifh"
+     "ifh",
+     "ipvh"
     ],
     "size": 5,
     "slot": "FighterBay01"
