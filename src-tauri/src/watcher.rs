@@ -483,6 +483,8 @@ pub fn deliver(app: &AppHandle, callouts: Vec<Sourced>) {
 pub struct Announcer {
     pub config: Arc<Mutex<crate::state::AppConfig>>,
     pub callouts: Arc<Mutex<std::collections::VecDeque<Callout>>>,
+    /// Identical callouts inside a window are one callout.
+    pub gate: Arc<Mutex<crate::callouts::RepeatGate>>,
     pub voice: Arc<crate::voice::VoiceHandle>,
     pub events: Arc<crate::events::EventBus>,
 }
@@ -504,6 +506,16 @@ impl Announcer {
             }
             if let Some(t) = crate::persona::restyle(persona, c.kind, event.as_ref(), &c.text) {
                 c.text = t;
+            }
+            // The same words again inside the window are not said again;
+            // the burst is counted and reported with the next one that is.
+            let passed = self.gate.lock().unwrap_or_else(|e| e.into_inner()).admit(c.kind, &c.text, std::time::Instant::now());
+            let Some(repeats) = passed else {
+                tracing::debug!(kind = c.kind, text = %c.text, "callout repeated inside its window; not said again");
+                continue;
+            };
+            if repeats > 0 {
+                tracing::info!(kind = c.kind, text = %c.text, repeats, window_s = crate::callouts::RepeatGate::window(c.kind).as_secs(), "callout: repeats not said inside the window");
             }
             tracing::info!(kind = c.kind, priority = c.priority, speak = c.speak, text = %c.text, "callout");
             remember(&self.callouts, &c);

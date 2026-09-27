@@ -174,6 +174,8 @@ pub struct AppState {
     pub http_blocking: reqwest::blocking::Client,
     pub voice: Arc<VoiceHandle>,
     pub callouts: Arc<Mutex<VecDeque<Callout>>>,
+    /// Identical callouts inside a window are one callout (see `callouts::RepeatGate`).
+    pub callout_gate: Arc<Mutex<crate::callouts::RepeatGate>>,
     pub data_dir: PathBuf,
     /// Whether the overlay currently accepts mouse input (false = click-through).
     pub overlay_interactive: AtomicBool,
@@ -262,6 +264,7 @@ impl AppState {
                 .expect("blocking http client"),
             voice,
             callouts: Arc::new(Mutex::new(VecDeque::with_capacity(CALLOUT_HISTORY))),
+            callout_gate: Arc::new(Mutex::new(crate::callouts::RepeatGate::default())),
             data_dir,
             overlay_interactive: AtomicBool::new(false),
             capi: Default::default(),
@@ -273,6 +276,7 @@ impl AppState {
         crate::watcher::Announcer {
             config: self.config.clone(),
             callouts: self.callouts.clone(),
+            gate: self.callout_gate.clone(),
             voice: self.voice.clone(),
             events: self.events.clone(),
         }

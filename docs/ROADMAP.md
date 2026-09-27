@@ -492,6 +492,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Identical callouts inside a window are one callout** (2026-09-27;
+  the maintainer: "no need to spam call out under attack, add a
+  debounce or throttle on callouts"). Measured in the day's log: 182
+  "Under attack." lines, several a second in a fight — the journal's
+  UnderAttack event fires with every hit — and the voice queue dropping
+  the overflow. `callouts::RepeatGate` in the announcer: the same kind
+  and text inside a window (danger 30 s, fuel and heat 20 s, else 10 s)
+  is not said again; a different text passes at once; the repeats are
+  counted and logged with the next one that passes ("callout: repeats
+  not said inside the window", with the count and the window), so the
+  burst is measured rather than lost. Pinned with a fourteen-hit burst.
 - **Module names carry class and rating; one broker line per variant
   with the hold against every unit** (2026-09-27; the maintainer: "I
   don't think we're summing this properly, and we aren't showing the

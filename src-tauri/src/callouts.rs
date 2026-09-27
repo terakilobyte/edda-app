@@ -32,6 +32,52 @@ impl Callout {
     }
 }
 
+/// Identical callouts inside a window are one callout. "Under attack."
+/// fires with every hit — 182 times in one fight on 2026-09-27, several
+/// a second, the voice queue dropping the overflow — and hearing it once
+/// says it (maintainer: "no need to spam call out under attack, add a
+/// debounce or throttle on callouts"). The window is per kind; a
+/// different text passes at once. Repeats are counted and said in the
+/// log when the next one passes, so the burst is measured, not lost.
+#[derive(Default)]
+pub struct RepeatGate {
+    last: std::collections::HashMap<(&'static str, String), (std::time::Instant, u32)>,
+}
+
+impl RepeatGate {
+    /// How long an identical callout of this kind stays silent.
+    pub fn window(kind: &str) -> std::time::Duration {
+        std::time::Duration::from_secs(match kind {
+            "danger" => 30,
+            "fuel" | "heat" => 20,
+            _ => 10,
+        })
+    }
+
+    /// `Some(repeats)` when the callout passes — `repeats` identical ones
+    /// were suppressed since the last that passed — or `None` to drop it.
+    pub fn admit(&mut self, kind: &'static str, text: &str, now: std::time::Instant) -> Option<u32> {
+        let key = (kind, text.to_string());
+        let window = Self::window(kind);
+        match self.last.get_mut(&key) {
+            Some((at, repeats)) if now.duration_since(*at) < window => {
+                *repeats += 1;
+                None
+            }
+            Some((at, repeats)) => {
+                let suppressed = *repeats;
+                *at = now;
+                *repeats = 0;
+                Some(suppressed)
+            }
+            None => {
+                self.last.insert(key, (now, 0));
+                Some(0)
+            }
+        }
+    }
+}
+
 /// While following a route, a jump produces both an arrival callout and a
 /// "what's next" instruction; two utterances seconds apart is noise. Merge
 /// the instruction into the arrival when one is in the same pass, shedding
@@ -1186,5 +1232,26 @@ mod tests {
         assert_eq!(spoken_credits(45_000), "45 thousand credits");
         assert_eq!(spoken_credits(1_250_000), "1.2 million credits");
         assert_eq!(spoken_credits(2_100_000_000), "2.10 billion credits");
+    }
+}
+
+#[cfg(test)]
+mod repeat_gate_tests {
+    use super::RepeatGate;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn a_burst_of_under_attack_is_one_callout_and_a_count() {
+        let mut g = RepeatGate::default();
+        let t0 = Instant::now();
+        assert_eq!(g.admit("danger", "Under attack.", t0), Some(0), "the first passes");
+        for i in 1..=14 {
+            assert_eq!(g.admit("danger", "Under attack.", t0 + Duration::from_millis(400 * i)), None, "hit {i} inside the window");
+        }
+        assert_eq!(g.admit("danger", "Shields down.", t0 + Duration::from_secs(3)), Some(0), "another text passes at once");
+        assert_eq!(g.admit("danger", "Under attack.", t0 + Duration::from_secs(31)), Some(14), "after the window: passes, and says how many it swallowed");
+        assert_eq!(g.admit("danger", "Under attack.", t0 + Duration::from_secs(32)), None);
+        assert_eq!(g.admit("route", "Next: Sol, 2 jumps remaining", t0), Some(0));
+        assert_eq!(g.admit("route", "Next: Sol, 2 jumps remaining", t0 + Duration::from_secs(11)), Some(0), "a route callout's window is ten seconds");
     }
 }
