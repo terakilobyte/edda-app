@@ -364,7 +364,11 @@
         <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
         {#each planReport.unlocks as u}
           <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong> <span class="muted">({u.slot_name}) · {u.broker} technology broker</span>
+            {#if u.unlocked}
+              <div style="margin-left:1rem"><span class="ok">✓ already unlocked</span> <span class="muted">· {u.unlocked}</span></div>
+            {:else}
             <div style="margin-left:1rem">{u.materials.map((l) => `${l.need} ${l.material}${l.have >= l.need ? " ✓" : ` (have ${l.have})`}`).join(", ")}</div>
+            {/if}
             {#each u.commodities as c}
               <div style="margin-left:1rem"><span class="muted">to buy:</span> {c.need} {c.name}
                 {#if c.have >= c.need}

@@ -74,6 +74,50 @@ pub fn engineers(conn: &Connection) -> Result<Vec<Engineer>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// How the journal proves a technology-broker module is already
+/// unlocked: the `TechnologyBroker` event that unlocked it, or a ship
+/// that has carried it (a module cannot be bought before its unlock).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub enum UnlockProof {
+    /// `broker` as the event spells it ("guardian", "human"); `ts` the event's.
+    Broker { broker: String, ts: String },
+    /// The hull symbol and name of a ship whose Loadout carried it.
+    Fitted { ship: String, ship_name: Option<String> },
+}
+
+/// Every module symbol (lowercase) the journal proves unlocked, with the
+/// proof. The plan asked for the shard cannon's unlock materials on a
+/// ship already flying six of them, unlocked at a Guardian broker on
+/// 2026-08-17 (maintainer, 2026-09-27: "it doesn't appear that we
+/// actually take already unlocked components into account").
+pub fn unlocked_modules(conn: &Connection) -> Result<std::collections::HashMap<String, UnlockProof>> {
+    let mut out = std::collections::HashMap::new();
+    let mut stmt = conn.prepare("SELECT ts, raw FROM events WHERE event = 'TechnologyBroker' ORDER BY ts")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+    for row in rows {
+        let (ts, raw) = row?;
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
+        let broker = v.get("BrokerType").and_then(|b| b.as_str()).unwrap_or("").to_string();
+        for item in v.get("ItemsUnlocked").and_then(|i| i.as_array()).into_iter().flatten() {
+            if let Some(name) = item.get("Name").and_then(|n| n.as_str()) {
+                out.entry(name.to_ascii_lowercase()).or_insert(UnlockProof::Broker { broker: broker.clone(), ts: ts.clone() });
+            }
+        }
+    }
+    let mut stmt = conn.prepare("SELECT ship, ship_name, raw FROM ships ORDER BY loadout_ts DESC")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?)))?;
+    for row in rows {
+        let (ship, ship_name, raw) = row?;
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
+        for m in v.get("Modules").and_then(|m| m.as_array()).into_iter().flatten() {
+            if let Some(item) = m.get("Item").and_then(|i| i.as_str()) {
+                out.entry(item.to_ascii_lowercase()).or_insert_with(|| UnlockProof::Fitted { ship: ship.clone(), ship_name: ship_name.clone().filter(|n| !n.trim().is_empty()) });
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// Status of one engineer by name. `None` means the journal has never
 /// mentioned them -- which is different from, and worse than, "Known".
 pub fn engineer(conn: &Connection, name: &str) -> Result<Option<Engineer>> {
@@ -443,4 +487,30 @@ pub fn combat_summary(conn: &Connection, since: Option<&str>) -> Result<CombatSu
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     Ok(out)
+}
+
+#[cfg(test)]
+mod unlock_tests {
+    use super::*;
+
+    /// The broker event proves the unlock, a fitted module proves it too,
+    /// and the broker's word wins when both are known.
+    #[test]
+    fn the_journal_proves_what_is_unlocked() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute(
+            "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-08-17T02:26:26Z', 'TechnologyBroker', ?1)",
+            [r#"{"timestamp":"2026-08-17T02:26:26Z","event":"TechnologyBroker","BrokerType":"guardian","MarketID":1,"ItemsUnlocked":[{"Name":"Hpt_Guardian_ShardCannon_Fixed_Large","Name_Localised":"Guardian Shard Cannon"}],"Commodities":[],"Materials":[]}"#],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO ships (ship_id, ship, ship_name, ship_ident, loadout_ts, unladen_mass, max_jump_range, cargo_capacity, fuel_main, owned, raw) VALUES (33, 'python_nx', '', '', '2026-09-27T00:00:00Z', 0, 0, 0, 0, 1, ?1)",
+            [r#"{"event":"Loadout","Ship":"python_nx","ShipID":33,"Modules":[{"Slot":"LargeHardpoint1","Item":"hpt_guardian_shardcannon_fixed_large"},{"Slot":"MediumHardpoint1","Item":"hpt_guardian_shardcannon_fixed_medium"}]}"#],
+        ).unwrap();
+        let got = unlocked_modules(&conn).unwrap();
+        assert_eq!(got.get("hpt_guardian_shardcannon_fixed_large"), Some(&UnlockProof::Broker { broker: "guardian".into(), ts: "2026-08-17T02:26:26Z".into() }));
+        assert_eq!(got.get("hpt_guardian_shardcannon_fixed_medium"), Some(&UnlockProof::Fitted { ship: "python_nx".into(), ship_name: None }));
+        assert!(got.get("hpt_guardian_plasmalauncher_fixed_large").is_none());
+    }
 }

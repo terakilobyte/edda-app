@@ -492,6 +492,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **An unlock the journal has already seen is not asked for again**
+  (2026-09-27; the maintainer: "for guardian components, it doesn't
+  appear that we actually take already unlocked components into
+  account"). The plan priced the large shard cannon's Guardian unlock —
+  28 technology components, a blueprint fragment, 20 wreckage
+  components, 18 Micro Controllers — for a Python Mk II flying six of
+  them, unlocked at a Guardian broker on 2026-08-17 per the journal's
+  own `TechnologyBroker` event, which nothing read.
+  `ed_store::query::unlocked_modules` now proves an unlock two ways:
+  that event's `ItemsUnlocked`, or any ship's Loadout that carried the
+  module (it cannot be bought before its unlock); the plan's broker
+  line says which ("unlocked at a Guardian technology broker on
+  2026-08-17" / "already fitted on the Python Mk II") and gathers
+  nothing for it. Pinned in the store.
 - **Services by kind, typed rather than picked** (2026-09-27; the
   maintainer: "when searching galaxy services it just says Technology
   Broker but there are different types of brokers. Also it might just

@@ -81,6 +81,8 @@ pub struct Unlock {
     pub broker: String,
     pub materials: Vec<RequirementLine>,
     pub commodities: Vec<CommodityLine>,
+    /// Already unlocked, and how the journal knows: nothing to gather.
+    pub unlocked: Option<String>,
 }
 
 /// A commodity the unlock needs: bought at a market, unless the hold
@@ -278,7 +280,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     // Swaps to technology-broker modules: the unlock recipe, materials
     // pooled with the rest, commodities listed to buy.
     let jc = ed_journal::Catalog::load();
-    let cargo = state.with_read(|s| cargo_by_name(s.conn(), &jc));
+    let (cargo, proven) = state.with_read(|s| (cargo_by_name(s.conn(), &jc), ed_store::query::unlocked_modules(s.conn()).unwrap_or_default()));
     let mut unlocks = Vec::new();
     for s in swaps {
         let (slot, item) = (&s.slot, &s.item);
@@ -287,6 +289,33 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         }
         let item_name = ed_journal::modules::item_name(item);
         let Some(recipe) = catalog.unlock_recipe(&item_name) else { continue };
+        // Already unlocked: the journal's broker event, or a ship that
+        // carried it (maintainer, 2026-09-27: six shards fitted, and the
+        // plan still asked for the unlock's materials).
+        if let Some(proof) = proven.get(&item.to_ascii_lowercase()) {
+            let how = match proof {
+                ed_store::query::UnlockProof::Broker { broker, ts } => {
+                    let kind = if broker.eq_ignore_ascii_case("guardian") { "Guardian" } else if broker.eq_ignore_ascii_case("human") { "Human" } else { broker.as_str() };
+                    format!("unlocked at a {kind} technology broker on {}", ts.get(..10).unwrap_or(ts))
+                }
+                ed_store::query::UnlockProof::Fitted { ship, ship_name } => {
+                    let hull = ed_journal::ships::display_name(ship);
+                    match ship_name {
+                        Some(n) => format!("already fitted on {n} ({hull}), so the unlock is done"),
+                        None => format!("already fitted on the {hull}, so the unlock is done"),
+                    }
+                }
+            };
+            unlocks.push(Unlock {
+                slot_name: ed_journal::modules::slot_name(slot),
+                item_name,
+                broker: recipe.module_type.clone(),
+                materials: Vec::new(),
+                commodities: Vec::new(),
+                unlocked: Some(how),
+            });
+            continue;
+        }
         let mut mats = Vec::new();
         let mut comms = Vec::new();
         for ing in &recipe.ingredients {
@@ -309,6 +338,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             broker: recipe.module_type.clone(),
             materials: mats,
             commodities: comms,
+            unlocked: None,
         });
     }
     let materials = pool(&per_item);
