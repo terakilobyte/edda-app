@@ -26,11 +26,27 @@ const TOTAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
 /// 2026-09-12: "I can't find a Type-10 Defender" — its symbol is
 /// `type9_military`, and the server matched the typed words against that).
 /// Commodities are already searched by name server-side and pass through.
+fn catalog() -> &'static ed_journal::Catalog {
+    static CATALOG: std::sync::OnceLock<ed_journal::Catalog> = std::sync::OnceLock::new();
+    CATALOG.get_or_init(ed_journal::Catalog::load)
+}
+
+/// What goes on the wire for the item: a symbol whenever the catalog can
+/// name one. A commodity by its display name used to go up as typed, and
+/// the server's exact-name lookup landed on a nameless variant row whose
+/// symbol WAS that name ("micro controllers", no market rows), answering
+/// nothing for a good sold 28 ly away (maintainer, 2026-09-27). The
+/// symbol reaches the real row on any server; the server's own fix
+/// (0021 and the resolver order) is the belt.
 fn wire_text(kind: &str, text: &str) -> String {
     match kind {
         "ship" => ed_journal::ships::resolve(text).map(str::to_owned).unwrap_or_else(|| text.to_owned()),
         "module" => ed_journal::modules::search_fragment(text).unwrap_or_else(|| text.to_owned()),
-        _ => text.to_owned(),
+        _ => catalog()
+            .by_name(text.trim())
+            .filter(|i| i.kind == ed_journal::Kind::Commodity)
+            .map(|i| i.symbol.to_lowercase())
+            .unwrap_or_else(|| text.to_owned()),
     }
 }
 
@@ -48,7 +64,11 @@ mod wire_text_tests {
         assert_eq!(wire_text("ship", "Krait"), "Krait", "ambiguous: let the server try");
         assert_eq!(wire_text("module", "5A fuel scoop"), "fuelscoop_size5_class5");
         assert_eq!(wire_text("module", "beam laser"), "beamlaser");
-        assert_eq!(wire_text("commodity", "Gold"), "Gold");
+        assert_eq!(wire_text("commodity", "Gold"), "gold");
+        assert_eq!(wire_text("commodity", "Micro Controllers"), "microcontrollers", "the display name reaches the real row");
+        assert_eq!(wire_text("commodity", "Low Temperature Diamonds"), "lowtemperaturediamond");
+        assert_eq!(wire_text("commodity", "Festive Gifts"), "personalgifts", "a rare, by its name");
+        assert_eq!(wire_text("commodity", "Micro"), "Micro", "a fragment: let the server suggest");
     }
 }
 
@@ -188,6 +208,10 @@ fn enrich_names(kind: &str, value: &mut serde_json::Value, elite: bool) {
 
 /// One market search on the API. Errors: the local context (no current
 /// system, unknown hull) as the typed capability error, or `api_down`.
+/// From outside the inhabited bubble nothing is within any radius the
+/// server allows (500 ly), so an empty answer is asked again from the
+/// nearest inhabited system and the answer says so (maintainer,
+/// 2026-09-27: a search from a Guardian site 950 ly out — "nothing").
 pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<serde_json::Value, CapError> {
     let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
     let (system, min_pad) = {
@@ -197,12 +221,63 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
             .map_err(|e| CapError::internal(e.to_string()))??
     };
     let api = crate::exchange::endpoint(state).ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
-    let body = wire_body(query, &system, min_pad);
+    let mut value = post(state, &api, &wire_body(query, &system, min_pad), &query.kind, &system, query.radius_ly).await?;
+    let none = value["results"].as_array().is_some_and(|r| r.is_empty());
+    if none {
+        let origin = system.clone();
+        let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
+        let routing = state.routing.clone();
+        let data_dir = state.data_dir.clone();
+        let near = tauri::async_runtime::spawn_blocking(move || nearest_inhabited(&routing, &data_dir, &conn, &origin))
+            .await
+            .ok()
+            .flatten();
+        if let Some((near, dist)) = near {
+            let radius = query.radius_ly.unwrap_or(100.0);
+            let again = post(state, &api, &wire_body(query, &near, min_pad), &query.kind, &near, query.radius_ly).await?;
+            let results = again["results"].as_array().map(|r| r.len()).unwrap_or(0);
+            tracing::info!(origin = %system, near = %near, dist_ly = dist, results, "market search: origin outside the bubble; asked again from the nearest inhabited system");
+            value = again;
+            value["origin_note"] = serde_json::Value::String(format!(
+                "Nothing within {radius:.0} ly of {system}, which is outside the inhabited bubble (a search reaches 500 ly at most). These are from {near}, the nearest inhabited system, {dist:.0} ly from {system}."
+            ));
+        }
+    }
+    enrich_names(query.kind.trim(), &mut value, holds_elite(state));
+    apply_local_filters(query, &mut value, pledged_power(state).as_deref());
+    Ok(value)
+}
+
+/// The nearest system in the bundled bubble index to `origin`, when
+/// `origin` itself is not in it (an uninhabited system), with the
+/// distance. The origin's position comes from the commander's own
+/// journal; a system never visited and not inhabited is unknown here.
+fn nearest_inhabited(routing: &crate::routing::RoutingState, data_dir: &std::path::Path, conn: &rusqlite::Connection, origin: &str) -> Option<(String, f32)> {
+    let g = routing.galaxy(data_dir)?;
+    if g.find(origin).is_some() {
+        return None;
+    }
+    let (x, y, z) = crate::capabilities::galaxy::origin_coords(conn, origin).ok()?;
+    let pos = [x as f32, y as f32, z as f32];
+    for radius in [250.0f32, 500.0, 1000.0, 2000.0, 5000.0] {
+        if let Some((idx, dist)) = g.within(pos, radius).into_iter().min_by(|a, b| a.1.total_cmp(&b.1)) {
+            if dist < 1.0 {
+                return None;
+            }
+            let record = g.record(idx);
+            return Some((g.name(&record).to_string(), dist));
+        }
+    }
+    None
+}
+
+/// One POST /v1/market/search, logged with what decided the answer.
+async fn post(state: &AppState, api: &str, body: &serde_json::Value, kind: &str, origin: &str, radius_ly: Option<f64>) -> Result<serde_json::Value, CapError> {
     let started = std::time::Instant::now();
     let response = state
         .http
         .post(format!("{api}/v1/market/search"))
-        .json(&body)
+        .json(body)
         .timeout(TOTAL_TIMEOUT)
         .send_api()
         .await;
@@ -220,11 +295,9 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
         return Err(crate::remote_lookup::api_down(&format!("market search, HTTP {}", status.as_u16())));
     }
     match response.json::<serde_json::Value>().await {
-        Ok(mut value) if value.get("results").is_some() => {
+        Ok(value) if value.get("results").is_some() => {
             let results = value["results"].as_array().map(|r| r.len());
-            tracing::info!(kind = %query.kind, results, ms, "market search served by API");
-            enrich_names(query.kind.trim(), &mut value, holds_elite(state));
-            apply_local_filters(query, &mut value, pledged_power(state).as_deref());
+            tracing::info!(kind = %kind, results, ms, origin = %origin, radius_ly = ?radius_ly, text = %body["text"], "market search served by API");
             Ok(value)
         }
         _ => {

@@ -847,7 +847,53 @@ pub async fn build_plan_report(
     if let Some(shopping) = report.shopping.as_mut() {
         fill_traders(&state, shopping).await;
     }
+    fill_unlock_sellers(&state, &mut report.unlocks).await;
     Ok(report)
+}
+
+/// Where to buy what a technology-broker unlock needs and the hold lacks:
+/// the nearest markets with the shortfall in stock, from where the
+/// commander is (maintainer, 2026-09-27: "why aren't we offering to
+/// perform a market search, or just doing one?"). The report itself
+/// stays offline; this is one ask per commodity short. The current
+/// hull's pad first; when no hull is known (a plan for a ship not owned),
+/// any pad.
+pub(crate) async fn fill_unlock_sellers(state: &AppState, unlocks: &mut [crate::build_plan::Unlock]) {
+    for unlock in unlocks.iter_mut() {
+        for line in unlock.commodities.iter_mut() {
+            let short = line.need - line.have;
+            if short <= 0 {
+                continue;
+            }
+            let query = |min_pad: Option<String>| galaxy::MarketSearchRequest {
+                kind: "commodity".into(),
+                text: line.name.clone(),
+                system: None,
+                radius_ly: Some(500.0),
+                min_pad,
+                include_carriers: false,
+                include_prohibited: false,
+                max_age_hours: Some(48.0),
+                side: "buy".into(),
+                limit: Some(5),
+                min_quantity: Some(short),
+                sort: Some("distance".into()),
+                ..Default::default()
+            };
+            let mut answer = crate::remote_search::search(state, &query(None)).await;
+            if answer.is_err() {
+                answer = crate::remote_search::search(state, &query(Some("any".into()))).await;
+            }
+            match answer {
+                Ok(value) => {
+                    line.sellers = value.get("results").and_then(|r| r.as_array()).map(|r| r.iter().take(3).cloned().collect()).unwrap_or_default();
+                    line.sellers_from = value.get("origin").and_then(|o| o.as_str()).map(str::to_string);
+                    line.sellers_note = value.get("origin_note").and_then(|o| o.as_str()).map(str::to_string);
+                }
+                Err(e) => line.sellers_note = Some(format!("could not ask the market: {}", e.message())),
+            }
+        }
+    }
 }
 
 #[tauri::command]

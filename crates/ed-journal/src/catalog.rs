@@ -55,11 +55,32 @@ pub struct Item {
 /// Components", so 23 in the hold read as none and the plan had nowhere
 /// to get it. EDCD's name stays findable as an alias. Gated by
 /// tests/edcd_exact.rs against the fixture's `materials`.
-const FRONTIER_NAMES: &[(&str, &str)] = &[("guardian_sentinel_wreckagecomponents", "Guardian Wreckage Components")];
+const FRONTIER_NAMES: &[(&str, &str)] = &[
+    ("guardian_sentinel_wreckagecomponents", "Guardian Wreckage Components"),
+    // The game says Fragment; FDevIDs and the blueprint data say Segment
+    // (the name audit of 2026-09-27, docs/benches/2026-09-27-name-audit.csv).
+    ("guardian_moduleblueprint", "Guardian Module Blueprint Fragment"),
+    ("guardian_weaponblueprint", "Guardian Weapon Blueprint Fragment"),
+    // The hold says Limpet; EDCD's commodity table says Limpets.
+    ("drones", "Limpet"),
+];
+
+/// Materials the game has and FDevIDs (as vendored, equal to upstream on
+/// 2026-09-27) does not: symbol, name, category, trader group, grade —
+/// name and category as the maintainer's own MaterialCollected events
+/// carry them; the grade is unmeasured and does not matter for an
+/// untradeable (group `None`) material. A row here that FDevIDs later
+/// gains is caught by `extra_materials_are_not_in_fdevids`: remove it then.
+const EXTRA_MATERIALS: &[(&str, &str, &str, &str, u8)] = &[
+    ("tg_causticcrystal", "Caustic Crystal", "Manufactured", "None", 1),
+    ("tg_causticshard", "Caustic Shard", "Manufactured", "None", 1),
+];
 
 pub struct Catalog {
     by_symbol: HashMap<String, Item>, // keyed lowercase
     by_name: HashMap<String, String>, // lowercase display name -> lowercase symbol
+    /// Other names a symbol answers to (EDCD's, where Frontier's won).
+    aliases: HashMap<String, Vec<String>>,
 }
 
 impl Catalog {
@@ -137,14 +158,34 @@ impl Catalog {
             }
         }
 
+        for (symbol, name, category, group, grade) in EXTRA_MATERIALS {
+            push(symbol, name, category, group, *grade, Kind::Material);
+        }
+
+        let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
         for (symbol, name) in FRONTIER_NAMES {
             if let Some(item) = by_symbol.get_mut(*symbol) {
+                if !item.name.eq_ignore_ascii_case(name) {
+                    aliases.entry(symbol.to_string()).or_default().push(std::mem::take(&mut item.name));
+                }
                 item.name = name.to_string();
                 by_name.insert(name.to_lowercase(), symbol.to_string());
             }
         }
 
-        Catalog { by_symbol, by_name }
+        Catalog { by_symbol, by_name, aliases }
+    }
+
+    /// Every name a symbol answers to: the printed one first, then EDCD's
+    /// where Frontier's replaced it. For a lookup table that must find a
+    /// count under either spelling.
+    pub fn names(&self, symbol: &str) -> Vec<String> {
+        let key = symbol.to_lowercase();
+        let mut out: Vec<String> = self.by_symbol.get(&key).map(|i| vec![i.name.clone()]).unwrap_or_default();
+        if let Some(more) = self.aliases.get(&key) {
+            out.extend(more.iter().cloned());
+        }
+        out
     }
 
     /// Every symbol in the catalog, for tests and audits.
@@ -189,7 +230,7 @@ impl Catalog {
 
 #[cfg(test)]
 mod tests {
-    use super::{Catalog, Kind};
+    use super::{Catalog, Kind, EXTRA_MATERIALS, MATERIAL_CSV};
 
     /// The bug this guards: `material.csv` had "Untypical Shield Scans "
     /// with a trailing space, so the inventory map was keyed by a name the
@@ -228,6 +269,22 @@ mod tests {
         assert_eq!(c.display_name("Guardian_Sentinel_WreckageComponents"), "Guardian Wreckage Components");
         assert_eq!(c.by_name("Guardian Wreckage Components").map(|i| i.symbol.as_str()), Some("Guardian_Sentinel_WreckageComponents"));
         assert_eq!(c.by_name("guardian sentinel wreckage components").map(|i| i.symbol.as_str()), Some("Guardian_Sentinel_WreckageComponents"));
+        assert_eq!(c.names("guardian_sentinel_wreckagecomponents"), ["Guardian Wreckage Components", "Guardian Sentinel Wreckage Components"]);
+        assert_eq!(c.display_name("Guardian_WeaponBlueprint"), "Guardian Weapon Blueprint Fragment");
+        assert_eq!(c.by_name("Guardian Weapon Blueprint Segment").map(|i| i.symbol.as_str()), Some("Guardian_WeaponBlueprint"), "the blueprint data's spelling still resolves");
+        assert_eq!(c.names("gold"), ["Gold"], "no alias where the names agree");
+    }
+
+    /// The two Thargoid materials FDevIDs lacks are catalogued from the
+    /// journal; the day FDevIDs gains them this fails and the row goes.
+    #[test]
+    fn extra_materials_are_not_in_fdevids() {
+        let c = Catalog::load();
+        for (symbol, name, category, _, _) in EXTRA_MATERIALS {
+            assert!(!MATERIAL_CSV.to_lowercase().contains(&format!(",{symbol},")), "{symbol} is in FDevIDs now: drop it from EXTRA_MATERIALS");
+            let item = c.by_symbol(symbol).expect(symbol);
+            assert_eq!((item.name.as_str(), item.category.as_str(), &item.kind), (*name, *category, &Kind::Material));
+        }
     }
 
     #[test]

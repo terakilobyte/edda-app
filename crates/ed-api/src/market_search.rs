@@ -137,9 +137,16 @@ pub(crate) async fn origin_coords(pool: &PgPool, name: &str) -> Result<(f64, f64
 }
 
 async fn resolve_commodity(pool: &PgPool, text: &str) -> Result<(String, String, String), Refusal> {
+    // A named row first: the table has carried nameless variant rows
+    // whose SYMBOL is a display name ("micro controllers", 0 market rows),
+    // and "Micro Controllers" hit that one before the real
+    // `microcontrollers` — a search for the good answered nothing while
+    // 28 ly away sold it (maintainer, 2026-09-27). 0021 folds those rows
+    // and the apply path stops making them; the order is the belt.
     let hit: Option<(String, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT symbol, name, category FROM commodities \
-         WHERE lower(symbol) = lower($1) OR lower(name) = lower($1) LIMIT 1",
+         WHERE lower(symbol) = lower($1) OR lower(name) = lower($1) \
+         ORDER BY (name IS NULL OR name = ''), symbol LIMIT 1",
     )
     .bind(text)
     .fetch_optional(pool)
@@ -150,8 +157,8 @@ async fn resolve_commodity(pool: &PgPool, text: &str) -> Result<(String, String,
         return Ok((symbol, name, category.unwrap_or_default()));
     }
     let matches: Vec<(String,)> = sqlx::query_as(
-        "SELECT COALESCE(name, symbol) FROM commodities \
-         WHERE name ILIKE '%' || $1 || '%' OR symbol ILIKE '%' || $1 || '%' \
+        "SELECT name FROM commodities \
+         WHERE name <> '' AND (name ILIKE '%' || $1 || '%' OR symbol ILIKE '%' || $1 || '%') \
          ORDER BY 1 LIMIT 8",
     )
     .bind(text)

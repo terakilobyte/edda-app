@@ -13,7 +13,12 @@
     "type9_military": "Type-10 Defender"
   },
   "modules": {},
-  "materials": {
-    "guardian_sentinel_wreckagecomponents": "Guardian Wreckage Components"
+  "catalog": {
+    "guardian_sentinel_wreckagecomponents": "Guardian Wreckage Components",
+    "guardian_moduleblueprint": "Guardian Module Blueprint Fragment",
+    "guardian_weaponblueprint": "Guardian Weapon Blueprint Fragment",
+    "tg_causticcrystal": "Caustic Crystal",
+    "tg_causticshard": "Caustic Shard",
+    "drones": "Limpet"
   }
 }

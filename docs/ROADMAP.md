@@ -492,6 +492,66 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Names: the symbol is the key, Frontier's string prints, and an audit
+  measures it** (2026-09-27; the maintainer: "we really need to audit
+  every name and ensure we translate and align so we don't get
+  mismatches like this. It's things like this that make us
+  untrustworthy"). The day's two faults were both names: "Guardian
+  Wreckage Components" (the game, the journal, the recipes) against
+  FDevIDs' "Guardian Sentinel Wreckage Components", and a market
+  search for "Micro Controllers" that hit a nameless server row whose
+  SYMBOL was that display name and answered nothing 28 ly from sellers.
+  The rule now, in code: the FDev symbol is the key everywhere
+  (storage, wire, joins); a display name exists only to print; where
+  Frontier's own string (the journal's `Name_Localised`) differs from
+  EDCD's, Frontier's prints and EDCD's stays an alias
+  (`ed_journal::catalog::FRONTIER_NAMES`, gated by `tests/edcd_exact.rs`
+  against the fixture's measured `catalog` section); anything that
+  arrives as a name resolves to a symbol at the boundary — the client
+  sends a commodity's symbol (`remote_search::wire_text`), the server's
+  apply folds display-name symbols onto the canonical row on the way in
+  (`ed_store::postgres`, with Frontier's short strings such as "low
+  temp. diamonds" in `frontier_commodity_symbol`), and the resolver
+  prefers a named row. Migration 0021 folds the 298 display-name rows
+  production still carried (0009 deleted only unreferenced ones, and one
+  EDDN sender kept making them: five stations each of "festive gifts"
+  and "low temp. diamonds" that morning). The instrument:
+  `docs/benches/knobs/name_audit.py`, run to
+  `docs/benches/2026-09-27-name-audit.csv`, cross-checks recipe
+  ingredients, community sites, the commander's own journal strings,
+  the server's commodities export and the EDSY tables against FDevIDs.
+  Its first run found and this change fixed: Frontier prints "Guardian
+  Weapon/Module Blueprint Fragment" where EDCD and the blueprint data
+  say Segment; "Limpet" where EDCD says Limpets; two Thargoid materials
+  FDevIDs lacks (Caustic Crystal, Caustic Shard: `EXTRA_MATERIALS`,
+  pinned to vanish when FDevIDs gains them); three recipe spellings
+  matching no table (Abnormal Compact Emission Data, Ballistic Data,
+  Xihe Companions); the Caspian's bulkheads named as every other hull's
+  by the slot generator instead of EDCD's "Mk II Ablative …"; and the
+  recipe seam itself — `ed_engineering::Catalog::load` now resolves
+  every ingredient to the catalog's printed name, so the recipe, the
+  inventory and the plan meet on one spelling. Left OPEN in the CSV
+  (no Frontier string measured for modules in this journal): EDSY's
+  "Manifest Scanner" and "Anti-Corrosion Cargo Rack" group labels
+  against EDCD's "Cargo Scanner" and "Corrosion Resistant Cargo Rack";
+  and fourteen tissue-sample commodity symbols on the server that
+  FDevIDs (equal to upstream that day) does not list, with no name from
+  any source. Rerun the audit after 0021 deploys: the server section
+  should then read zero display-name symbols.
+- **The unlock's commodity is looked up, and the hold counts** (2026-09-27;
+  the maintainer: "why aren't we offering to perform a market search,
+  or just doing one?"). The technology-broker line said "commodities to
+  buy: 18 Micro Controllers" and nothing more, and did not know the hold
+  might carry them. Each commodity line now carries what the hold has
+  and, when short, the three nearest markets with the shortfall in
+  stock, from where the commander is, each with a route button
+  (`fill_unlock_sellers`, one market search per line short; the report
+  itself stays offline). And a search from the black — a Guardian site
+  950 ly out — answered "nothing" because the server's reach is 500 ly:
+  `remote_search::search` now asks again from the nearest inhabited
+  system (the bundled bubble index, the origin's position from the
+  journal) and says so in the answer, in the Market tab and on the
+  unlock line alike.
 - **A plot from the SRV planned the ship on the buggy's tank**
   (2026-09-27). "the community API did not answer ({"error":"no_route"})
   and the bundled bubble index cannot plot this on its own (unknown

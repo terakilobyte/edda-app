@@ -80,7 +80,39 @@ pub struct Unlock {
     /// "Guardian" or "Human": which technology broker.
     pub broker: String,
     pub materials: Vec<RequirementLine>,
-    pub commodities: Vec<(String, i64)>,
+    pub commodities: Vec<CommodityLine>,
+}
+
+/// A commodity the unlock needs: bought at a market, unless the hold
+/// already carries it. The sellers are the one network ask of the report,
+/// filled by the command (maintainer, 2026-09-27: "why aren't we offering
+/// to perform a market search, or just doing one?").
+#[derive(Debug, Serialize, Clone)]
+pub struct CommodityLine {
+    pub name: String,
+    pub need: i64,
+    /// In the hold now.
+    pub have: i64,
+    /// The nearest markets with the shortfall in stock (market search rows).
+    pub sellers: Vec<serde_json::Value>,
+    /// The system the sellers were searched from.
+    pub sellers_from: Option<String>,
+    /// Why the list is what it is: outside the bubble, or the ask failed.
+    pub sellers_note: Option<String>,
+}
+
+/// What the hold carries, by display name.
+fn cargo_by_name(conn: &rusqlite::Connection, jc: &ed_journal::Catalog) -> std::collections::HashMap<String, i64> {
+    let mut out = std::collections::HashMap::new();
+    if let Ok(mut stmt) = conn.prepare("SELECT symbol, count FROM cargo WHERE count > 0") {
+        if let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))) {
+            for (symbol, count) in rows.flatten() {
+                let name = jc.by_symbol(&symbol).map(|i| i.name.clone()).unwrap_or(symbol);
+                *out.entry(name).or_insert(0) += count;
+            }
+        }
+    }
+    out
 }
 
 #[derive(Debug, Serialize)]
@@ -246,6 +278,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     // Swaps to technology-broker modules: the unlock recipe, materials
     // pooled with the rest, commodities listed to buy.
     let jc = ed_journal::Catalog::load();
+    let cargo = state.with_read(|s| cargo_by_name(s.conn(), &jc));
     let mut unlocks = Vec::new();
     for s in swaps {
         let (slot, item) = (&s.slot, &s.item);
@@ -258,7 +291,14 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         let mut comms = Vec::new();
         for ing in &recipe.ingredients {
             match jc.by_name(&ing.name) {
-                Some(i) if i.kind == ed_journal::Kind::Commodity => comms.push((ing.name.clone(), ing.quantity)),
+                Some(i) if i.kind == ed_journal::Kind::Commodity => comms.push(CommodityLine {
+                    name: ing.name.clone(),
+                    need: ing.quantity,
+                    have: *cargo.get(&ing.name).unwrap_or(&0),
+                    sellers: Vec::new(),
+                    sellers_from: None,
+                    sellers_note: None,
+                }),
                 _ => mats.push(RequirementLine { material: ing.name.clone(), need: ing.quantity, have: *have.get(&ing.name).unwrap_or(&0) }),
             }
         }

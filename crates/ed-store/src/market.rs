@@ -117,6 +117,25 @@ pub fn canonical_symbol(symbol: &str) -> String {
         .to_string()
 }
 
+/// Frontier's own short strings for goods, as one EDDN sender names them
+/// (measured 2026-09-27 on production: five stations each of "low temp.
+/// diamonds" and "festive gifts" — the game's display names as symbols).
+/// FDevIDs names the first "Low Temperature Diamonds", so a fold by the
+/// catalog's name misses it; the second folds by name ("Festive Gifts",
+/// symbol `personalgifts`). Frontier's string wins, as everywhere.
+pub fn frontier_commodity_symbol(display: &str) -> Option<&'static str> {
+    match display.trim().to_lowercase().as_str() {
+        "low temp. diamonds" => Some("lowtemperaturediamond"),
+        _ => None,
+    }
+}
+
+/// A symbol that is really a display name: spaces, hyphens or periods,
+/// which no canonical FDevIDs symbol carries.
+pub fn looks_like_display_name(symbol: &str) -> bool {
+    symbol.contains(' ') || symbol.contains('-') || symbol.contains('.')
+}
+
 pub fn intern_commodity(
     conn: &Connection,
     symbol: &str,

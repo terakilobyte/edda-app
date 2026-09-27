@@ -31,6 +31,7 @@ OUT_SLOTS = os.path.join(ROOT, "crates", "ed-ships", "data", "ship_slots.json")
 OUT_KINDS = os.path.join(ROOT, "crates", "ed-ships", "data", "module_kinds.json")
 CORIOLIS = os.path.join(ROOT, "crates", "ed-ships", "data", "coriolis", "ships", "*.json")
 SHIPYARD = os.path.join(ROOT, "crates", "ed-journal", "data", "shipyard.csv")
+OUTFITTING = os.path.join(ROOT, "crates", "ed-journal", "data", "outfitting.csv")
 
 # Journal names for the core slots, in the reference's component order
 # (index 0 is the bulkhead).
@@ -89,13 +90,21 @@ def main():
     # entry, not the shared module table (maintainer, 2026-09-20: "we seem
     # to be missing the various bulkheads"). Bound to their hull.
     ARMOUR = {"grade1": "Lightweight Alloy", "grade2": "Reinforced Alloy", "grade3": "Military Grade Composite", "mirrored": "Mirrored Surface Composite", "reactive": "Reactive Surface Composite"}
+    # EDCD's outfitting name first (the Caspian's are "Mk II Ablative
+    # Lightweight Alloys"; the name audit of 2026-09-27 caught the map
+    # naming them as every other hull's); the map only for a symbol
+    # EDCD does not list.
+    edcd_names = {}
+    with open(OUTFITTING, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            edcd_names.setdefault(r["symbol"].lower(), r["name"].strip())
     for sid, s in ships.items():
         for mid, m in (s.get("module") or {}).items():
             fd = m.get("fdname")
             if not fd or "_armour_" not in fd.lower():
                 continue
             grade = fd.lower().rsplit("_", 1)[-1]
-            kinds[fd.lower()] = {"kind": "cbh", "class": 1, "rating": "", "name": ARMOUR.get(grade, "Bulkheads"), "ships": [s["fdname"].lower()]}
+            kinds[fd.lower()] = {"kind": "cbh", "class": 1, "rating": "", "name": edcd_names.get(fd.lower()) or ARMOUR.get(grade, "Bulkheads"), "ships": [s["fdname"].lower()]}
 
     # ---- ship slots
     out = {}

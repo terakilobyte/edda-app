@@ -462,7 +462,7 @@ async fn apply_market(
     // A board that lists a symbol twice keeps the last entry, as a
     // keyed SQLite upsert would; the rows were deleted above so a plain
     // insert of the deduplicated board cannot conflict.
-    let board: std::collections::BTreeMap<String, &Commodity> = message
+    let mut board: std::collections::BTreeMap<String, &Commodity> = message
         .values
         .iter()
         // Canonicalized: `$magnesite_name;` from journal-format messages
@@ -470,6 +470,33 @@ async fn apply_market(
         // 2026-09-05: 371 goods split, one stranded row each).
         .map(|commodity| (crate::market::canonical_symbol(&commodity.name), commodity))
         .collect();
+    // A sender that names goods as the game prints them ("low temp.
+    // diamonds", "festive gifts" — five stations each on 2026-09-27) made
+    // a nameless row per spelling that no search could reach. Fold onto
+    // the canonical row by the catalog's display name, Frontier's own
+    // short strings first; a spelling nothing matches stays as it came.
+    if board.keys().any(|k| crate::market::looks_like_display_name(k)) {
+        let variants: Vec<String> = board.keys().filter(|k| crate::market::looks_like_display_name(k)).cloned().collect();
+        let by_name: Vec<(String, Option<String>)> = sqlx::query_as(
+            "SELECT i.symbol, c.symbol FROM unnest($1::text[]) AS i(symbol) \
+             LEFT JOIN commodities c ON c.name <> '' AND lower(c.name) = i.symbol",
+        )
+        .bind(&variants)
+        .fetch_all(&mut **transaction)
+        .await?;
+        let mut folded = 0usize;
+        for (variant, canonical) in by_name {
+            let target = crate::market::frontier_commodity_symbol(&variant).map(str::to_string).or(canonical);
+            let Some(target) = target else { continue };
+            if let Some(commodity) = board.remove(&variant) {
+                board.insert(target, commodity);
+                folded += 1;
+            }
+        }
+        if folded > 0 {
+            tracing::info!(station = ?message.station_name, folded, "market board: display-name symbols folded onto their canonical rows");
+        }
+    }
     if !board.is_empty() {
         let symbols: Vec<&str> = board.keys().map(String::as_str).collect();
         sqlx::query(

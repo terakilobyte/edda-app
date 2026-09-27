@@ -767,7 +767,7 @@
  "explorer_nx_armour_grade1": {
   "class": 1,
   "kind": "cbh",
-  "name": "Lightweight Alloy",
+  "name": "Mk II Ablative Lightweight Alloys",
   "rating": "",
   "ships": [
    "explorer_nx"
@@ -776,7 +776,7 @@
  "explorer_nx_armour_grade1_default": {
   "class": 1,
   "kind": "cbh",
-  "name": "Bulkheads",
+  "name": "Lightweight Alloy",
   "rating": "",
   "ships": [
    "explorer_nx"
@@ -785,7 +785,7 @@
  "explorer_nx_armour_grade2": {
   "class": 1,
   "kind": "cbh",
-  "name": "Reinforced Alloy",
+  "name": "Mk II Ablative Reinforced Alloys",
   "rating": "",
   "ships": [
    "explorer_nx"
@@ -794,7 +794,7 @@
  "explorer_nx_armour_grade3": {
   "class": 1,
   "kind": "cbh",
-  "name": "Military Grade Composite",
+  "name": "Mk II Ablative Military Grade Composite",
   "rating": "",
   "ships": [
    "explorer_nx"
@@ -803,7 +803,7 @@
  "explorer_nx_armour_mirrored": {
   "class": 1,
   "kind": "cbh",
-  "name": "Mirrored Surface Composite",
+  "name": "Mk II Ablative Mirrored Surface Composite",
   "rating": "",
   "ships": [
    "explorer_nx"
@@ -812,7 +812,7 @@
  "explorer_nx_armour_reactive": {
   "class": 1,
   "kind": "cbh",
-  "name": "Reactive Surface Composite",
+  "name": "Mk II Ablative Reactive Surface Composite",
   "rating": "",
   "ships": [
    "explorer_nx"

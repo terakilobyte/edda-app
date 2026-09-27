@@ -1,0 +1,325 @@
+# Name audit: the FDev symbol is the key everywhere, display names only print, Frontier's own string wins over EDCD's. Every DIFFER is a bug or a missing override; OPEN is a difference between two references that no journal has measured Frontier's string for yet (EDCD's stands until one does).
+check,namespace,item,ours,reference,verdict
+recipe,ingredients,"258 distinct","0 not catalogued","every ingredient catalogued",agree
+sources,material_sources.json,"59 materials","0 not catalogued","all catalogued",agree
+frontier,summary,"127 symbols Frontier named in this journal","0 print differently, 0 unknown","Frontier's Name_Localised",agree
+server,display-name symbol,"advanced catalysers","0 market rows","folds onto advancedcatalysers",DIFFER
+server,display-name symbol,"advanced medicines","0 market rows","folds onto advancedmedicines",DIFFER
+server,display-name symbol,"aepyornis egg","0 market rows","folds onto cetiaepyornisegg",DIFFER
+server,display-name symbol,"aganippe rush","0 market rows","folds onto aganipperush",DIFFER
+server,display-name symbol,"agri-medicines","0 market rows","folds onto agriculturalmedicines",DIFFER
+server,display-name symbol,"agronomic treatment","0 market rows","folds onto agronomictreatment",DIFFER
+server,display-name symbol,"alacarakmo skin art","0 market rows","folds onto alacarakmoskinart",DIFFER
+server,display-name symbol,"albino quechua mammoth meat","0 market rows","folds onto albinoquechuamammoth",DIFFER
+server,display-name symbol,"altairian skin","0 market rows","folds onto altairianskin",DIFFER
+server,display-name symbol,"alya body soap","0 market rows","folds onto alyabodilysoap",DIFFER
+server,display-name symbol,"ancient key","0 market rows","folds onto ancientkey",DIFFER
+server,display-name symbol,"anduliga fire works","0 market rows","folds onto anduligafireworks",DIFFER
+server,display-name symbol,"animal meat","0 market rows","folds onto animalmeat",DIFFER
+server,display-name symbol,"animal monitors","0 market rows","folds onto animalmonitors",DIFFER
+server,display-name symbol,"anomaly particles","0 market rows","folds onto p_particulatesample",DIFFER
+server,display-name symbol,"antique jewellery","0 market rows","folds onto antiquejewellery",DIFFER
+server,display-name symbol,"any na coffee","0 market rows","folds onto anynacoffee",DIFFER
+server,display-name symbol,"apa vietii","0 market rows","folds onto apavietii",DIFFER
+server,display-name symbol,"aquaponic systems","0 market rows","folds onto aquaponicsystems",DIFFER
+server,display-name symbol,"arouca conventual sweets","0 market rows","folds onto aroucaconventualsweets",DIFFER
+server,display-name symbol,"articulation motors","0 market rows","folds onto articulationmotors",DIFFER
+server,display-name symbol,"assault plans","0 market rows","folds onto assaultplans",DIFFER
+server,display-name symbol,"atmospheric processors","0 market rows","folds onto atmosphericextractors",DIFFER
+server,display-name symbol,"auto-fabricators","1 market rows","folds onto autofabricators",DIFFER
+server,display-name symbol,"az cancri formula 42","0 market rows","folds onto azcancriformula42",DIFFER
+server,display-name symbol,"azure milk","0 market rows","folds onto bluemilk",DIFFER
+server,display-name symbol,"baked greebles","0 market rows","folds onto bakedgreebles",DIFFER
+server,display-name symbol,"baltah'sine vacuum krill","0 market rows","folds onto baltahsinevacuumkrill",DIFFER
+server,display-name symbol,"banki amphibious leather","0 market rows","folds onto bankiamphibiousleather",DIFFER
+server,display-name symbol,"basic medicines","0 market rows","folds onto basicmedicines",DIFFER
+server,display-name symbol,"bast snake gin","0 market rows","folds onto bastsnakegin",DIFFER
+server,display-name symbol,"battle weapons","0 market rows","folds onto battleweapons",DIFFER
+server,display-name symbol,"belalans ray leather","0 market rows","folds onto belalansrayleather",DIFFER
+server,display-name symbol,"bioreducing lichen","0 market rows","folds onto bioreducinglichen",DIFFER
+server,display-name symbol,"bone fragments","0 market rows","folds onto thargoidbonefragments",DIFFER
+server,display-name symbol,"bootleg liquor","0 market rows","folds onto bootlegliquor",DIFFER
+server,display-name symbol,"borasetani pathogenetics","0 market rows","folds onto borasetanipathogenetics",DIFFER
+server,display-name symbol,"buckyball beer mats","0 market rows","folds onto buckyballbeermats",DIFFER
+server,display-name symbol,"building fabricators","0 market rows","folds onto buildingfabricators",DIFFER
+server,display-name symbol,"burnham bile distillate","0 market rows","folds onto burnhambiledistillate",DIFFER
+server,display-name symbol,"caustic tissue sample","0 market rows","folds onto thargoidgeneratortissuesample",DIFFER
+server,display-name symbol,"cd-75 kitten brand coffee","0 market rows","folds onto cd75catcoffee",DIFFER
+server,display-name symbol,"centauri mega gin","0 market rows","folds onto centaurimegagin",DIFFER
+server,display-name symbol,"ceramic composites","0 market rows","folds onto ceramiccomposites",DIFFER
+server,display-name symbol,"ceremonial heike tea","0 market rows","folds onto ceremonialheiketea",DIFFER
+server,display-name symbol,"ceti rabbits","0 market rows","folds onto cetirabbits",DIFFER
+server,display-name symbol,"chameleon cloth","0 market rows","folds onto chameleoncloth",DIFFER
+server,display-name symbol,"chateau de aegaeon","0 market rows","folds onto chateaudeaegaeon",DIFFER
+server,display-name symbol,"chemical waste","0 market rows","folds onto chemicalwaste",DIFFER
+server,display-name symbol,"cherbones blood crystals","0 market rows","folds onto cherbonesbloodcrystals",DIFFER
+server,display-name symbol,"chi eridani marine paste","0 market rows","folds onto chieridanimarinepaste",DIFFER
+server,display-name symbol,"classified experimental equipment","0 market rows","folds onto classifiedexperimentalequipment",DIFFER
+server,display-name symbol,"cmm composite","0 market rows","folds onto cmmcomposite",DIFFER
+server,display-name symbol,"commercial samples","0 market rows","folds onto comercialsamples",DIFFER
+server,display-name symbol,"computer components","0 market rows","folds onto computercomponents",DIFFER
+server,display-name symbol,"conductive fabrics","0 market rows","folds onto conductivefabrics",DIFFER
+server,display-name symbol,"consumer technology","1 market rows","folds onto consumertechnology",DIFFER
+server,display-name symbol,"coquim spongiform victuals","0 market rows","folds onto coquimspongiformvictuals",DIFFER
+server,display-name symbol,"coral sap","0 market rows","folds onto coralsap",DIFFER
+server,display-name symbol,"crom silver fesh","0 market rows","folds onto animaleffigies",DIFFER
+server,display-name symbol,"crop harvesters","0 market rows","folds onto cropharvesters",DIFFER
+server,display-name symbol,"crystalline spheres","0 market rows","folds onto crystallinespheres",DIFFER
+server,display-name symbol,"curated commodity package","0 market rows","folds onto curatedcommodity",DIFFER
+server,display-name symbol,"cyst specimen","0 market rows","folds onto thargoidcystspecimen",DIFFER
+server,display-name symbol,"damna carapaces","0 market rows","folds onto damnacarapaces",DIFFER
+server,display-name symbol,"data core","0 market rows","folds onto datacore",DIFFER
+server,display-name symbol,"delta phoenicis palms","0 market rows","folds onto deltaphoenicispalms",DIFFER
+server,display-name symbol,"deuringas truffles","0 market rows","folds onto deuringastruffles",DIFFER
+server,display-name symbol,"diplomatic bag","0 market rows","folds onto diplomaticbag",DIFFER
+server,display-name symbol,"diso ma corn","0 market rows","folds onto disomacorn",DIFFER
+server,display-name symbol,"domestic appliances","0 market rows","folds onto domesticappliances",DIFFER
+server,display-name symbol,"earth relics","0 market rows","folds onto earthrelics",DIFFER
+server,display-name symbol,"eden apples of aerial","0 market rows","folds onto aerialedenapple",DIFFER
+server,display-name symbol,"eleu thermals","0 market rows","folds onto eleuthermals",DIFFER
+server,display-name symbol,"emergency power cells","0 market rows","folds onto emergencypowercells",DIFFER
+server,display-name symbol,"encrypted correspondence","0 market rows","folds onto encryptedcorrespondence",DIFFER
+server,display-name symbol,"encrypted data storage","0 market rows","folds onto encripteddatastorage",DIFFER
+server,display-name symbol,"energy grid assembly","0 market rows","folds onto powergridassembly",DIFFER
+server,display-name symbol,"eranin pearl whisky","0 market rows","folds onto eraninpearlwhisky",DIFFER
+server,display-name symbol,"eshu umbrellas","0 market rows","folds onto eshuumbrellas",DIFFER
+server,display-name symbol,"esuseku caviar","0 market rows","folds onto esusekucaviar",DIFFER
+server,display-name symbol,"ethgreze tea buds","0 market rows","folds onto ethgrezeteabuds",DIFFER
+server,display-name symbol,"evacuation shelter","0 market rows","folds onto evacuationshelter",DIFFER
+server,display-name symbol,"exhaust manifold","0 market rows","folds onto exhaustmanifold",DIFFER
+server,display-name symbol,"festive gifts","5 market rows","folds onto personalgifts",DIFFER
+server,display-name symbol,"food cartridges","0 market rows","folds onto foodcartridges",DIFFER
+server,display-name symbol,"fossil remnants","0 market rows","folds onto fossilremnants",DIFFER
+server,display-name symbol,"fruit and vegetables","0 market rows","folds onto fruitandvegetables",DIFFER
+server,display-name symbol,"fujin tea","0 market rows","folds onto fujintea",DIFFER
+server,display-name symbol,"galactic travel guide","0 market rows","folds onto galactictravelguide",DIFFER
+server,display-name symbol,"geawen dance dust","0 market rows","folds onto geawendancedust",DIFFER
+server,display-name symbol,"gene bank","0 market rows","folds onto genebank",DIFFER
+server,display-name symbol,"geological equipment","0 market rows","folds onto geologicalequipment",DIFFER
+server,display-name symbol,"geological samples","0 market rows","folds onto geologicalsamples",DIFFER
+server,display-name symbol,"gerasian gueuze beer","0 market rows","folds onto gerasiangueuzebeer",DIFFER
+server,display-name symbol,"giant irukama snails","0 market rows","folds onto giantirukamasnails",DIFFER
+server,display-name symbol,"giant verrix","0 market rows","folds onto giantverrix",DIFFER
+server,display-name symbol,"gilya signature weapons","0 market rows","folds onto gilyasignatureweapons",DIFFER
+server,display-name symbol,"goman yaupon coffee","0 market rows","folds onto gomanyauponcoffee",DIFFER
+server,display-name symbol,"guardian casket","0 market rows","folds onto ancientcasket",DIFFER
+server,display-name symbol,"guardian orb","0 market rows","folds onto ancientorb",DIFFER
+server,display-name symbol,"guardian relic","0 market rows","folds onto ancientrelic",DIFFER
+server,display-name symbol,"guardian tablet","0 market rows","folds onto ancienttablet",DIFFER
+server,display-name symbol,"guardian totem","0 market rows","folds onto ancienttotem",DIFFER
+server,display-name symbol,"guardian urn","0 market rows","folds onto ancienturn",DIFFER
+server,display-name symbol,"haiden black brew","0 market rows","folds onto haidneblackbrew",DIFFER
+server,display-name symbol,"hardware diagnostic sensor","0 market rows","folds onto diagnosticsensor",DIFFER
+server,display-name symbol,"harma silver sea rum","0 market rows","folds onto harmasilversearum",DIFFER
+server,display-name symbol,"havasupai dream catcher","0 market rows","folds onto havasupaidreamcatcher",DIFFER
+server,display-name symbol,"heatsink interlink","0 market rows","folds onto heatsinkinterlink",DIFFER
+server,display-name symbol,"helium-3","0 market rows","folds onto helium3",DIFFER
+server,display-name symbol,"helvetitj pearls","0 market rows","folds onto helvetitjpearls",DIFFER
+server,display-name symbol,"h.e. suits","0 market rows","folds onto hazardousenvironmentsuits",DIFFER
+server,display-name symbol,"hip 10175 bush meat","0 market rows","folds onto hip10175bushmeat",DIFFER
+server,display-name symbol,"hip 118311 swarm","0 market rows","folds onto hip118311swarm",DIFFER
+server,display-name symbol,"hip organophosphates","0 market rows","folds onto hiporganophosphates",DIFFER
+server,display-name symbol,"hip proto-squid","0 market rows","folds onto hip41181squid",DIFFER
+server,display-name symbol,"hn shock mount","0 market rows","folds onto hnshockmount",DIFFER
+server,display-name symbol,"holva duelling blades","0 market rows","folds onto holvaduellingblades",DIFFER
+server,display-name symbol,"honesty pills","0 market rows","folds onto honestypills",DIFFER
+server,display-name symbol,"hr 7221 wheat","0 market rows","folds onto hr7221wheat",DIFFER
+server,display-name symbol,"hydrogen fuel","0 market rows","folds onto hydrogenfuel",DIFFER
+server,display-name symbol,"hydrogen peroxide","0 market rows","folds onto hydrogenperoxide",DIFFER
+server,display-name symbol,"impure spire mineral","0 market rows","folds onto unknownmineral",DIFFER
+server,display-name symbol,"indi bourbon","0 market rows","folds onto indibourbon",DIFFER
+server,display-name symbol,"insulating membrane","0 market rows","folds onto insulatingmembrane",DIFFER
+server,display-name symbol,"ion distributor","0 market rows","folds onto iondistributor",DIFFER
+server,display-name symbol,"jaques quinentian still","0 market rows","folds onto jaquesquinentianstill",DIFFER
+server,display-name symbol,"jaradharre puzzle box","0 market rows","folds onto jaradharrepuzzlebox",DIFFER
+server,display-name symbol,"jaroua rice","0 market rows","folds onto jarouarice",DIFFER
+server,display-name symbol,"jotun mookah","0 market rows","folds onto jotunmookah",DIFFER
+server,display-name symbol,"kachirigin filter leeches","0 market rows","folds onto kachiriginleaches",DIFFER
+server,display-name symbol,"kamitra cigars","0 market rows","folds onto kamitracigars",DIFFER
+server,display-name symbol,"kamorin historic weapons","0 market rows","folds onto kamorinhistoricweapons",DIFFER
+server,display-name symbol,"karetii couture","0 market rows","folds onto karetiicouture",DIFFER
+server,display-name symbol,"karsuki locusts","0 market rows","folds onto karsukilocusts",DIFFER
+server,display-name symbol,"kinago violins","0 market rows","folds onto kinagoinstruments",DIFFER
+server,display-name symbol,"kongga ale","0 market rows","folds onto konggaale",DIFFER
+server,display-name symbol,"koro kung pellets","0 market rows","folds onto korrokungpellets",DIFFER
+server,display-name symbol,"land enrichment systems","0 market rows","folds onto terrainenrichmentsystems",DIFFER
+server,display-name symbol,"large survey data cache","0 market rows","folds onto largeexplorationdatacash",DIFFER
+server,display-name symbol,"lavian brandy","0 market rows","folds onto lavianbrandy",DIFFER
+server,display-name symbol,"leathery eggs","0 market rows","folds onto alieneggs",DIFFER
+server,display-name symbol,"leestian evil juice","0 market rows","folds onto leestianeviljuice",DIFFER
+server,display-name symbol,"liquid oxygen","0 market rows","folds onto liquidoxygen",DIFFER
+server,display-name symbol,"lithium hydroxide","0 market rows","folds onto lithiumhydroxide",DIFFER
+server,display-name symbol,"live hecate sea worms","0 market rows","folds onto livehecateseaworms",DIFFER
+server,display-name symbol,"low temp. diamonds","5 market rows","folds onto lowtemperaturediamond",DIFFER
+server,display-name symbol,"ltt hyper sweet","0 market rows","folds onto ltthypersweet",DIFFER
+server,display-name symbol,"lucan onionhead","0 market rows","folds onto transgeniconionhead",DIFFER
+server,display-name symbol,"lyrae weed","0 market rows","folds onto lyraeweed",DIFFER
+server,symbol,"m3tissuesamplemembrane","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"m3tissuesamplemycelium","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"m3tissuesamplespores","8 market rows, not in FDevIDs","",DIFFER
+server,display-name symbol,"magnetic emitter coil","0 market rows","folds onto magneticemittercoil",DIFFER
+server,display-name symbol,"marine equipment","0 market rows","folds onto marinesupplies",DIFFER
+server,display-name symbol,"master chefs","0 market rows","folds onto masterchefs",DIFFER
+server,display-name symbol,"mechucos high tea","0 market rows","folds onto mechucoshightea",DIFFER
+server,display-name symbol,"medb starlube","0 market rows","folds onto medbstarlube",DIFFER
+server,display-name symbol,"medical diagnostic equipment","0 market rows","folds onto medicaldiagnosticequipment",DIFFER
+server,display-name symbol,"meta-alloys","0 market rows","folds onto metaalloys",DIFFER
+server,display-name symbol,"methane clathrate","0 market rows","folds onto methaneclathrate",DIFFER
+server,display-name symbol,"methanol monohydrate crystals","0 market rows","folds onto methanolmonohydratecrystals",DIFFER
+server,display-name symbol,"microbial furnaces","0 market rows","folds onto heliostaticfurnaces",DIFFER
+server,display-name symbol,"micro controllers","0 market rows","folds onto microcontrollers",DIFFER
+server,display-name symbol,"micro-weave cooling hoses","0 market rows","folds onto coolinghoses",DIFFER
+server,display-name symbol,"military grade fabrics","0 market rows","folds onto militarygradefabrics",DIFFER
+server,display-name symbol,"mineral extractors","0 market rows","folds onto mineralextractors",DIFFER
+server,display-name symbol,"mineral oil","0 market rows","folds onto mineraloil",DIFFER
+server,display-name symbol,"modular terminals","0 market rows","folds onto modularterminals",DIFFER
+server,display-name symbol,"mokojing beast feast","0 market rows","folds onto mokojingbeastfeast",DIFFER
+server,display-name symbol,"mollusc brain tissue","0 market rows","folds onto m_tissuesample_nerves",DIFFER
+server,display-name symbol,"mollusc fluid","0 market rows","folds onto m_tissuesample_fluid",DIFFER
+server,display-name symbol,"mollusc membrane","0 market rows","folds onto m3_tissuesample_membrane",DIFFER
+server,display-name symbol,"mollusc mycelium","0 market rows","folds onto m3_tissuesample_mycelium",DIFFER
+server,display-name symbol,"mollusc soft tissue","0 market rows","folds onto m_tissuesample_soft",DIFFER
+server,display-name symbol,"mollusc spores","0 market rows","folds onto m3_tissuesample_spores",DIFFER
+server,display-name symbol,"momus bog spaniel","0 market rows","folds onto momusbogspaniel",DIFFER
+server,display-name symbol,"motrona experience jelly","0 market rows","folds onto motronaexperiencejelly",DIFFER
+server,symbol,"mtissuesamplefluid","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"mtissuesamplenerves","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"mtissuesamplesoft","8 market rows, not in FDevIDs","",DIFFER
+server,display-name symbol,"mukusubii chitin-os","0 market rows","folds onto mukusubiichitinos",DIFFER
+server,display-name symbol,"mulachi giant fungus","0 market rows","folds onto mulachigiantfungus",DIFFER
+server,display-name symbol,"muon imager","0 market rows","folds onto mutomimager",DIFFER
+server,display-name symbol,"mysterious idol","0 market rows","folds onto mysteriousidol",DIFFER
+server,display-name symbol,"natural fabrics","0 market rows","folds onto naturalfabrics",DIFFER
+server,display-name symbol,"neofabric insulation","0 market rows","folds onto neofabricinsulation",DIFFER
+server,display-name symbol,"neritus berries","0 market rows","folds onto neritusberries",DIFFER
+server,display-name symbol,"nerve agents","0 market rows","folds onto nerveagents",DIFFER
+server,display-name symbol,"ngadandari fire opals","0 market rows","folds onto ngadandarifireopals",DIFFER
+server,display-name symbol,"nguna modern antiques","0 market rows","folds onto ngunamodernantiques",DIFFER
+server,display-name symbol,"njangari saddles","0 market rows","folds onto njangarisaddles",DIFFER
+server,display-name symbol,"non euclidian exotanks","0 market rows","folds onto noneuclidianexotanks",DIFFER
+server,display-name symbol,"non-lethal weapons","0 market rows","folds onto nonlethalweapons",DIFFER
+server,display-name symbol,"ochoeng chillies","0 market rows","folds onto ochoengchillies",DIFFER
+server,display-name symbol,"onionhead alpha strain","0 market rows","folds onto onionheada",DIFFER
+server,display-name symbol,"onionhead beta strain","0 market rows","folds onto onionheadb",DIFFER
+server,display-name symbol,"onionhead gamma strain","0 market rows","folds onto onionheadc",DIFFER
+server,display-name symbol,"ophiuch exino artefacts","0 market rows","folds onto ophiuchiexinoartefacts",DIFFER
+server,display-name symbol,"organ sample","0 market rows","folds onto thargoidorgansample",DIFFER
+server,display-name symbol,"orrerian vicious brew","0 market rows","folds onto orrerianviciousbrew",DIFFER
+server,display-name symbol,"pantaa prayer sticks","0 market rows","folds onto pantaaprayersticks",DIFFER
+server,display-name symbol,"pavonis ear grubs","0 market rows","folds onto pavoniseargrubs",DIFFER
+server,display-name symbol,"performance enhancers","0 market rows","folds onto performanceenhancers",DIFFER
+server,display-name symbol,"periclase dunite","0 market rows","folds onto periclasedunite",DIFFER
+server,display-name symbol,"personal weapons","0 market rows","folds onto personalweapons",DIFFER
+server,display-name symbol,"platinum alloy","0 market rows","folds onto platinumaloy",DIFFER
+server,display-name symbol,"pod core tissue","0 market rows","folds onto s_tissuesample_cells",DIFFER
+server,display-name symbol,"pod dead tissue","0 market rows","folds onto s_tissuesample_surface",DIFFER
+server,display-name symbol,"pod mesoglea","0 market rows","folds onto s6_tissuesample_mesoglea",DIFFER
+server,display-name symbol,"pod outer tissue","0 market rows","folds onto s6_tissuesample_cells",DIFFER
+server,display-name symbol,"pod shell tissue","0 market rows","folds onto s6_tissuesample_coenosarc",DIFFER
+server,display-name symbol,"pod surface tissue","0 market rows","folds onto s_tissuesample_core",DIFFER
+server,display-name symbol,"pod tissue","0 market rows","folds onto s9_tissuesample_shell",DIFFER
+server,display-name symbol,"power converter","0 market rows","folds onto powerconverter",DIFFER
+server,display-name symbol,"power generators","0 market rows","folds onto powergenerators",DIFFER
+server,display-name symbol,"power transfer bus","0 market rows","folds onto powertransferconduits",DIFFER
+server,symbol,"pparticulatesample","8 market rows, not in FDevIDs","",DIFFER
+server,display-name symbol,"precious gems","0 market rows","folds onto preciousgems",DIFFER
+server,display-name symbol,"progenitor cells","0 market rows","folds onto progenitorcells",DIFFER
+server,display-name symbol,"protective membrane scrap","0 market rows","folds onto unknownsack",DIFFER
+server,display-name symbol,"quartz pyroxenite","0 market rows","folds onto quartzpyroxenite",DIFFER
+server,display-name symbol,"radiation baffle","0 market rows","folds onto radiationbaffle",DIFFER
+server,display-name symbol,"rajukru multi-stoves","0 market rows","folds onto rajukrustoves",DIFFER
+server,display-name symbol,"rapa bao snake skins","0 market rows","folds onto rapabaosnakeskins",DIFFER
+server,display-name symbol,"rare artwork","0 market rows","folds onto usscargorareartwork",DIFFER
+server,display-name symbol,"reactive armour","0 market rows","folds onto reactivearmour",DIFFER
+server,display-name symbol,"reinforced mounting plate","0 market rows","folds onto reinforcedmountingplate",DIFFER
+server,display-name symbol,"resonating separators","0 market rows","folds onto resonatingseparators",DIFFER
+server,display-name symbol,"rockforth fertiliser","0 market rows","folds onto rockforthfertiliser",DIFFER
+server,display-name symbol,"rusani old smokey","0 market rows","folds onto rusanioldsmokey",DIFFER
+server,symbol,"s6tissuesamplecells","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"s6tissuesamplecoenosarc","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"s6tissuesamplemesoglea","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"s9tissuesampleshell","8 market rows, not in FDevIDs","",DIFFER
+server,display-name symbol,"sanuma decorative meat","0 market rows","folds onto sanumameat",DIFFER
+server,display-name symbol,"sap 8 core container","0 market rows","folds onto sap8corecontainer",DIFFER
+server,display-name symbol,"saxon wine","0 market rows","folds onto saxonwine",DIFFER
+server,display-name symbol,"scientific research","0 market rows","folds onto scientificresearch",DIFFER
+server,display-name symbol,"scientific samples","0 market rows","folds onto scientificsamples",DIFFER
+server,display-name symbol,"semi-refined spire mineral","0 market rows","folds onto unknownrefinedmineral",DIFFER
+server,display-name symbol,"shan's charis orchid","0 market rows","folds onto shanscharisorchid",DIFFER
+server,display-name symbol,"skimmer components","0 market rows","folds onto skimercomponents",DIFFER
+server,display-name symbol,"small survey data cache","0 market rows","folds onto smallexplorationdatacash",DIFFER
+server,display-name symbol,"soontill relics","0 market rows","folds onto soontillrelics",DIFFER
+server,display-name symbol,"sothis crystalline gold","0 market rows","folds onto sothiscrystallinegold",DIFFER
+server,display-name symbol,"space pioneer relics","0 market rows","folds onto spacepioneerrelics",DIFFER
+server,symbol,"stissuesamplecells","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"stissuesamplecore","8 market rows, not in FDevIDs","",DIFFER
+server,symbol,"stissuesamplesurface","8 market rows, not in FDevIDs","",DIFFER
+server,display-name symbol,"structural regulators","0 market rows","folds onto structuralregulators",DIFFER
+server,display-name symbol,"surface stabilisers","0 market rows","folds onto surfacestabilisers",DIFFER
+server,display-name symbol,"survival equipment","0 market rows","folds onto survivalequipment",DIFFER
+server,display-name symbol,"synthetic fabrics","0 market rows","folds onto syntheticfabrics",DIFFER
+server,display-name symbol,"synthetic meat","0 market rows","folds onto syntheticmeat",DIFFER
+server,display-name symbol,"synthetic reagents","0 market rows","folds onto syntheticreagents",DIFFER
+server,display-name symbol,"tactical data","0 market rows","folds onto tacticaldata",DIFFER
+server,display-name symbol,"tanmark tranquil tea","0 market rows","folds onto tanmarktranquiltea",DIFFER
+server,display-name symbol,"tarach spice","0 market rows","folds onto tarachtorspice",DIFFER
+server,display-name symbol,"tauri chimes","0 market rows","folds onto taurichimes",DIFFER
+server,display-name symbol,"telemetry suite","0 market rows","folds onto telemetrysuite",DIFFER
+server,display-name symbol,"terra mater blood bores","0 market rows","folds onto terramaterbloodbores",DIFFER
+server,display-name symbol,"thargoid basilisk tissue sample","0 market rows","folds onto thargoidtissuesampletype2",DIFFER
+server,display-name symbol,"thargoid biological matter","0 market rows","folds onto unknownbiologicalmatter",DIFFER
+server,display-name symbol,"thargoid cyclops tissue sample","0 market rows","folds onto thargoidtissuesampletype1",DIFFER
+server,display-name symbol,"thargoid glaive tissue sample","0 market rows","folds onto thargoidtissuesampletype6",DIFFER
+server,display-name symbol,"thargoid heart","0 market rows","folds onto thargoidheart",DIFFER
+server,display-name symbol,"thargoid hydra tissue sample","0 market rows","folds onto thargoidtissuesampletype4",DIFFER
+server,display-name symbol,"thargoid link","0 market rows","folds onto unknownartifact3",DIFFER
+server,display-name symbol,"thargoid medusa tissue sample","0 market rows","folds onto thargoidtissuesampletype3",DIFFER
+server,display-name symbol,"thargoid orthrus tissue sample","0 market rows","folds onto thargoidtissuesampletype5",DIFFER
+server,display-name symbol,"thargoid probe","0 market rows","folds onto unknownartifact2",DIFFER
+server,display-name symbol,"thargoid resin","0 market rows","folds onto unknownresin",DIFFER
+server,display-name symbol,"thargoid scout tissue sample","0 market rows","folds onto thargoidscouttissuesample",DIFFER
+server,display-name symbol,"thargoid scythe tissue sample","0 market rows","folds onto thargoidtissuesampletype7",DIFFER
+server,display-name symbol,"thargoid sensor","0 market rows","folds onto unknownartifact",DIFFER
+server,display-name symbol,"thargoid technology samples","0 market rows","folds onto unknowntechnologysamples",DIFFER
+server,display-name symbol,"the hutton mug","0 market rows","folds onto thehuttonmug",DIFFER
+server,display-name symbol,"thermal cooling units","0 market rows","folds onto thermalcoolingunits",DIFFER
+server,display-name symbol,"the waters of shintara","0 market rows","folds onto watersofshintara",DIFFER
+server,display-name symbol,"thrutis cream","0 market rows","folds onto thrutiscream",DIFFER
+server,display-name symbol,"tiegfries synth silk","0 market rows","folds onto tiegfriessynthsilk",DIFFER
+server,display-name symbol,"time capsule","0 market rows","folds onto timecapsule",DIFFER
+server,display-name symbol,"tiolce waste2paste units","0 market rows","folds onto tiolcewaste2pasteunits",DIFFER
+server,display-name symbol,"titan deep tissue sample","0 market rows","folds onto thargoidtissuesampletype9a",DIFFER
+server,display-name symbol,"titan drive component","0 market rows","folds onto thargoidtitandrivecomponent",DIFFER
+server,display-name symbol,"titan maw deep tissue sample","0 market rows","folds onto thargoidtissuesampletype10a",DIFFER
+server,display-name symbol,"titan maw partial tissue sample","0 market rows","folds onto thargoidtissuesampletype10c",DIFFER
+server,display-name symbol,"titan maw tissue sample","0 market rows","folds onto thargoidtissuesampletype10b",DIFFER
+server,display-name symbol,"titan partial tissue sample","0 market rows","folds onto thargoidtissuesampletype9c",DIFFER
+server,display-name symbol,"titan tissue sample","0 market rows","folds onto thargoidtissuesampletype9b",DIFFER
+server,display-name symbol,"toxandji virocide","0 market rows","folds onto toxandjivirocide",DIFFER
+server,display-name symbol,"ultra-compact processor prototypes","0 market rows","folds onto advert1",DIFFER
+server,display-name symbol,"unclassified relic","0 market rows","folds onto ancientrelictg",DIFFER
+server,display-name symbol,"unoccupied escape pod","0 market rows","folds onto unocuppiedescapepod",DIFFER
+server,display-name symbol,"unstable data core","0 market rows","folds onto unstabledatacore",DIFFER
+server,display-name symbol,"uszaian tree grub","0 market rows","folds onto uszaiantreegrub",DIFFER
+server,display-name symbol,"utgaroar millennial eggs","0 market rows","folds onto utgaroarmillenialeggs",DIFFER
+server,display-name symbol,"uzumoku low-g wings","0 market rows","folds onto uzumokulowgwings",DIFFER
+server,display-name symbol,"vanayequi ceratomorpha fur","0 market rows","folds onto vanayequirhinofur",DIFFER
+server,display-name symbol,"vega slimweed","0 market rows","folds onto vegaslimweed",DIFFER
+server,display-name symbol,"v herculis body rub","0 market rows","folds onto vherculisbodyrub",DIFFER
+server,display-name symbol,"vidavantian lace","0 market rows","folds onto vidavantianlace",DIFFER
+server,display-name symbol,"void extract coffee","0 market rows","folds onto lftvoidextractcoffee",DIFFER
+server,display-name symbol,"void opal","0 market rows","folds onto opal",DIFFER
+server,display-name symbol,"volkhab bee drones","0 market rows","folds onto volkhabbeedrones",DIFFER
+server,display-name symbol,"water purifiers","0 market rows","folds onto waterpurifiers",DIFFER
+server,display-name symbol,"wheemete wheat cakes","0 market rows","folds onto wheemetewheatcakes",DIFFER
+server,display-name symbol,"witchhaul kobe beef","0 market rows","folds onto witchhaulkobebeef",DIFFER
+server,display-name symbol,"wolf fesh","0 market rows","folds onto wolf1301fesh",DIFFER
+server,display-name symbol,"wulpa hyperbore systems","0 market rows","folds onto wulpahyperboresystems",DIFFER
+server,display-name symbol,"wuthielo ku froth","0 market rows","folds onto wuthielokufroth",DIFFER
+server,display-name symbol,"xihe biomorphic companions","1 market rows","folds onto xihecompanions",DIFFER
+server,display-name symbol,"yaso kondi leaf","0 market rows","folds onto yasokondileaf",DIFFER
+server,display-name symbol,"zeessze ant grub glue","0 market rows","folds onto zeesszeantglue",DIFFER
+server,summary,"prod-commodities.csv","302 display-name symbols, 0 nameless canonical, 14 unknown","FDevIDs",DIFFER
+edsy,module group labels,"1181 module symbols","19 start differently from EDCD","hpt_cargoscanner_size0_class1: EDSY 'Manifest Scanner' vs EDCD 'Cargo Scanner' / hpt_cargoscanner_size0_class2: EDSY 'Manifest Scanner' vs EDCD 'Cargo Scanner' / hpt_cargoscanner_size0_class3: EDSY 'Manifest Scanner' vs EDCD 'Cargo Scanner' / hpt_cargoscanner_size0_class4: EDSY 'Manifest Scanner' vs EDCD 'Cargo Scanner' / hpt_cargoscanner_size0_class5: EDSY 'Manifest Scanner' vs EDCD 'Cargo Scanner' / int_corrosionproofcargorack_size1_class1: EDSY 'Anti-Corrosion Cargo Rack (Cap: 1)' vs EDCD 'Corrosion Resistant Cargo Rack' / int_corrosionproofcargorack_size1_class2: EDSY 'Anti-Corrosion Cargo Rack (Cap: 2)' vs EDCD 'Corrosion Resistant Cargo Rack' / int_corrosionproofcargorack_size4_class1: EDSY 'Anti-Corrosion Cargo Rack (Cap: 16)' vs EDCD 'Corrosion Resistant Cargo Rack'",OPEN
+edsy,hulls,"48 hulls","0 not in shipyard.csv","every hull is EDCD's",agree
+# 4 agree, 317 differ, 1 open

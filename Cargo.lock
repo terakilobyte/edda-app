@@ -1536,6 +1536,7 @@ dependencies = [
 name = "ed-engineering"
 version = "0.1.0"
 dependencies = [
+ "ed-journal",
  "serde",
  "serde_json",
 ]

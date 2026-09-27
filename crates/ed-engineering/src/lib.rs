@@ -162,6 +162,33 @@ impl Catalog {
     pub fn load() -> Self {
         let mut blueprints: Vec<Blueprint> =
             serde_json::from_str(BLUEPRINTS_JSON).expect("bundled blueprints.json must parse");
+        // Ingredients as the game prints them. The blueprint data spells a
+        // few goods EDCD's way ("Guardian Weapon Blueprint Segment"), the
+        // inventory is keyed by the catalog's printed name (Frontier's own
+        // where the two differ: "Fragment"), and the two met by name — so a
+        // hold with the material read as empty (maintainer, 2026-09-27).
+        // One seam: every ingredient resolves to the catalog's printed name
+        // here, or stays as written when the catalog does not know it
+        // (Odyssey microresources).
+        // Three spellings in the blueprint data match no table at all
+        // (the name audit of 2026-09-27); EDCD's spelling, then the
+        // catalog's printed name like every other ingredient.
+        const RECIPE_SPELLINGS: &[(&str, &str)] = &[
+            ("Abnormal Compact Emission Data", "Abnormal Compact Emissions Data"),
+            ("Ballistic Data", "Ballistics Data"),
+            ("Xihe Companions", "Xihe Biomorphic Companions"),
+        ];
+        let names = ed_journal::Catalog::load();
+        for b in &mut blueprints {
+            for i in &mut b.ingredients {
+                if let Some((_, edcd)) = RECIPE_SPELLINGS.iter().find(|(wrong, _)| wrong.eq_ignore_ascii_case(&i.name)) {
+                    i.name = edcd.to_string();
+                }
+                if let Some(item) = names.by_name(&i.name) {
+                    i.name = item.name.clone();
+                }
+            }
+        }
         for b in &mut blueprints {
             for i in &mut b.ingredients {
                 let canon = Self::canonical_material(&i.name);
@@ -661,5 +688,25 @@ mod synthesis_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod ingredient_name_tests {
+    /// The shard cannon unlock asks for the material by the name the game
+    /// prints, which is what the inventory is keyed by.
+    #[test]
+    fn an_ingredient_prints_as_the_game_does() {
+        let c = super::Catalog::load();
+        let recipe = c.unlock_recipe("Guardian Shard Cannon (fixed, large)").expect("the unlock recipe");
+        let names: Vec<&str> = recipe.ingredients.iter().map(|i| i.name.as_str()).collect();
+        assert!(names.contains(&"Guardian Weapon Blueprint Fragment"), "{names:?}");
+        assert!(names.contains(&"Guardian Wreckage Components"), "{names:?}");
+        let all = c.all_ingredient_names();
+        assert!(all.iter().any(|n| n == "Abnormal Compact Emissions Data") && !all.iter().any(|n| n == "Abnormal Compact Emission Data"), "the data's misspelling is corrected at load");
+        assert!(all.iter().any(|n| n == "Xihe Biomorphic Companions"), "{all:?}");
+        // The vessel blueprint keeps EDCD's "Segment" until a journal measures Frontier's string for it.
+        let all = c.all_ingredient_names();
+        assert!(!all.iter().any(|n| n == "Guardian Weapon Blueprint Segment" || n == "Guardian Module Blueprint Segment"), "EDCD's spelling survived the load: {all:?}");
     }
 }

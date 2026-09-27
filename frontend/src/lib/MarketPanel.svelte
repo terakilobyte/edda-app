@@ -241,8 +241,9 @@
       <span class="pill ok" title="Answered by the community API's live board{report.as_of ? ` (as of ${report.as_of.replace("T", " ").replace("Z", " UTC")})` : ""}">live</span>
       {#if elapsed != null}<span class="muted">{elapsed < 1000 ? `${elapsed.toFixed(0)} ms` : `${(elapsed / 1000).toFixed(1)} s`}</span>{/if}
     </div>
+    {#if report.origin_note}<p class="warn small">{report.origin_note}</p>{/if}
     {#if results.length === 0}
-      <p class="muted">Nothing matched. Try a wider radius, “any” pad, carriers, a longer price age, or a broader item name.</p>
+      <p class="muted">Nothing matched within {radius} ly of {report.origin}. Try a wider radius (500 ly at most), “any” pad, carriers, a longer price age, or a broader item name.</p>
     {:else}
       <div class="table-wrap">
         <table>

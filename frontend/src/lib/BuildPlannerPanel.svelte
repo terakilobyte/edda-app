@@ -13,6 +13,7 @@
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
   import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
+  import { requestRoute } from "./route.svelte.js";
   import { useTabActive } from "./lifecycle.svelte.js";
 
   let ships = $state([]);
@@ -363,7 +364,28 @@
         <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
         {#each planReport.unlocks as u}
           <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong> <span class="muted">({u.slot_name}) · {u.broker} technology broker</span>
-            <div style="margin-left:1rem">{u.materials.map((l) => `${l.need} ${l.material}${l.have >= l.need ? " ✓" : ` (have ${l.have})`}`).join(", ")}{#if u.commodities.length}<span class="muted"> · commodities to buy: {u.commodities.map(([c, n]) => `${n} ${c}`).join(", ")}</span>{/if}</div>
+            <div style="margin-left:1rem">{u.materials.map((l) => `${l.need} ${l.material}${l.have >= l.need ? " ✓" : ` (have ${l.have})`}`).join(", ")}</div>
+            {#each u.commodities as c}
+              <div style="margin-left:1rem"><span class="muted">to buy:</span> {c.need} {c.name}
+                {#if c.have >= c.need}
+                  <span class="ok">✓ in the hold</span>
+                {:else}
+                  {#if c.have}<span class="muted">(have {c.have})</span>{/if}
+                  {#if c.sellers.length}
+                    <span class="muted">· nearest with {c.need - c.have}+ in stock{c.sellers_from ? ` from ${c.sellers_from}` : ""}:</span>
+                    {#each c.sellers as s}
+                      <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
+                        <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
+                    {/each}
+                    {#if c.sellers_note}<div class="muted" style="margin-left:1rem">{c.sellers_note}</div>{/if}
+                  {:else if c.sellers_note}
+                    <span class="muted">· {c.sellers_note}</span>
+                  {:else}
+                    <span class="muted">· no market with {c.need - c.have}+ in stock within 500 ly</span>
+                  {/if}
+                {/if}
+              </div>
+            {/each}
           </div>
         {/each}
       {/if}
@@ -394,6 +416,7 @@
 </section>
 
 <style>
+  .mini { font-size: 0.7rem; padding: 0 0.4rem; }
   .perf { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: baseline; }
   tr.eng td { background: #7ec8ff10; }
   tr.swap td { background: #ffd47e10; }
