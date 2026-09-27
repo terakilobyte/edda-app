@@ -3,7 +3,7 @@
 //! The journal names modules by internal symbol (`int_fuelscoop_size7_class5`,
 //! `hpt_beamlaser_gimbal_medium`) and slots by internal id (`Slot01_Size7`,
 //! `MainEngines`). These are what the game shows in outfitting, or as close
-//! as the symbol allows: "Fuel Scoop 7A", "Beam Laser (gimballed, medium)",
+//! as the symbol allows: "Fuel Scoop 7A", "Beam Laser 2E (gimballed)",
 //! "Optional 1 (size 7)", "Thrusters".
 
 /// The outfitting name for a module symbol.
@@ -152,33 +152,46 @@ fn bare_symbol(symbol: &str) -> String {
 
 /// The outfitting name for a journal item symbol: EDCD's name, then the
 /// class and rating as the game's outfitting screen shows them ("Fuel
-/// Scoop 7A"; a weapon "Pulse Laser (fixed, small)").
+/// Scoop 7A"; a weapon "Pulse Laser 1F (fixed)", a utility "Heat Sink
+/// Launcher 0I"). A weapon used to print its mount and size as words
+/// with no class or rating, so a 3C shard and a 3D shard read alike
+/// (maintainer, 2026-09-27: "we aren't showing the size/grade next to
+/// the guardian modules").
 pub fn item_name(symbol: &str) -> String {
     let s = bare_symbol(symbol);
     let Some(row) = outfitting_table().get(&s) else { return item_name_fallback(&s) };
-    let is_hardpoint = s.starts_with("hpt_");
-    if is_hardpoint {
-        let mount = match row.mount {
-            "Fixed" => Some("fixed"),
-            "Gimballed" => Some("gimballed"),
-            "Turreted" => Some("turreted"),
-            _ => None,
-        };
-        let size = match row.class {
-            "0" => Some("0"),
-            "1" => Some("small"),
-            "2" => Some("medium"),
-            "3" => Some("large"),
-            "4" => Some("huge"),
-            _ => None,
-        };
-        let detail: Vec<&str> = [mount, size].into_iter().flatten().collect();
-        return if detail.is_empty() { row.name.to_string() } else { format!("{} ({})", row.name, detail.join(", ")) };
-    }
     if s.contains("_armour_") || s.contains("_cockpit") || row.class.is_empty() {
         return row.name.to_string();
     }
-    format!("{} {}{}", row.name, row.class, row.rating)
+    let mount = match row.mount {
+        "Fixed" => " (fixed)",
+        "Gimballed" => " (gimballed)",
+        "Turreted" => " (turreted)",
+        _ => "",
+    };
+    format!("{} {}{}{mount}", row.name, row.class, row.rating)
+}
+
+/// A module as a technology broker's recipe names it: a weapon by its
+/// mount and size word ("Guardian Shard Cannon (Fixed, Large)", "Remote
+/// Release Flechette Launcher (Fixed)"), anything else as `item_name`.
+pub fn recipe_name(symbol: &str) -> String {
+    let s = bare_symbol(symbol);
+    let Some(row) = outfitting_table().get(&s) else { return item_name_fallback(&s) };
+    if !s.starts_with("hpt_") || row.mount.is_empty() {
+        return item_name(symbol);
+    }
+    let size = match row.class {
+        "1" => Some("Small"),
+        "2" => Some("Medium"),
+        "3" => Some("Large"),
+        "4" => Some("Huge"),
+        _ => None,
+    };
+    match size {
+        Some(size) => format!("{} ({}, {size})", row.name, row.mount),
+        None => format!("{} ({})", row.name, row.mount),
+    }
 }
 
 fn item_name_fallback(symbol: &str) -> String {
@@ -465,10 +478,12 @@ mod tests {
         assert_eq!(item_name("int_mkiilargebuggybay_size4_class3_free"), "Mk II Large Planetary Vehicle Hangar 4F");
         assert_eq!(item_name("int_largebuggybay_size6_class3"), "Large Planetary Vehicle Hangar 6F");
         assert_eq!(item_name("int_buggybay_size2_class2"), "Planetary Vehicle Hangar 2G");
-        assert_eq!(
-            item_name("hpt_beamlaser_gimbal_medium"),
-            "Beam Laser (gimballed, medium)"
-        );
+        assert_eq!(item_name("hpt_beamlaser_gimbal_medium"), "Beam Laser 2D (gimballed)");
+        assert_eq!(item_name("hpt_guardian_shardcannon_fixed_large"), "Guardian Shard Cannon 3C (fixed)");
+        assert_eq!(item_name("hpt_heatsinklauncher_turret_tiny"), "Heat Sink Launcher 0I");
+        assert_eq!(recipe_name("hpt_guardian_shardcannon_fixed_large"), "Guardian Shard Cannon (Fixed, Large)");
+        assert_eq!(recipe_name("hpt_flechettelauncher_fixed_medium"), "Remote Release Flechette Launcher (Fixed, Medium)");
+        assert_eq!(recipe_name("int_guardianfsdbooster_size5"), item_name("int_guardianfsdbooster_size5"));
         assert_eq!(
             item_name("int_dronecontrol_collection_size3_class5"),
             "Collector Limpet Controller 3A"

@@ -89,6 +89,11 @@ pub struct Unlock {
     pub per_unit: bool,
     /// What the data could not say: a variant with no recipe on file.
     pub note: Option<String>,
+    /// How many of this the build swaps in, and where: two modified
+    /// shards are one purchase twice, and `materials` is what BOTH need
+    /// (maintainer, 2026-09-27: "I don't think we're summing this properly").
+    pub units: i64,
+    pub slots: Vec<String>,
 }
 
 /// A commodity the unlock needs: bought at a market, unless the hold
@@ -296,6 +301,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         }
         let preset = s.preset.as_deref().and_then(|id| commands::slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned()));
         let plain_name = ed_journal::modules::item_name(item);
+        let plain_recipe_name = ed_journal::modules::recipe_name(item);
         // A pre-engineered variant has its own recipe at the broker
         // ("Modified Shard Cannon (Fixed, Medium)", "Engineered FSD V1");
         // the plain module's is the fallback when the data has none.
@@ -303,7 +309,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             // A variant's recipe is its own or nothing: the plain module's
             // unlock is not what the broker charges for a bought variant.
             Some(p) => p.unlock.as_deref().and_then(|u| catalog.unlock_recipe(u)),
-            None => catalog.unlock_recipe(&plain_name),
+            None => catalog.unlock_recipe(&plain_recipe_name),
         };
         let item_name = preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| plain_name.clone());
         let Some(recipe) = recipe else {
@@ -320,6 +326,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                         "community goal" => "a community-goal reward: no broker sells it".to_string(),
                         _ => format!("no recipe for this variant in EDDA's data (source: {})", p.source.as_deref().unwrap_or("unknown")),
                     }),
+                    units: 1,
+                    slots: Vec::new(),
                 });
             }
             continue;
@@ -340,7 +348,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             got.sort();
             want == got
         };
-        let plain_recipe = catalog.unlock_recipe(&ed_journal::modules::item_name(item));
+        let plain_recipe = catalog.unlock_recipe(&plain_recipe_name);
         let key = item.to_ascii_lowercase();
         // A pre-engineered variant is bought each time, so nothing in the
         // journal makes the next one free: no proof is looked for. For the
@@ -382,6 +390,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 unlocked: Some(how),
                 per_unit: false,
                 note: None,
+                units: 1,
+                slots: Vec::new(),
             });
             continue;
         }
@@ -410,8 +420,35 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             unlocked: None,
             per_unit: preset.as_ref().is_some_and(|p| p.per_unit),
             note: None,
+            units: 1,
+            slots: Vec::new(),
         });
     }
+    // One line per variant and recipe, not one per slot: the ticks then
+    // compare the hold with what every unit needs together.
+    let mut grouped: Vec<Unlock> = Vec::new();
+    for u in unlocks {
+        match grouped.iter_mut().find(|g| g.item_name == u.item_name && g.unlocked == u.unlocked && g.note == u.note && g.per_unit == u.per_unit) {
+            Some(g) => {
+                g.units += 1;
+                g.slots.push(u.slot_name.clone());
+                for m in &u.materials {
+                    match g.materials.iter_mut().find(|l| l.material == m.material) {
+                        Some(l) => l.need += m.need,
+                        None => g.materials.push(m.clone()),
+                    }
+                }
+                for c in &u.commodities {
+                    match g.commodities.iter_mut().find(|l| l.name == c.name) {
+                        Some(l) => l.need += c.need,
+                        None => g.commodities.push(c.clone()),
+                    }
+                }
+            }
+            None => grouped.push(Unlock { units: 1, slots: vec![u.slot_name.clone()], ..u }),
+        }
+    }
+    let unlocks = grouped;
     let materials = pool(&per_item);
     let fully_met = materials.iter().all(|l| l.have >= l.need);
     let (itinerary, unassigned) = assign(&jobs);

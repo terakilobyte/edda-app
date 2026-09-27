@@ -326,7 +326,10 @@ impl Catalog {
         let mut best: Option<&Blueprint> = None;
         for b in self.blueprints.iter().filter(|b| matches!(b.module_type.as_str(), "Guardian" | "Human") && b.grade.is_none()) {
             let name = b.name.to_ascii_lowercase();
-            if want == name || want.starts_with(&format!("{name} ")) || want.starts_with(&format!("{name} (")) {
+            // "Remote Release Flechette Launcher (Fixed)" names its module
+            // without the size; the module's own name carries it.
+            let open = name.strip_suffix(')').map(|n| format!("{n},")).unwrap_or_default();
+            if want == name || want.starts_with(&format!("{name} ")) || want.starts_with(&format!("{name} (")) || (!open.is_empty() && want.starts_with(&open)) {
                 if best.is_none_or(|x| x.name.len() < b.name.len()) {
                     best = Some(b);
                 }
@@ -615,6 +618,7 @@ mod tests {
         assert_eq!(lib.unlock_recipe("Guardian FSD Booster 5H").map(|b| b.name.as_str()), Some("Guardian FSD Booster"));
         assert_eq!(lib.unlock_recipe("Enzyme Missile Rack (fixed, medium)").map(|b| b.module_type.as_str()), Some("Human"));
         assert!(lib.unlock_recipe("Pulse Laser (fixed, small)").is_none());
+        assert_eq!(lib.unlock_recipe("Remote Release Flechette Launcher (Fixed, Medium)").map(|b| b.name.as_str()), Some("Remote Release Flechette Launcher (Fixed)"));
     }
 
     #[test]

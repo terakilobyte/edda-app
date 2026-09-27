@@ -174,6 +174,10 @@ pub struct Preset {
     /// Where the figures came from: "loadout: Python Mk II", "import: EDSY".
     #[serde(default)]
     pub source: Option<String>,
+    /// The engineering in words ("Grade 1 LongRange and Focused
+    /// modifications with Super Penetrator Experimental").
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 impl Preset {
@@ -226,6 +230,7 @@ impl Preset {
             unlock: None,
             per_unit: true,
             source: Some(source.to_string()),
+            description: None,
         })
     }
 }

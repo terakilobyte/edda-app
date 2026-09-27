@@ -31,6 +31,7 @@ Usage:
 import glob
 import json
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -91,11 +92,14 @@ WIKI = {
 
 
 def edcd_names():
+    """symbol -> (name with class and rating as ed_journal::modules::item_name prints it, the mount word)."""
     import csv
     out = {}
     with open(OUTFITTING, encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            out.setdefault(r["symbol"].lower(), r["name"].strip())
+            mount = {"Fixed": " (fixed)", "Gimballed": " (gimballed)", "Turreted": " (turreted)"}.get(r["mount"], "")
+            name = r["name"].strip() if not r["class"] else f"{r['name'].strip()} {r['class']}{r['rating']}{mount}"
+            out.setdefault(r["symbol"].lower(), (name, r["mount"]))
     return out
 
 
@@ -166,13 +170,19 @@ def main():
         if prev and prev.get("modifiers") and "journal" in str(prev.get("source", "journal")):
             modifiers = dict(prev["modifiers"])
             sources.insert(0, prev.get("source") or "journal: a real Loadout")
-        plain = names.get(symbol, symbol)
+        plain, _mount = names.get(symbol, (symbol, ""))
+        # Short: the recipe's name with the module's class and rating in
+        # place of its "(Fixed, Medium)", else Coriolis's label; the
+        # engineering in words goes in `description`.
         label = recipe_name or m.get("name", "pre-engineered")
+        cr = plain.split(" ")[-2] if plain.endswith(")") and len(plain.split(" ")) > 2 else plain.split(" ")[-1]
+        short = re.sub(r"\s*\((Fixed|Gimballed|Turreted)(, \w+)?\)", lambda mm: f" {cr} ({mm.group(1).lower()})", label) if recipe_name else label
         desc = pe.get("description", "").replace("This module has been pre-engineered with ", "").rstrip(".")
         preset = {
             "id": pid,
             "item": symbol,
-            "name": f"{label} · {plain} pre-engineered: {desc}" if desc else f"{label} · {plain} pre-engineered",
+            "name": f"{short} · pre-engineered {plain}",
+            "description": desc or None,
             "broker": broker,
             "blueprint": blueprints[0] if blueprints else "",
             "blueprints": list(blueprints),

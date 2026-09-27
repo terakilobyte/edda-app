@@ -363,7 +363,7 @@
       {#if planReport.unlocks?.length}
         <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
         {#each planReport.unlocks as u}
-          <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong> <span class="muted">({u.slot_name}) · {u.broker} technology broker{u.per_unit ? " · bought each time, not an unlock: these materials per unit" : ""}</span>
+          <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong>{u.units > 1 ? ` × ${u.units}` : ""} <span class="muted">({(u.slots?.length ? u.slots : [u.slot_name]).join(", ")}) · {u.broker} technology broker{u.per_unit ? ` · bought each time, not an unlock: the materials below are for ${u.units > 1 ? `all ${u.units} units` : "one unit"}` : ""}</span>
             {#if u.unlocked}
               <div style="margin-left:1rem"><span class="ok">✓ already unlocked</span> <span class="muted">· {u.unlocked}</span></div>
             {:else if u.note}
@@ -379,10 +379,12 @@
                   {#if c.have}<span class="muted">(have {c.have})</span>{/if}
                   {#if c.sellers.length}
                     <span class="muted">· nearest with {c.need - c.have}+ in stock{c.sellers_from ? ` from ${c.sellers_from}` : ""}:</span>
-                    {#each c.sellers as s}
-                      <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
-                        <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
-                    {/each}
+                    <div class="row small" style="margin:0.2rem 0 0.2rem 1rem">
+                      {#each c.sellers as s}
+                        <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
+                          <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
+                      {/each}
+                    </div>
                     {#if c.sellers_note}<div class="muted" style="margin-left:1rem">{c.sellers_note}</div>{/if}
                   {:else if c.sellers_note}
                     <span class="muted">· {c.sellers_note}</span>

@@ -2,7 +2,8 @@
  {
   "id": "pe:hpt_atdumbfiremissile_fixed_large:weapon_highcapacity+weapon_rapidfire:5",
   "item": "hpt_atdumbfiremissile_fixed_large",
-  "name": "Sirius Modified AX Missile Rack (Large) · AX Missile Rack pre-engineered: Grade 5 High Capacity and Rapid Fire modifications",
+  "name": "Sirius Modified AX Missile Rack (Large) · pre-engineered AX Missile Rack 3A (fixed)",
+  "description": "Grade 5 High Capacity and Rapid Fire modifications",
   "broker": "human",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -29,7 +30,8 @@
  {
   "id": "pe:hpt_atdumbfiremissile_fixed_medium:weapon_highcapacity+weapon_rapidfire:5",
   "item": "hpt_atdumbfiremissile_fixed_medium",
-  "name": "Sirius Modified AX Missile Rack (Medium) · AX Missile Rack pre-engineered: Grade 5 High Capacity and Rapid Fire modifications",
+  "name": "Sirius Modified AX Missile Rack (Medium) · pre-engineered AX Missile Rack 2B (fixed)",
+  "description": "Grade 5 High Capacity and Rapid Fire modifications",
   "broker": "human",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -56,7 +58,8 @@
  {
   "id": "pe:hpt_atmulticannon_gimbal_large:weapon_overcharged:5",
   "item": "hpt_atmulticannon_gimbal_large",
-  "name": "AX MC (OC, Auto-Load) · Enhanced AX Multi-Cannon pre-engineered: Grade 5 Overcharged modifications and Auto-Loader experimental",
+  "name": "AX MC (OC, Auto-Load) · pre-engineered Enhanced AX Multi-Cannon 3C (gimballed)",
+  "description": "Grade 5 Overcharged modifications and Auto-Loader experimental",
   "broker": "unknown",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
@@ -76,7 +79,8 @@
  {
   "id": "pe:hpt_atmulticannon_gimbal_medium:weapon_overcharged:5",
   "item": "hpt_atmulticannon_gimbal_medium",
-  "name": "AX MC (OC, Auto-Load) · Enhanced AX Multi-Cannon pre-engineered: Grade 5 Overcharged modifications and Auto-Loader experimental",
+  "name": "AX MC (OC, Auto-Load) · pre-engineered Enhanced AX Multi-Cannon 2E (gimballed)",
+  "description": "Grade 5 Overcharged modifications and Auto-Loader experimental",
   "broker": "unknown",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
@@ -96,7 +100,8 @@
  {
   "id": "pe:hpt_basicmissilerack_fixed_medium:weapon_highcapacity+weapon_lightweight:5",
   "item": "hpt_basicmissilerack_fixed_medium",
-  "name": "Engineered Missile Rack V1 · Seeker Missile Rack pre-engineered: Grade 5 High Cap, Lightweight modifications and Thermal Cascade Experimental Effect",
+  "name": "Engineered Missile Rack V1 · pre-engineered Seeker Missile Rack 2B (fixed)",
+  "description": "Grade 5 High Cap, Lightweight modifications and Thermal Cascade Experimental Effect",
   "broker": "human",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -116,7 +121,8 @@
  {
   "id": "pe:hpt_basicmissilerack_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
   "item": "hpt_basicmissilerack_fixed_medium",
-  "name": "Seek (HCap+RF+Drag) · Seeker Missile Rack pre-engineered: Grade 5 High Cap, Rapid Fire modifications and Drag Munitions Experimental Effect",
+  "name": "Seek (HCap+RF+Drag) · pre-engineered Seeker Missile Rack 2B (fixed)",
+  "description": "Grade 5 High Cap, Rapid Fire modifications and Drag Munitions Experimental Effect",
   "broker": "community goal",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -140,7 +146,8 @@
  {
   "id": "pe:hpt_causticmissile_fixed_medium:weapon_highcapacity:1",
   "item": "hpt_causticmissile_fixed_medium",
-  "name": "Caust Enzyme (High Cap) · Enzyme Missile Rack pre-engineered: Grade 5 High Cap modifications",
+  "name": "Caust Enzyme (High Cap) · pre-engineered Enzyme Missile Rack 2B (fixed)",
+  "description": "Grade 5 High Cap modifications",
   "broker": "community goal",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -160,7 +167,8 @@
  {
   "id": "pe:hpt_guardian_gausscannon_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
   "item": "hpt_guardian_gausscannon_fixed_medium",
-  "name": "Modified Gauss Cannon (Fixed, Medium) · Guardian Gauss Cannon pre-engineered: Grade 1 High Capacity and Rapid Fire modifications",
+  "name": "Modified Gauss Cannon 2B (fixed) · pre-engineered Guardian Gauss Cannon 2B (fixed)",
+  "description": "Grade 1 High Capacity and Rapid Fire modifications",
   "broker": "guardian",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -185,7 +193,8 @@
  {
   "id": "pe:hpt_guardian_gausscannon_fixed_small:weapon_highcapacity+weapon_rapidfire:1",
   "item": "hpt_guardian_gausscannon_fixed_small",
-  "name": "Modified Gauss Cannon (Fixed, Small) · Guardian Gauss Cannon pre-engineered: Grade 1 High Capacity and Rapid Fire modifications",
+  "name": "Modified Gauss Cannon 1D (fixed) · pre-engineered Guardian Gauss Cannon 1D (fixed)",
+  "description": "Grade 1 High Capacity and Rapid Fire modifications",
   "broker": "guardian",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -210,7 +219,8 @@
  {
   "id": "pe:hpt_guardian_plasmalauncher_fixed_medium:weapon_overcharged+weapon_focused:1",
   "item": "hpt_guardian_plasmalauncher_fixed_medium",
-  "name": "Modified Plasma Charger (Fixed, Medium) · Guardian Plasma Charger pre-engineered: Grade 1 Overcharged and Focused modifications",
+  "name": "Modified Plasma Charger 2B (fixed) · pre-engineered Guardian Plasma Charger 2B (fixed)",
+  "description": "Grade 1 Overcharged and Focused modifications",
   "broker": "guardian",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
@@ -228,7 +238,8 @@
  {
   "id": "pe:hpt_guardian_plasmalauncher_fixed_small:weapon_overcharged+weapon_focused:1",
   "item": "hpt_guardian_plasmalauncher_fixed_small",
-  "name": "Modified Plasma Charger (Fixed, Small) · Guardian Plasma Charger pre-engineered: Grade 1 Overcharged and Focused modifications",
+  "name": "Modified Plasma Charger 1D (fixed) · pre-engineered Guardian Plasma Charger 1D (fixed)",
+  "description": "Grade 1 Overcharged and Focused modifications",
   "broker": "guardian",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
@@ -246,7 +257,8 @@
  {
   "id": "pe:hpt_guardian_shardcannon_fixed_medium:weapon_longrange+weapon_focused:1",
   "item": "hpt_guardian_shardcannon_fixed_medium",
-  "name": "Modified Shard Cannon (Fixed, Medium) · Guardian Shard Cannon pre-engineered: Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
+  "name": "Modified Shard Cannon 2A (fixed) · pre-engineered Guardian Shard Cannon 2A (fixed)",
+  "description": "Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
   "broker": "guardian",
   "blueprint": "Weapon_LongRange",
   "blueprints": [
@@ -273,7 +285,8 @@
  {
   "id": "pe:hpt_guardian_shardcannon_fixed_medium:weapon_longrange:5",
   "item": "hpt_guardian_shardcannon_fixed_medium",
-  "name": "Shard (Long Range) · Guardian Shard Cannon pre-engineered: Grade 5 LongRange modifications",
+  "name": "Shard (Long Range) · pre-engineered Guardian Shard Cannon 2A (fixed)",
+  "description": "Grade 5 LongRange modifications",
   "broker": "community goal",
   "blueprint": "Weapon_LongRange",
   "blueprints": [
@@ -290,7 +303,8 @@
  {
   "id": "pe:hpt_guardian_shardcannon_fixed_small:weapon_longrange+weapon_focused:1",
   "item": "hpt_guardian_shardcannon_fixed_small",
-  "name": "Modified Shard Cannon (Fixed, Small) · Guardian Shard Cannon pre-engineered: Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
+  "name": "Modified Shard Cannon 1D (fixed) · pre-engineered Guardian Shard Cannon 1D (fixed)",
+  "description": "Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
   "broker": "guardian",
   "blueprint": "Weapon_LongRange",
   "blueprints": [
@@ -317,7 +331,8 @@
  {
   "id": "pe:hpt_heatsinklauncher_turret_tiny:misc_heatsinkcapacity:1",
   "item": "hpt_heatsinklauncher_turret_tiny",
-  "name": "Sirius Modified Heat Sink Launcher · Heat Sink Launcher pre-engineered: Grade 1 Expanded Heat Sink Capacity modifications",
+  "name": "Sirius Modified Heat Sink Launcher · pre-engineered Heat Sink Launcher 0I",
+  "description": "Grade 1 Expanded Heat Sink Capacity modifications",
   "broker": "human",
   "blueprint": "Misc_HeatSinkCapacity",
   "blueprints": [
@@ -338,7 +353,8 @@
  {
   "id": "pe:hpt_mining_abrblstr_fixed_small:weapon_longrange:1",
   "item": "hpt_mining_abrblstr_fixed_small",
-  "name": "Abr Blast (LR) · Abrasion Blaster pre-engineered: Grade 1 Long Range modifications",
+  "name": "Abr Blast (LR) · pre-engineered Abrasion Blaster 1D (fixed)",
+  "description": "Grade 1 Long Range modifications",
   "broker": "community goal",
   "blueprint": "Weapon_LongRange",
   "blueprints": [
@@ -361,7 +377,8 @@
  {
   "id": "pe:hpt_mininglaser_fixed_small:weapon_longrange:5",
   "item": "hpt_mininglaser_fixed_small",
-  "name": "Modified Mining Laser · Mining Laser pre-engineered: Grade 5 Long Range modifications and Incendiary Rounds Experimental",
+  "name": "Modified Mining Laser · pre-engineered Mining Laser 1D (fixed)",
+  "description": "Grade 5 Long Range modifications and Incendiary Rounds Experimental",
   "broker": "human",
   "blueprint": "Weapon_LongRange",
   "blueprints": [
@@ -386,7 +403,8 @@
  {
   "id": "pe:hpt_multicannon_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
   "item": "hpt_multicannon_fixed_medium",
-  "name": "MC (HCap+RFire+Phase) · Multi-Cannon pre-engineered: Grade 5 High Cap & Rapid Fire modifications, and Phasing Sequence Experimental Effect",
+  "name": "MC (HCap+RFire+Phase) · pre-engineered Multi-Cannon 2E (fixed)",
+  "description": "Grade 5 High Cap & Rapid Fire modifications, and Phasing Sequence Experimental Effect",
   "broker": "community goal",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -413,7 +431,8 @@
  {
   "id": "pe:hpt_railgun_fixed_medium:weapon_highcapacity+weapon_longrange:5",
   "item": "hpt_railgun_fixed_medium",
-  "name": "Railgun (HCap+LR+FCasc) · Rail Gun pre-engineered: Grade 5 High Cap & Long Range modifications, and Feedback Cascade Experimental Effect",
+  "name": "Railgun (HCap+LR+FCasc) · pre-engineered Rail Gun 2B (fixed)",
+  "description": "Grade 5 High Cap & Long Range modifications, and Feedback Cascade Experimental Effect",
   "broker": "community goal",
   "blueprint": "Weapon_HighCapacity",
   "blueprints": [
@@ -435,7 +454,8 @@
  {
   "id": "pe:int_cargorack_size5_class1:cargorack_increasedcapacity:5",
   "item": "int_cargorack_size5_class1",
-  "name": "Expanded Capacity Cargo Rack · Cargo Rack pre-engineered: Grade 5 Expanded Capacity",
+  "name": "Expanded Capacity Cargo Rack · pre-engineered Cargo Rack 5E",
+  "description": "Grade 5 Expanded Capacity",
   "broker": "community goal",
   "blueprint": "CargoRack_IncreasedCapacity",
   "blueprints": [
@@ -452,7 +472,8 @@
  {
   "id": "pe:int_cargorack_size6_class1:cargorack_increasedcapacity:5",
   "item": "int_cargorack_size6_class1",
-  "name": "Expanded Capacity Cargo Rack · Cargo Rack pre-engineered: Grade 5 Expanded Capacity",
+  "name": "Expanded Capacity Cargo Rack · pre-engineered Cargo Rack 6E",
+  "description": "Grade 5 Expanded Capacity",
   "broker": "community goal",
   "blueprint": "CargoRack_IncreasedCapacity",
   "blueprints": [
@@ -469,7 +490,8 @@
  {
   "id": "pe:int_detailedsurfacescanner_tiny:sensor_expanded:1",
   "item": "int_detailedsurfacescanner_tiny",
-  "name": "Engineered Detailed Surface Scanner V1 · Detailed Surface Scanner pre-engineered: Grade 5 Expanded Probe Radius modifications",
+  "name": "Engineered Detailed Surface Scanner V1 · pre-engineered Detailed Surface Scanner 1I",
+  "description": "Grade 5 Expanded Probe Radius modifications",
   "broker": "human",
   "blueprint": "Sensor_Expanded",
   "blueprints": [
@@ -486,7 +508,8 @@
  {
   "id": "sco_v1_2",
   "item": "int_hyperdrive_overcharge_size2_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 2) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 2) · pre-engineered Frame Shift Drive (SCO) 2A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -506,12 +529,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 2)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_3",
   "item": "int_hyperdrive_overcharge_size3_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 3) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 3) · pre-engineered Frame Shift Drive (SCO) 3A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -531,12 +555,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 3)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_4",
   "item": "int_hyperdrive_overcharge_size4_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 4) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 4) · pre-engineered Frame Shift Drive (SCO) 4A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -556,12 +581,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 4)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_5",
   "item": "int_hyperdrive_overcharge_size5_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 5) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 5) · pre-engineered Frame Shift Drive (SCO) 5A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -581,12 +607,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 5)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_6",
   "item": "int_hyperdrive_overcharge_size6_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 6) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 6) · pre-engineered Frame Shift Drive (SCO) 6A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -606,12 +633,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 6)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_7",
   "item": "int_hyperdrive_overcharge_size7_class5",
-  "name": "Engineered FSD (SCO) V1 (Class 7) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD (SCO) V1 (Class 7) · pre-engineered Frame Shift Drive (SCO) 7A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [
@@ -631,12 +659,13 @@
   },
   "unlock": "Engineered FSD (SCO) V1 (Class 7)",
   "per_unit": true,
-  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "pe:int_hyperdrive_size5_class5:fsd_longrange+fsd_fastboot:5",
   "item": "int_hyperdrive_size5_class5",
-  "name": "Engineered FSD V1 · Frame Shift Drive pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "name": "Engineered FSD V1 · pre-engineered Frame Shift Drive 5A",
+  "description": "Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
   "blueprints": [

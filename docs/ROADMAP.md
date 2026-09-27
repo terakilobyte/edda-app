@@ -492,6 +492,28 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Module names carry class and rating; one broker line per variant
+  with the hold against every unit** (2026-09-27; the maintainer: "I
+  don't think we're summing this properly, and we aren't showing the
+  size/grade next to the guardian modules still (i.e. 3c, 2a, 3d,
+  etc...)", "not sure what this text is supposed to really tell me",
+  and a window that scrolled sideways with no scrollbar). A weapon
+  printed its mount and size as words with no class or rating, so a 3C
+  and a 3D shard read alike: `item_name` now prints every module as
+  the outfitting screen does ("Guardian Shard Cannon 3C (fixed)", "Heat
+  Sink Launcher 0I"), and `recipe_name` keeps the broker's spelling for
+  recipe lookups ("Guardian Shard Cannon (Fixed, Large)"; a recipe named
+  without a size, "(Fixed)", now matches too). The technology broker
+  section printed one line per slot, each ticking its own five
+  components against the hold, so two modified shards needing ten read
+  as covered twice: one line per variant now, with the unit count, the
+  slots, materials and commodities summed across units, and the sellers
+  asked for the summed shortfall. The import's note on a recognised
+  variant says what it is and where its price is, instead of "nothing
+  to plan for it"; a variant no table knows says it is planned as the
+  plain module. The preset's name is short ("Modified Shard Cannon 2A
+  (fixed) · pre-engineered Guardian Shard Cannon 2A (fixed)") with the
+  engineering in words in `description`. The seller pills wrap.
 - **Pre-engineered modules: the table is generated from sources, a
   variant is told from the plain module by its block, and each unit is
   paid for** (2026-09-27; the maintainer, on a build wanting two

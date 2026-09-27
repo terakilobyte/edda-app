@@ -169,19 +169,31 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
         }
         let Some(eng) = m.get("Engineering") else { continue };
         let Some(module_type) = ed_engineering::journal::module_type_for_item(item) else {
-            // Guardian weapons and the like take no engineer: the build has
-            // one bought pre-engineered (a technology broker's). Nothing to
-            // plan; if the ship lacks it, it is already in the swaps.
-            let mods = eng
-                .get("BlueprintName")
-                .and_then(Value::as_str)
-                .map(|b| b.trim_start_matches("Weapon_").trim_start_matches("Misc_").to_string())
-                .unwrap_or_default();
-            skipped.push(format!(
-                "{slot_name}: {item_name} comes pre-engineered as bought{}; no engineer works it, so there is nothing to plan for it{}",
-                if mods.is_empty() { String::new() } else { format!(" ({mods})") },
-                if swap { " — it is in the modules to swap" } else { "" }
-            ));
+            // A module no engineer works: the build's engineering on it is
+            // a bought pre-engineered variant (a technology broker's).
+            // Said as what it is (maintainer, 2026-09-27: "not sure what
+            // this text is supposed to really tell me").
+            skipped.push(match (&preset, swap) {
+                (Some(p), true) => format!(
+                    "{slot_name}: {} is a bought pre-engineered variant{}. It is in the swaps; what the {} broker charges per unit is in the technology broker section below.",
+                    p.name,
+                    p.description.as_deref().map(|d| format!(" ({d})")).unwrap_or_default(),
+                    p.broker
+                ),
+                (Some(p), false) => format!("{slot_name}: the fitted {} already carries the bought engineering{}; nothing to plan.", p.name, p.description.as_deref().map(|d| format!(" ({d})")).unwrap_or_default()),
+                (None, _) => {
+                    let mods = eng
+                        .get("BlueprintName")
+                        .and_then(Value::as_str)
+                        .map(|b| b.trim_start_matches("Weapon_").trim_start_matches("Misc_").to_string())
+                        .unwrap_or_default();
+                    format!(
+                        "{slot_name}: {item_name} carries engineering{} that no engineer applies and no table knows; it is planned as the plain module{}",
+                        if mods.is_empty() { String::new() } else { format!(" ({mods})") },
+                        if swap { " — it is in the modules to swap" } else { "" }
+                    )
+                }
+            });
             continue;
         };
         let blueprint = s(eng, "BlueprintName").and_then(|sym| ed_engineering::journal::blueprint_for_symbol(sym, module_type));
