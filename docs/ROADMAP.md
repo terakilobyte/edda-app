@@ -492,6 +492,30 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A plot from the SRV planned the ship on the buggy's tank**
+  (2026-09-27). "the community API did not answer ({"error":"no_route"})
+  and the bundled bubble index cannot plot this on its own (unknown
+  system "Synuefe NL-N c23-4"); try again in a moment" — for a 220 ly
+  hop on a full Mandalay. The log had the cause in its own plot line:
+  `start_fuel: 0.0`. In the SRV (and on foot) Status.json's Fuel block
+  is the vehicle's, FuelMain 0.0 beside a 0.37 t reservoir, and
+  `ship_fuel_for` took it for the ship's; the server's fuel model found
+  no first jump and refused, honestly. Three things were wrong in what
+  the commander read: the server *had* answered (a refusal is not a
+  transport failure), "try again" could not help (nothing transient),
+  and no retry of any kind had happened. Now: Status fuel counts only
+  with InMainShip set, else the journal's last reading of the ship's
+  tank (pinned in `start_fuel_fails_closed_to_the_journals_last_reading`
+  with the measured SRV Status); `plot_via_api` types its failure —
+  a refusal is said with the inputs that decided it ("no route from X
+  to Y for the Mandalay departing with 0.0 t of 32 t; refuel first, or
+  plot with the fuel model off"), only a transport failure says "did
+  not answer … try again in a moment"; `send_api` retries once, after
+  1.5 s, a connection that never opened or a 502/503/504 (a timeout is
+  not retried: the long lane already waits 130 s; 429 kept its own
+  retry); and the in-game plotter logs when it arms, because the
+  "then it succeeded" was that path, not a second plot — the log showed
+  one API plot all session. Logged with the source of the start fuel.
 - **Shopping list: Frontier's material names win, one pickup row per
   site, one block per material** (2026-09-27, the maintainer's shard
   cannon unlock). Three faults in one report. "20 Guardian Wreckage

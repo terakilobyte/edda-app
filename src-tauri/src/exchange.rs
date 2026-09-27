@@ -125,7 +125,11 @@ pub fn retry_delay(retry_after: Option<&str>, attempt: u32) -> Option<std::time:
 /// a 429 (the per-install burst cap or hourly ceiling) is retried up to
 /// twice after [`retry_delay`], quietly - with per-IP caps a commander
 /// behind a shared NAT otherwise saw EDDA "randomly stop working"
-/// (the assistant session, 2026-09-09). Anything else returns as it came.
+/// (the assistant session, 2026-09-09). A connection that never opened
+/// (DNS, refused, reset) or a gateway answering for the server (502,
+/// 503, 504) is retried once after a beat (maintainer, 2026-09-27: "why
+/// are we not auto retrying?"); a timeout is not, since the long lane
+/// already waits 130 s. Anything else returns as it came.
 pub trait SendApi {
     fn send_api(self) -> impl std::future::Future<Output = reqwest::Result<reqwest::Response>> + Send;
 }
@@ -136,8 +140,26 @@ impl SendApi for reqwest::RequestBuilder {
         let mut builder = self;
         loop {
             let again = builder.try_clone();
-            let response = builder.send().await?;
-            if response.status().as_u16() != 429 {
+            let response = match builder.send().await {
+                Ok(r) => r,
+                Err(e) if attempt == 0 && e.is_connect() && again.is_some() => {
+                    tracing::warn!(error = %e, "API connection failed; retrying once");
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    builder = again.unwrap();
+                    attempt += 1;
+                    continue;
+                }
+                Err(e) => return Err(e),
+            };
+            let code = response.status().as_u16();
+            if attempt == 0 && matches!(code, 502 | 503 | 504) && again.is_some() {
+                tracing::warn!(status = code, "API gateway error; retrying once");
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                builder = again.unwrap();
+                attempt += 1;
+                continue;
+            }
+            if code != 429 {
                 return Ok(response);
             }
             let retry_after = response

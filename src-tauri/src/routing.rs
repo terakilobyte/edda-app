@@ -970,13 +970,32 @@ pub fn ship_fuel_for(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Optio
     // tank there plans a route the real tank cannot fly. Fail closed:
     // the journal's last fuel reading is the truth we have; capacity
     // only when the journal has never seen this tank at all.
-    let now: f32 = conn
-        .query_row("SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name = 'Status.json'", [], |r| r.get::<_, Option<f64>>(0))
-        .ok()
-        .flatten()
-        .or_else(|| last_journal_fuel(conn))
-        .map(|x| x as f32)
-        .unwrap_or(capacity);
+    // And in the SRV or on foot the block is the VEHICLE's, not the
+    // ship's (FuelMain 0.0 beside the buggy's 0.37 t reservoir): a ship
+    // planned from it has no first jump, and the server answered
+    // no_route to a 220 ly hop the tank could fly four times over
+    // (maintainer, 2026-09-27, plotting from the SRV at Synuefe NL-N
+    // c23-4). Status fuel counts only with InMainShip set; otherwise
+    // the journal's last reading of the ship's own tank.
+    let status = conn
+        .query_row(
+            "SELECT json_extract(raw,'$.Fuel.FuelMain'), COALESCE(json_extract(raw,'$.Flags'), 0) FROM snapshots WHERE name = 'Status.json'",
+            [],
+            |r| Ok((r.get::<_, Option<f64>>(0)?, r.get::<_, i64>(1)?)),
+        )
+        .ok();
+    let (now, source): (f32, &str) = match status {
+        Some((Some(fuel), flags)) if flags & crate::status_flags::IN_MAIN_SHIP != 0 => (fuel as f32, "Status.json, in the ship"),
+        Some((Some(_), _)) => match last_journal_fuel(conn) {
+            Some(fuel) => (fuel as f32, "the journal's last reading (Status.json is the vehicle's, not the ship's)"),
+            None => (capacity, "capacity (Status.json is the vehicle's and the journal has never seen the tank)"),
+        },
+        _ => match last_journal_fuel(conn) {
+            Some(fuel) => (fuel as f32, "the journal's last reading (no live Status fuel)"),
+            None => (capacity, "capacity (no reading anywhere)"),
+        },
+    };
+    tracing::debug!(fuel = now, source, "start fuel");
     // The label's first " · " token is the display name (time_fit reads
     // it back); the rest is the shared summary, with the Mk II note the
     // app has always shown.
@@ -1082,9 +1101,30 @@ pub(crate) async fn plot_for_trade(app: AppHandle, dest: String, cargo_t: Option
 /// One honest divergence: the server can't know the start star's
 /// scoopability, so the plan departs on the actual tank (its resolve
 /// tops up to full only when we send no figure at all).
-async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::router::Route, String> {
+/// Why the API did not return a route: the server could not be reached
+/// or answered badly (worth a retry, and `send_api` already made one),
+/// or it answered and said no (a retry changes nothing until an input
+/// does). The two read differently to the commander: "did not answer …
+/// try again in a moment" was said of a no_route the server had decided
+/// on an empty tank (maintainer, 2026-09-27: "why are we not auto
+/// retrying? and why did it fail then succeed?").
+#[derive(Debug)]
+enum PlotFailure {
+    Transport(String),
+    Refused(String),
+}
+
+impl PlotFailure {
+    fn text(&self) -> &str {
+        match self {
+            PlotFailure::Transport(t) | PlotFailure::Refused(t) => t,
+        }
+    }
+}
+
+async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::router::Route, PlotFailure> {
     let api = crate::exchange::endpoint(state)
-        .ok_or("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there")?;
+        .ok_or_else(|| PlotFailure::Refused("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there".into()))?;
     let (here, ship) = state.with_read(|s| {
         let conn = s.conn();
         let here = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
@@ -1095,7 +1135,7 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
         .clone()
         .filter(|s| !s.trim().is_empty())
         .or(here)
-        .ok_or("no origin: not in a known system")?;
+        .ok_or_else(|| PlotFailure::Refused("no origin: not in a known system".into()))?;
     let use_fuel = query.fuel.unwrap_or(true);
     let (fuel_model, boost, start_fuel) = match (&ship, use_fuel) {
         (Some((m, b, now, label)), true) => {
@@ -1146,11 +1186,14 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             .timeout(std::time::Duration::from_secs(130))
             .send_api()
             .await
-            .map_err(|error| format!("route server unreachable: {error}"))?;
+            .map_err(|error| PlotFailure::Transport(format!("route server unreachable: {error}")))?;
         let status = response.status();
         let ms = started.elapsed().as_millis() as u64;
         if status.as_u16() == 429 {
-            return Err("the route server is busy — try again in a moment".into());
+            return Err(PlotFailure::Transport("the route server is busy — try again in a moment".into()));
+        }
+        if status.is_server_error() {
+            return Err(PlotFailure::Transport(format!("route server error ({status})")));
         }
         if !status.is_success() {
             let detail = response.text().await.unwrap_or_default();
@@ -1171,16 +1214,33 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
                     }
                 }
             }
-            return Err(if detail.is_empty() {
-                format!("route server refused the plot ({status})")
-            } else {
-                detail.to_owned()
-            });
+            let code = serde_json::from_str::<serde_json::Value>(detail)
+                .ok()
+                .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(str::to_string));
+            return Err(PlotFailure::Refused(match code.as_deref() {
+                // Said with the inputs that decided it: the tank at
+                // departure is the one a commander can change.
+                Some("no_route") => {
+                    let tank = match (start_fuel, &ship) {
+                        (Some(f), Some((m, _, _, label))) => format!(
+                            " for the {} departing with {f:.1} t of {:.0} t{}",
+                            label.split(" · ").next().unwrap_or(label),
+                            m.capacity,
+                            if f < 1.0 { "; refuel first, or plot with the fuel model off" } else { "" }
+                        ),
+                        _ => String::new(),
+                    };
+                    format!("the route server found no route from {from} to {}{tank}", query.to)
+                }
+                Some(other) => format!("the route server refused the plot ({other}: {detail})"),
+                None if detail.is_empty() => format!("the route server refused the plot ({status})"),
+                None => format!("the route server refused the plot: {detail}"),
+            }));
         }
         let route: ed_galaxy::router::Route = response
             .json()
             .await
-            .map_err(|error| format!("route server answer unreadable: {error}"))?;
+            .map_err(|error| PlotFailure::Transport(format!("route server answer unreadable: {error}")))?;
         let boosted = route.hops.iter().filter(|h| h.boosted).count();
         tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, "route planned by API");
         if route.highway_pending {
@@ -1225,15 +1285,21 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     // and says why that is all it can do.
     let remote = match plot_via_api(state, &query).await {
         Ok(route) => return Ok(route),
-        Err(error) => error,
+        Err(failure) => failure,
     };
-    tracing::warn!(error = %remote, "remote plot failed; trying the bundled bubble index");
+    let transient = matches!(remote, PlotFailure::Transport(_));
+    let remote = remote.text().to_string();
+    tracing::warn!(error = %remote, transient, "remote plot failed; trying the bundled bubble index");
     if routing.galaxy(&state.data_dir).is_none() {
         return Err(remote);
     }
     plot_local(app, state, routing, &query).await.map_err(|local| {
         if local.starts_with("unknown system") || local.contains("no route") {
-            format!("the community API did not answer ({remote}) and the bundled bubble index cannot plot this on its own ({local}); try again in a moment")
+            if transient {
+                format!("the community API did not answer ({remote}) and the bundled bubble index cannot plot this on its own ({local}); try again in a moment")
+            } else {
+                format!("{remote}; the bundled bubble index cannot plot it either ({local})")
+            }
         } else {
             local
         }
@@ -1929,10 +1995,18 @@ mod scoop_rate_tests {
         ).unwrap();
         assert!((fuel_now() - 19.7).abs() < 1e-4, "latest journal reading, not capacity: {}", fuel_now());
         store.conn().execute(
-            "INSERT INTO snapshots (name, ts, mtime, raw) VALUES ('Status.json', '2026-09-03T09:06:00Z', 0, '{\"Fuel\":{\"FuelMain\":25.5}}')",
+            "INSERT INTO snapshots (name, ts, mtime, raw) VALUES ('Status.json', '2026-09-03T09:06:00Z', 0, '{\"Flags\":16777240,\"Fuel\":{\"FuelMain\":25.5}}')",
             [],
         ).unwrap();
-        assert!((fuel_now() - 25.5).abs() < 1e-4, "a live Status reading wins: {}", fuel_now());
+        assert!((fuel_now() - 25.5).abs() < 1e-4, "a live Status reading in the ship wins: {}", fuel_now());
+        // In the SRV the block is the buggy's (measured 2026-09-27: Flags with
+        // InSRV, FuelMain 0.0, FuelReservoir 0.365): the ship's last journal
+        // reading is the tank, not an empty one.
+        store.conn().execute(
+            "UPDATE snapshots SET raw = '{\"Flags\":73433934,\"Fuel\":{\"FuelMain\":0.0,\"FuelReservoir\":0.365339}}' WHERE name = 'Status.json'",
+            [],
+        ).unwrap();
+        assert!((fuel_now() - 19.7).abs() < 1e-4, "the SRV's fuel is not the ship's: {}", fuel_now());
     }
 
     /// The ladder pinned against the game's table: A rates per size,

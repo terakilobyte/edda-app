@@ -2270,6 +2270,9 @@ pub fn plot_in_game(state: &AppState, system: String) -> Result<String, String> 
     }
     set_clipboard(&system)?;
     *PENDING_GAME_PLOT.lock().unwrap_or_else(|e| e.into_inner()) = Some(system.clone());
+    // In the log, so a "failed, then succeeded" reads as what it was: the
+    // game's own plotter after EDDA's (maintainer, 2026-09-27).
+    tracing::info!(%system, "in-game plot armed: clipboard loaded, waiting for Target Next");
     let message = format!("{system} is ready. Press Target Next System in Route to ask Elite to plot it.");
     // Spoken too (maintainer, 2026-09-05): the commander is in the cockpit
     // waiting on this cue, not reading the Route tab.
