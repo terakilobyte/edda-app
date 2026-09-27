@@ -1026,8 +1026,31 @@ pub async fn service_options() -> Result<Vec<ServiceOption>, String> {
         .iter()
         .map(|(key, label)| ServiceOption { key: (*key).to_string(), label: (*label).to_string() })
         .collect();
+    // The kinds the data does not name but the economy tells apart
+    // (remote_lookup::kinded_service): a commander after a Guardian
+    // broker should not have to know the economy rule.
+    for (key, label) in [
+        ("guardian_technology_broker", "Technology Broker (Guardian)"),
+        ("human_technology_broker", "Technology Broker (Human)"),
+        ("raw_material_trader", "Material Trader (raw)"),
+        ("manufactured_material_trader", "Material Trader (manufactured)"),
+        ("encoded_material_trader", "Material Trader (encoded)"),
+    ] {
+        out.push(ServiceOption { key: key.to_string(), label: label.to_string() });
+    }
     out.sort_by(|a, b| a.label.cmp(&b.label));
     Ok(out)
+}
+
+/// A services search as the Galaxy tab shows it: the stations, and when
+/// the service was asked for by kind, whether the kind could be told and
+/// the rule that told it.
+#[derive(Debug, Serialize)]
+pub struct ServiceSearch {
+    pub origin: String,
+    pub stations: Vec<ed_store::lookup::StationWithService>,
+    pub kind_known: bool,
+    pub note: Option<String>,
 }
 
 #[tauri::command]
@@ -1576,23 +1599,30 @@ pub async fn nearest_service(
     min_pad: Option<String>,
     radius_ly: Option<f64>,
     include_carriers: Option<bool>,
-) -> Result<Vec<StationWithService>, CapError> {
+) -> Result<ServiceSearch, CapError> {
     let d = galaxy::NearestServiceRequest::default();
     // An empty origin is "from where I am" (maintainer, 2026-09-14: the
     // Services search "did nothing" — the panel required a system name and
     // returned before calling anything).
     let system = state.with_read(|s| galaxy::system_or_current(s.conn(), Some(system.as_str())))?;
+    let kinded = crate::remote_lookup::kinded_service(&service);
     let req = galaxy::NearestServiceRequest {
         system: Some(system),
-        service,
+        service: kinded.map(|(base, _, _)| base.to_string()).unwrap_or(service),
         min_pad,
         radius_ly: radius_ly.unwrap_or(d.radius_ly),
         include_carriers: include_carriers.unwrap_or(d.include_carriers),
     };
-    crate::remote_lookup::nearest_service(&state, &req)
+    let (origin, hits) = crate::remote_lookup::nearest_service(&state, &req)
         .await
-        .map(|(_, hits)| hits)
-        .ok_or_else(|| crate::remote_lookup::api_down("nearest service"))
+        .ok_or_else(|| crate::remote_lookup::api_down("nearest service"))?;
+    Ok(match kinded {
+        Some((base, kind, economies)) => {
+            let split = crate::remote_lookup::split_by_economy(hits, economies, galaxy::NEAREST_SERVICE_LIMIT);
+            ServiceSearch { origin, kind_known: split.kind_known, note: Some(crate::remote_lookup::kind_note(base, kind, split.kind_known)), stations: split.stations }
+        }
+        None => ServiceSearch { origin, stations: hits, kind_known: true, note: None },
+    })
 }
 
 // ── Powerplay & merits ───────────────────────────────────────────────

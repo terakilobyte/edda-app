@@ -263,6 +263,51 @@ pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, pr
 /// Economies whose stations host each material-trader kind: the dump
 /// (and so the server) says only "Material Trader"; the kind follows
 /// the station economy, as the trader-finding guides have it.
+/// A service key that names a KIND of a service the data only lists
+/// plainly: `raw_material_trader` is a material trader at an Extraction
+/// or Refinery station, `guardian_technology_broker` a technology broker
+/// at a High Tech one (Industrial brokers sell the Human modules). The
+/// station's economy is what tells them apart; the data carries no
+/// broker type of its own (maintainer, 2026-09-27: "when searching
+/// galaxy services it just says Technology Broker but there are
+/// different types of brokers"). Returns (service the API knows, the
+/// kind's word, the economies that host it).
+pub fn kinded_service(key: &str) -> Option<(&'static str, &'static str, &'static [&'static str])> {
+    let key = key.trim().to_ascii_lowercase().replace([' ', '-'], "_");
+    let (kind, base) = key
+        .strip_suffix("_material_trader")
+        .map(|k| (k.to_string(), "material_trader"))
+        .or_else(|| key.strip_prefix("material_trader_").map(|k| (k.to_string(), "material_trader")))
+        .or_else(|| key.strip_suffix("_technology_broker").map(|k| (k.to_string(), "technology_broker")))
+        .or_else(|| key.strip_prefix("technology_broker_").map(|k| (k.to_string(), "technology_broker")))?;
+    match base {
+        "material_trader" => {
+            let economies = trader_economies(&kind)?;
+            let word = match kind.as_str() { "raw" => "raw", "manufactured" => "manufactured", _ => "encoded" };
+            Some((base, word, economies))
+        }
+        _ => match kind.as_str() {
+            "guardian" => Some((base, "Guardian", &["High Tech"])),
+            "human" => Some((base, "Human", &["Industrial"])),
+            _ => None,
+        },
+    }
+}
+
+/// What a kind's answer means, in words: the rule, and when the data
+/// could not apply it, that the list is every station of the service.
+pub fn kind_note(base: &str, kind: &str, kind_known: bool) -> String {
+    let rule = match base {
+        "technology_broker" => "A broker's type follows its station's economy: High Tech stations offer the Guardian modules, Industrial stations the Human ones.",
+        _ => "A material trader's kind follows its station's economy: raw at Extraction and Refinery, manufactured at Industrial, encoded at High Tech and Military.",
+    };
+    if kind_known {
+        rule.to_string()
+    } else {
+        format!("{rule} The data carries no station economies here, so these are every {} in range, not only the {kind} ones.", base.replace('_', " "))
+    }
+}
+
 fn trader_economies(kind: &str) -> Option<&'static [&'static str]> {
     Some(match kind.trim().to_ascii_lowercase().as_str() {
         "raw" => &["Extraction", "Refinery"],
@@ -326,7 +371,7 @@ pub struct TraderHits {
     pub kind_known: bool,
 }
 
-fn split_by_economy(hits: Vec<StationWithService>, economies: &[&str], limit: usize) -> TraderHits {
+pub(crate) fn split_by_economy(hits: Vec<StationWithService>, economies: &[&str], limit: usize) -> TraderHits {
     let known = hits.iter().any(|h| h.station.primary_economy.is_some());
     let mut out: Vec<StationWithService> = if known {
         hits.into_iter()
@@ -583,5 +628,20 @@ mod tests {
         let with = StationWithService { station: info, distance_ly: row()["distance_ly"].as_f64().unwrap() };
         assert_eq!(with.distance_ly, 10.0);
         assert!(station(&serde_json::json!({"id": "not a number"})).is_none());
+    }
+}
+
+#[cfg(test)]
+mod kinded_service_tests {
+    use super::kinded_service;
+
+    #[test]
+    fn brokers_and_traders_come_in_kinds_by_economy() {
+        assert_eq!(kinded_service("guardian_technology_broker"), Some(("technology_broker", "Guardian", &["High Tech"][..])));
+        assert_eq!(kinded_service("Technology Broker (Human)".replace(['(', ')'], "").trim()), Some(("technology_broker", "Human", &["Industrial"][..])), "the panel's label spelling");
+        assert_eq!(kinded_service("raw_material_trader").map(|k| k.1), Some("raw"));
+        assert_eq!(kinded_service("material_trader_encoded").map(|k| k.2), Some(&["High Tech", "Military"][..]));
+        assert_eq!(kinded_service("technology_broker"), None, "the plain service is the API's own");
+        assert_eq!(kinded_service("thargoid_technology_broker"), None);
     }
 }

@@ -492,6 +492,22 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Services by kind, typed rather than picked** (2026-09-27; the
+  maintainer: "when searching galaxy services it just says Technology
+  Broker but there are different types of brokers. Also it might just
+  be nicer to have it an autocomplete text box rather than a dropdown").
+  The data lists a broker plainly; its type follows the station's
+  economy (High Tech offers the Guardian modules, Industrial the Human
+  ones), the same rule that already split material traders into raw,
+  manufactured and encoded. `remote_lookup::kinded_service` names the
+  kinds — `guardian_technology_broker`, `human_technology_broker`, the
+  three trader kinds — and `nearest_service` answers with the kind
+  applied and a note saying the rule, or, when the data carries no
+  economies for the stations found, that the list is every broker in
+  range rather than a promise of the kind. The ship computer's tool
+  takes the same keys. The Galaxy tab's service is a text box that
+  completes on any part of a label ("brok" → both brokers); an
+  ambiguous or unknown entry is said, never searched as something else.
 - **Names: the symbol is the key, Frontier's string prints, and an audit
   measures it** (2026-09-27; the maintainer: "we really need to audit
   every name and ensure we translate and align so we don't get

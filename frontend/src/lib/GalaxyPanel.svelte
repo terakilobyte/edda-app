@@ -15,8 +15,18 @@
   let q = $state("");
   let mode = $state("system"); // system | station | service
   let service = $state("interstellar_factors");
+  // Typed, not picked from a list of thirty (maintainer, 2026-09-27):
+  // the box completes on any part of a label, and the key is looked up
+  // when the search runs.
+  let serviceText = $state("Interstellar Factors Contact");
   // The vocabulary, from the backend rather than typed out here.
   let services = $state([{ key: "interstellar_factors", label: "Interstellar Factors Contact" }]);
+  const serviceMatches = (text) => {
+    const t = text.trim().toLowerCase();
+    if (!t) return [];
+    const exact = services.filter((s) => s.label.toLowerCase() === t);
+    return exact.length ? exact : services.filter((s) => s.label.toLowerCase().includes(t) || s.key.replace(/_/g, " ").includes(t));
+  };
   onMount(async () => { try { services = await serviceOptions(); } catch { /* keep the fallback */ } });
   let minPad = $state("large");
   let radius = $state(50);
@@ -101,7 +111,17 @@
         system = null;
         stations = [];
       } else {
-        results = await nearestService(name, service, minPad || null, Number(radius), carriers);
+        const matches = serviceMatches(serviceText);
+        if (matches.length !== 1) {
+          error = matches.length === 0
+            ? `No service called “${serviceText.trim()}”. Type part of a name: factors, broker, material trader, cartographics…`
+            : `“${serviceText.trim()}” could be ${matches.map((m) => m.label).join(" or ")} — pick one from the list.`;
+          return;
+        }
+        service = matches[0].key;
+        const answer = await nearestService(name, service, minPad || null, Number(radius), carriers);
+        results = answer.stations ?? [];
+        if (answer.note) notice = answer.note;
         system = null;
         stations = [];
         if (results.length === 0) {
@@ -111,9 +131,9 @@
           const label = (services.find((s) => s.key === service)?.label ?? service).toLowerCase();
           let onCarriers = 0;
           if (!carriers) {
-            try { onCarriers = (await nearestService(name, service, minPad || null, Number(radius), true)).length; } catch { onCarriers = 0; }
+            try { onCarriers = ((await nearestService(name, service, minPad || null, Number(radius), true)).stations ?? []).length; } catch { onCarriers = 0; }
           }
-          notice = emptyServiceHint({ label, radius, carriersIncluded: carriers, onCarriers });
+          notice = [notice, emptyServiceHint({ label, radius, carriersIncluded: carriers, onCarriers })].filter(Boolean).join(" ");
         }
       }
     } catch (e) {
@@ -156,9 +176,8 @@
            drift from what the data holds (maintainer, 2026-09-13: "I can't
            find legal facilities" — interstellar factors answered fine, the
            dropdown offered three of twenty-eight). -->
-      <select bind:value={service}>
-        {#each services as s}<option value={s.key}>{s.label}</option>{/each}
-      </select>
+      <Autocomplete bind:value={serviceText} placeholder="Service (type part of a name)" minWidth="16rem"
+        fetch={async (p) => serviceMatches(p).map((s) => ({ name: s.label }))} onenter={run} onchoose={run} />
       <select bind:value={minPad}>
         <option value="">any pad</option>
         <option value="medium">medium+</option>
