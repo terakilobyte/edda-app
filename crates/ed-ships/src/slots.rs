@@ -141,15 +141,107 @@ pub struct Preset {
     pub name: String,
     /// human | guardian
     pub broker: String,
-    /// The journal's blueprint symbol (`FSD_LongRange`).
+    /// The journal's blueprint symbol (`FSD_LongRange`): the one a Loadout
+    /// or an export names for the module (the first of `blueprints`).
     pub blueprint: String,
+    /// Every blueprint the variant carries (the modified shard is Long
+    /// Range and Focused; the journal names one). From coriolis-data.
+    #[serde(default)]
+    pub blueprints: Vec<String>,
     pub level: i64,
     pub quality: f64,
+    /// The experimental it comes with (`special_super_penetrator_cooled`).
+    #[serde(default)]
+    pub experimental: Option<String>,
+    /// Bought again with every unit, never unlocked: every technology-
+    /// broker pre-engineered module (the wiki's Technology Broker page:
+    /// "one payment of the requested resources will immediately grant one
+    /// pre-Engineered module ... More of these modules can be obtained
+    /// only by paying more resources each time"; maintainer, 2026-09-27).
+    /// False for a community-goal reward, which no broker sells at all.
+    #[serde(default)]
+    pub per_unit: bool,
     /// The fixed engineering as the journal's `Modifiers` state it: label
     /// -> multiplier on the base value (Mass 1.3, FSDOptimalMass 1.7, ...).
     /// Read from a real Loadout, so the figures are the game's, not a roll.
     #[serde(default)]
     pub modifiers: HashMap<String, f64>,
+    /// The technology broker's recipe name for this variant, when the
+    /// blueprint data has one ("Engineered FSD V1", "Modified Shard Cannon
+    /// (Fixed, Medium)"); the plain module's recipe otherwise.
+    #[serde(default)]
+    pub unlock: Option<String>,
+    /// Where the figures came from: "loadout: Python Mk II", "import: EDSY".
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+impl Preset {
+    /// A preset read off a real Engineering block — a fitted module's or
+    /// an imported build's — when no engineer is named on it: the
+    /// blueprint, its grade, and the modifiers as Value/OriginalValue.
+    /// The bought pre-engineered Guardian weapons live nowhere in a
+    /// table; a build wanting the modified 2A shard against a fitted
+    /// plain 2A read as "already there" because the two share a symbol
+    /// and only the block tells them apart (maintainer, 2026-09-27: "the
+    /// slef is different so.... why can't we know/support?").
+    pub fn from_engineering(item: &str, eng: &Value, source: &str) -> Option<Preset> {
+        if eng.get("Engineer").and_then(Value::as_str).is_some() {
+            return None;
+        }
+        let blueprint = eng.get("BlueprintName").and_then(Value::as_str)?.trim().to_string();
+        let level = eng.get("Level").and_then(Value::as_i64).unwrap_or(1);
+        let quality = eng.get("Quality").and_then(Value::as_f64).unwrap_or(1.0);
+        let item = item.to_ascii_lowercase();
+        let mut modifiers = HashMap::new();
+        for m in eng.get("Modifiers").and_then(Value::as_array).into_iter().flatten() {
+            let (Some(label), Some(value), Some(original)) = (
+                m.get("Label").and_then(Value::as_str),
+                m.get("Value").and_then(Value::as_f64),
+                m.get("OriginalValue").and_then(Value::as_f64),
+            ) else {
+                continue;
+            };
+            if original.abs() > f64::EPSILON {
+                modifiers.insert(label.to_string(), value / original);
+            }
+        }
+        let guardian = item.contains("guardian");
+        let plain = ed_journal::modules::item_name(&item);
+        let experimental = eng.get("ExperimentalEffect").and_then(Value::as_str).map(str::to_string);
+        // No recipe is guessed for a variant the tables do not know: the
+        // plan says so instead (the table, from coriolis-data and the
+        // wiki, is the place a recipe comes from).
+        Some(Preset {
+            id: format!("seen:{item}:{}:{level}", blueprint.to_ascii_lowercase()),
+            name: format!("{plain} · pre-engineered ({} G{level})", humanise_blueprint(&blueprint)),
+            item,
+            broker: if guardian { "guardian".into() } else { "human".into() },
+            blueprints: vec![blueprint.clone()],
+            blueprint,
+            level,
+            quality,
+            experimental,
+            modifiers,
+            unlock: None,
+            per_unit: true,
+            source: Some(source.to_string()),
+        })
+    }
+}
+
+/// `Weapon_LongRange` -> "Long Range"; the journal's blueprint symbols are
+/// the only name a Guardian weapon's engineering has.
+fn humanise_blueprint(symbol: &str) -> String {
+    let tail = symbol.rsplit('_').next().unwrap_or(symbol);
+    let mut out = String::new();
+    for (i, c) in tail.chars().enumerate() {
+        if i > 0 && c.is_ascii_uppercase() {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    out
 }
 
 pub struct Slots {
@@ -499,6 +591,54 @@ mod tests {
         assert_eq!(k.kind, "ipvh");
         assert!(k.ships.iter().any(|h| h == "lakonminer"), "{:?}", k.ships);
         assert!(s.kind("int_nothing_free").is_none());
+    }
+
+    /// The modified 2A shard as an EDSY export carries it: a Long Range
+    /// block with no engineer. Read off the block, it is a variant of the
+    /// plain module with the Guardian broker's "Modified" recipe.
+    #[test]
+    fn a_preset_is_read_off_a_real_engineering_block() {
+        let eng = serde_json::json!({
+            "BlueprintName": "Weapon_LongRange", "Level": 1, "Quality": 1.0,
+            "Modifiers": [
+                { "Label": "MaximumRange", "Value": 5100.0, "OriginalValue": 1700.0, "LessIsGood": 0 },
+                { "Label": "PowerDraw", "Value": 1.331, "OriginalValue": 1.21, "LessIsGood": 1 },
+            ]
+        });
+        let p = Preset::from_engineering("Hpt_Guardian_ShardCannon_Fixed_Medium", &eng, "import: EDSY").expect("a preset");
+        assert_eq!(p.id, "seen:hpt_guardian_shardcannon_fixed_medium:weapon_longrange:1");
+        assert_eq!(p.broker, "guardian");
+        assert_eq!(p.unlock, None, "a recipe is never guessed");
+        assert!(p.per_unit);
+        assert!(p.name.contains("pre-engineered (Long Range G1)"), "{}", p.name);
+        assert!((p.modifiers["MaximumRange"] - 3.0).abs() < 1e-9 && (p.modifiers["PowerDraw"] - 1.1).abs() < 1e-9);
+        let named = serde_json::json!({ "BlueprintName": "Weapon_LongRange", "Level": 1, "Engineer": "Bill Turner" });
+        assert!(Preset::from_engineering("hpt_beamlaser_fixed_medium", &named, "x").is_none(), "an engineer's roll is not a preset");
+    }
+
+    /// The table's presets come from coriolis-data: the modified 2A shard
+    /// is there with both blueprints, its experimental, the Guardian
+    /// broker's recipe and the per-unit rule; the Sirius heat sink too.
+    #[test]
+    fn the_table_knows_the_modified_guardian_weapons_and_the_sirius_heat_sink() {
+        let s = slots();
+        let shard = s.presets_for("hpt_guardian_shardcannon_fixed_medium");
+        let modified = shard.iter().find(|p| p.unlock.as_deref() == Some("Modified Shard Cannon (Fixed, Medium)")).expect("the modified 2A shard");
+        assert_eq!(modified.blueprints, ["Weapon_LongRange", "Weapon_Focused"]);
+        assert_eq!(modified.experimental.as_deref(), Some("special_super_penetrator_cooled"));
+        assert!(modified.per_unit && modified.broker == "guardian");
+        assert!((modified.modifiers["Mass"] - 1.5).abs() < 1e-6, "the wiki's +50% mass: {:?}", modified.modifiers);
+        let sirius = s.presets_for("hpt_heatsinklauncher_turret_tiny");
+        assert_eq!(sirius.len(), 1);
+        assert_eq!(sirius[0].unlock.as_deref(), Some("Sirius Modified Heat Sink Launcher"));
+        assert!(sirius[0].per_unit && sirius[0].broker == "human");
+        // The SCO drives keep their journal-measured figures and ids.
+        let sco = s.preset("sco_v1_4").expect("the size 4 SCO V1 keeps its id");
+        assert!((sco.modifiers["FSDOptimalMass"] - 1.7).abs() < 1e-6);
+        assert_eq!(sco.unlock.as_deref(), Some("Engineered FSD (SCO) V1 (Class 4)"));
+        // A community-goal reward is in the table but no broker sells it.
+        let cg = s.presets_for("hpt_railgun_fixed_medium");
+        assert!(cg.iter().all(|p| !p.per_unit && p.broker == "community goal" && p.unlock.is_none()), "{cg:?}");
     }
 
     #[test]

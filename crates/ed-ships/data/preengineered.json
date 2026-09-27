@@ -1,12 +1,501 @@
 [
  {
-  "id": "sco_v1_2",
-  "item": "int_hyperdrive_overcharge_size2_class5",
-  "name": "Frame Shift Drive (SCO) 2A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "id": "pe:hpt_atdumbfiremissile_fixed_large:weapon_highcapacity+weapon_rapidfire:5",
+  "item": "hpt_atdumbfiremissile_fixed_large",
+  "name": "Sirius Modified AX Missile Rack (Large) · AX Missile Rack pre-engineered: Grade 5 High Capacity and Rapid Fire modifications",
   "broker": "human",
-  "blueprint": "FSD_LongRange",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "Damage": 1.117188,
+   "DistributorDraw": 0.8,
+   "RateOfFire": 0.656814,
+   "Mass": 1.0625,
+   "ReloadTime": 1.57,
+   "AmmoClipSize": 2.0,
+   "AmmoMaximum": 2.0,
+   "PowerDraw": 1.2
+  },
+  "unlock": "Sirius Modified AX Missile Rack (Large)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_missile_rack.json; wiki https://elite-dangerous.fandom.com/wiki/AX_Missile_Rack#Sirius_AX_Missile_Racks; OPEN: RateOfFire: coriolis 0.6568 vs wiki 1.429 / ReloadTime: coriolis 1.57 vs wiki 0.55 / Damage: coriolis 1.117 vs wiki 0.97 / Mass: coriolis 1.062 vs wiki 1.7"
+ },
+ {
+  "id": "pe:hpt_atdumbfiremissile_fixed_medium:weapon_highcapacity+weapon_rapidfire:5",
+  "item": "hpt_atdumbfiremissile_fixed_medium",
+  "name": "Sirius Modified AX Missile Rack (Medium) · AX Missile Rack pre-engineered: Grade 5 High Capacity and Rapid Fire modifications",
+  "broker": "human",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "Damage": 1.117188,
+   "DistributorDraw": 0.8,
+   "RateOfFire": 0.656814,
+   "Mass": 1.0625,
+   "ReloadTime": 1.57,
+   "AmmoClipSize": 2.0,
+   "AmmoMaximum": 2.0,
+   "PowerDraw": 1.2
+  },
+  "unlock": "Sirius Modified AX Missile Rack (Medium)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_missile_rack.json; wiki https://elite-dangerous.fandom.com/wiki/AX_Missile_Rack#Sirius_AX_Missile_Racks; OPEN: RateOfFire: coriolis 0.6568 vs wiki 1.429 / ReloadTime: coriolis 1.57 vs wiki 0.55 / Damage: coriolis 1.117 vs wiki 0.97 / Mass: coriolis 1.062 vs wiki 1.7"
+ },
+ {
+  "id": "pe:hpt_atmulticannon_gimbal_large:weapon_overcharged:5",
+  "item": "hpt_atmulticannon_gimbal_large",
+  "name": "AX MC (OC, Auto-Load) · Enhanced AX Multi-Cannon pre-engineered: Grade 5 Overcharged modifications and Auto-Loader experimental",
+  "broker": "unknown",
+  "blueprint": "Weapon_Overcharged",
+  "blueprints": [
+   "Weapon_Overcharged"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": "special_auto_loader",
+  "modifiers": {
+   "Damage": 0.645238,
+   "PowerDraw": 1.75
+  },
+  "unlock": null,
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json"
+ },
+ {
+  "id": "pe:hpt_atmulticannon_gimbal_medium:weapon_overcharged:5",
+  "item": "hpt_atmulticannon_gimbal_medium",
+  "name": "AX MC (OC, Auto-Load) · Enhanced AX Multi-Cannon pre-engineered: Grade 5 Overcharged modifications and Auto-Loader experimental",
+  "broker": "unknown",
+  "blueprint": "Weapon_Overcharged",
+  "blueprints": [
+   "Weapon_Overcharged"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": "special_auto_loader",
+  "modifiers": {
+   "Damage": 0.648649,
+   "PowerDraw": 1.75
+  },
+  "unlock": null,
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json"
+ },
+ {
+  "id": "pe:hpt_basicmissilerack_fixed_medium:weapon_highcapacity+weapon_lightweight:5",
+  "item": "hpt_basicmissilerack_fixed_medium",
+  "name": "Engineered Missile Rack V1 · Seeker Missile Rack pre-engineered: Grade 5 High Cap, Lightweight modifications and Thermal Cascade Experimental Effect",
+  "broker": "human",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_LightWeight"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": "special_thermal_cascade",
+  "modifiers": {
+   "Mass": 0.1425
+  },
+  "unlock": "Engineered Missile Rack V1",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/missile_rack.json"
+ },
+ {
+  "id": "pe:hpt_basicmissilerack_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
+  "item": "hpt_basicmissilerack_fixed_medium",
+  "name": "Seek (HCap+RF+Drag) · Seeker Missile Rack pre-engineered: Grade 5 High Cap, Rapid Fire modifications and Drag Munitions Experimental Effect",
+  "broker": "community goal",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": "special_drag_munitions",
+  "modifiers": {
+   "Damage": 1.0525,
+   "DistributorDraw": 1.416667,
+   "RateOfFire": 0.576923,
+   "Mass": 1.5625,
+   "ReloadTime": 2.856667
+  },
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/missile_rack.json"
+ },
+ {
+  "id": "pe:hpt_causticmissile_fixed_medium:weapon_highcapacity:1",
+  "item": "hpt_causticmissile_fixed_medium",
+  "name": "Caust Enzyme (High Cap) · Enzyme Missile Rack pre-engineered: Grade 5 High Cap modifications",
+  "broker": "community goal",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "AmmoClipSize": 0.875,
+   "AmmoMaximum": 0.625
+  },
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/enzyme_missile_rack.json"
+ },
+ {
+  "id": "pe:hpt_guardian_gausscannon_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
+  "item": "hpt_guardian_gausscannon_fixed_medium",
+  "name": "Modified Gauss Cannon (Fixed, Medium) · Guardian Gauss Cannon pre-engineered: Grade 1 High Capacity and Rapid Fire modifications",
+  "broker": "guardian",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "AmmoMaximum": 2.5,
+   "AmmoClipSize": 2.0,
+   "Damage": 0.475325,
+   "DamageFalloffRange": 0.8,
+   "RateOfFire": 0.721739,
+   "ReloadTime": 2.87
+  },
+  "unlock": "Modified Gauss Cannon (Fixed, Medium)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_gauss_cannon.json"
+ },
+ {
+  "id": "pe:hpt_guardian_gausscannon_fixed_small:weapon_highcapacity+weapon_rapidfire:1",
+  "item": "hpt_guardian_gausscannon_fixed_small",
+  "name": "Modified Gauss Cannon (Fixed, Small) · Guardian Gauss Cannon pre-engineered: Grade 1 High Capacity and Rapid Fire modifications",
+  "broker": "guardian",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "AmmoMaximum": 2.5,
+   "AmmoClipSize": 2.0,
+   "Damage": 0.436364,
+   "DamageFalloffRange": 0.8,
+   "RateOfFire": 0.721739,
+   "ReloadTime": 2.87
+  },
+  "unlock": "Modified Gauss Cannon (Fixed, Small)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_gauss_cannon.json"
+ },
+ {
+  "id": "pe:hpt_guardian_plasmalauncher_fixed_medium:weapon_overcharged+weapon_focused:1",
+  "item": "hpt_guardian_plasmalauncher_fixed_medium",
+  "name": "Modified Plasma Charger (Fixed, Medium) · Guardian Plasma Charger pre-engineered: Grade 1 Overcharged and Focused modifications",
+  "broker": "guardian",
+  "blueprint": "Weapon_Overcharged",
+  "blueprints": [
+   "Weapon_Overcharged",
+   "Weapon_Focused"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": "Modified Plasma Charger (Fixed, Medium)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_plasma_charger.json"
+ },
+ {
+  "id": "pe:hpt_guardian_plasmalauncher_fixed_small:weapon_overcharged+weapon_focused:1",
+  "item": "hpt_guardian_plasmalauncher_fixed_small",
+  "name": "Modified Plasma Charger (Fixed, Small) · Guardian Plasma Charger pre-engineered: Grade 1 Overcharged and Focused modifications",
+  "broker": "guardian",
+  "blueprint": "Weapon_Overcharged",
+  "blueprints": [
+   "Weapon_Overcharged",
+   "Weapon_Focused"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": "Modified Plasma Charger (Fixed, Small)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_plasma_charger.json"
+ },
+ {
+  "id": "pe:hpt_guardian_shardcannon_fixed_medium:weapon_longrange+weapon_focused:1",
+  "item": "hpt_guardian_shardcannon_fixed_medium",
+  "name": "Modified Shard Cannon (Fixed, Medium) · Guardian Shard Cannon pre-engineered: Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
+  "broker": "guardian",
+  "blueprint": "Weapon_LongRange",
+  "blueprints": [
+   "Weapon_LongRange",
+   "Weapon_Focused"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": "special_super_penetrator_cooled",
+  "modifiers": {
+   "Mass": 1.5,
+   "PowerDraw": 2.3,
+   "DistributorDraw": 5.277,
+   "ThermalLoad": 16.5,
+   "ArmourPiercing": 2.02,
+   "MaximumRange": 1.765,
+   "ShotSpeed": 5.558,
+   "DamageFalloffRange": 0.882
+  },
+  "unlock": "Modified Shard Cannon (Fixed, Medium)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_shard_cannon.json; wiki https://elite-dangerous.fandom.com/wiki/Guardian_Shard_Cannon#Modified_Shard_Cannon"
+ },
+ {
+  "id": "pe:hpt_guardian_shardcannon_fixed_medium:weapon_longrange:5",
+  "item": "hpt_guardian_shardcannon_fixed_medium",
+  "name": "Shard (Long Range) · Guardian Shard Cannon pre-engineered: Grade 5 LongRange modifications",
+  "broker": "community goal",
+  "blueprint": "Weapon_LongRange",
+  "blueprints": [
+   "Weapon_LongRange"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_shard_cannon.json"
+ },
+ {
+  "id": "pe:hpt_guardian_shardcannon_fixed_small:weapon_longrange+weapon_focused:1",
+  "item": "hpt_guardian_shardcannon_fixed_small",
+  "name": "Modified Shard Cannon (Fixed, Small) · Guardian Shard Cannon pre-engineered: Grade 1 LongRange and Focused modifications with Super Penetrator Experimental",
+  "broker": "guardian",
+  "blueprint": "Weapon_LongRange",
+  "blueprints": [
+   "Weapon_LongRange",
+   "Weapon_Focused"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": "special_super_penetrator_cooled",
+  "modifiers": {
+   "Mass": 1.5,
+   "PowerDraw": 2.3,
+   "DistributorDraw": 5.277,
+   "ThermalLoad": 16.5,
+   "ArmourPiercing": 2.02,
+   "MaximumRange": 1.765,
+   "ShotSpeed": 5.558,
+   "DamageFalloffRange": 0.882
+  },
+  "unlock": "Modified Shard Cannon (Fixed, Small)",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/guardian_shard_cannon.json; wiki https://elite-dangerous.fandom.com/wiki/Guardian_Shard_Cannon#Modified_Shard_Cannon"
+ },
+ {
+  "id": "pe:hpt_heatsinklauncher_turret_tiny:misc_heatsinkcapacity:1",
+  "item": "hpt_heatsinklauncher_turret_tiny",
+  "name": "Sirius Modified Heat Sink Launcher · Heat Sink Launcher pre-engineered: Grade 1 Expanded Heat Sink Capacity modifications",
+  "broker": "human",
+  "blueprint": "Misc_HeatSinkCapacity",
+  "blueprints": [
+   "Misc_HeatSinkCapacity"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "Mass": 0.5,
+   "AmmoMaximum": 1.666667,
+   "ReloadTime": 1.75
+  },
+  "unlock": "Sirius Modified Heat Sink Launcher",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/heat_sink_launcher.json; wiki https://elite-dangerous.fandom.com/wiki/Heatsink_Launcher#Sirius_Heatsink_Launcher"
+ },
+ {
+  "id": "pe:hpt_mining_abrblstr_fixed_small:weapon_longrange:1",
+  "item": "hpt_mining_abrblstr_fixed_small",
+  "name": "Abr Blast (LR) · Abrasion Blaster pre-engineered: Grade 1 Long Range modifications",
+  "broker": "community goal",
+  "blueprint": "Weapon_LongRange",
+  "blueprints": [
+   "Weapon_LongRange"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {
+   "ShotSpeed": 4.166417,
+   "DamageFalloffRange": 4.0,
+   "Mass": 0.91,
+   "PowerDraw": 0.5,
+   "MaximumRange": 4.18
+  },
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/abrasion_blaster.json"
+ },
+ {
+  "id": "pe:hpt_mininglaser_fixed_small:weapon_longrange:5",
+  "item": "hpt_mininglaser_fixed_small",
+  "name": "Modified Mining Laser · Mining Laser pre-engineered: Grade 5 Long Range modifications and Incendiary Rounds Experimental",
+  "broker": "human",
+  "blueprint": "Weapon_LongRange",
+  "blueprints": [
+   "Weapon_LongRange"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": "special_incendiary_rounds",
+  "modifiers": {
+   "DistributorDraw": 0.5,
+   "DamageFalloffRange": 4.166667,
+   "Integrity": 0.5,
+   "PowerDraw": 0.5,
+   "MaximumRange": 2.5,
+   "Damage": 0.95,
+   "ThermalLoad": 0.51
+  },
+  "unlock": "Modified Mining Laser",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/mining_laser.json; wiki https://elite-dangerous.fandom.com/wiki/Mining_Laser#Modified_Mining_Laser; OPEN: MaximumRange: coriolis 2.5 vs wiki 5 / DamageFalloffRange: coriolis 4.167 vs wiki 8.33"
+ },
+ {
+  "id": "pe:hpt_multicannon_fixed_medium:weapon_highcapacity+weapon_rapidfire:1",
+  "item": "hpt_multicannon_fixed_medium",
+  "name": "MC (HCap+RFire+Phase) · Multi-Cannon pre-engineered: Grade 5 High Cap & Rapid Fire modifications, and Phasing Sequence Experimental Effect",
+  "broker": "community goal",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_RapidFire"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": "special_phasing_sequence",
+  "modifiers": {
+   "AmmoMaximum": 2.240952,
+   "AmmoClipSize": 2.94,
+   "Damage": 0.981735,
+   "DamageFalloffRange": 0.9,
+   "RateOfFire": 1.255605,
+   "Mass": 0.8325,
+   "MaximumRange": 0.5,
+   "ReloadTime": 1.3325
+  },
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/multi_cannon.json"
+ },
+ {
+  "id": "pe:hpt_railgun_fixed_medium:weapon_highcapacity+weapon_longrange:5",
+  "item": "hpt_railgun_fixed_medium",
+  "name": "Railgun (HCap+LR+FCasc) · Rail Gun pre-engineered: Grade 5 High Cap & Long Range modifications, and Feedback Cascade Experimental Effect",
+  "broker": "community goal",
+  "blueprint": "Weapon_HighCapacity",
+  "blueprints": [
+   "Weapon_HighCapacity",
+   "Weapon_LongRange"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": "special_feedback_cascade",
+  "modifiers": {
+   "RateOfFire": 2.305556,
+   "PowerDraw": 1.65,
+   "ReloadTime": 1.25
+  },
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/rail_gun.json"
+ },
+ {
+  "id": "pe:int_cargorack_size5_class1:cargorack_increasedcapacity:5",
+  "item": "int_cargorack_size5_class1",
+  "name": "Expanded Capacity Cargo Rack · Cargo Rack pre-engineered: Grade 5 Expanded Capacity",
+  "broker": "community goal",
+  "blueprint": "CargoRack_IncreasedCapacity",
+  "blueprints": [
+   "CargoRack_IncreasedCapacity"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/internal/cargo_rack.json"
+ },
+ {
+  "id": "pe:int_cargorack_size6_class1:cargorack_increasedcapacity:5",
+  "item": "int_cargorack_size6_class1",
+  "name": "Expanded Capacity Cargo Rack · Cargo Rack pre-engineered: Grade 5 Expanded Capacity",
+  "broker": "community goal",
+  "blueprint": "CargoRack_IncreasedCapacity",
+  "blueprints": [
+   "CargoRack_IncreasedCapacity"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": null,
+  "per_unit": false,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/internal/cargo_rack.json"
+ },
+ {
+  "id": "pe:int_detailedsurfacescanner_tiny:sensor_expanded:1",
+  "item": "int_detailedsurfacescanner_tiny",
+  "name": "Engineered Detailed Surface Scanner V1 · Detailed Surface Scanner pre-engineered: Grade 5 Expanded Probe Radius modifications",
+  "broker": "human",
+  "blueprint": "Sensor_Expanded",
+  "blueprints": [
+   "Sensor_Expanded"
+  ],
+  "level": 1,
+  "quality": 1.0,
+  "experimental": null,
+  "modifiers": {},
+  "unlock": "Engineered Detailed Surface Scanner V1",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/internal/surface_scanner.json"
+ },
+ {
+  "id": "sco_v1_2",
+  "item": "int_hyperdrive_overcharge_size2_class5",
+  "name": "Engineered FSD (SCO) V1 (Class 2) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
+  "broker": "human",
+  "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
+  "level": 5,
+  "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -14,16 +503,24 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 2)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_3",
   "item": "int_hyperdrive_overcharge_size3_class5",
-  "name": "Frame Shift Drive (SCO) 3A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "name": "Engineered FSD (SCO) V1 (Class 3) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -31,16 +528,24 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 3)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_4",
   "item": "int_hyperdrive_overcharge_size4_class5",
-  "name": "Frame Shift Drive (SCO) 4A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "name": "Engineered FSD (SCO) V1 (Class 4) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -48,16 +553,24 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 4)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_5",
   "item": "int_hyperdrive_overcharge_size5_class5",
-  "name": "Frame Shift Drive (SCO) 5A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "name": "Engineered FSD (SCO) V1 (Class 5) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -65,16 +578,24 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 5)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_6",
   "item": "int_hyperdrive_overcharge_size6_class5",
-  "name": "Frame Shift Drive (SCO) 6A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "name": "Engineered FSD (SCO) V1 (Class 6) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -82,16 +603,24 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 6)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
   "id": "sco_v1_7",
   "item": "int_hyperdrive_overcharge_size7_class5",
-  "name": "Frame Shift Drive (SCO) 7A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "name": "Engineered FSD (SCO) V1 (Class 7) · Frame Shift Drive (SCO) pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
+  "experimental": null,
   "modifiers": {
    "Mass": 1.3,
    "Integrity": 0.7,
@@ -99,23 +628,27 @@
    "BootTime": 0.2,
    "FSDOptimalMass": 1.7,
    "FSDHeatRate": 1.2
-  }
+  },
+  "unlock": "Engineered FSD (SCO) V1 (Class 7)",
+  "per_unit": true,
+  "source": "journal: a real Loadout; coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  },
  {
-  "id": "sco_v1_8",
-  "item": "int_hyperdrive_overcharge_size8_class5",
-  "name": "Frame Shift Drive (SCO) 8A \u00b7 pre-engineered V1 (Increased Range G5 + Fast Boot G5)",
+  "id": "pe:int_hyperdrive_size5_class5:fsd_longrange+fsd_fastboot:5",
+  "item": "int_hyperdrive_size5_class5",
+  "name": "Engineered FSD V1 · Frame Shift Drive pre-engineered: Grade 5 Increased Range and Faster Boot Sequence modifications",
   "broker": "human",
   "blueprint": "FSD_LongRange",
+  "blueprints": [
+   "FSD_LongRange",
+   "FSD_FastBoot"
+  ],
   "level": 5,
   "quality": 1.0,
-  "modifiers": {
-   "Mass": 1.3,
-   "Integrity": 0.7,
-   "PowerDraw": 1.15,
-   "BootTime": 0.2,
-   "FSDOptimalMass": 1.7,
-   "FSDHeatRate": 1.2
-  }
+  "experimental": null,
+  "modifiers": {},
+  "unlock": "Engineered FSD V1",
+  "per_unit": true,
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/standard/frame_shift_drive.json"
  }
 ]

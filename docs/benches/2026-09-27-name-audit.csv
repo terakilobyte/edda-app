@@ -1,6 +1,6 @@
 # Name audit: the FDev symbol is the key everywhere, display names only print, Frontier's own string wins over EDCD's. Every DIFFER is a bug or a missing override; OPEN is a difference between two references that no journal has measured Frontier's string for yet (EDCD's stands until one does).
 check,namespace,item,ours,reference,verdict
-recipe,ingredients,"258 distinct","0 not catalogued","every ingredient catalogued",agree
+recipe,ingredients,"259 distinct","0 not catalogued","every ingredient catalogued",agree
 sources,material_sources.json,"59 materials","0 not catalogued","all catalogued",agree
 frontier,summary,"127 symbols Frontier named in this journal","0 print differently, 0 unknown","Frontier's Name_Localised",agree
 server,display-name symbol,"advanced catalysers","0 market rows","folds onto advancedcatalysers",DIFFER

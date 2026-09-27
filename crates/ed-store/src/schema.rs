@@ -84,6 +84,14 @@ CREATE TABLE IF NOT EXISTS cargo (
     count  INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS presets_seen (
+    id         TEXT PRIMARY KEY,
+    item       TEXT NOT NULL,
+    preset     TEXT NOT NULL,
+    source     TEXT NOT NULL,
+    first_seen TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS engineers (
     name          TEXT PRIMARY KEY,
     engineer_id   INTEGER,

@@ -99,12 +99,40 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
         let have = current.modules.iter().find(|c| c.slot.eq_ignore_ascii_case(slot));
         // Bought engineered (no engineer named): a pre-engineered variant.
         let eng_block = m.get("Engineering");
+        // The table's variant with this blueprint and grade; failing that,
+        // a variant read off the block itself when no engineer works the
+        // module (a bought Guardian or AX weapon), kept for next time. The
+        // block is the measurement: a build wanting the modified 2A shard
+        // read as "already there" beside a plain 2A because the two share a
+        // symbol (maintainer, 2026-09-27).
         let preset = eng_block
             .filter(|e| s(e, "Engineer").is_none())
             .and_then(|e| {
                 let bp = s(e, "BlueprintName")?;
-                let level = e.get("Level").and_then(Value::as_i64)?;
-                table.presets_for(item).into_iter().find(|p| p.blueprint.eq_ignore_ascii_case(bp) && p.level == level).cloned()
+                let level = e.get("Level").and_then(Value::as_i64).unwrap_or(1);
+                let known = commands::presets_for_item(state, item);
+                let carries = |p: &ed_ships::Preset| p.blueprint.eq_ignore_ascii_case(bp) || p.blueprints.iter().any(|b| b.eq_ignore_ascii_case(bp));
+                known
+                    .iter()
+                    .find(|p| carries(p) && p.level == level)
+                    .cloned()
+                    .or_else(|| {
+                        // The grade an export writes for a bought variant is not
+                        // always the table's (EDSY has no presets; a commander
+                        // applies the blueprint by hand): one variant with this
+                        // blueprint is that variant.
+                        let with_bp: Vec<&ed_ships::Preset> = known.iter().filter(|p| carries(p)).collect();
+                        (with_bp.len() == 1).then(|| with_bp[0].clone())
+                    })
+                    .or_else(|| {
+                        if ed_engineering::journal::module_type_for_item(item).is_some() {
+                            return None;
+                        }
+                        let source = format!("import: {}", app.as_deref().unwrap_or("SLEF"));
+                        let p = ed_ships::Preset::from_engineering(item, e, &source)?;
+                        commands::remember_preset(state, &p);
+                        Some(p)
+                    })
             });
         if let Some(p) = &preset {
             item_name = p.name.clone();

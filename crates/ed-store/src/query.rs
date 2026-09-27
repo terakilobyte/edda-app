@@ -79,10 +79,14 @@ pub fn engineers(conn: &Connection) -> Result<Vec<Engineer>> {
 /// that has carried it (a module cannot be bought before its unlock).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub enum UnlockProof {
-    /// `broker` as the event spells it ("guardian", "human"); `ts` the event's.
-    Broker { broker: String, ts: String },
-    /// The hull symbol and name of a ship whose Loadout carried it.
-    Fitted { ship: String, ship_name: Option<String> },
+    /// `broker` as the event spells it ("guardian", "human"); `ts` the
+    /// event's; `paid` the materials and commodities it lists (symbol,
+    /// count) — the plain and the modified variant of a Guardian weapon
+    /// share one symbol, and only what was paid tells the two apart.
+    Broker { broker: String, ts: String, paid: Vec<(String, i64)> },
+    /// The hull symbol and name of a ship whose Loadout carried it, and
+    /// the bought blueprint on it when it was a pre-engineered variant.
+    Fitted { ship: String, ship_name: Option<String>, blueprint: Option<String> },
 }
 
 /// Every module symbol (lowercase) the journal proves unlocked, with the
@@ -90,17 +94,22 @@ pub enum UnlockProof {
 /// ship already flying six of them, unlocked at a Guardian broker on
 /// 2026-08-17 (maintainer, 2026-09-27: "it doesn't appear that we
 /// actually take already unlocked components into account").
-pub fn unlocked_modules(conn: &Connection) -> Result<std::collections::HashMap<String, UnlockProof>> {
-    let mut out = std::collections::HashMap::new();
+pub fn unlocked_modules(conn: &Connection) -> Result<Vec<(String, UnlockProof)>> {
+    let mut out: Vec<(String, UnlockProof)> = Vec::new();
     let mut stmt = conn.prepare("SELECT ts, raw FROM events WHERE event = 'TechnologyBroker' ORDER BY ts")?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     for row in rows {
         let (ts, raw) = row?;
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
         let broker = v.get("BrokerType").and_then(|b| b.as_str()).unwrap_or("").to_string();
+        let paid: Vec<(String, i64)> = ["Materials", "Commodities"]
+            .iter()
+            .flat_map(|k| v.get(k).and_then(|m| m.as_array()).into_iter().flatten())
+            .filter_map(|m| Some((m.get("Name")?.as_str()?.to_ascii_lowercase(), m.get("Count").and_then(|c| c.as_i64()).unwrap_or(1))))
+            .collect();
         for item in v.get("ItemsUnlocked").and_then(|i| i.as_array()).into_iter().flatten() {
             if let Some(name) = item.get("Name").and_then(|n| n.as_str()) {
-                out.entry(name.to_ascii_lowercase()).or_insert(UnlockProof::Broker { broker: broker.clone(), ts: ts.clone() });
+                out.push((name.to_ascii_lowercase(), UnlockProof::Broker { broker: broker.clone(), ts: ts.clone(), paid: paid.clone() }));
             }
         }
     }
@@ -111,7 +120,16 @@ pub fn unlocked_modules(conn: &Connection) -> Result<std::collections::HashMap<S
         let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
         for m in v.get("Modules").and_then(|m| m.as_array()).into_iter().flatten() {
             if let Some(item) = m.get("Item").and_then(|i| i.as_str()) {
-                out.entry(item.to_ascii_lowercase()).or_insert_with(|| UnlockProof::Fitted { ship: ship.clone(), ship_name: ship_name.clone().filter(|n| !n.trim().is_empty()) });
+                let eng = m.get("Engineering");
+                let blueprint = eng
+                    .filter(|e| e.get("Engineer").and_then(|x| x.as_str()).is_none())
+                    .and_then(|e| e.get("BlueprintName").and_then(|b| b.as_str()))
+                    .map(|b| b.to_ascii_lowercase());
+                let proof = UnlockProof::Fitted { ship: ship.clone(), ship_name: ship_name.clone().filter(|n| !n.trim().is_empty()), blueprint };
+                let key = item.to_ascii_lowercase();
+                if !out.iter().any(|(k, p)| *k == key && *p == proof) {
+                    out.push((key, proof));
+                }
             }
         }
     }
@@ -502,15 +520,19 @@ mod unlock_tests {
         crate::schema::attach_galaxy(&conn, None).unwrap();
         conn.execute(
             "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-08-17T02:26:26Z', 'TechnologyBroker', ?1)",
-            [r#"{"timestamp":"2026-08-17T02:26:26Z","event":"TechnologyBroker","BrokerType":"guardian","MarketID":1,"ItemsUnlocked":[{"Name":"Hpt_Guardian_ShardCannon_Fixed_Large","Name_Localised":"Guardian Shard Cannon"}],"Commodities":[],"Materials":[]}"#],
+            [r#"{"timestamp":"2026-08-17T02:26:26Z","event":"TechnologyBroker","BrokerType":"guardian","MarketID":1,"ItemsUnlocked":[{"Name":"Hpt_Guardian_ShardCannon_Fixed_Large","Name_Localised":"Guardian Shard Cannon"}],"Commodities":[{"Name":"microcontrollers","Count":18}],"Materials":[{"Name":"guardian_techcomponent","Count":28,"Category":"Manufactured"}]}"#],
         ).unwrap();
         conn.execute(
             "INSERT INTO ships (ship_id, ship, ship_name, ship_ident, loadout_ts, unladen_mass, max_jump_range, cargo_capacity, fuel_main, owned, raw) VALUES (33, 'python_nx', '', '', '2026-09-27T00:00:00Z', 0, 0, 0, 0, 1, ?1)",
-            [r#"{"event":"Loadout","Ship":"python_nx","ShipID":33,"Modules":[{"Slot":"LargeHardpoint1","Item":"hpt_guardian_shardcannon_fixed_large"},{"Slot":"MediumHardpoint1","Item":"hpt_guardian_shardcannon_fixed_medium"}]}"#],
+            [r#"{"event":"Loadout","Ship":"python_nx","ShipID":33,"Modules":[{"Slot":"LargeHardpoint1","Item":"hpt_guardian_shardcannon_fixed_large"},{"Slot":"MediumHardpoint1","Item":"hpt_guardian_shardcannon_fixed_medium","Engineering":{"BlueprintName":"Weapon_LongRange","Level":1,"Quality":1.0}}]}"#],
         ).unwrap();
         let got = unlocked_modules(&conn).unwrap();
-        assert_eq!(got.get("hpt_guardian_shardcannon_fixed_large"), Some(&UnlockProof::Broker { broker: "guardian".into(), ts: "2026-08-17T02:26:26Z".into() }));
-        assert_eq!(got.get("hpt_guardian_shardcannon_fixed_medium"), Some(&UnlockProof::Fitted { ship: "python_nx".into(), ship_name: None }));
-        assert!(got.get("hpt_guardian_plasmalauncher_fixed_large").is_none());
+        let of = |item: &str| got.iter().filter(|(k, _)| k == item).map(|(_, p)| p.clone()).collect::<Vec<_>>();
+        assert_eq!(of("hpt_guardian_shardcannon_fixed_large"), vec![
+            UnlockProof::Broker { broker: "guardian".into(), ts: "2026-08-17T02:26:26Z".into(), paid: vec![("guardian_techcomponent".into(), 28), ("microcontrollers".into(), 18)] },
+            UnlockProof::Fitted { ship: "python_nx".into(), ship_name: None, blueprint: None },
+        ]);
+        assert_eq!(of("hpt_guardian_shardcannon_fixed_medium"), vec![UnlockProof::Fitted { ship: "python_nx".into(), ship_name: None, blueprint: Some("weapon_longrange".into()) }], "the fitted medium is the modified one: its blueprint says so");
+        assert!(of("hpt_guardian_plasmalauncher_fixed_large").is_empty());
     }
 }

@@ -35,6 +35,7 @@ pub mod missions;
 pub mod observe;
 #[cfg(feature = "postgres")]
 pub mod postgres;
+pub mod presets;
 pub mod query;
 pub mod route;
 pub mod schema;

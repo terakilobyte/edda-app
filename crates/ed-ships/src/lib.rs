@@ -100,6 +100,16 @@ impl Catalog {
             for (group, arr) in v.as_object().into_iter().flatten() {
                 for m in arr.as_array().into_iter().flatten() {
                     let Some(symbol) = m["symbol"].as_str() else { continue };
+                    // Coriolis lists a pre-engineered variant as its own row
+                    // under the plain symbol, after the base row; keyed by
+                    // symbol, the LAST row won, so the base table carried the
+                    // Sirius heat sink's half mass and the modified shard's
+                    // figures for the plain modules (found 2026-09-27 while
+                    // the presets were generated from those rows). Variants
+                    // live in preengineered.json; the base table takes the base.
+                    if m.get("preEngineered").is_some_and(|p| !p.is_null() && *p != Value::Bool(false)) {
+                        continue;
+                    }
                     let stats = m
                         .as_object()
                         .into_iter()
@@ -429,6 +439,17 @@ mod tests {
     /// The maintainer's Kestrel drive as bought (2026-08-23T21:54Z Loadout):
     /// a 4A SCO drive with the human broker's fixed engineering. Mass 13.0,
     /// power 0.5175 MW, optimal mass 994.5 t — the journal's own figures.
+    /// The base table holds the base row, not the pre-engineered variant
+    /// Coriolis lists after it under the same symbol.
+    #[test]
+    fn a_pre_engineered_row_never_becomes_the_base() {
+        let c = Catalog::load();
+        let sink = c.module("hpt_heatsinklauncher_turret_tiny").expect("the heat sink launcher");
+        assert!((sink.stats["mass"] - 1.3).abs() < 1e-9, "the Sirius variant halves it: {:?}", sink.stats.get("mass"));
+        let shard = c.module("hpt_guardian_shardcannon_fixed_medium").expect("the plain 2A shard");
+        assert!(shard.stats.get("cost").is_some_and(|c| *c > 0.0), "a variant row carries cost 0: {:?}", shard.stats.get("cost"));
+    }
+
     #[test]
     fn the_pre_engineered_drive_takes_the_journals_fixed_figures() {
         let catalog = Catalog::load();

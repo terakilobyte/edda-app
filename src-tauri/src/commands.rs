@@ -783,7 +783,8 @@ pub async fn build_performance(
 ) -> Result<Performance, String> {
     let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let loadout: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
-    check_swaps(&loadout, swaps.as_deref().unwrap_or_default())?;
+    let learned = learned_presets(&state);
+    check_swaps(&loadout, swaps.as_deref().unwrap_or_default(), &learned)?;
     let catalog = ed_ships::Catalog::load();
     let build = ed_ships::Build::from_loadout(&catalog, &loadout);
     let before = build.summary();
@@ -801,8 +802,8 @@ pub async fn build_performance(
             }
             // A pre-engineered module carries its bought engineering: the
             // journal's fixed multipliers on the base figures.
-            if let Some(preset) = s.preset.as_deref().and_then(|id| slots().preset(id)) {
-                if let Err(e) = planned.apply_preset(&s.slot, preset) {
+            if let Some(preset) = s.preset.as_deref().and_then(|id| slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned())) {
+                if let Err(e) = planned.apply_preset(&s.slot, &preset) {
                     notes.push(format!("{}: {e}", ed_journal::modules::slot_name(&s.slot)));
                 }
             }
@@ -948,6 +949,70 @@ pub(crate) fn slots() -> &'static ed_ships::Slots {
     SLOTS.get_or_init(ed_ships::Slots::load)
 }
 
+/// The pre-engineered variants the commander's own data has shown: kept
+/// sightings (`presets_seen`), plus every fitted module whose Engineering
+/// block names no engineer and whose kind no engineer works (a bought
+/// Guardian or AX variant), read off the Loadouts each time — a table
+/// cannot hold what only the journal knows (maintainer, 2026-09-27).
+/// New Loadout sightings are kept on the way through.
+pub(crate) fn learned_presets(state: &AppState) -> Vec<ed_ships::Preset> {
+    let (kept, ships) = state.with_read(|s| {
+        let kept = ed_store::presets::all(s.conn()).unwrap_or_default();
+        let ships: Vec<(String, String)> = s
+            .conn()
+            .prepare("SELECT ship, raw FROM ships ORDER BY loadout_ts DESC")
+            .and_then(|mut st| st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))).map(|rows| rows.flatten().collect()))
+            .unwrap_or_default();
+        (kept, ships)
+    });
+    let mut out: Vec<ed_ships::Preset> = kept.iter().filter_map(|(_, json)| serde_json::from_str(json).ok()).collect();
+    let mut fresh = Vec::new();
+    for (ship, raw) in ships {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
+        for m in v.get("Modules").and_then(|m| m.as_array()).into_iter().flatten() {
+            let (Some(item), Some(eng)) = (m.get("Item").and_then(|i| i.as_str()), m.get("Engineering")) else { continue };
+            if ed_engineering::journal::module_type_for_item(item).is_some() {
+                continue;
+            }
+            let source = format!("loadout: {}", ed_journal::ships::display_name(&ship));
+            if let Some(p) = ed_ships::Preset::from_engineering(item, eng, &source) {
+                if !out.iter().any(|x| x.id == p.id) {
+                    out.push(p.clone());
+                    fresh.push(p);
+                }
+            }
+        }
+    }
+    for p in fresh {
+        remember_preset(state, &p);
+    }
+    out
+}
+
+/// Keep a preset sighting; a known id stays as first seen.
+pub(crate) fn remember_preset(state: &AppState, preset: &ed_ships::Preset) {
+    let Ok(json) = serde_json::to_string(preset) else { return };
+    let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let source = preset.source.clone().unwrap_or_default();
+    let _ = state.with_store(|s| ed_store::presets::remember(s.conn(), &preset.id, &preset.item, &json, &source, &ts));
+}
+
+/// A preset by id: the table's, or one the commander's data has shown.
+pub(crate) fn preset_by_id(state: &AppState, id: &str) -> Option<ed_ships::Preset> {
+    slots().preset(id).cloned().or_else(|| learned_presets(state).into_iter().find(|p| p.id == id))
+}
+
+/// Every variant of `item`: the table's, then the ones seen.
+pub(crate) fn presets_for_item(state: &AppState, item: &str) -> Vec<ed_ships::Preset> {
+    let mut out: Vec<ed_ships::Preset> = slots().presets_for(item).into_iter().cloned().collect();
+    for p in learned_presets(state) {
+        if p.item.eq_ignore_ascii_case(item) && !out.iter().any(|x| x.id == p.id) {
+            out.push(p);
+        }
+    }
+    out
+}
+
 /// The Loadout to work on: a ship from the journal by ShipID (None: the
 /// one being flown), or — `hull` given — a hull the commander does not
 /// own, as sold (maintainer, 2026-09-20: "what if someone imports a build
@@ -1075,7 +1140,7 @@ pub struct ProposedEngineering {
 /// grade's nominal values, which is what a plan (not yet rolled) means.
 /// Swapped modules into a Loadout: the slot takes the new item with no
 /// engineering; an empty slot gets a new entry.
-pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[ProposedSwap]) -> Result<(), String> {
+pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[ProposedSwap], learned: &[ed_ships::Preset]) -> Result<(), String> {
     let modules = data.get_mut("Modules").and_then(serde_json::Value::as_array_mut).ok_or("Loadout has no Modules")?;
     for s in swaps {
         let (slot, item) = (&s.slot, &s.item);
@@ -1085,7 +1150,7 @@ pub(crate) fn apply_swaps(data: &mut serde_json::Value, swaps: &[ProposedSwap]) 
         }
         // A pre-engineered module: the bought blueprint at its grade, no
         // engineer, as the journal writes it.
-        let engineering = s.preset.as_deref().and_then(|id| slots().preset(id)).map(|p| {
+        let engineering = s.preset.as_deref().and_then(|id| slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned())).map(|p| {
             // The modifiers as the journal writes them, from the base figures
             // the tables know (a label whose base is unknown is left out).
             let catalog = ed_ships::Catalog::load();
@@ -1178,8 +1243,9 @@ pub async fn ship_slef(
     let mut data: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     // Swapped modules first, unengineered; the plan's blueprints go on top.
     let swaps = swaps.unwrap_or_default();
-    check_swaps(&data, &swaps)?;
-    apply_swaps(&mut data, &swaps)?;
+    let learned = learned_presets(&state);
+    check_swaps(&data, &swaps, &learned)?;
+    apply_swaps(&mut data, &swaps, &learned)?;
     if let Some(proposed) = &proposed {
         apply_proposed_engineering(&mut data, proposed)?;
     }
@@ -1285,6 +1351,7 @@ pub struct SlotOptions {
 /// for a slot").
 #[tauri::command]
 pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull: Option<String>) -> Result<Vec<SlotOptions>, String> {
+    let learned = learned_presets(&state);
     let raw = loadout_raw(&state, ship_id, hull.as_deref())?;
     let v: serde_json::Value = serde_json::from_str(&raw).map_err(err)?;
     let ship = v["Ship"].as_str().unwrap_or("");
@@ -1326,10 +1393,12 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
                             preset_grade: None,
                             broker: None,
                         };
-                        // The pre-engineered variants right after the plain module.
+                        // The pre-engineered variants right after the plain module:
+                        // the table's, then the ones the commander's data has shown.
                         let variants: Vec<SlotCandidate> = table
                             .presets_for(item)
                             .into_iter()
+                            .chain(learned.iter().filter(|p| p.item.eq_ignore_ascii_case(item)))
                             .map(|p| SlotCandidate {
                                 item: item.to_string(),
                                 item_name: p.name.clone(),
@@ -1355,17 +1424,18 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
 /// Swaps checked against the hull's slots: the slot exists, the module
 /// fits it, and the whole fit keeps to the one-per-ship limits. The
 /// reasons, when any.
-pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[ProposedSwap]) -> Result<(), String> {
+pub(crate) fn check_swaps(loadout: &serde_json::Value, swaps: &[ProposedSwap], learned: &[ed_ships::Preset]) -> Result<(), String> {
     if swaps.is_empty() {
         return Ok(());
     }
     let table = slots();
+    let preset_of = |id: &str| table.preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned());
     let ship = loadout["Ship"].as_str().unwrap_or("");
     let Some(h) = table.hull(ship) else { return Ok(()) };
     let mut problems = Vec::new();
     for s in swaps {
         if let Some(id) = s.preset.as_deref() {
-            match table.preset(id) {
+            match preset_of(id) {
                 None => problems.push(format!("{}: no pre-engineered variant {id}", ed_journal::modules::slot_name(&s.slot))),
                 Some(p) if !p.item.eq_ignore_ascii_case(&s.item) => problems.push(format!("{}: {} is not a variant of {}", ed_journal::modules::slot_name(&s.slot), p.name, ed_journal::modules::item_name(&s.item))),
                 _ => {}

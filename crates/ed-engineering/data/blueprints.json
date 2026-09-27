@@ -44700,5 +44700,215 @@
       }
     ],
     "Grade": 5
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 2)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 10
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 14
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 6
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 9
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 4
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 3)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 12
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 16
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 9
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 11
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 5
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 4)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 13
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 20
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 9
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 13
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 6
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 5)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 15
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 24
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 12
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 14
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 7
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 6)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 15
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 28
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 12
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 16
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 8
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
+  },
+  {
+    "Type": "Human",
+    "Name": "Engineered FSD (SCO) V1 (Class 7)",
+    "Engineers": [],
+    "Ingredients": [
+      {
+        "Name": "Datamined Wake Exceptions",
+        "Size": 16
+      },
+      {
+        "Name": "Tellurium",
+        "Size": 28
+      },
+      {
+        "Name": "Electrochemical Arrays",
+        "Size": 14
+      },
+      {
+        "Name": "Chemical Processors",
+        "Size": 18
+      },
+      {
+        "Name": "Propulsion Elements",
+        "Size": 12
+      },
+      {
+        "Name": "Titan Drive Component",
+        "Size": 1
+      }
+    ],
+    "Effects": [],
+    "Grade": null,
+    "CoriolisGuid": "",
+    "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
   }
 ]

@@ -83,6 +83,12 @@ pub struct Unlock {
     pub commodities: Vec<CommodityLine>,
     /// Already unlocked, and how the journal knows: nothing to gather.
     pub unlocked: Option<String>,
+    /// A pre-engineered variant: paid for at the broker with every
+    /// purchase, not unlocked once (maintainer, 2026-09-27: "the
+    /// pre-engineered mods are one-time buy, not a permanent unlock").
+    pub per_unit: bool,
+    /// What the data could not say: a variant with no recipe on file.
+    pub note: Option<String>,
 }
 
 /// A commodity the unlock needs: bought at a market, unless the hold
@@ -199,7 +205,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         return Err("nothing planned: pick a blueprint for at least one module".into());
     }
     let raw: serde_json::Value = serde_json::from_str(&commands::loadout_raw(state, ship_id, hull)?).map_err(|e| e.to_string())?;
-    commands::check_swaps(&raw, swaps)?;
+    let learned = commands::learned_presets(state);
+    commands::check_swaps(&raw, swaps, &learned)?;
     let loadout = commands::ship_loadout(state, ship_id, hull)?;
     let (have, engineers) = state.with_read(|s| {
         (
@@ -215,7 +222,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     for it in items {
         let module = loadout.modules.iter().find(|m| m.slot == it.slot);
         let swapped = swaps.iter().find(|s| s.slot.eq_ignore_ascii_case(&it.slot)).map(|s| {
-            s.preset.as_deref().and_then(|id| commands::slots().preset(id)).map(|p| p.name.clone()).unwrap_or_else(|| ed_journal::modules::item_name(&s.item))
+            s.preset.as_deref().and_then(|id| commands::slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned())).map(|p| p.name.clone()).unwrap_or_else(|| ed_journal::modules::item_name(&s.item))
         });
         let (slot_name, item_name) = match (module, swapped) {
             (_, Some(name)) => (ed_journal::modules::slot_name(&it.slot), name),
@@ -287,18 +294,78 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         if item.eq_ignore_ascii_case(ed_ships::EMPTY) {
             continue;
         }
-        let item_name = ed_journal::modules::item_name(item);
-        let Some(recipe) = catalog.unlock_recipe(&item_name) else { continue };
+        let preset = s.preset.as_deref().and_then(|id| commands::slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned()));
+        let plain_name = ed_journal::modules::item_name(item);
+        // A pre-engineered variant has its own recipe at the broker
+        // ("Modified Shard Cannon (Fixed, Medium)", "Engineered FSD V1");
+        // the plain module's is the fallback when the data has none.
+        let recipe = match &preset {
+            // A variant's recipe is its own or nothing: the plain module's
+            // unlock is not what the broker charges for a bought variant.
+            Some(p) => p.unlock.as_deref().and_then(|u| catalog.unlock_recipe(u)),
+            None => catalog.unlock_recipe(&plain_name),
+        };
+        let item_name = preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| plain_name.clone());
+        let Some(recipe) = recipe else {
+            if let Some(p) = &preset {
+                unlocks.push(Unlock {
+                    slot_name: ed_journal::modules::slot_name(slot),
+                    item_name,
+                    broker: p.broker.clone(),
+                    materials: Vec::new(),
+                    commodities: Vec::new(),
+                    unlocked: None,
+                    per_unit: p.per_unit,
+                    note: Some(match p.broker.as_str() {
+                        "community goal" => "a community-goal reward: no broker sells it".to_string(),
+                        _ => format!("no recipe for this variant in EDDA's data (source: {})", p.source.as_deref().unwrap_or("unknown")),
+                    }),
+                });
+            }
+            continue;
+        };
         // Already unlocked: the journal's broker event, or a ship that
         // carried it (maintainer, 2026-09-27: six shards fitted, and the
-        // plan still asked for the unlock's materials).
-        if let Some(proof) = proven.get(&item.to_ascii_lowercase()) {
+        // plan still asked for the unlock's materials). The plain and the
+        // modified variant share a symbol: a fitted module proves the
+        // variant whose blueprint it carries, and a broker event proves
+        // the recipe whose materials it paid.
+        let paid_is = |paid: &[(String, i64)], recipe: &ed_engineering::Blueprint| -> bool {
+            let mut want: Vec<(String, i64)> = recipe.ingredients.iter().map(|i| (i.name.to_ascii_lowercase(), i.quantity)).collect();
+            let mut got: Vec<(String, i64)> = paid
+                .iter()
+                .map(|(sym, n)| (jc.by_symbol(sym).map(|i| i.name.to_ascii_lowercase()).unwrap_or_else(|| sym.to_ascii_lowercase()), *n))
+                .collect();
+            want.sort();
+            got.sort();
+            want == got
+        };
+        let plain_recipe = catalog.unlock_recipe(&ed_journal::modules::item_name(item));
+        let key = item.to_ascii_lowercase();
+        // A pre-engineered variant is bought each time, so nothing in the
+        // journal makes the next one free: no proof is looked for. For the
+        // plain module, a fitted plain one or a broker event that paid the
+        // plain recipe (or paid something no recipe of this symbol
+        // accounts for — the data may lag the game) proves the unlock; a
+        // payment that matches a variant's recipe was a purchase, not it.
+        let proof = if preset.is_some() {
+            None
+        } else {
+            proven.iter().filter(|(k, _)| *k == key).map(|(_, p)| p).find(|p| match p {
+                ed_store::query::UnlockProof::Fitted { blueprint, .. } => blueprint.is_none(),
+                ed_store::query::UnlockProof::Broker { paid, .. } => {
+                    paid_is(paid, recipe)
+                        || (!plain_recipe.is_some_and(|r| paid_is(paid, r)) && !preset_recipes_of(catalog, &learned, item).iter().any(|r| paid_is(paid, r)))
+                }
+            })
+        };
+        if let Some(proof) = proof {
             let how = match proof {
-                ed_store::query::UnlockProof::Broker { broker, ts } => {
+                ed_store::query::UnlockProof::Broker { broker, ts, .. } => {
                     let kind = if broker.eq_ignore_ascii_case("guardian") { "Guardian" } else if broker.eq_ignore_ascii_case("human") { "Human" } else { broker.as_str() };
                     format!("unlocked at a {kind} technology broker on {}", ts.get(..10).unwrap_or(ts))
                 }
-                ed_store::query::UnlockProof::Fitted { ship, ship_name } => {
+                ed_store::query::UnlockProof::Fitted { ship, ship_name, .. } => {
                     let hull = ed_journal::ships::display_name(ship);
                     match ship_name {
                         Some(n) => format!("already fitted on {n} ({hull}), so the unlock is done"),
@@ -313,6 +380,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 materials: Vec::new(),
                 commodities: Vec::new(),
                 unlocked: Some(how),
+                per_unit: false,
+                note: None,
             });
             continue;
         }
@@ -339,6 +408,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             materials: mats,
             commodities: comms,
             unlocked: None,
+            per_unit: preset.as_ref().is_some_and(|p| p.per_unit),
+            note: None,
         });
     }
     let materials = pool(&per_item);
@@ -426,4 +497,17 @@ mod tests {
         assert_eq!(stops.len(), 1);
         assert_eq!(stops[0].engineer, "Abe");
     }
+}
+
+/// The broker recipes of every pre-engineered variant of `item` the
+/// tables or the commander's data know — what a broker event's payment
+/// is matched against before it is taken as the plain module's.
+fn preset_recipes_of<'a>(catalog: &'a ed_engineering::Catalog, learned: &[ed_ships::Preset], item: &str) -> Vec<&'a ed_engineering::Blueprint> {
+    commands::slots()
+        .presets_for(item)
+        .into_iter()
+        .cloned()
+        .chain(learned.iter().filter(|p| p.item.eq_ignore_ascii_case(item)).cloned())
+        .filter_map(|p| p.unlock.as_deref().and_then(|u| catalog.unlock_recipe(u)))
+        .collect()
 }
