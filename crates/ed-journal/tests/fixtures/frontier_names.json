@@ -12,5 +12,8 @@
     "smallcombat01_nx": "Kestrel Mk II",
     "type9_military": "Type-10 Defender"
   },
-  "modules": {}
+  "modules": {},
+  "materials": {
+    "guardian_sentinel_wreckagecomponents": "Guardian Wreckage Components"
+  }
 }

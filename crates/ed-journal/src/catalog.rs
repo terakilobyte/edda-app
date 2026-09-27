@@ -46,6 +46,17 @@ pub struct Item {
     pub kind: Kind,
 }
 
+/// Frontier's own strings win where EDCD's differ (the ships rule, applied
+/// to materials): the name the game writes into the journal's
+/// `Name_Localised` is what the commander reads in the inventory and what
+/// a recipe asks for. Measured 2026-09-27 on the maintainer's Materials
+/// event: `guardian_sentinel_wreckagecomponents` is "Guardian Wreckage
+/// Components" in the game; FDevIDs says "Guardian Sentinel Wreckage
+/// Components", so 23 in the hold read as none and the plan had nowhere
+/// to get it. EDCD's name stays findable as an alias. Gated by
+/// tests/edcd_exact.rs against the fixture's `materials`.
+const FRONTIER_NAMES: &[(&str, &str)] = &[("guardian_sentinel_wreckagecomponents", "Guardian Wreckage Components")];
+
 pub struct Catalog {
     by_symbol: HashMap<String, Item>, // keyed lowercase
     by_name: HashMap<String, String>, // lowercase display name -> lowercase symbol
@@ -126,6 +137,13 @@ impl Catalog {
             }
         }
 
+        for (symbol, name) in FRONTIER_NAMES {
+            if let Some(item) = by_symbol.get_mut(*symbol) {
+                item.name = name.to_string();
+                by_name.insert(name.to_lowercase(), symbol.to_string());
+            }
+        }
+
         Catalog { by_symbol, by_name }
     }
 
@@ -202,6 +220,16 @@ mod tests {
     /// and the Thargoid material), and the catalog keeps one of the two;
     /// that collision is listed here so a NEW one fails this test instead
     /// of silently costing a commander their count.
+    /// The game's name wins, EDCD's still resolves: a recipe, the
+    /// inventory and an old caller all land on the same symbol.
+    #[test]
+    fn frontiers_material_name_wins_and_edcds_stays_an_alias() {
+        let c = Catalog::load();
+        assert_eq!(c.display_name("Guardian_Sentinel_WreckageComponents"), "Guardian Wreckage Components");
+        assert_eq!(c.by_name("Guardian Wreckage Components").map(|i| i.symbol.as_str()), Some("Guardian_Sentinel_WreckageComponents"));
+        assert_eq!(c.by_name("guardian sentinel wreckage components").map(|i| i.symbol.as_str()), Some("Guardian_Sentinel_WreckageComponents"));
+    }
+
     #[test]
     fn every_material_is_findable_by_its_display_name() {
         let c = Catalog::load();

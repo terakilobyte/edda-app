@@ -73,6 +73,13 @@ fn frontiers_own_names_are_printed_exactly() {
             bad.push(format!("module {symbol}: {ours:?} vs Frontier {name}"));
         }
     }
+    let cat = ed_journal::Catalog::load();
+    for (symbol, name) in f["materials"].as_object().unwrap() {
+        let ours = cat.display_name(symbol);
+        if &ours != name.as_str().unwrap() {
+            bad.push(format!("material {symbol}: {ours:?} vs Frontier {name}"));
+        }
+    }
     assert!(bad.is_empty(), "{} differ from Frontier's own strings:\n{}", bad.len(), bad.join("\n"));
 }
 
@@ -80,12 +87,19 @@ fn frontiers_own_names_are_printed_exactly() {
 fn every_material_commodity_and_rare_is_in_the_catalog_by_edcds_name() {
     let cat = ed_journal::Catalog::load();
     let mut bad = Vec::new();
+    // Where Frontier's own string differs from EDCD's, Frontier's wins
+    // (checked exactly in frontiers_own_names_are_printed_exactly).
+    let frontier: std::collections::HashSet<String> =
+        fixture()["materials"].as_object().map(|m| m.keys().map(|k| k.to_lowercase()).collect()).unwrap_or_default();
     for (table, csv) in [
         ("material", include_str!("../data/material.csv")),
         ("commodity", include_str!("../data/commodity.csv")),
         ("rare_commodity", include_str!("../data/rare_commodity.csv")),
     ] {
         for r in rows(csv) {
+            if table == "material" && frontier.contains(&r["symbol"].to_lowercase()) {
+                continue;
+            }
             match cat.by_symbol(&r["symbol"]) {
                 Some(i) if i.name == r["name"] => {}
                 Some(i) => bad.push(format!("{table} {}: {:?} vs EDCD {:?}", r["symbol"], i.name, r["name"])),

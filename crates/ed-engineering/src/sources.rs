@@ -65,7 +65,7 @@ pub fn methods_for(kind: &str, group: &str, name: &str) -> &'static [&'static st
     let n = name.to_ascii_lowercase();
     if untradeable && (n.starts_with("guardian") || n.contains("obelisk")) {
         return &[
-            "Guardian materials are not traded at material traders. Power cells, power conduits, technology components and sentinel parts drop from the sentinels at Guardian ruins and structures; the obelisk data patterns come from scanning the obelisks there.",
+            "Guardian materials are not traded at material traders. Power cells, power conduits, technology components, sentinel parts and wreckage components drop from the sentinels at Guardian ruins and structures (the destructible panels there drop them too); the obelisk data patterns come from scanning the obelisks there.",
             "Blueprint segments (weapon, module, vessel) come from the ancient relic pylons at the corresponding Guardian structures, one per activation; the site can be repeated after relogging.",
         ];
     }

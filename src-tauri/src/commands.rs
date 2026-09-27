@@ -430,10 +430,9 @@ pub(crate) fn shopping_from_need(
     for (key, sites) in &witnessed_all {
         let name = display_of(key);
         for w in sites.iter().take(3) {
-            let site = match &w.body {
-                Some(b) => format!("where you picked it up before ({} units, {} pickups): {b}", w.count, w.pickups),
-                None => format!("where you picked it up before ({} units, {} pickups)", w.count, w.pickups),
-            };
+            // The place (system, body) is the option's own; this is the note beside it.
+            let plural = |n: i64, word: &str| if n == 1 { format!("{n} {word}") } else { format!("{n} {word}s") };
+            let site = format!("picked up before: {} over {}", plural(w.count, "unit"), plural(w.pickups, "pickup"));
             farmable.push((name.clone(), site, Some(w.system.clone()), w.body.clone()));
         }
     }

@@ -492,6 +492,30 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Shopping list: Frontier's material names win, one pickup row per
+  site, one block per material** (2026-09-27, the maintainer's shard
+  cannon unlock). Three faults in one report. "20 Guardian Wreckage
+  Components — where to get it:" had nothing under it and "Have 0"
+  beside 23 in the hold: FDevIDs names the material "Guardian Sentinel
+  Wreckage Components", the game, the journal's `Name_Localised` and
+  every recipe say "Guardian Wreckage Components", so the inventory,
+  the farm plan and the sources all missed by name. The ships rule
+  applies (Frontier's own string wins): `Catalog::FRONTIER_NAMES`
+  overrides the printed name, EDCD's stays an alias, and the gate in
+  `tests/edcd_exact.rs` reads the override from the fixture's new
+  `materials` section. A recipe-vs-catalog cross-check found it the only
+  ship-material mismatch. Pickup rows were keyed by (system, body), so a
+  site's pickups before the first ApproachBody made a second row
+  ("Synuefe NL-N c23-4" twice); now one row per system, named by the
+  body most picked up on. The Site column printed the body's full name
+  after the system it already contains, and "1 pickups"; the report
+  showed each still-short material twice (farm table, then a prose
+  block with the same pickups). Now one block per material: the table
+  when there is one (the maintainer's preference), with the kind's
+  methods and any system-less community site folded under it; the
+  prose block only for a material with no table, and a plain "no source
+  in EDDA's data yet" line when it is empty rather than a bare heading.
+  The Guardian method text now names wreckage components.
 - **Module limits are pools, not kinds** (2026-09-26). Importing an
   EDSY build onto the maintainer's Python Mk II failed: "2 × advanced
   docking computer: a ship carries at most 1; 6 × guardian shard cannon:
