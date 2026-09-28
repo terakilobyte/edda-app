@@ -110,6 +110,32 @@ pub fn import(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, text: 
             .and_then(|e| {
                 let bp = s(e, "BlueprintName")?;
                 let level = e.get("Level").and_then(Value::as_i64).unwrap_or(1);
+                // An export never names the engineer, so for a module engineers
+                // work the block itself must say it is a bought variant: a
+                // figure its named blueprint at that grade cannot have
+                // produced (the second modification every pre-engineered
+                // module carries). A block inside the blueprint's figures is
+                // a roll, planned as one (maintainer, 2026-09-27: "we can infer
+                // they are the sirius ones since it has two enhancements").
+                if let Some(module_type) = ed_engineering::journal::module_type_for_item(item) {
+                    let ratios: Vec<(String, f64)> = e
+                        .get("Modifiers")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|m| {
+                            let original = m.get("OriginalValue").and_then(Value::as_f64)?;
+                            if original.abs() <= f64::EPSILON {
+                                return None;
+                            }
+                            Some((s(m, "Label")?.to_string(), m.get("Value").and_then(Value::as_f64)? / original))
+                        })
+                        .collect();
+                    if !ratios.is_empty() {
+                        let name = ed_engineering::journal::blueprint_for_symbol(bp, module_type)?;
+                        state.engineering.beyond_blueprint(module_type, name, level, &ratios)?;
+                    }
+                }
                 let known = commands::presets_for_item(state, item);
                 let carries = |p: &ed_ships::Preset| p.blueprint.eq_ignore_ascii_case(bp) || p.blueprints.iter().any(|b| b.eq_ignore_ascii_case(bp));
                 known

@@ -263,6 +263,62 @@ impl Catalog {
     /// Grades a blueprint actually comes in, ascending. Empty for an
     /// experimental effect, which has no grade at all -- offering "grade 5"
     /// for one is how the UI produced an impossible request.
+    /// A modifier the named blueprint at its grade cannot have produced:
+    /// the tell of a bought pre-engineered variant, which carries a second
+    /// modification (the wiki on the pre-engineered drives: applying other
+    /// engineering "will remove the bonus second modification"; the
+    /// maintainer, 2026-09-27: "we can infer they are the sirius ones
+    /// since it has two enhancements"). An export never names the
+    /// engineer, so this is what tells a Sirius launcher (mass halved)
+    /// from a grade 1 Ammo Capacity roll (mass doubled). Judged against
+    /// the blueprint data's own effects — a figure moved the other way, a
+    /// figure beyond the grade's stated bound with the best experimental
+    /// stacked on it, or a figure neither the blueprint nor any
+    /// experimental of the module touches. A label the data cannot place
+    /// says nothing. `modifiers` are (journal label, Value/OriginalValue).
+    pub fn beyond_blueprint(&self, module_type: &str, blueprint: &str, grade: i64, modifiers: &[(String, f64)]) -> Option<String> {
+        let bp = self
+            .blueprints
+            .iter()
+            .find(|b| b.module_type.eq_ignore_ascii_case(module_type) && b.name.eq_ignore_ascii_case(blueprint) && b.grade == Some(grade))?;
+        let ratio_of = |e: &Effect| -> Option<f64> { e.effect.trim().trim_end_matches('%').parse::<f64>().ok().map(|pct| 1.0 + pct / 100.0) };
+        let bounds: Vec<(&'static [&'static str], f64)> = bp.effects.iter().filter_map(|e| Some((labels_for_property(&e.property), ratio_of(e)?))).collect();
+        // The most an experimental of this module adds on the same figure.
+        let experimental: Vec<(&'static [&'static str], f64)> = self
+            .blueprints
+            .iter()
+            .filter(|b| b.module_type.eq_ignore_ascii_case(module_type) && b.grade.is_none() && !matches!(b.module_type.as_str(), "Guardian" | "Human"))
+            .flat_map(|b| b.effects.iter().filter_map(|e| Some((labels_for_property(&e.property), ratio_of(e)?))))
+            .collect();
+        let exp_up = |label: &str| experimental.iter().filter(|(l, r)| l.contains(&label) && *r > 1.0).map(|(_, r)| *r).fold(1.0, f64::max);
+        let exp_down = |label: &str| experimental.iter().filter(|(l, r)| l.contains(&label) && *r < 1.0).map(|(_, r)| *r).fold(1.0, f64::min);
+        for (label, ratio) in modifiers {
+            if (ratio - 1.0).abs() < 0.005 {
+                continue;
+            }
+            let label = label.as_str();
+            match bounds.iter().find(|(labels, _)| labels.contains(&label)) {
+                Some((_, bound)) => {
+                    let up = *bound > 1.0;
+                    if (up && *ratio < 1.0) || (!up && *ratio > 1.0) {
+                        return Some(format!("{label} moves the other way from {blueprint} ({ratio:.2} against {bound:.2})"));
+                    }
+                    let reach = if up { bound * exp_up(label) * 1.02 } else { bound * exp_down(label) / 1.02 };
+                    if (up && *ratio > reach) || (!up && *ratio < reach) {
+                        return Some(format!("{label} {ratio:.2} is beyond grade {grade} {blueprint} ({reach:.2} with the best experimental)"));
+                    }
+                }
+                None => {
+                    if !label_is_known(label) || experimental.iter().any(|(l, _)| l.contains(&label)) {
+                        continue;
+                    }
+                    return Some(format!("{label} is not something {blueprint} or any experimental of the module changes"));
+                }
+            }
+        }
+        None
+    }
+
     pub fn grades_for(&self, module_type: &str, name: &str) -> Vec<i64> {
         let mut grades: Vec<i64> = self
             .blueprints
@@ -692,6 +748,78 @@ mod synthesis_tests {
                 }
             }
         }
+    }
+}
+
+/// The journal's `Modifiers` labels an effect property can appear under.
+fn labels_for_property(property: &str) -> &'static [&'static str] {
+    match property {
+        "Mass" => &["Mass"],
+        "Integrity" => &["Integrity"],
+        "Power Draw" => &["PowerDraw"],
+        "Boot Time" => &["BootTime"],
+        "Optimal Mass" => &["FSDOptimalMass", "EngineOptimalMass", "ShieldGenOptimalMass"],
+        "Thermal Load" => &["ThermalLoad", "FSDHeatRate"],
+        "Reload Time" => &["ReloadTime"],
+        "Ammo Maximum" | "Ammo Capacity" | "Capacity" => &["AmmoMaximum"],
+        "Clip Size" => &["AmmoClipSize"],
+        "Maximum Range" | "Range" => &["MaximumRange", "Range"],
+        "Damage" => &["Damage"],
+        "Rate of Fire" => &["RateOfFire"],
+        "Distributor Draw" => &["DistributorDraw"],
+        "Shot Speed" => &["ShotSpeed"],
+        "Jitter" => &["Jitter"],
+        "Armour Piercing" => &["ArmourPiercing"],
+        "Damage Falloff Start" => &["DamageFalloffRange"],
+        "Maximum Fuel Per Jump" => &["MaxFuelPerJump"],
+        "Optimal Multiplier" => &["EngineOptPerformance"],
+        "Power Capacity" | "Power Generation" => &["PowerCapacity"],
+        "Heat Efficiency" => &["HeatEfficiency"],
+        _ => &[],
+    }
+}
+
+fn label_is_known(label: &str) -> bool {
+    [
+        "Mass", "Integrity", "Power Draw", "Boot Time", "Optimal Mass", "Thermal Load", "Reload Time", "Ammo Maximum", "Clip Size", "Maximum Range",
+        "Damage", "Rate of Fire", "Distributor Draw", "Shot Speed", "Jitter", "Armour Piercing", "Damage Falloff Start", "Maximum Fuel Per Jump",
+        "Optimal Multiplier", "Power Capacity", "Heat Efficiency",
+    ]
+    .iter()
+    .any(|p| labels_for_property(p).contains(&label))
+}
+
+#[cfg(test)]
+mod beyond_blueprint_tests {
+    use super::Catalog;
+
+    fn mods(pairs: &[(&str, f64)]) -> Vec<(String, f64)> {
+        pairs.iter().map(|(l, r)| (l.to_string(), *r)).collect()
+    }
+
+    /// The Sirius launcher halves the mass that Ammo Capacity doubles; a
+    /// grade 1 roll stays inside the blueprint's own figures.
+    #[test]
+    fn a_sirius_launcher_is_told_from_an_ammo_capacity_roll() {
+        let c = Catalog::load();
+        let sirius = c.beyond_blueprint("Heat Sink Launcher", "Ammo Capacity", 1, &mods(&[("Mass", 0.5), ("AmmoMaximum", 5.0 / 3.0), ("ReloadTime", 1.75)]));
+        assert!(sirius.as_deref().is_some_and(|why| why.starts_with("Mass moves the other way")), "{sirius:?}");
+        let roll = c.beyond_blueprint("Heat Sink Launcher", "Ammo Capacity", 1, &mods(&[("Mass", 1.9), ("AmmoMaximum", 1.4), ("ReloadTime", 1.45)]));
+        assert_eq!(roll, None, "a roll inside the grade's figures is a roll");
+    }
+
+    /// The maintainer's Kestrel drive as the journal wrote it: a bought
+    /// V1 (Increased Range with Faster Boot as its second modification,
+    /// Mass Manager added later) — beyond what grade 5 Increased Range
+    /// and any experimental reach. A grade 5 roll with Mass Manager is not.
+    #[test]
+    fn a_pre_engineered_drive_is_beyond_its_named_blueprint() {
+        let c = Catalog::load();
+        let kestrel = c.beyond_blueprint("Frame Shift Drive", "Increased FSD Range", 5, &mods(&[("Mass", 1.3), ("Integrity", 0.644), ("PowerDraw", 1.15), ("BootTime", 0.2), ("FSDOptimalMass", 1.768), ("FSDHeatRate", 1.2)]));
+        assert!(kestrel.is_some(), "{kestrel:?}");
+        let roll = c.beyond_blueprint("Frame Shift Drive", "Increased FSD Range", 5, &mods(&[("Mass", 1.3), ("Integrity", 0.78), ("PowerDraw", 1.15), ("FSDOptimalMass", 1.60)]));
+        assert_eq!(roll, None, "grade 5 Increased Range with Mass Manager on it: {roll:?}");
+        assert_eq!(c.beyond_blueprint("Frame Shift Drive", "No Such Blueprint", 5, &[]), None, "an unknown blueprint says nothing");
     }
 }
 

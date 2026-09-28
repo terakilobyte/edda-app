@@ -574,7 +574,11 @@ mod sirius_sink_tests {
         });
         let sirius = |slot: &str| serde_json::json!({
             "Slot": slot, "Item": "hpt_heatsinklauncher_turret_tiny", "On": true, "Priority": 0,
-            "Engineering": { "BlueprintName": "Misc_HeatSinkCapacity", "Level": 1, "Quality": 1.0, "Modifiers": [{ "Label": "AmmoMaximum", "Value": 5.0, "OriginalValue": 3.0, "LessIsGood": 0 }] }
+            "Engineering": { "BlueprintName": "Misc_HeatSinkCapacity", "Level": 1, "Quality": 1.0, "Modifiers": [
+                { "Label": "Mass", "Value": 0.65, "OriginalValue": 1.3, "LessIsGood": 1 },
+                { "Label": "AmmoMaximum", "Value": 5.0, "OriginalValue": 3.0, "LessIsGood": 0 },
+                { "Label": "ReloadTime", "Value": 17.5, "OriginalValue": 10.0, "LessIsGood": 1 }
+            ] }
         });
         let slef = serde_json::json!([{ "header": { "appName": "EDSY" }, "data": {
             "event": "Loadout", "Ship": "python_nx", "ShipID": 33,
@@ -596,5 +600,24 @@ mod sirius_sink_tests {
         // And the pooled table above the broker section carries the same.
         let pooled = |m: &str| report.materials.iter().find(|l| l.material == m).map(|l| l.need);
         assert_eq!(pooled("Mechanical Scrap"), Some(32));
+
+        // A grade 1 Ammo Capacity ROLL on the same launchers (mass doubled, as the
+        // blueprint says) is not a Sirius: no swap, an engineering row instead.
+        let roll = |slot: &str| serde_json::json!({
+            "Slot": slot, "Item": "hpt_heatsinklauncher_turret_tiny", "On": true, "Priority": 0,
+            "Engineering": { "BlueprintName": "Misc_HeatSinkCapacity", "Level": 1, "Quality": 0.9, "Modifiers": [
+                { "Label": "Mass", "Value": 2.47, "OriginalValue": 1.3, "LessIsGood": 1 },
+                { "Label": "AmmoMaximum", "Value": 4.0, "OriginalValue": 3.0, "LessIsGood": 0 },
+                { "Label": "ReloadTime", "Value": 14.5, "OriginalValue": 10.0, "LessIsGood": 1 }
+            ] }
+        });
+        let slef = serde_json::json!([{ "header": { "appName": "EDSY" }, "data": {
+            "event": "Loadout", "Ship": "python_nx", "ShipID": 33,
+            "Modules": [roll("TinyHardpoint1"), roll("TinyHardpoint2"), roll("TinyHardpoint3"), roll("TinyHardpoint4")]
+        }}]);
+        let imported = crate::build_import::import(&state, Some(33), None, &slef.to_string()).expect("the import");
+        assert!(imported.swaps.is_empty(), "a roll is not a swap: {:?}", imported.swaps);
+        assert_eq!(imported.items.len(), 4, "{:?}", imported.items);
+        assert!(imported.items.iter().all(|it| it.blueprint.as_deref() == Some("Ammo Capacity") && it.target_grade == 1), "{:?}", imported.items);
     }
 }

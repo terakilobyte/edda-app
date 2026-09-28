@@ -492,6 +492,28 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A bought variant is told from a roll by the second modification**
+  (2026-09-27; the maintainer: "we can infer they are the sirius ones
+  since it has two enhancements, no?"). An EDSY export never names the
+  engineer, so on a module engineers work a Sirius launcher and a grade
+  1 Ammo Capacity roll carried the same blueprint at the same grade.
+  The block tells them apart: every pre-engineered module carries a
+  second modification (the wiki on the V1 drives: other engineering
+  "will remove the bonus second modification"), so its figures fall
+  outside what the named blueprint at that grade can produce.
+  `ed_engineering::Catalog::beyond_blueprint` judges a block against the
+  blueprint data's own effects — a figure moved the other way (the
+  Sirius halves the mass Ammo Capacity doubles), a figure beyond the
+  grade's bound with the best experimental stacked on it (the
+  maintainer's Kestrel drive: optimal mass 1.77 against Increased Range's
+  1.55 and Mass Manager's 4%), or a figure neither the blueprint nor
+  any experimental touches (its boot time) — and the import takes a
+  preset for such a module only when the block is beyond its blueprint;
+  a block inside the figures is a roll, planned as one. Pinned in
+  ed-engineering with the Sirius, the roll, the Kestrel and a grade 5
+  roll with Mass Manager, and end to end: four Sirius blocks import as
+  four swaps to the preset, four grade 1 roll blocks import as four
+  engineering rows and no swap.
 - **Identical callouts inside a window are one callout** (2026-09-27;
   the maintainer: "no need to spam call out under attack, add a
   debounce or throttle on callouts"). Measured in the day's log: 182
