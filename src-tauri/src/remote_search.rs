@@ -228,18 +228,18 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
         let conn = state.read_conn().map_err(|e| CapError::unavailable(e, true))?;
         let routing = state.routing.clone();
         let data_dir = state.data_dir.clone();
-        let near = tauri::async_runtime::spawn_blocking(move || nearest_inhabited(&routing, &data_dir, &conn, &origin))
+        let near = tauri::async_runtime::spawn_blocking(move || nearest_in_bubble(&routing, &data_dir, &conn, &origin))
             .await
             .ok()
             .flatten();
-        if let Some((near, dist)) = near {
+        if let Some((near, dist, neighbours)) = near {
             let radius = query.radius_ly.unwrap_or(100.0);
             let again = post(state, &api, &wire_body(query, &near, min_pad), &query.kind, &near, query.radius_ly).await?;
             let results = again["results"].as_array().map(|r| r.len()).unwrap_or(0);
-            tracing::info!(origin = %system, near = %near, dist_ly = dist, results, "market search: origin outside the bubble; asked again from the nearest inhabited system");
+            tracing::info!(origin = %system, near = %near, dist_ly = dist, neighbours_30ly = neighbours, results, "market search: origin outside the bubble; asked again from the nearest system inside it");
             value = again;
             value["origin_note"] = serde_json::Value::String(format!(
-                "Nothing within {radius:.0} ly of {system}, which is outside the inhabited bubble (a search reaches 500 ly at most). These are from {near}, the nearest inhabited system, {dist:.0} ly from {system}."
+                "Nothing within {radius:.0} ly of {system}, which is outside the inhabited bubble (a search reaches 500 ly at most). These are from {near}, the nearest system inside the bubble ({neighbours} inhabited systems within 30 ly), {dist:.0} ly from {system}."
             ));
         }
     }
@@ -248,24 +248,42 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
     Ok(value)
 }
 
-/// The nearest system in the bundled bubble index to `origin`, when
-/// `origin` itself is not in it (an uninhabited system), with the
-/// distance. The origin's position comes from the commander's own
-/// journal; a system never visited and not inhabited is unknown here.
-fn nearest_inhabited(routing: &crate::routing::RoutingState, data_dir: &std::path::Path, conn: &rusqlite::Connection, origin: &str) -> Option<(String, f32)> {
+/// How many inhabited systems within 30 ly make a system "inside the
+/// bubble": a lone colony near a Guardian site has one or two; the
+/// bubble's edge has dozens; Colonia's cluster passes too.
+const BUBBLE_NEIGHBOURS_30LY: usize = 15;
+
+/// The nearest system inside the inhabited bubble to `origin`, when
+/// `origin` itself is not in the bundled index (an uninhabited system):
+/// the nearest inhabited system with enough inhabited neighbours, with
+/// its distance and that count. The first cut took the nearest inhabited
+/// system of any kind, and from a Guardian site that was a lone colony
+/// 5 ly away whose 500 ly held no market either (measured 2026-09-27:
+/// Synuefe GV-T b50-4 → Synuefe QX-J c25-3, 0 results twice). The
+/// origin's position comes from the commander's own journal.
+fn nearest_in_bubble(routing: &crate::routing::RoutingState, data_dir: &std::path::Path, conn: &rusqlite::Connection, origin: &str) -> Option<(String, f32, usize)> {
     let g = routing.galaxy(data_dir)?;
     if g.find(origin).is_some() {
         return None;
     }
     let (x, y, z) = crate::capabilities::galaxy::origin_coords(conn, origin).ok()?;
     let pos = [x as f32, y as f32, z as f32];
+    let mut seen = 0usize;
     for radius in [250.0f32, 500.0, 1000.0, 2000.0, 5000.0] {
-        if let Some((idx, dist)) = g.within(pos, radius).into_iter().min_by(|a, b| a.1.total_cmp(&b.1)) {
+        let mut hits = g.within(pos, radius);
+        hits.sort_by(|a, b| a.1.total_cmp(&b.1));
+        // The ring's nearest hundred candidates, nearest first; the rings
+        // grow so a far origin still finds the bubble's edge.
+        for (idx, dist) in hits.into_iter().skip(seen).take(100) {
+            seen += 1;
             if dist < 1.0 {
                 return None;
             }
             let record = g.record(idx);
-            return Some((g.name(&record).to_string(), dist));
+            let neighbours = g.within(record.pos(), 30.0).len();
+            if neighbours >= BUBBLE_NEIGHBOURS_30LY {
+                return Some((g.name(&record).to_string(), dist, neighbours));
+            }
         }
     }
     None

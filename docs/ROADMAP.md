@@ -492,6 +492,29 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Commodities to buy have their own table; a search from the black
+  asks from inside the bubble, not the nearest colony** (2026-09-27;
+  the maintainer: "why didn't it give me power converters in a list and
+  tell me where to go buy them?", "they each take 2 power convertors
+  but we only list that in grey text that's easy to miss"). Two things
+  in the log. The seller search for the modified shards' Power
+  Converters ran from Synuefe GV-T b50-4, found nothing within 500 ly,
+  re-asked from the nearest inhabited system — Synuefe QX-J c25-3, a
+  lone colony 5 ly from the Guardian site — and found nothing again.
+  `nearest_in_bubble` now takes the nearest inhabited system with at
+  least 15 inhabited neighbours within 30 ly (the bubble's edge, or
+  Colonia's cluster), and the answer says the count. The Titan Drive
+  Component the SCO V1 drives ask for was searched twice a plan for
+  nothing: salvage is never on a market board ("salvaged from destroyed
+  Thargoid Titans", the wiki), so it is said instead. And each broker
+  line listed its commodity in grey text with nothing summing them:
+  the plan now pools commodities across every broker line into a
+  "Commodities to buy" table beside the materials table — need, in
+  hold, short, and the nearest markets with the shortfall in stock —
+  and the header's "short" count includes them; the broker line says
+  "plus, to buy: 4 Power Converter" in plain text. Pinned end to end:
+  two modified 2A shards over plain ones pool to four Power
+  Converters, none in hold, not fully met.
 - **A bought variant is told from a roll by the second modification**
   (2026-09-27; the maintainer: "we can infer they are the sirius ones
   since it has two enhancements, no?"). An EDSY export never names the

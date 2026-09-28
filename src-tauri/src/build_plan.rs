@@ -144,6 +144,12 @@ pub struct BuildPlanReport {
     pub shopping: Option<ShoppingReport>,
     /// Technology-broker unlocks the swaps need, materials already pooled above.
     pub unlocks: Vec<Unlock>,
+    /// Every commodity the unlocks need, pooled across them against the
+    /// hold, with the sellers: two modified shards at two Power Converters
+    /// each are four to buy, said once and in the open (maintainer,
+    /// 2026-09-27: "they each take 2 power convertors but we only list that
+    /// in grey text that's easy to miss").
+    pub commodities: Vec<CommodityLine>,
 }
 
 /// Materials pooled by name across every slot. `have` is the same for all
@@ -449,8 +455,15 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         }
     }
     let unlocks = grouped;
+    let mut commodities: Vec<CommodityLine> = Vec::new();
+    for c in unlocks.iter().flat_map(|u| u.commodities.iter()) {
+        match commodities.iter_mut().find(|l| l.name == c.name) {
+            Some(l) => l.need += c.need,
+            None => commodities.push(c.clone()),
+        }
+    }
     let materials = pool(&per_item);
-    let fully_met = materials.iter().all(|l| l.have >= l.need);
+    let fully_met = materials.iter().all(|l| l.have >= l.need) && commodities.iter().all(|c| c.have >= c.need);
     let (itinerary, unassigned) = assign(&jobs);
     for stop in &itinerary {
         for r in reports.iter_mut().filter(|r| r.blueprint.is_some()) {
@@ -479,6 +492,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         unassigned,
         shopping,
         unlocks,
+        commodities,
     })
 }
 
@@ -619,5 +633,40 @@ mod sirius_sink_tests {
         assert!(imported.swaps.is_empty(), "a roll is not a swap: {:?}", imported.swaps);
         assert_eq!(imported.items.len(), 4, "{:?}", imported.items);
         assert!(imported.items.iter().all(|it| it.blueprint.as_deref() == Some("Ammo Capacity") && it.target_grade == 1), "{:?}", imported.items);
+    }
+
+    /// Two modified 2A shards over plain ones: one broker line for two
+    /// units, and the four Power Converters they need pooled in the open.
+    #[test]
+    fn two_modified_shards_pool_four_power_converters() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        let plain = |slot: &str| serde_json::json!({ "Slot": slot, "Item": "hpt_guardian_shardcannon_fixed_medium", "On": true, "Priority": 0 });
+        let loadout = serde_json::json!({
+            "timestamp": "2026-09-27T10:00:00Z", "event": "Loadout", "Ship": "python_nx", "ShipID": 33, "ShipName": "", "ShipIdent": "",
+            "UnladenMass": 600.0, "FuelCapacity": { "Main": 32.0 }, "MaxJumpRange": 30.0,
+            "Modules": [plain("MediumHardpoint1"), plain("MediumHardpoint2")]
+        });
+        state.with_store(|s| {
+            s.conn()
+                .execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-09-27T10:00:00Z', 'Loadout', ?1)", [loadout.to_string()])
+                .unwrap();
+            ed_store::derive::derive_all(s.conn()).unwrap();
+        });
+        let modified = |slot: &str| serde_json::json!({
+            "Slot": slot, "Item": "hpt_guardian_shardcannon_fixed_medium", "On": true, "Priority": 0,
+            "Engineering": { "BlueprintName": "Weapon_LongRange", "Level": 1, "Quality": 1.0, "ExperimentalEffect": "special_super_penetrator_cooled" }
+        });
+        let slef = serde_json::json!([{ "header": { "appName": "EDSY" }, "data": {
+            "event": "Loadout", "Ship": "python_nx", "ShipID": 33, "Modules": [modified("MediumHardpoint1"), modified("MediumHardpoint2")]
+        }}]);
+        let imported = crate::build_import::import(&state, Some(33), None, &slef.to_string()).expect("the import");
+        assert_eq!(imported.swaps.len(), 2, "{:?}", imported.swaps);
+        let swaps: Vec<crate::commands::ProposedSwap> = imported.swaps.iter().map(|sw| crate::commands::ProposedSwap { slot: sw.slot.clone(), item: sw.want_item.clone(), preset: sw.preset.clone() }).collect();
+        let report = super::report(&state, Some(33), None, &[], &swaps, false, true).expect("the plan");
+        assert_eq!(report.unlocks.len(), 1);
+        assert_eq!((report.unlocks[0].units, report.unlocks[0].per_unit), (2, true));
+        assert_eq!(report.commodities.iter().map(|c| (c.name.as_str(), c.need, c.have)).collect::<Vec<_>>(), vec![("Power Converter", 4, 0)]);
+        assert!(!report.fully_met, "four Power Converters short");
     }
 }

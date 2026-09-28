@@ -848,7 +848,7 @@ pub async fn build_plan_report(
     if let Some(shopping) = report.shopping.as_mut() {
         fill_traders(&state, shopping).await;
     }
-    fill_unlock_sellers(&state, &mut report.unlocks).await;
+    fill_commodity_sellers(&state, &mut report.commodities).await;
     Ok(report)
 }
 
@@ -859,11 +859,25 @@ pub async fn build_plan_report(
 /// stays offline; this is one ask per commodity short. The current
 /// hull's pad first; when no hull is known (a plan for a ship not owned),
 /// any pad.
-pub(crate) async fn fill_unlock_sellers(state: &AppState, unlocks: &mut [crate::build_plan::Unlock]) {
-    for unlock in unlocks.iter_mut() {
-        for line in unlock.commodities.iter_mut() {
+pub(crate) async fn fill_commodity_sellers(state: &AppState, commodities: &mut [crate::build_plan::CommodityLine]) {
+    {
+        for line in commodities.iter_mut() {
             let short = line.need - line.have;
             if short <= 0 {
+                continue;
+            }
+            // Salvage is never on a market board: the Titan Drive Component
+            // the SCO V1 drives ask for "can be salvaged from destroyed
+            // Thargoid Titans" (the wiki's Frame Shift Drive page,
+            // 2026-09-27), and searching sellers for it answered nothing
+            // twice a plan. Said instead of searched.
+            let category = ed_journal::Catalog::load().by_name(&line.name).map(|i| i.category.clone()).unwrap_or_default();
+            if category.eq_ignore_ascii_case("salvage") {
+                line.sellers_note = Some(if line.name.eq_ignore_ascii_case("Titan Drive Component") {
+                    "salvage, not a market good: salvaged from destroyed Thargoid Titans".to_string()
+                } else {
+                    format!("{} is salvage, not a market good: no station sells it", line.name)
+                });
                 continue;
             }
             let query = |min_pad: Option<String>| galaxy::MarketSearchRequest {

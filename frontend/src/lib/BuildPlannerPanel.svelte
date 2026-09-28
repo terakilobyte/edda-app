@@ -340,8 +340,8 @@
 
     {#if planReport}
       <h3 style="margin-top:0.8rem">
-        {planReport.items.length} module{planReport.items.length === 1 ? "" : "s"} · {planReport.materials.length} materials
-        <span class={planReport.fully_met ? "ok" : "warn"}>{planReport.fully_met ? "all materials in hand" : `${planReport.materials.filter((l) => l.have < l.need).length} short`}</span>
+        {planReport.items.length} module{planReport.items.length === 1 ? "" : "s"} · {planReport.materials.length} materials{planReport.commodities?.length ? ` · ${planReport.commodities.length} commodit${planReport.commodities.length === 1 ? "y" : "ies"} to buy` : ""}
+        <span class={planReport.fully_met ? "ok" : "warn"}>{planReport.fully_met ? "everything in hand" : `${planReport.materials.filter((l) => l.have < l.need).length + (planReport.commodities ?? []).filter((c) => c.have < c.need).length} short`}</span>
         {#if planReport.unassigned.length}<span class="bad">{planReport.unassigned.length} no unlocked engineer can do</span>{/if}
       </h3>
       <div class="table-wrap">
@@ -360,6 +360,41 @@
         </table>
       </div>
 
+      {#if planReport.commodities?.length}
+        <h3 style="margin-top:0.8rem">Commodities to buy <span class="muted">for the technology broker · the hold counts · nearest markets with the shortfall in stock</span></h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Commodity</th><th class="r">Need</th><th class="r">In hold</th><th>Short</th><th>Where</th></tr></thead>
+            <tbody>
+              {#each planReport.commodities as c}
+                <tr>
+                  <td><strong>{c.name}</strong></td>
+                  <td class="r num">{c.need}</td>
+                  <td class="r num">{c.have}</td>
+                  <td class={c.have >= c.need ? "ok" : "warn"}>{c.have >= c.need ? "✓" : `${c.need - c.have} more`}</td>
+                  <td>
+                    {#if c.have >= c.need}
+                      <span class="muted">in the hold</span>
+                    {:else if c.sellers.length}
+                      <div class="row small">
+                        {#each c.sellers as s}
+                          <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
+                            <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
+                        {/each}
+                      </div>
+                      {#if c.sellers_from}<div class="muted small">from {c.sellers_from}</div>{/if}
+                      {#if c.sellers_note}<div class="muted small">{c.sellers_note}</div>{/if}
+                    {:else}
+                      <span class="warn">{c.sellers_note ?? `no market with ${c.need - c.have}+ in stock within 500 ly`}</span>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+
       {#if planReport.unlocks?.length}
         <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
         {#each planReport.unlocks as u}
@@ -371,29 +406,9 @@
             {:else}
             <div style="margin-left:1rem">{u.materials.map((l) => `${l.need} ${l.material}${l.have >= l.need ? " ✓" : ` (have ${l.have})`}`).join(", ")}</div>
             {/if}
-            {#each u.commodities as c}
-              <div style="margin-left:1rem"><span class="muted">to buy:</span> {c.need} {c.name}
-                {#if c.have >= c.need}
-                  <span class="ok">✓ in the hold</span>
-                {:else}
-                  {#if c.have}<span class="muted">(have {c.have})</span>{/if}
-                  {#if c.sellers.length}
-                    <span class="muted">· nearest with {c.need - c.have}+ in stock{c.sellers_from ? ` from ${c.sellers_from}` : ""}:</span>
-                    <div class="row small" style="margin:0.2rem 0 0.2rem 1rem">
-                      {#each c.sellers as s}
-                        <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
-                          <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
-                      {/each}
-                    </div>
-                    {#if c.sellers_note}<div class="muted" style="margin-left:1rem">{c.sellers_note}</div>{/if}
-                  {:else if c.sellers_note}
-                    <span class="muted">· {c.sellers_note}</span>
-                  {:else}
-                    <span class="muted">· no market with {c.need - c.have}+ in stock within 500 ly</span>
-                  {/if}
-                {/if}
-              </div>
-            {/each}
+            {#if u.commodities.length}
+              <div style="margin-left:1rem"><strong>plus, to buy:</strong> {u.commodities.map((c) => `${c.need} ${c.name}`).join(", ")} <span class="muted">· see Commodities to buy above</span></div>
+            {/if}
           </div>
         {/each}
       {/if}
