@@ -548,3 +548,53 @@ fn preset_recipes_of<'a>(catalog: &'a ed_engineering::Catalog, learned: &[ed_shi
         .filter_map(|p| p.unlock.as_deref().and_then(|u| catalog.unlock_recipe(u)))
         .collect()
 }
+
+#[cfg(test)]
+mod sirius_sink_tests {
+    /// The maintainer's question of 2026-09-27: "is this also taking into
+    /// account the materials I need for the modded heat sinks?" A ship
+    /// with four plain launchers, a build with four Sirius ones: four
+    /// swaps to the Sirius preset, one broker line for four units, and
+    /// the materials are the wiki's recipe four times over.
+    #[test]
+    fn four_sirius_heat_sinks_cost_the_recipe_four_times() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        let plain = |slot: &str| serde_json::json!({ "Slot": slot, "Item": "hpt_heatsinklauncher_turret_tiny", "On": true, "Priority": 0 });
+        let loadout = serde_json::json!({
+            "timestamp": "2026-09-27T10:00:00Z", "event": "Loadout", "Ship": "python_nx", "ShipID": 33, "ShipName": "", "ShipIdent": "",
+            "UnladenMass": 600.0, "FuelCapacity": { "Main": 32.0 }, "MaxJumpRange": 30.0,
+            "Modules": [plain("TinyHardpoint1"), plain("TinyHardpoint2"), plain("TinyHardpoint3"), plain("TinyHardpoint4")]
+        });
+        state.with_store(|s| {
+            s.conn()
+                .execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-09-27T10:00:00Z', 'Loadout', ?1)", [loadout.to_string()])
+                .unwrap();
+            ed_store::derive::derive_all(s.conn()).unwrap();
+        });
+        let sirius = |slot: &str| serde_json::json!({
+            "Slot": slot, "Item": "hpt_heatsinklauncher_turret_tiny", "On": true, "Priority": 0,
+            "Engineering": { "BlueprintName": "Misc_HeatSinkCapacity", "Level": 1, "Quality": 1.0, "Modifiers": [{ "Label": "AmmoMaximum", "Value": 5.0, "OriginalValue": 3.0, "LessIsGood": 0 }] }
+        });
+        let slef = serde_json::json!([{ "header": { "appName": "EDSY" }, "data": {
+            "event": "Loadout", "Ship": "python_nx", "ShipID": 33,
+            "Modules": [sirius("TinyHardpoint1"), sirius("TinyHardpoint2"), sirius("TinyHardpoint3"), sirius("TinyHardpoint4")]
+        }}]);
+        let imported = crate::build_import::import(&state, Some(33), None, &slef.to_string()).expect("the import");
+        assert_eq!(imported.swaps.len(), 4, "{:?}", imported.swaps);
+        for sw in &imported.swaps {
+            assert_eq!(sw.preset.as_deref(), Some("pe:hpt_heatsinklauncher_turret_tiny:misc_heatsinkcapacity:1"), "{sw:?}");
+        }
+        let swaps: Vec<crate::commands::ProposedSwap> = imported.swaps.iter().map(|sw| crate::commands::ProposedSwap { slot: sw.slot.clone(), item: sw.want_item.clone(), preset: sw.preset.clone() }).collect();
+        let report = super::report(&state, Some(33), None, &[], &swaps, false, true).expect("the plan");
+        assert_eq!(report.unlocks.len(), 1, "{:?}", report.unlocks);
+        let u = &report.unlocks[0];
+        assert_eq!((u.units, u.per_unit, u.unlocked.is_none(), u.note.is_none()), (4, true, true, true), "{u:?}");
+        assert!(u.item_name.starts_with("Sirius Modified Heat Sink Launcher"), "{}", u.item_name);
+        let need = |m: &str| u.materials.iter().find(|l| l.material == m).map(|l| l.need);
+        assert_eq!((need("Mechanical Scrap"), need("Niobium"), need("Vanadium"), need("Mechanical Components")), (Some(32), Some(24), Some(24), Some(20)), "{:?}", u.materials);
+        // And the pooled table above the broker section carries the same.
+        let pooled = |m: &str| report.materials.iter().find(|l| l.material == m).map(|l| l.need);
+        assert_eq!(pooled("Mechanical Scrap"), Some(32));
+    }
+}
