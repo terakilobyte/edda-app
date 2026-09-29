@@ -492,6 +492,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **0.4.0 server deploy: the readiness wait is shorter than a market
+  migration** (2026-09-29). `deploy-api` from main reported failure:
+  "ed-api not ready after 120 s". The service was fine — migration
+  0021 (the commodity fold, which repoints and deletes market rows)
+  took 133 s on production and finished twelve seconds after the box's
+  `edda-apply api` stopped waiting; readiness was 200 a moment later,
+  the migration is recorded, the new binary serves. Verified after:
+  "Micro Controllers" by name from Sol answers three sellers within
+  9 ly; the commodities table holds 0 display-name symbols (426 rows,
+  down from 728; the 14 nameless are the tissue-sample symbols no
+  source names). The deploy was re-run for a green record. To do on the
+  box: a readiness wait that outlasts a market-table migration (the
+  wait lives in `edda-apply`, not in this repo), or a migration step
+  that runs before the restart.
 - **The Engineers tab; module names complete; the Sirius brokers**
   (2026-09-29). The directory had gone into the Engineering panel,
   hidden since 0.3.5 — "engineering tab is still hidden/missing" — so
