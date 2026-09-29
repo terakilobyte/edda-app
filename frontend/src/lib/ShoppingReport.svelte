@@ -3,9 +3,30 @@
   // both show it: trades from what you carry, nearest traders, farm plans.
   import { requestRoute } from "./route.svelte.js";
   import { traderStatus } from "./engineering.svelte.js";
+  import { KEYS, persisted } from "./storage.svelte.js";
 
-  /** @type {{ shopping: any, picked: Set<number>, onToggle: (i: number) => void }} */
-  let { shopping, picked, onToggle } = $props();
+  /** @type {{ shopping: any, picked: Set<number>, onToggle: (i: number) => void, title?: string }} */
+  let { shopping, picked, onToggle, title = "Shopping list" } = $props();
+
+  // Tracked on the HUD: while the box is ticked, the picked trades and
+  // what stays short follow every change here, so the trader screen and
+  // the list are on one screen (maintainer, 2026-09-28: "Track trade list
+  // in HUD" — "something to check in the build planner page").
+  const hudShopping = persisted(KEYS.hudShopping, null, { json: true, sync: true });
+  const tracked = $derived(hudShopping.value?.title === title);
+  const snapshot = () => ({
+    title,
+    at: new Date().toISOString(),
+    trades: (shopping?.list?.trades ?? []).filter((_, i) => picked.has(i)).map((t) => ({ kind: String(t.kind).toLowerCase(), give: t.give, give_material: t.give_material, get: t.get, get_material: t.get_material, rate: t.rate })),
+    still_short: shopping?.list?.still_short ?? [],
+  });
+  const setTracked = (on) => { hudShopping.value = on ? snapshot() : null; };
+  $effect(() => {
+    // Re-read the picks and the list so a change re-runs this; write only
+    // while this list is the one tracked.
+    const next = snapshot();
+    if (tracked && hudShopping.value && JSON.stringify({ ...hudShopping.value, at: "" }) !== JSON.stringify({ ...next, at: "" })) hudShopping.value = next;
+  });
 
   // Trader kinds needed by the selected trades plus any farm-then-trade plan.
   const neededKinds = $derived(new Set([
@@ -35,7 +56,12 @@
 </script>
 
 {#if shopping}
-  <h3 style="margin-top:0.8rem">Shopping list <span class="muted">material traders · 6:1 per grade up, 3:1 per grade down, ×6 across groups</span></h3>
+  <h3 style="margin-top:0.8rem">Shopping list <span class="muted">material traders · 6:1 per grade up, 3:1 per grade down, ×6 across groups</span>
+    {#if !shopping.error && (shopping.list?.trades?.length || shopping.list?.still_short?.length)}
+      <label class="small" style="margin-left:0.6rem; font-weight:normal" title="The picked trades and what stays short, on the HUD, following every change here"><input type="checkbox" checked={tracked} onchange={(e) => setTracked(e.currentTarget.checked)} /> Track trade list in HUD</label>
+      {#if hudShopping.value && !tracked}<span class="muted small">(the HUD is tracking “{hudShopping.value.title}”)</span>{/if}
+    {/if}
+  </h3>
   {#if shopping.error}
     <p class="error">{shopping.error}</p>
   {:else}

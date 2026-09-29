@@ -431,7 +431,7 @@
         {/each}
       {/if}
 
-      <ShoppingReport shopping={planReport.shopping} picked={planPicked} onToggle={togglePlanPick} />
+      <ShoppingReport shopping={planReport.shopping} picked={planPicked} onToggle={togglePlanPick} title={`${title} build`} />
     {/if}
   {:else if !msg}
     <p class="muted" style="margin-top:0.6rem">{ships.length || hulls.length ? "Loading the build…" : "No ships in the journal yet — pick any hull above to plan one."}</p>

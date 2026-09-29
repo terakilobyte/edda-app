@@ -24,6 +24,32 @@ pub struct ShipStatus {
     /// Powerplay for the current system, if known.
     pub controlling_power: Option<String>,
     pub power_state: Option<String>,
+    /// What the dock offers, while docked: the HUD shows the trades to
+    /// make at a material trader without a tab back to the app
+    /// (maintainer, 2026-09-28: "i'm at the material trader now and it'd
+    /// be nice not to have to tab back and forth").
+    pub dock: Option<DockContext>,
+}
+
+/// The current dock as its Docked event described it.
+#[derive(Debug, Serialize)]
+pub struct DockContext {
+    pub economy: Option<String>,
+    pub material_trader: bool,
+    /// raw | manufactured | encoded, from the economy, when it has a trader.
+    pub trader_kind: Option<String>,
+}
+
+fn dock_context(conn: &rusqlite::Connection) -> Option<DockContext> {
+    let raw = ed_store::session::latest_event_raw(conn, "Docked").ok().flatten()?;
+    let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let economy = v.get("StationEconomy_Localised").and_then(|e| e.as_str()).map(str::to_string);
+    let material_trader = v
+        .get("StationServices")
+        .and_then(|s| s.as_array())
+        .is_some_and(|s| s.iter().any(|x| x.as_str().is_some_and(|x| x.eq_ignore_ascii_case("materialtrader"))));
+    let trader_kind = if material_trader { economy.as_deref().and_then(crate::remote_lookup::trader_kind_for_economy).map(str::to_string) } else { None };
+    Some(DockContext { economy, material_trader, trader_kind })
 }
 
 #[tauri::command]
@@ -73,7 +99,9 @@ pub async fn get_status(state: State<'_, AppState>) -> Result<ShipStatus, String
             .map(|p| (p.controlling_power, p.powerplay_state))
             .unwrap_or((None, None));
 
+        let dock = location.as_ref().filter(|l| l.docked).and_then(|_| dock_context(conn));
         Ok(ShipStatus {
+            dock,
             location,
             nav,
             ship: ship.as_deref().map(ed_route::ships::display_name),

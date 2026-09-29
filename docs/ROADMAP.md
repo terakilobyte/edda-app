@@ -492,6 +492,23 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **The trade list on the HUD, tracked from the build planner**
+  (2026-09-28; the maintainer: "we need to be able to selectively show
+  what we're supposed to trade for in the hud. Like i'm at the material
+  trader now and it'd be nice not to have to tab back and forth" —
+  "something to check in the build planner page", "Track trade list in
+  HUD"). A checkbox on the shopping list (the build planner's and the
+  Engineering tab's alike) pins the picked trades and what stays short
+  to the HUD over the storage bus (`KEYS.hudShopping`), and while it is
+  ticked every change to the picks follows. A new HUD section,
+  "shopping", lists them: the status now carries what the dock offers
+  (`ShipStatus::dock`: the Docked event's economy, whether it has a
+  material trader, and the trader's kind from the economy — the same
+  rule the services search uses), so at a manufactured trader the
+  manufactured trades come first with a "manufactured trader here"
+  pill and the others dim; compact shows only that kind's. In the Trade
+  preset, hidden in none; a layout of any shape is still made whole
+  (`hudLayout.test.js`).
 - **Commodities to buy have their own table; a search from the black
   asks from inside the bubble, not the nearest colony** (2026-09-27;
   the maintainer: "why didn't it give me power converters in a list and

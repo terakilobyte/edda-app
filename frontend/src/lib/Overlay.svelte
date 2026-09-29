@@ -50,6 +50,17 @@
   const fuelMark = (h) => fuelMarks.find((m) => m.index === h.index);
   // Pinned by the Trade tab in the other window; localStorage is the bus.
   const pinnedLoop = persisted(KEYS.pinnedLoop, null, { json: true, sync: true });
+  // The shopping list pinned from a build plan or the Engineering tab:
+  // the trades to make, the current trader's kind first (maintainer,
+  // 2026-09-28: at the material trader, no tabbing back and forth).
+  const hudShopping = persisted(KEYS.hudShopping, null, { json: true, sync: true });
+  const traderHere = $derived((status?.dock?.trader_kind ?? "").toLowerCase() || null);
+  const shoppingRows = $derived.by(() => {
+    const trades = hudShopping.value?.trades ?? [];
+    const here = traderHere;
+    const sorted = [...trades].sort((a, b) => (here ? (b.kind === here) - (a.kind === here) : 0) || String(a.kind).localeCompare(String(b.kind)));
+    return isCompact(layout, "shopping") && here ? sorted.filter((t) => t.kind === here) : sorted;
+  });
   const pinned = $derived(pinnedLoop.value);
   // Settings → HUD writes these; storage sync makes the sliders live.
   const hudAlpha = persisted(KEYS.hudAlpha, 1, { json: true, sync: true });
@@ -109,7 +120,7 @@
     listeners.add(onOverlayInteractive((e) => { interactive = !!e.payload; }));
     pruneTimer = setInterval(prune, 5000);
   });
-  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); stackingMode.dispose(); hudLayout.dispose(); hudLayoutByShip.dispose(); stopFollow(); stopTradeFollow(); stopShip(); });
+  onDestroy(() => { clearInterval(pruneTimer); pinnedLoop.dispose(); hudShopping.dispose(); stackingMode.dispose(); hudLayout.dispose(); hudLayoutByShip.dispose(); stopFollow(); stopTradeFollow(); stopShip(); });
 
   function startDrag(e) {
     if (!interactive) return;
@@ -235,6 +246,30 @@
           <span><strong>{pinned.a.station}</strong> <span class="muted">({pinned.a.system})</span> buy {pinned.a.buy} →
             <strong>{pinned.b.station}</strong> <span class="muted">({pinned.b.system})</span> buy {pinned.b.buy} → back</span>
         </div>
+      {/if}
+    {:else if id === "shopping"}
+      {#if hudShopping.value && (shoppingRows.length || hudShopping.value.still_short?.length)}
+        <div class="line shopping {compact(id)}">
+          <span class="lbl">Trades{hudShopping.value.title ? ` · ${hudShopping.value.title}` : ""}</span>
+          {#if traderHere}
+            <span class="pill ok">{traderHere} trader here</span>
+          {:else if status?.dock?.material_trader}
+            <span class="pill">material trader here{status.dock.economy ? ` · ${status.dock.economy}` : ""}</span>
+          {/if}
+          {#if interactive}<button class="quiet small" title="Take the trades off the HUD" onclick={() => (hudShopping.value = null)}>✕</button>{/if}
+        </div>
+        {#each shoppingRows as t}
+          <div class="line shopping {compact(id)}" style={traderHere && t.kind !== traderHere ? "opacity:0.55" : ""}>
+            <span class="pill {traderHere === t.kind ? 'ok' : ''}">{t.kind}</span>
+            <span><strong>{t.give} {t.give_material}</strong> → {t.get} {t.get_material}<span class="muted small"> · {t.rate}</span></span>
+          </div>
+        {/each}
+        {#if hudShopping.value.still_short?.length && !(isCompact(layout, id) && traderHere)}
+          <div class="line shopping {compact(id)}">
+            <span class="lbl">Still short</span>
+            <span class="muted small">{hudShopping.value.still_short.map(([m, n]) => `${n} ${m}`).join(", ")}</span>
+          </div>
+        {/if}
       {/if}
     {:else if id === "missions"}
       {#if here}

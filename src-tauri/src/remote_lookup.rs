@@ -308,6 +308,12 @@ pub fn kind_note(base: &str, kind: &str, kind_known: bool) -> String {
     }
 }
 
+/// The material trader kind a station's economy hosts ("High Tech" ->
+/// encoded), or None for an economy with no trader kind of its own.
+pub fn trader_kind_for_economy(economy: &str) -> Option<&'static str> {
+    ["raw", "manufactured", "encoded"].into_iter().find(|kind| trader_economies(kind).is_some_and(|es| es.iter().any(|e| e.eq_ignore_ascii_case(economy.trim()))))
+}
+
 fn trader_economies(kind: &str) -> Option<&'static [&'static str]> {
     Some(match kind.trim().to_ascii_lowercase().as_str() {
         "raw" => &["Extraction", "Refinery"],

@@ -26,6 +26,7 @@ export const KEYS = Object.freeze({
   galaxyStarBrightness: "edda.galaxy.starBrightness",   // 0-100, all modes
   settingsSection: "edda.settings.section",         // last Settings-tab section
   buildPlan: "edda.buildPlan",                      // Ships tab: the build plan per ship, suffixed ".<ShipID>" (JSON by slot)
+  hudShopping: "edda.hudShopping",                  // JSON: the shopping list pinned to the HUD (trades to make, still short)
 });
 
 const safe = (fn, fallback) => { try { return fn(); } catch { return fallback; } };

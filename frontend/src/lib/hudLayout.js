@@ -11,6 +11,7 @@ export const SECTIONS = [
   { id: "route", label: "Route, or the route being followed" },
   { id: "gauges", label: "Fuel and cargo" },
   { id: "trade", label: "Trade route or pinned loop" },
+  { id: "shopping", label: "Material trades pinned from a shopping list" },
   { id: "missions", label: "Missions, or the stacking board" },
   { id: "callouts", label: "Callouts and voice" },
 ];
@@ -22,9 +23,9 @@ export const DEFAULT_LAYOUT = Object.freeze({ order: [...IDS], hidden: [], compa
 /** Three ready layouts; "default" restores the shipped one. */
 export const PRESETS = {
   default: { order: [...IDS], hidden: [], compact: [] },
-  combat: { order: ["location", "missions", "gauges", "callouts", "next", "route", "powerplay", "trade"], hidden: ["trade", "powerplay"], compact: ["next", "route"] },
-  trade: { order: ["location", "trade", "gauges", "route", "next", "callouts", "missions", "powerplay"], hidden: ["missions"], compact: ["powerplay"] },
-  explore: { order: ["location", "next", "route", "gauges", "callouts", "powerplay", "missions", "trade"], hidden: ["trade", "missions", "powerplay"], compact: [] },
+  combat: { order: ["location", "missions", "gauges", "callouts", "next", "route", "powerplay", "trade", "shopping"], hidden: ["trade", "powerplay"], compact: ["next", "route"] },
+  trade: { order: ["location", "trade", "shopping", "gauges", "route", "next", "callouts", "missions", "powerplay"], hidden: ["missions"], compact: ["powerplay"] },
+  explore: { order: ["location", "next", "route", "gauges", "callouts", "shopping", "powerplay", "missions", "trade"], hidden: ["trade", "missions", "powerplay"], compact: [] },
 };
 
 /**
