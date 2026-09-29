@@ -79,6 +79,7 @@ export const COMMANDS = {
   listBlueprintNames: ["list_blueprint_names", ["moduleType"]],
   checkBlueprint: ["check_blueprint", ["moduleType", "name", "fromGrade", "targetGrade", "minimum", "complete"], { minimum: false, complete: true }],
   blueprintAccess: ["blueprint_access", ["moduleType", "name", "grade"]],
+  engineerDirectory: ["engineer_directory"],
   listEngineers: ["list_engineers"],
   checkExperimental: ["check_experimental", ["moduleType", "name"]],
   shipModules: ["ship_modules", ["shipId", "hull"], { shipId: null, hull: null }],
@@ -280,7 +281,7 @@ const listeners = Object.fromEntries(Object.entries(EVENTS).map(([k, ev]) => [k,
 // ── Named wrappers (generated) ─────────────────────────────────────
 export const {
   getStatus, getInventory, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
-  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, listEngineers, checkExperimental, shipModules, shipsList, hullsList, slotOptions, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport, importBuild, buildPerformance,
+  listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, engineerDirectory, listEngineers, checkExperimental, shipModules, shipsList, hullsList, slotOptions, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport, importBuild, buildPerformance,
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,
   galaxyStatus, activityHeatmap, feedbackSend, telemetryPrefs, telemetryPrefsSet, shipScoopInfo, sellHoldSearch, miningSearch, miningMaterials, markAdd, markRemove, markHere, gameState,

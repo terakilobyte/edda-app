@@ -492,6 +492,30 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **The engineers directory, and a fitted variant is fitted** (2026-09-29;
+  the maintainer: "one thing I do miss from the engineer tab is showing
+  which engineers can do what — and who is unlocked, known, unknown",
+  "which engineers can do which grades would be nice so I can
+  prioritize who to unlock first"; and, with six modified shards now
+  on the ship, "edda isn't realized I already have them equipped").
+  The Engineering tab's row of pills (journal engineers only) is a
+  directory of every engineer: the journal's word (Unlocked, Invited,
+  Known, Not known), where they are and how they are met (the vendored
+  guide), what they do to what grade (`Catalog::engineer_module_grades`,
+  from the blueprint table the audited engineer table pins), and — for
+  one not unlocked — what unlocking them adds over the grades the
+  unlocked ones already reach ("Frame Shift Drive G3→G5", "Thrusters
+  G5 (none now)"), most first: the order to unlock in. A filter takes a
+  name, a system or a module type; a grade pill filters. And the
+  fitted variant: the journal writes a bought module's block with the
+  first blueprint in lowercase ("weapon_longrange", grade 1, the
+  broker's EngineerID, no engineer), and a saved swap to that variant
+  was still a swap. A slot carrying the module with that blueprint at
+  that grade is fitted now — in the plan's rows (slot options carry
+  the variant's blueprint symbol), in the report (no broker line), and
+  in a fresh import (nothing to swap); a learned preset the table
+  already knows by blueprint and grade is not a second entry. Pinned
+  end to end with the six as the journal wrote them.
 - **A broker purchase after the last storage snapshot counts as a unit
   owned** (2026-09-29; the maintainer, after buying six modified shards
   in three minutes and reading "1 in storage, × 5 to buy": "are we not

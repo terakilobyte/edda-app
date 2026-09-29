@@ -361,6 +361,22 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             continue;
         }
         let preset = s.preset.as_deref().and_then(|id| commands::slots().preset(id).cloned().or_else(|| learned.iter().find(|p| p.id == id).cloned()));
+        // The slot already carries this very module with this very bought
+        // engineering: the swap is done, whatever a saved plan still says
+        // (maintainer, 2026-09-29: "edda isn't realized I already have them
+        // equipped").
+        let fitted_already = loadout.modules.iter().any(|m| {
+            m.slot.eq_ignore_ascii_case(slot)
+                && m.item.eq_ignore_ascii_case(item)
+                && m.engineer.is_none()
+                && match &preset {
+                    Some(p) => m.blueprint_symbol.as_deref().is_some_and(|b| p.blueprint.eq_ignore_ascii_case(b) || p.blueprints.iter().any(|x| x.eq_ignore_ascii_case(b))) && m.grade.is_none_or(|g| g == p.level),
+                    None => m.blueprint_symbol.is_none(),
+                }
+        });
+        if fitted_already {
+            continue;
+        }
         let plain_name = ed_journal::modules::item_name(item);
         let plain_recipe_name = ed_journal::modules::recipe_name(item);
         // A pre-engineered variant has its own recipe at the broker
@@ -826,5 +842,28 @@ mod sirius_sink_tests {
         assert!(report.unlocks.iter().all(|u| u.stored.is_some()), "{:?}", report.unlocks);
         assert!(report.unlocks.iter().any(|u| u.stored.as_deref().is_some_and(|s| s.starts_with("bought at the broker at 11:05"))), "{:?}", report.unlocks);
         assert!(report.commodities.is_empty() && report.fully_met, "nothing left to buy: {:?}", report.commodities);
+
+        // Fitted, as the journal wrote the maintainer's six (lowercase blueprint,
+        // grade 1, a broker's EngineerID and no engineer): the saved swaps are
+        // done — no broker line at all — and a fresh import finds nothing to swap.
+        let fitted = |slot: &str| serde_json::json!({
+            "Slot": slot, "Item": "hpt_guardian_shardcannon_fixed_medium", "On": true, "Priority": 0,
+            "Engineering": { "EngineerID": 300001, "BlueprintID": 1, "BlueprintName": "weapon_longrange", "Level": 1, "Quality": 0.0, "Modifiers": [] }
+        });
+        let loadout = serde_json::json!({
+            "timestamp": "2026-09-27T12:00:00Z", "event": "Loadout", "Ship": "python_nx", "ShipID": 33, "ShipName": "", "ShipIdent": "",
+            "UnladenMass": 600.0, "FuelCapacity": { "Main": 32.0 }, "MaxJumpRange": 30.0,
+            "Modules": [fitted("MediumHardpoint1"), fitted("MediumHardpoint2")]
+        });
+        state.with_store(|s| {
+            s.conn()
+                .execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 4, '2026-09-27T12:00:00Z', 'Loadout', ?1)", [loadout.to_string()])
+                .unwrap();
+            ed_store::derive::derive_all(s.conn()).unwrap();
+        });
+        let report = super::report(&state, Some(33), None, &[], &swaps, false, true).expect("the plan");
+        assert!(report.unlocks.is_empty(), "fitted already: {:?}", report.unlocks);
+        let imported = crate::build_import::import(&state, Some(33), None, &slef.to_string()).expect("the import");
+        assert!(imported.swaps.is_empty(), "a fresh import sees them fitted: {:?}", imported.swaps);
     }
 }

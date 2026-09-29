@@ -356,6 +356,22 @@ impl Catalog {
     /// asking "who can do my pulse lasers" needs: the grade-5 list alone
     /// hides an engineer who stops at grade 4 (maintainer, 2026-09-19: The
     /// Dweller was missing from his Type-10's pulse lasers).
+    /// Every engineer with every module type they work and the highest
+    /// grade they reach on it, alphabetical — the directory the Engineering
+    /// tab shows (maintainer, 2026-09-29: "showing which engineers can do
+    /// what"). Derived from the blueprint table, which the audited
+    /// engineer table pins (`engineer_grades_match_the_audited_table`).
+    pub fn engineer_module_grades(&self) -> Vec<(String, Vec<(String, i64)>)> {
+        let mut by: std::collections::BTreeMap<String, std::collections::BTreeMap<String, i64>> = Default::default();
+        for b in self.blueprints.iter().filter(|b| b.grade.is_some()) {
+            for e in b.engineers.iter().filter(|e| !e.starts_with('@')) {
+                let g = by.entry(e.clone()).or_default().entry(b.module_type.clone()).or_insert(0);
+                *g = (*g).max(b.grade.unwrap_or(0));
+            }
+        }
+        by.into_iter().map(|(e, types)| (e, types.into_iter().collect())).collect()
+    }
+
     pub fn engineers_for(&self, module_type: &str, name: &str) -> Vec<(String, i64)> {
         let mut out: Vec<(String, i64)> = Vec::new();
         for b in self.blueprints.iter().filter(|b| {
@@ -840,5 +856,19 @@ mod ingredient_name_tests {
         // The vessel blueprint keeps EDCD's "Segment" until a journal measures Frontier's string for it.
         let all = c.all_ingredient_names();
         assert!(!all.iter().any(|n| n == "Guardian Weapon Blueprint Segment" || n == "Guardian Module Blueprint Segment"), "EDCD's spelling survived the load: {all:?}");
+    }
+}
+
+#[cfg(test)]
+mod directory_tests {
+    #[test]
+    fn the_directory_lists_every_engineer_with_their_grades() {
+        let c = super::Catalog::load();
+        let dir = c.engineer_module_grades();
+        assert!(dir.len() >= 20, "{} engineers", dir.len());
+        let (_, bill) = dir.iter().find(|(e, _)| e == "Bill Turner").expect("Bill Turner");
+        assert!(bill.iter().any(|(t, g)| t == "Sensors" && *g == 5), "{bill:?}");
+        assert!(bill.iter().any(|(t, g)| t == "Fuel Scoop" && *g == 3), "{bill:?}");
+        assert!(dir.iter().all(|(e, _)| !e.starts_with('@')), "no marker names");
     }
 }

@@ -27,7 +27,17 @@ export function planRows(modules, saved = {}, slots = null) {
     const fittedGrade = m?.grade ?? 0;
     const fittedBlueprint = m?.blueprint ?? "";
     const emptied = s.swap === EMPTY && (slotInfo?.can_empty ?? true);
-    const candidate = s.swap && !emptied ? findCandidate(slotInfo?.candidates ?? [], s.swap, s.preset ?? null) : null;
+    let candidate = s.swap && !emptied ? findCandidate(slotInfo?.candidates ?? [], s.swap, s.preset ?? null) : null;
+    // The slot now carries what the saved swap asked for — the module, and
+    // for a bought variant its very blueprint at its grade (the journal
+    // writes the blueprint in any case: "weapon_longrange") — so it is
+    // fitted, not a swap (maintainer, 2026-09-29).
+    if (candidate && m && String(m.item).toLowerCase() === String(candidate.item).toLowerCase()) {
+      const fittedVariant = candidate.preset
+        ? m.engineer == null && m.blueprint_symbol && candidate.preset_symbol && String(m.blueprint_symbol).toLowerCase() === String(candidate.preset_symbol).toLowerCase() && (candidate.preset_grade == null || m.grade == null || m.grade === candidate.preset_grade)
+        : !m.blueprint_symbol;
+      if (fittedVariant) candidate = null;
+    }
     const swap = emptied ? EMPTY : candidate ? candidate.item : null;
     const preset = candidate?.preset ?? null;
     // A pre-engineered module comes with its grade; a plain swap starts at 0.

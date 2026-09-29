@@ -1069,7 +1069,13 @@ pub(crate) fn learned_presets(state: &AppState) -> Vec<ed_ships::Preset> {
             }
             let source = format!("loadout: {}", ed_journal::ships::display_name(&ship));
             if let Some(p) = ed_ships::Preset::from_engineering(item, eng, &source) {
-                if !out.iter().any(|x| x.id == p.id) {
+                // The table's variant with this blueprint at this grade IS
+                // this one (the journal writes the first blueprint only):
+                // no second entry for it.
+                let in_table = slots().presets_for(item).iter().any(|t| {
+                    t.level == p.level && (t.blueprint.eq_ignore_ascii_case(&p.blueprint) || t.blueprints.iter().any(|b| b.eq_ignore_ascii_case(&p.blueprint)))
+                });
+                if !in_table && !out.iter().any(|x| x.id == p.id) {
                     out.push(p.clone());
                     fresh.push(p);
                 }
@@ -1414,6 +1420,9 @@ pub struct SlotCandidate {
     /// A pre-engineered variant: its id, the blueprint it comes with (the
     /// blueprint data's name) and the grade. None for the plain module.
     pub preset: Option<String>,
+    /// The variant's journal blueprint symbol (`Weapon_LongRange`): what a
+    /// fitted module's block names, so a row can see the variant is fitted.
+    pub preset_symbol: Option<String>,
     pub preset_blueprint: Option<String>,
     pub preset_grade: Option<i64>,
     pub broker: Option<String>,
@@ -1477,6 +1486,7 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
                             mount: k.mount.clone(),
                             module_type: module_type.clone(),
                             preset: None,
+                            preset_symbol: None,
                             preset_blueprint: None,
                             preset_grade: None,
                             broker: None,
@@ -1491,6 +1501,7 @@ pub async fn slot_options(state: State<'_, AppState>, ship_id: Option<i64>, hull
                                 item: item.to_string(),
                                 item_name: p.name.clone(),
                                 kind: format!("{}, pre-engineered", k.name),
+                                preset_symbol: Some(p.blueprint.clone()),
                                 class: k.class,
                                 rating: k.rating.clone(),
                                 mount: k.mount.clone(),
@@ -1714,6 +1725,119 @@ pub async fn check_experimental(
 #[tauri::command]
 pub async fn list_engineers(state: State<'_, AppState>) -> Result<Vec<Engineer>, CapError> {
     commander::engineers(&state)
+}
+
+/// One engineer in the directory: the journal's word on them, where they
+/// are and how they are met (the vendored guide), and what they do to
+/// what grade (the blueprint table).
+#[derive(Debug, Serialize)]
+pub struct EngineerEntry {
+    pub name: String,
+    /// Unlocked | Invited | Known | Not known (never in this journal).
+    pub status: String,
+    pub rank: Option<i64>,
+    pub unlocked: bool,
+    pub system: Option<String>,
+    pub base: Option<String>,
+    pub invite: Option<String>,
+    pub unlock: Option<String>,
+    pub guide_step: Option<i64>,
+    pub does: Vec<EngineerDoes>,
+    /// For an engineer not unlocked: what unlocking them adds over the
+    /// grades the commander's unlocked engineers already reach — the
+    /// order to unlock in (maintainer, 2026-09-29: "which engineers can
+    /// do which grades would be nice so I can prioritize who to unlock
+    /// first"). Empty for an unlocked engineer, or one who adds nothing.
+    pub gains: Vec<EngineerGain>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EngineerDoes {
+    pub module_type: String,
+    pub max_grade: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EngineerGain {
+    pub module_type: String,
+    /// The best grade an unlocked engineer reaches now; 0 when none does.
+    pub from_grade: i64,
+    pub to_grade: i64,
+}
+
+/// Every engineer: who is unlocked, known or unknown to this commander,
+/// and which modules each works to what grade (maintainer, 2026-09-29:
+/// "one thing I do miss from the engineer tab is showing which engineers
+/// can do what — and who is unlocked, known, unknown").
+#[tauri::command]
+pub async fn engineer_directory(state: State<'_, AppState>) -> Result<Vec<EngineerEntry>, CapError> {
+    let known = commander::engineers(&state).unwrap_or_default();
+    let status_of = |n: &str| {
+        known.iter().find(|e| {
+            let a = e.name.to_lowercase();
+            let b = n.to_lowercase();
+            a == b || b.split_whitespace().last().is_some_and(|l| a.ends_with(l))
+        })
+    };
+    let guide = ed_engineering::unlocks::guide();
+    let table = state.engineering.engineer_module_grades();
+    // What the commander reaches today, per module type: the best grade
+    // among unlocked engineers.
+    let mut reach: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    for (name, does) in &table {
+        if status_of(name).is_some_and(|s| s.is_unlocked()) {
+            for (t, g) in does {
+                let r = reach.entry(t.clone()).or_insert(0);
+                *r = (*r).max(*g);
+            }
+        }
+    }
+    let mut out: Vec<EngineerEntry> = table
+        .into_iter()
+        .map(|(name, does)| {
+            let st = status_of(&name);
+            let unlocked = st.is_some_and(|s| s.is_unlocked());
+            let g = guide.engineers.iter().find(|e| e.name.eq_ignore_ascii_case(&name));
+            let gains = if unlocked {
+                Vec::new()
+            } else {
+                does.iter()
+                    .filter_map(|(t, g)| {
+                        let from = reach.get(t).copied().unwrap_or(0);
+                        (*g > from).then(|| EngineerGain { module_type: t.clone(), from_grade: from, to_grade: *g })
+                    })
+                    .collect()
+            };
+            EngineerEntry {
+                status: st.and_then(|s| s.progress.clone()).unwrap_or_else(|| "Not known".to_string()),
+                rank: st.and_then(|s| s.rank),
+                unlocked,
+                system: g.map(|e| e.system.clone()),
+                base: g.map(|e| e.base.clone()),
+                invite: g.map(|e| e.invite.clone()),
+                unlock: g.map(|e| e.unlock.clone()),
+                guide_step: g.and_then(|e| e.step).map(i64::from),
+                does: does.into_iter().map(|(module_type, max_grade)| EngineerDoes { module_type, max_grade }).collect(),
+                gains,
+                name,
+            }
+        })
+        .collect();
+    // Unlocked first; then the rest by what unlocking them adds (most
+    // grades gained first), the guide's own order breaking ties.
+    let order = |s: &str| match s {
+        "Unlocked" => 0,
+        _ => 1,
+    };
+    let gain_score = |e: &EngineerEntry| e.gains.iter().map(|g| g.to_grade - g.from_grade).sum::<i64>();
+    out.sort_by(|a, b| {
+        order(&a.status)
+            .cmp(&order(&b.status))
+            .then(gain_score(b).cmp(&gain_score(a)))
+            .then(a.guide_step.unwrap_or(99).cmp(&b.guide_step.unwrap_or(99)))
+            .then(a.name.cmp(&b.name))
+    });
+    Ok(out)
 }
 
 // ── Galaxy lookup ────────────────────────────────────────────────────
