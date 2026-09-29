@@ -9,114 +9,44 @@ notes" in the app and on the site alike.
 
 ## 0.4.0
 
-A build planner you can trust, and a shopping trip that keeps up with
-you. Import a build from EDSY and every Guardian and AX weapon counts
-the way the game does: one pool of four with the stabiliser widening
-it, a docking computer beside a supercruise assist, a modified shard
-told apart from a plain one by the block it carries. The planner knows
-what you already own: modules in storage, units just bought at a
-broker, a module fitted on another ship, an unlock the journal has
-already seen. Commodities to buy have their own table with the nearest
-sellers, materials are matched by the names the game uses, the report
-follows the journal as you trade, buy and collect, and the trade list
-sits on the HUD while you stand at the trader. The Engineering tab has
-a directory of every engineer with what they do to what grade and what
-unlocking each would add. Also: plots from the SRV, a market search
-from deep space, repeated callouts, and the services search by broker
-type.
+The build planner got a lot smarter. Import a build from EDSY and it
+now counts Guardian and AX weapons the way the game does, knows the
+difference between a plain shard cannon and a modified one, and knows
+what you already own: modules in storage, the ones you just bought at
+a broker, gear fitted on your other ships. Commodities to buy get their
+own table with the nearest sellers, the whole list updates as you
+trade, buy and collect, and you can put your trades on the HUD while
+you stand at the material trader. Plus an engineers directory, better
+plotting from the SRV, market searches that work from deep space, and
+no more "Under attack" spam.
 
-**Module limits as the game counts them.** Importing a build onto a
-ship already flying six shard cannons failed with "a ship carries at
-most 4". The game's limit is one pool of four across every AX and
-Guardian weapon, which an Experimental Weapon Stabiliser widens by one
-(class 3) or two (class 5); a docking computer and a supercruise assist
-are separate limits although one kind; flak launchers and the shutdown
-field neutraliser are not limited at all. The tables now say all of
-that, and the message says how to widen the pool.
+**Building a ship.** Import an EDSY build and the planner tells you
+exactly what's left to do: which modules to swap, what to buy at the
+broker (and how many times, since the modified ones are bought per
+unit), and what's already yours. Anything sitting in storage shows
+where it is and what the transfer costs. Modules print with their
+class and rating now, so a 3C and a 3D read as different things.
 
-**Pre-engineered modules, from the data.** The table of pre-engineered
-modules is generated from EDCD's Coriolis data and the community wiki:
-the modified Guardian shard, gauss and plasma variants, the Sirius heat
-sink and AX racks, the V1 drives and scanner, the modified mining
-laser, and the community-goal rewards, each with its blueprints,
-experimental, per-unit recipe and figures. A bought variant is told from
-an engineer's roll by the second modification its block carries, so a
-Sirius launcher is never mistaken for a grade 1 roll. Every one of them
-is bought again per unit, never unlocked, and the plan prices them that
-way. The six SCO drive recipes were missing and are in, one confirmed
-by a real purchase.
+**Shopping.** A "Commodities to buy" table shows what you need, what
+you're carrying, and the nearest markets that have enough in stock,
+with a route button on each. Material names match the game's own, so
+your Guardian Wreckage Components finally count.
 
-**The planner knows what you own.** Modules in storage are read from
-the journal at every dock and kept in the store; a slot the build fills
-from storage says where the module is and what the transfer costs. A
-unit bought at a broker counts from the moment of purchase, before the
-game lists it in storage. A module already fitted on another of your
-ships is named. An unlock the journal has already seen, whether by the
-broker event or by a ship that carried the module, is not asked for
-again. A slot that already carries the bought variant is fitted, not a
-swap. And the plan follows the journal: a trade made, a commodity
-bought, a material collected moves the figures without a click.
+**At the trader.** Tick "Track trade list in HUD" and your picked trades
+appear on the HUD. At a material trader, that trader's kind is listed
+first, and each trade disappears as you make it. No tabbing back and
+forth.
 
-**Commodities to buy, in the open.** Each technology-broker purchase
-pooled its commodity in grey text with nothing summing them. Now a
-"Commodities to buy" table sits beside the materials table: need, in
-hold, short, and the nearest markets with the shortfall in stock, each
-with a route button. Broker lines group by variant with the unit count,
-and their ticks compare the hold with what every unit needs together.
+**Engineers.** The Engineering tab now lists every engineer: who you've
+unlocked, who you've met, who you haven't, where they are, what they
+can do to which grade, and which ones are worth unlocking next.
 
-**Names the game uses.** "Guardian Wreckage Components" in your hold
-read as none because the reference table calls it "Guardian Sentinel
-Wreckage Components"; a market search for "Micro Controllers" found
-nothing because the server held a junk row under that spelling. EDDA
-now keys everything on the game's own symbols and prints Frontier's
-own names where they differ from the reference (Guardian Wreckage
-Components, Guardian Weapon Blueprint Fragment, Limpet), and an audit
-checks every name namespace against its sources. Every module prints
-with its class and rating: "Guardian Shard Cannon 3C (fixed)".
-
-**The trade list on the HUD.** Tick "Track trade list in HUD" on the
-build planner's shopping list and the picked trades sit on the HUD with
-what stays short; at a material trader the trader's own kind comes
-first, and a trade vanishes from the list as you make it.
-
-**Shopping list.** Where you picked a material up before is one row per
-site, the body named once; each still-short material has one block,
-the table when there is one, with the ways its kind is found; a
-Guardian material says where wreckage components come from too.
-
-**Plotting from the SRV.** A plot made from the SRV planned the ship on
-the buggy's tank and the server refused it as "no route", and the
-message said the server had not answered and to try again. The tank is
-the ship's now, a refusal is said as one with the figures that decided
-it, and a connection that never opened is retried once.
-
-**Market search from deep space.** A search from outside the bubble
-found nothing within the server's 500 ly reach and said so. It now asks
-again from the nearest system inside the bubble and says where the
-answers are from. Salvage such as the Titan Drive Component is named
-as salvage, never searched.
-
-**Callouts.** "Under attack" fired with every hit, several a second in a
-fight. Identical callouts inside a window are one callout now: danger
-for 30 seconds, fuel and heat for 20, everything else for 10.
-
-**Services by kind, typed.** The Galaxy tab's services search offers
-Guardian and Human technology brokers and the three material trader
-kinds, told apart by station economy, and the service is a text box
-that completes on any part of a name.
-
-**The engineers directory.** The Engineering tab lists every engineer:
-unlocked, invited, known or not yet met per your journal, where they
-are and how they are met, what they do to what grade, and for each you
-have not unlocked, what unlocking them would add over what your
-unlocked engineers already reach, most first. Filter by name, system
-or module type.
-
-**Under the hood.** An update rebuilds the derived tables from the kept
-journal events, so storage is known before your next dock. The plan's
-community answers are cached ten minutes. The server folds market rows
-written under display-name spellings onto their real symbols, so a
-search by name reaches them.
+**Flying.** Plotting a route from the SRV no longer fails because it
+thought your ship was out of fuel. A market search from deep space asks
+from the nearest inhabited system instead of finding nothing. Repeated
+callouts like "Under attack" are said once, not on every hit. The
+services search knows Guardian brokers from Human ones, and you can
+type the service instead of picking from a list.
 
 ## 0.3.6
 
