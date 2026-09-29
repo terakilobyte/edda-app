@@ -492,6 +492,29 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Modules in storage are known, and a build that calls for one owned
+  is told so** (2026-09-28; the maintainer: "do we know what ship
+  modules someone has in storage?", "if a build calls for a ship module
+  that the player already has, we should know from the journal then",
+  "we probably need a storage (or extend) the storage crate and put
+  that info in sqlite for fast access"). The journal writes a
+  StoredModules event at every dock and every outfitting screen — the
+  maintainer's latest listed 55 — with each module's system, storage
+  slot, bought engineering (blueprint, grade, quality), hot flag,
+  transfer cost and time, in transit; nothing read it. A derived
+  `stored_modules` table now holds the latest snapshot, replayed like
+  ships and materials (schema 8 rebuilds it from the kept events), and
+  `query::stored_modules` reads it. The plan: a unit in storage — the
+  plain module, or the variant with this very engineering — satisfies
+  one slot and says where it is and what the transfer costs ("in
+  storage at Mbooni · transfer 51,000 cr, 12 min") with nothing to buy
+  or unlock for it; the rest is priced as before. The same module
+  fitted on another owned ship is said ("also fitted on Murderface
+  (Kestrel Mk II) — moving one strips that ship"), never spent. Pinned
+  end to end: two modified 2A shards over plain ones, one bought and
+  in storage at Mbooni — one line stored, one unit to buy, two Power
+  Converters. CAPI was not made a source: `/profile` carries the current
+  ship's modules, and nothing confirmed it carries storage.
 - **The build plan follows the journal** (2026-09-28; the maintainer:
   "any reason we aren't using that same logic for the list in build
   planner? getting commodities, trading materials, etc?" — "seems we

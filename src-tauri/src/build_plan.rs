@@ -89,6 +89,11 @@ pub struct Unlock {
     pub per_unit: bool,
     /// What the data could not say: a variant with no recipe on file.
     pub note: Option<String>,
+    /// Already in storage, and where: nothing to buy or unlock for it.
+    pub stored: Option<String>,
+    /// The same module fitted on other owned ships, by ship: known from
+    /// the journal, not spent (moving it strips that ship).
+    pub also_on: Vec<String>,
     /// How many of this the build swaps in, and where: two modified
     /// shards are one purchase twice, and `materials` is what BOTH need
     /// (maintainer, 2026-09-27: "I don't think we're summing this properly").
@@ -112,6 +117,35 @@ pub struct CommodityLine {
     pub sellers_from: Option<String>,
     /// Why the list is what it is: outside the bubble, or the ask failed.
     pub sellers_note: Option<String>,
+}
+
+/// Every module fitted on the OTHER owned ships: (ship name, item symbol,
+/// bought-engineering blueprint if any, its grade).
+fn modules_on_other_ships(conn: &rusqlite::Connection, ship_id: Option<i64>) -> Vec<(String, String, Option<String>, Option<i64>)> {
+    let mut out = Vec::new();
+    let Ok(mut stmt) = conn.prepare("SELECT ship_id, ship, ship_name, raw FROM ships WHERE owned = 1 ORDER BY loadout_ts DESC") else { return out };
+    let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, Option<String>>(2)?, r.get::<_, String>(3)?))) else { return out };
+    for (id, ship, name, raw) in rows.flatten() {
+        if Some(id) == ship_id {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
+        let label = match name.filter(|n| !n.trim().is_empty()) {
+            Some(n) => format!("{n} ({})", ed_journal::ships::display_name(&ship)),
+            None => ed_journal::ships::display_name(&ship),
+        };
+        for m in v.get("Modules").and_then(|m| m.as_array()).into_iter().flatten() {
+            let Some(item) = m.get("Item").and_then(|i| i.as_str()) else { continue };
+            let eng = m.get("Engineering").filter(|e| e.get("Engineer").and_then(|x| x.as_str()).is_none());
+            out.push((
+                label.clone(),
+                item.to_ascii_lowercase(),
+                eng.and_then(|e| e.get("BlueprintName").and_then(|b| b.as_str())).map(str::to_string),
+                eng.and_then(|e| e.get("Level").and_then(|l| l.as_i64())),
+            ));
+        }
+    }
+    out
 }
 
 /// What the hold carries, by display name.
@@ -298,7 +332,14 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     // Swaps to technology-broker modules: the unlock recipe, materials
     // pooled with the rest, commodities listed to buy.
     let jc = ed_journal::Catalog::load();
-    let (cargo, proven) = state.with_read(|s| (cargo_by_name(s.conn(), &jc), ed_store::query::unlocked_modules(s.conn()).unwrap_or_default()));
+    let (cargo, proven, mut storage, fitted_elsewhere) = state.with_read(|s| {
+        (
+            cargo_by_name(s.conn(), &jc),
+            ed_store::query::unlocked_modules(s.conn()).unwrap_or_default(),
+            ed_store::query::stored_modules(s.conn()).unwrap_or_default(),
+            modules_on_other_ships(s.conn(), ship_id),
+        )
+    });
     let mut unlocks = Vec::new();
     for s in swaps {
         let (slot, item) = (&s.slot, &s.item);
@@ -318,6 +359,52 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             None => catalog.unlock_recipe(&plain_recipe_name),
         };
         let item_name = preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| plain_name.clone());
+        let same_engineering = |bp: Option<&str>, lvl: Option<i64>| match &preset {
+            Some(p) => bp.is_some_and(|b| p.blueprint.eq_ignore_ascii_case(b) || p.blueprints.iter().any(|x| x.eq_ignore_ascii_case(b))) && lvl.is_none_or(|l| l == p.level),
+            None => bp.is_none(),
+        };
+        // Fitted on another owned ship: said, never spent (maintainer,
+        // 2026-09-28: "if a build calls for a ship module that the player
+        // already has, we should know from the journal then").
+        let also_on: Vec<String> = fitted_elsewhere
+            .iter()
+            .filter(|(_, it, bp, lvl)| it.eq_ignore_ascii_case(item) && same_engineering(bp.as_deref(), *lvl))
+            .map(|(ship, _, _, _)| ship.clone())
+            .collect();
+        // A unit already in storage — the plain module, or the variant with
+        // this very engineering — is owned: nothing to buy or unlock for
+        // this slot (maintainer, 2026-09-28: "I'm about to buy those
+        // modshards"). Each stored unit satisfies one slot.
+        let stored_at = storage.iter().position(|m| m.item.eq_ignore_ascii_case(item) && same_engineering(m.blueprint.as_deref(), m.level));
+        if let Some(i) = stored_at {
+            let m = storage.remove(i);
+            let where_ = match (&m.system, m.in_transit) {
+                (_, true) => "in storage, in transit".to_string(),
+                (Some(sys), false) => format!(
+                    "in storage at {sys}{}",
+                    match (m.transfer_cost, m.transfer_time_s) {
+                        (Some(c), Some(t)) if c > 0 => format!(" · transfer {} cr, {} min", c, (t + 59) / 60),
+                        _ => String::new(),
+                    }
+                ),
+                (None, false) => "in storage".to_string(),
+            };
+            unlocks.push(Unlock {
+                slot_name: ed_journal::modules::slot_name(slot),
+                item_name,
+                broker: preset.as_ref().map(|p| p.broker.clone()).unwrap_or_else(|| recipe.map(|r| r.module_type.clone()).unwrap_or_default()),
+                materials: Vec::new(),
+                commodities: Vec::new(),
+                unlocked: None,
+                per_unit: false,
+                note: None,
+                stored: Some(where_),
+                also_on,
+                units: 1,
+                slots: Vec::new(),
+            });
+            continue;
+        }
         let Some(recipe) = recipe else {
             if let Some(p) = &preset {
                 unlocks.push(Unlock {
@@ -334,6 +421,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                     }),
                     units: 1,
                     slots: Vec::new(),
+                    stored: None,
+                    also_on,
                 });
             }
             continue;
@@ -398,6 +487,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 note: None,
                 units: 1,
                 slots: Vec::new(),
+                stored: None,
+                also_on,
             });
             continue;
         }
@@ -428,13 +519,15 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             note: None,
             units: 1,
             slots: Vec::new(),
+            stored: None,
+            also_on,
         });
     }
     // One line per variant and recipe, not one per slot: the ticks then
     // compare the hold with what every unit needs together.
     let mut grouped: Vec<Unlock> = Vec::new();
     for u in unlocks {
-        match grouped.iter_mut().find(|g| g.item_name == u.item_name && g.unlocked == u.unlocked && g.note == u.note && g.per_unit == u.per_unit) {
+        match grouped.iter_mut().find(|g| g.item_name == u.item_name && g.unlocked == u.unlocked && g.note == u.note && g.per_unit == u.per_unit && g.stored == u.stored) {
             Some(g) => {
                 g.units += 1;
                 g.slots.push(u.slot_name.clone());
@@ -668,5 +761,21 @@ mod sirius_sink_tests {
         assert_eq!((report.unlocks[0].units, report.unlocks[0].per_unit), (2, true));
         assert_eq!(report.commodities.iter().map(|c| (c.name.as_str(), c.need, c.have)).collect::<Vec<_>>(), vec![("Power Converter", 4, 0)]);
         assert!(!report.fully_met, "four Power Converters short");
+
+        // One bought and in storage at Mbooni (the journal's StoredModules, replayed
+        // into the table): one line for it, one unit still to buy, two converters.
+        state.with_store(|s| {
+            s.conn().execute(
+                "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 2, '2026-09-27T11:00:00Z', 'StoredModules', ?1)",
+                [r#"{ "timestamp":"2026-09-27T11:00:00Z", "event":"StoredModules", "MarketID":1, "StationName":"Prospect's Deep", "StarSystem":"Mbooni", "Items":[ { "Name":"$hpt_guardian_shardcannon_fixed_medium_name;", "StarSystem":"Mbooni", "StorageSlot":7, "EngineerModifications":"Weapon_LongRange", "Level":1, "Quality":1.0, "Hot":false, "TransferCost":51000, "TransferTime":720, "BuyPrice":420807 } ] }"#],
+            ).unwrap();
+            ed_store::derive::derive_all(s.conn()).unwrap();
+        });
+        let report = super::report(&state, Some(33), None, &[], &swaps, false, true).expect("the plan");
+        let stored = report.unlocks.iter().find(|u| u.stored.is_some()).expect("the stored one");
+        assert_eq!((stored.units, stored.stored.as_deref()), (1, Some("in storage at Mbooni · transfer 51000 cr, 12 min")));
+        let to_buy = report.unlocks.iter().find(|u| u.stored.is_none()).expect("the one to buy");
+        assert_eq!((to_buy.units, to_buy.per_unit), (1, true));
+        assert_eq!(report.commodities.iter().map(|c| (c.name.as_str(), c.need)).collect::<Vec<_>>(), vec![("Power Converter", 2)]);
     }
 }

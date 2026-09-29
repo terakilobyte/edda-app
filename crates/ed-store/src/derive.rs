@@ -47,6 +47,8 @@ pub(crate) const DERIVED_FROM: &[&str] = &[
     "Docked",
     "Undocked",
     "Loadout",
+    // the stored_modules table: a whole snapshot each time
+    "StoredModules",
     "FSDTarget",
     "MarketSell",
     "PowerplayMerits",
@@ -192,7 +194,8 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
              DELETE FROM loadout;
              DELETE FROM location;
              DELETE FROM nav;
-             DELETE FROM ships;",
+             DELETE FROM ships;
+             DELETE FROM stored_modules;",
         )?;
     }
 
@@ -372,6 +375,37 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
                 loc.docked = false;
                 loc.station_name = None;
                 loc.station_type = None;
+            }
+
+            "StoredModules" => {
+                // A snapshot: what the game lists is all there is.
+                tx.execute("DELETE FROM stored_modules", [])?;
+                for m in v.get("Items").and_then(Value::as_array).into_iter().flatten() {
+                    let Some(name) = m.get("Name").and_then(Value::as_str) else { continue };
+                    let item = {
+                        let s = name.trim().to_ascii_lowercase();
+                        s.strip_prefix('$').and_then(|s| s.strip_suffix("_name;").or_else(|| s.strip_suffix("_name"))).unwrap_or(&s).to_string()
+                    };
+                    tx.execute(
+                        "INSERT OR REPLACE INTO stored_modules
+                             (slot, item, system_name, blueprint, level, quality, hot, transfer_cost, transfer_time_s, in_transit, buy_price, ts)
+                         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                        params![
+                            m.get("StorageSlot").and_then(Value::as_i64).unwrap_or(0),
+                            item,
+                            m.get("StarSystem").and_then(Value::as_str),
+                            m.get("EngineerModifications").and_then(Value::as_str).filter(|b| !b.is_empty()),
+                            m.get("Level").and_then(Value::as_i64),
+                            m.get("Quality").and_then(Value::as_f64),
+                            m.get("Hot").and_then(Value::as_bool).unwrap_or(false) as i64,
+                            m.get("TransferCost").and_then(Value::as_i64),
+                            m.get("TransferTime").and_then(Value::as_i64),
+                            m.get("InTransit").and_then(Value::as_bool).unwrap_or(false) as i64,
+                            m.get("BuyPrice").and_then(Value::as_i64),
+                            ts,
+                        ],
+                    )?;
+                }
             }
 
             "Loadout" => {

@@ -423,7 +423,9 @@
         <h3 style="margin-top:0.8rem">Technology broker unlocks <span class="muted">for the modules the build swaps in · materials counted above</span></h3>
         {#each planReport.unlocks as u}
           <div class="small" style="margin:0.3rem 0"><strong>{u.item_name}</strong>{u.units > 1 ? ` × ${u.units}` : ""} <span class="muted">({(u.slots?.length ? u.slots : [u.slot_name]).join(", ")}) · {u.broker} technology broker{u.per_unit ? ` · bought each time, not an unlock: the materials below are for ${u.units > 1 ? `all ${u.units} units` : "one unit"}` : ""}</span>
-            {#if u.unlocked}
+            {#if u.stored}
+              <div style="margin-left:1rem"><span class="ok">✓ {u.stored}</span> <span class="muted">· nothing to buy for {u.units > 1 ? "these" : "this one"}</span></div>
+            {:else if u.unlocked}
               <div style="margin-left:1rem"><span class="ok">✓ already unlocked</span> <span class="muted">· {u.unlocked}</span></div>
             {:else if u.note}
               <div style="margin-left:1rem" class="warn">{u.note}</div>
@@ -432,6 +434,9 @@
             {/if}
             {#if u.commodities.length}
               <div style="margin-left:1rem"><strong>plus, to buy:</strong> {u.commodities.map((c) => `${c.need} ${c.name}`).join(", ")} <span class="muted">· see Commodities to buy above</span></div>
+            {/if}
+            {#if u.also_on?.length}
+              <div style="margin-left:1rem" class="muted">also fitted on {[...new Set(u.also_on)].join(", ")} — moving one strips that ship</div>
             {/if}
           </div>
         {/each}

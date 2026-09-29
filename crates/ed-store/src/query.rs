@@ -74,6 +74,43 @@ pub fn engineers(conn: &Connection) -> Result<Vec<Engineer>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// A module in storage, from the derived `stored_modules` table.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StoredModule {
+    /// The item symbol, lowercase, without the journal's `$..._name;` wrapper.
+    pub item: String,
+    pub system: Option<String>,
+    pub slot: i64,
+    /// The engineering on it: the blueprint symbol and grade, when any.
+    pub blueprint: Option<String>,
+    pub level: Option<i64>,
+    pub hot: bool,
+    pub transfer_cost: Option<i64>,
+    pub transfer_time_s: Option<i64>,
+    pub in_transit: bool,
+}
+
+/// Every module in storage (maintainer, 2026-09-28: "do we know what
+/// ship modules someone has in storage?" — the journal does, at every
+/// dock; the table is its latest snapshot).
+pub fn stored_modules(conn: &Connection) -> Result<Vec<StoredModule>> {
+    let mut stmt = conn.prepare("SELECT item, system_name, slot, blueprint, level, hot, transfer_cost, transfer_time_s, in_transit FROM stored_modules ORDER BY item, slot")?;
+    let rows = stmt.query_map([], |r| {
+        Ok(StoredModule {
+            item: r.get(0)?,
+            system: r.get(1)?,
+            slot: r.get(2)?,
+            blueprint: r.get(3)?,
+            level: r.get(4)?,
+            hot: r.get::<_, i64>(5)? != 0,
+            transfer_cost: r.get(6)?,
+            transfer_time_s: r.get(7)?,
+            in_transit: r.get::<_, i64>(8)? != 0,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 /// One material trade as the journal wrote it: what was paid, what came
 /// back, by Frontier's own names.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -592,5 +629,31 @@ mod material_trade_tests {
         let got = material_trades_since(&conn, "2026-09-29T03:00:00Z").unwrap();
         assert_eq!(got, vec![MaterialTradeRow { ts: "2026-09-29T03:31:21Z".into(), trader_type: "manufactured".into(), paid: "Biotech Conductors".into(), paid_qty: 9, received: "Conductive Components".into(), received_qty: 243 }]);
         assert!(material_trades_since(&conn, "2026-09-29T04:00:00Z").unwrap().is_empty(), "nothing after the moment");
+    }
+}
+
+#[cfg(test)]
+mod stored_module_tests {
+    use super::*;
+
+    /// The table is the latest StoredModules snapshot: a replay of two
+    /// events keeps the second's list only.
+    #[test]
+    fn storage_is_the_latest_stored_modules_snapshot() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        let first = r#"{ "timestamp":"2026-09-29T01:00:00Z", "event":"StoredModules", "MarketID":1, "StationName":"X", "StarSystem":"Y", "Items":[
+            { "Name":"$int_fuelscoop_size5_class5_name;", "StarSystem":"Y", "StorageSlot":3, "Hot":false, "BuyPrice":1 } ] }"#;
+        let second = r#"{ "timestamp":"2026-09-29T02:58:36Z", "event":"StoredModules", "MarketID":1, "StationName":"X", "StarSystem":"Y", "Items":[
+            { "Name":"$hpt_guardian_shardcannon_fixed_medium_name;", "Name_Localised":"Guardian Shard Cannon", "StarSystem":"Mbooni", "StorageSlot":7, "EngineerModifications":"Weapon_LongRange", "Level":1, "Quality":1.0, "Hot":false, "TransferCost":51000, "TransferTime":720, "BuyPrice":420807 },
+            { "Name":"$hpt_shieldbooster_size0_class5_name;", "Name_Localised":"Shield Booster", "StorageSlot":33, "Hot":false, "InTransit":true, "BuyPrice":238850 } ] }"#;
+        conn.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-09-29T01:00:00Z', 'StoredModules', ?1)", [first]).unwrap();
+        conn.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 2, '2026-09-29T02:58:36Z', 'StoredModules', ?1)", [second]).unwrap();
+        crate::derive::derive_all(&conn).unwrap();
+        let got = stored_modules(&conn).unwrap();
+        assert_eq!(got.len(), 2, "the first snapshot's scoop is gone: {got:?}");
+        assert_eq!(got[0], StoredModule { item: "hpt_guardian_shardcannon_fixed_medium".into(), system: Some("Mbooni".into()), slot: 7, blueprint: Some("Weapon_LongRange".into()), level: Some(1), hot: false, transfer_cost: Some(51000), transfer_time_s: Some(720), in_transit: false });
+        assert!(got[1].in_transit && got[1].system.is_none() && got[1].blueprint.is_none());
     }
 }

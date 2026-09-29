@@ -19,7 +19,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 /// A bump triggers a rebuild of the derived tables from `events`; it does NOT
 /// require re-reading the journal files, which is the whole point of keeping
 /// the event log.
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8; // 8: stored_modules, replayed from StoredModules (2026-09-28)
 
 const DDL: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -353,6 +353,26 @@ CREATE TABLE IF NOT EXISTS ship_locations (
 -- seven-year journal. `owned` follows StoredShips and the Shipyard
 -- events (derive::owned_ships); `raw` is the Loadout itself, for the
 -- module list and the SLEF export.
+-- Modules in storage, as the latest StoredModules event listed them (the
+-- game writes one at every dock and every outfitting screen; the event is
+-- a whole snapshot, so a replay replaces the table). Nothing read the
+-- event before 2026-09-28: a plan priced a purchase for a module already
+-- sitting in storage.
+CREATE TABLE IF NOT EXISTS stored_modules (
+    slot            INTEGER PRIMARY KEY,
+    item            TEXT    NOT NULL,
+    system_name     TEXT,
+    blueprint       TEXT,
+    level           INTEGER,
+    quality         REAL,
+    hot             INTEGER NOT NULL DEFAULT 0,
+    transfer_cost   INTEGER,
+    transfer_time_s INTEGER,
+    in_transit      INTEGER NOT NULL DEFAULT 0,
+    buy_price       INTEGER,
+    ts              TEXT    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS ships (
     ship_id        INTEGER PRIMARY KEY,
     ship           TEXT,
