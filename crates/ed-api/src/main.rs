@@ -47,6 +47,15 @@ async fn main() -> Result<()> {
             let pool = database_pool(&config).await?;
             ed_api::ingest::run(config, pool).await
         }
+        Command::Migrate => {
+            // database_pool applies the migrations on connect and logs each
+            // one's wall time; nothing else to do.
+            let started = std::time::Instant::now();
+            let pool = database_pool(&config).await?;
+            pool.close().await;
+            println!("{{\"migrated\":true,\"ms\":{}}}", started.elapsed().as_millis());
+            Ok(())
+        }
         Command::PublishCommunity => publish_community(config).await,
         Command::PublishMarketDaily => {
             let pool = database_pool(&config).await?;

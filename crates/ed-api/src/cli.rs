@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::{bail, Result};
 
 pub const USAGE: &str =
-    "usage: ed-api [serve | ingest | hydrate <fixture.json> | hydrate --spansh <dump.json[.gz]> \
+    "usage: ed-api [serve | ingest | migrate | hydrate <fixture.json> | hydrate --spansh <dump.json[.gz]> \
                          | hydrate --edsm-bodies <bodies.json[.gz]> | hydrate --fdev-ids [commodity.csv] \
                          | publish-community | publish-market-daily | publish-stars \
                          | build-routing <galaxy.json[.gz]> [artifact_dir] | adopt-routing <index-dir> [artifact_dir] \
@@ -20,6 +20,11 @@ pub enum Command {
     /// serve swap no longer loses a minute of boards. Postgres is the
     /// handoff; there is no socket or queue between the two.
     Ingest,
+    /// Apply every migration not yet recorded and exit: the deploy runs
+    /// this with the NEW binary while the OLD service keeps serving, so
+    /// the restart that follows finds nothing to apply (2026-09-29: a
+    /// 133 s market-table migration outlasted the 120 s readiness wait).
+    Migrate,
     /// Seed from the checked-in synthetic fixture.
     HydrateFixture(PathBuf),
     /// Seed from a Spansh dump (`galaxy_populated`, `galaxy_stations` or
@@ -60,6 +65,7 @@ pub fn parse_command(args: Vec<String>) -> Result<Command> {
     let command = match args.next().as_deref().unwrap_or("serve") {
         "serve" => Command::Serve,
         "ingest" => Command::Ingest,
+        "migrate" => Command::Migrate,
         "hydrate" => match (args.next(), args.next()) {
             (Some(flag), Some(path)) if flag == "--spansh" => {
                 Command::HydrateSpansh(PathBuf::from(path))

@@ -492,6 +492,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Migrations run before the restart; the readiness wait is 300 s**
+  (2026-09-29, the follow-up from the 0.4.0 server deploy). `ed-api
+  migrate` applies every migration not yet recorded and exits;
+  `deploy/edda-apply api` runs it with the new binary while the old
+  service keeps serving, then restarts, and waits up to 300 s for
+  readiness instead of 120. The CI log records "migrations applied in
+  N s" per deploy, so a slow migration is a number, not a failed run.
+  Installed on the box from the repo copy the same day.
 - **v0.4.0 first cut: the AppImage prune met a directory** (2026-09-29).
   The Linux release job built and signed its three bundles, then
   `scripts/appimage-fixup.sh` died: `find -name 'libgst*'` matched

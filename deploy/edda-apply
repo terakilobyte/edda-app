@@ -5,8 +5,9 @@
 # lives, in the order the release contract requires, and empties that
 # part of the inbox afterwards so nothing stale is applied twice.
 #
-#   api         /usr/local/bin/ed-api ← inbox/ed-api, restart, wait for
-#               readyz (120 s), ANALYZE the hot tables (runbook, 2026-09-06)
+#   api         /usr/local/bin/ed-api ← inbox/ed-api, migrate with the new
+#               binary while the old service serves, restart, wait for
+#               readyz (300 s), ANALYZE the hot tables (runbook, 2026-09-06)
 #   app         installers + sigs + notes.json, then latest.json LAST: the
 #               pointer flips only once everything it names is in place
 #   site        /var/www/edda-site ← inbox/site (mirror)
@@ -28,6 +29,23 @@ case "$verb" in
         [[ -s "$src" ]] || { echo "edda-apply api: $src is missing or empty" >&2; exit 1; }
         install -o root -g root -m 755 "$src" /usr/local/bin/ed-api.new
         mv -f /usr/local/bin/ed-api.new /usr/local/bin/ed-api
+        # Migrations first, with the NEW binary, while the OLD service keeps
+        # serving: on 2026-09-29 a market-table migration (0021) took 133 s
+        # and the restart below waited 120 s for a readiness the migration
+        # was still holding, so the deploy reported failure with the service
+        # fine. The restart then finds nothing left to apply. The service's
+        # environment is read as root and exported into the edda shell, as
+        # the routing verb does, so DATABASE_URL never appears on a command
+        # line. A binary older than `migrate` (pre-0.4.1) fails here, and
+        # the restart's own migration still runs; the wait below covers it.
+        t_mig=$(date +%s)
+        if ! grep -v '^#' /etc/edda/api.env | grep . | sudo -u edda bash -c '
+            while IFS= read -r line; do export "$line"; done
+            exec /usr/local/bin/ed-api migrate
+        '; then
+            echo "edda-apply api: migrate step failed; the restart will apply what it can" >&2
+        fi
+        echo "migrations applied in $(( $(date +%s) - t_mig )) s"
         # Both units run this binary. The feed first: it is back in
         # seconds and the API's restart below is the longer of the two;
         # the gap it leaves is the roadmap's "ingest unit restart gap"
@@ -36,14 +54,14 @@ case "$verb" in
         systemctl restart edda-eddn.service
         echo "edda-eddn restarted in $(( $(date +%s) - t_eddn )) s"
         systemctl restart edda-api.service
-        for i in $(seq 1 60); do
+        for i in $(seq 1 150); do
             if curl -sf --max-time 2 http://127.0.0.1:8787/readyz >/dev/null; then
                 echo "readyz ok after $((i * 2)) s"
                 break
             fi
             sleep 2
-            if [[ $i -eq 60 ]]; then
-                echo "edda-apply api: ed-api not ready after 120 s" >&2
+            if [[ $i -eq 150 ]]; then
+                echo "edda-apply api: ed-api not ready after 300 s" >&2
                 systemctl --no-pager --lines 20 status edda-api.service >&2 || true
                 exit 1
             fi
