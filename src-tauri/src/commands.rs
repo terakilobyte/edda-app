@@ -1039,11 +1039,6 @@ pub(crate) fn remember_preset(state: &AppState, preset: &ed_ships::Preset) {
     let _ = state.with_store(|s| ed_store::presets::remember(s.conn(), &preset.id, &preset.item, &json, &source, &ts));
 }
 
-/// A preset by id: the table's, or one the commander's data has shown.
-pub(crate) fn preset_by_id(state: &AppState, id: &str) -> Option<ed_ships::Preset> {
-    slots().preset(id).cloned().or_else(|| learned_presets(state).into_iter().find(|p| p.id == id))
-}
-
 /// Every variant of `item`: the table's, then the ones seen.
 pub(crate) fn presets_for_item(state: &AppState, item: &str) -> Vec<ed_ships::Preset> {
     let mut out: Vec<ed_ships::Preset> = slots().presets_for(item).into_iter().cloned().collect();
