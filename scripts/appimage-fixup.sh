@@ -46,7 +46,11 @@ for pattern in "${STRIP_PATTERNS[@]}"; do
         rm -f "$f"
         echo "stripped: ${f#"$APPDIR"/}"
         stripped=$((stripped + 1))
-    done < <(find "$APPDIR" -name "$pattern" -print0)
+    # Files and symlinks only: 'libgst*' also matches the directory
+    # usr/share/doc/libgstreamer-plugins-base1.0-0 on the 24.04 runner, and
+    # rm -f refuses a directory (v0.4.0's first cut, 2026-09-29). A doc
+    # directory is harmless to leave.
+    done < <(find "$APPDIR" \( -type f -o -type l \) -name "$pattern" -print0)
 done
 
 # tauri #15665 companion bug: AppRun exports GST_PLUGIN_SYSTEM_PATH_1_0

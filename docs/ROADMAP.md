@@ -492,6 +492,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **v0.4.0 first cut: the AppImage prune met a directory** (2026-09-29).
+  The Linux release job built and signed its three bundles, then
+  `scripts/appimage-fixup.sh` died: `find -name 'libgst*'` matched
+  `usr/share/doc/libgstreamer-plugins-base1.0-0`, a directory on the
+  runner's package layout, and `rm -f` refused it. The prune takes
+  files and symlinks only now; the tag was moved to the fix (nothing
+  had published) and the release re-run.
 - **0.4.0 server deploy: the readiness wait is shorter than a market
   migration** (2026-09-29). `deploy-api` from main reported failure:
   "ed-api not ready after 120 s". The service was fine — migration
