@@ -14,7 +14,7 @@
   import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { requestRoute } from "./route.svelte.js";
-  import { useTabActive } from "./lifecycle.svelte.js";
+  import { useTabActive, journalResource } from "./lifecycle.svelte.js";
 
   let ships = $state([]);
   let hulls = $state([]);
@@ -154,14 +154,38 @@
   }
   function copyToAll(i) { rows = sameForAll(rows, rows[i]); planReport = null; savePlan(); }
   function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && hasWork(r) })); planReport = null; savePlan(); }
-  function togglePlanPick(i) { const s = new Set(planPicked); s.has(i) ? s.delete(i) : s.add(i); planPicked = s; }
+  // A pick survives a refresh by what the trade is, not where it sits.
+  let unpicked = $state(new Set());
+  const tradeKey = (t) => `${t.kind}|${t.give_material}|${t.get_material}`;
+  const picksFor = (report) => new Set((report?.shopping?.list?.trades ?? []).map((t, i) => (unpicked.has(tradeKey(t)) ? null : i)).filter((i) => i != null));
+  function togglePlanPick(i) {
+    const t = planReport?.shopping?.list?.trades?.[i];
+    if (t) { const u = new Set(unpicked); u.has(tradeKey(t)) ? u.delete(tradeKey(t)) : u.add(tradeKey(t)); unpicked = u; }
+    const s = new Set(planPicked); s.has(i) ? s.delete(i) : s.add(i); planPicked = s;
+  }
+  // The report is derived from the inventory and the hold, so it follows
+  // the journal: a trade made, a commodity bought, a material collected
+  // moves the figures without a click (maintainer, 2026-09-28: "seems we
+  // could update that in real time too"). Quietly — no busy state — and
+  // never two at once; the tab's own gate keeps a hidden panel from
+  // re-asking on every event and catches up once when shown.
+  let refreshing = false;
+  journalResource(async () => {
+    if (!planReport || planBusy || refreshing) return;
+    refreshing = true;
+    try {
+      const r = await buildPlanReport({ shipId: target.shipId, hull: target.hull, items: planRequest(rows), swaps: swapsFrom(rows) });
+      planReport = r;
+      planPicked = picksFor(r);
+    } catch (e) { planMsg = String(e); } finally { refreshing = false; }
+  });
 
   async function runPlan() {
     if (selectedId == null && !selectedHull) return;
     planBusy = true; planMsg = "";
     try {
       planReport = await buildPlanReport({ shipId: target.shipId, hull: target.hull, items: planRequest(rows), swaps: swapsFrom(rows) });
-      planPicked = new Set((planReport.shopping?.list?.trades ?? []).map((_, i) => i));
+      planPicked = picksFor(planReport);
     } catch (e) { planReport = null; planMsg = String(e); } finally { planBusy = false; }
   }
 

@@ -650,6 +650,34 @@ pub async fn material_sources(
 /// there are none.
 const TRADER_RADIUS_LY: f64 = 300.0;
 
+/// Answers from the community API the plan report asks for, kept ten
+/// minutes by key: the report now follows every journal change
+/// (maintainer, 2026-09-28), and the nearest traders around a system or
+/// the sellers of a good do not move in ten minutes. Hits are logged
+/// with their age, so the saving is measured.
+const REPORT_ASK_TTL: std::time::Duration = std::time::Duration::from_secs(600);
+
+fn report_ask_cache() -> &'static std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, serde_json::Value)>> {
+    static CACHE: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, serde_json::Value)>>> = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+fn report_ask_cached(key: &str) -> Option<serde_json::Value> {
+    let cache = report_ask_cache().lock().unwrap_or_else(|e| e.into_inner());
+    let (at, value) = cache.get(key)?;
+    if at.elapsed() >= REPORT_ASK_TTL {
+        return None;
+    }
+    tracing::debug!(key, age_s = at.elapsed().as_secs(), "plan report: answer served from the ten-minute cache");
+    Some(value.clone())
+}
+
+fn report_ask_remember(key: &str, value: &serde_json::Value) {
+    let mut cache = report_ask_cache().lock().unwrap_or_else(|e| e.into_inner());
+    cache.retain(|_, (at, _)| at.elapsed() < REPORT_ASK_TTL);
+    cache.insert(key.to_string(), (std::time::Instant::now(), value.clone()));
+}
+
 /// The nearest trader of each kind the plan needs, from the community
 /// API, around the commander's system.
 pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) {
@@ -665,9 +693,18 @@ pub(crate) async fn fill_traders(state: &AppState, report: &mut ShoppingReport) 
     // second answered in 2.6 s — so the raw stop read "could not reach the
     // API" beside a manufactured stop that could. A stalled ask is tried
     // once more before it is called unreachable.
-    let mut all = crate::remote_lookup::nearest_material_traders_all(state, &system, TRADER_RADIUS_LY).await;
+    let cache_key = format!("traders|{}", system.to_ascii_lowercase());
+    let mut all: Option<Vec<ed_store::lookup::StationWithService>> = report_ask_cached(&cache_key).and_then(|v| serde_json::from_value(v).ok());
     if all.is_none() {
         all = crate::remote_lookup::nearest_material_traders_all(state, &system, TRADER_RADIUS_LY).await;
+    }
+    if all.is_none() {
+        all = crate::remote_lookup::nearest_material_traders_all(state, &system, TRADER_RADIUS_LY).await;
+    }
+    if let Some(hits) = &all {
+        if let Ok(v) = serde_json::to_value(hits) {
+            report_ask_remember(&cache_key, &v);
+        }
     }
     for stop in &mut report.traders {
         match &all {
@@ -930,9 +967,16 @@ pub(crate) async fn fill_commodity_sellers(state: &AppState, commodities: &mut [
                 sort: Some("distance".into()),
                 ..Default::default()
             };
-            let mut answer = crate::remote_search::search(state, &query(None)).await;
+            let cache_key = format!("sellers|{}|{short}", line.name.to_ascii_lowercase());
+            let mut answer = match report_ask_cached(&cache_key) {
+                Some(v) => Ok(v),
+                None => crate::remote_search::search(state, &query(None)).await,
+            };
             if answer.is_err() {
                 answer = crate::remote_search::search(state, &query(Some("any".into()))).await;
+            }
+            if let Ok(v) = &answer {
+                report_ask_remember(&cache_key, v);
             }
             match answer {
                 Ok(value) => {

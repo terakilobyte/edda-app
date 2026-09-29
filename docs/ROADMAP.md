@@ -492,6 +492,22 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **The build plan follows the journal** (2026-09-28; the maintainer:
+  "any reason we aren't using that same logic for the list in build
+  planner? getting commodities, trading materials, etc?" — "seems we
+  could update that in real time too"). The report was a snapshot from
+  the click. It is derived from the inventory and the hold, so the
+  planner now re-derives it on every journal change while it is
+  showing — a trade made, a commodity bought, a material collected moves
+  the materials table, the commodities table, the shopping list and the
+  broker lines without a click; a pick survives by what the trade is,
+  not where it sits; a hidden tab catches up once when shown. The
+  tracked HUD list follows from it (the HUD keeps its own journal
+  matching for the moments the planner is not showing). The answers
+  the report asks the community API for — the nearest traders around a
+  system, the sellers of a good — are kept ten minutes by key
+  (`report_ask_cache`), hits logged with their age, so the live report
+  costs the API nothing between asks.
 - **A pinned trade vanishes from the HUD as it is made** (2026-09-28;
   the maintainer: "as the trades are being made why isn't it being
   tracked?", "when the trades are complete the things can just
