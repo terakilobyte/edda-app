@@ -52,6 +52,13 @@ fn dock_context(conn: &rusqlite::Connection) -> Option<DockContext> {
     Some(DockContext { economy, material_trader, trader_kind })
 }
 
+/// The material trades the journal saw since `since`: the HUD's pinned
+/// trades vanish as they are made.
+#[tauri::command]
+pub async fn material_trades_since(state: State<'_, AppState>, since: String) -> Result<Vec<ed_store::query::MaterialTradeRow>, String> {
+    state.with_read(|store| ed_store::query::material_trades_since(store.conn(), &since).map_err(err))
+}
+
 #[tauri::command]
 pub async fn get_status(state: State<'_, AppState>) -> Result<ShipStatus, String> {
     state.with_read(|store| {

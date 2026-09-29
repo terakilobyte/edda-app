@@ -570,6 +570,7 @@ pub fn run() {
             commands::voice_interrupt,
             commands::set_muted,
             commands::recent_callouts,
+            commands::material_trades_since,
             commands::set_overlay_interactive,
             commands::overlay_visible,
             commands::db_stats,

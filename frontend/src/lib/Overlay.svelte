@@ -6,6 +6,7 @@
   import { tradeFollow, stopTrade, start as startTradeFollow, stop as stopTradeFollow } from "./tradeFollow.svelte.js";
   import {
     getStatus,
+    materialTradesSince,
     recentCallouts,
     onCallout,
     onSupercharge,
@@ -55,12 +56,33 @@
   // 2026-09-28: at the material trader, no tabbing back and forth).
   const hudShopping = persisted(KEYS.hudShopping, null, { json: true, sync: true });
   const traderHere = $derived((status?.dock?.trader_kind ?? "").toLowerCase() || null);
+  // The trades the journal saw since the list was pinned: a pinned trade
+  // matched by what was paid and received is made, and vanishes
+  // (maintainer, 2026-09-28: "when the trades are complete the things can
+  // just disappear from the hud"). Refetched on every journal change and
+  // whenever the pin changes.
+  let tradesMade = $state([]);
+  const refreshTrades = async () => {
+    const since = hudShopping.value?.at;
+    try { tradesMade = since ? await materialTradesSince(since) : []; } catch { tradesMade = []; }
+  };
+  $effect(() => { void hudShopping.value?.at; refreshTrades(); });
   const shoppingRows = $derived.by(() => {
     const trades = hudShopping.value?.trades ?? [];
+    // Each journal trade pays for one pinned line, greedily in order.
+    const spent = new Set();
+    const made = (t) => {
+      const i = tradesMade.findIndex((r, idx) => !spent.has(idx) && r.paid.toLowerCase() === String(t.give_material).toLowerCase() && r.received.toLowerCase() === String(t.get_material).toLowerCase() && r.received_qty >= t.get);
+      if (i >= 0) { spent.add(i); return true; }
+      return false;
+    };
+    const left = trades.filter((t) => !made(t));
     const here = traderHere;
-    const sorted = [...trades].sort((a, b) => (here ? (b.kind === here) - (a.kind === here) : 0) || String(a.kind).localeCompare(String(b.kind)));
+    const sorted = [...left].sort((a, b) => (here ? (b.kind === here) - (a.kind === here) : 0) || String(a.kind).localeCompare(String(b.kind)));
     return isCompact(layout, "shopping") && here ? sorted.filter((t) => t.kind === here) : sorted;
   });
+  const tradesLeft = $derived(shoppingRows.length);
+  const tradesPinned = $derived((hudShopping.value?.trades ?? []).length);
   const pinned = $derived(pinnedLoop.value);
   // Settings → HUD writes these; storage sync makes the sliders live.
   const hudAlpha = persisted(KEYS.hudAlpha, 1, { json: true, sync: true });
@@ -89,6 +111,7 @@
   // The store may not be ready yet; the next journal change tries again.
   journalResource(async () => {
     status = await getStatus();
+    await refreshTrades();
     activeMissions = await missions(true);
     stack = await missionStack();
     here = await missionsHere();
@@ -251,6 +274,7 @@
       {#if hudShopping.value && (shoppingRows.length || hudShopping.value.still_short?.length)}
         <div class="line shopping {compact(id)}">
           <span class="lbl">Trades{hudShopping.value.title ? ` · ${hudShopping.value.title}` : ""}</span>
+          {#if tradesPinned && tradesLeft < tradesPinned}<span class="pill ok">{tradesPinned - tradesLeft} of {tradesPinned} made</span>{/if}
           {#if traderHere}
             <span class="pill ok">{traderHere} trader here</span>
           {:else if status?.dock?.material_trader}

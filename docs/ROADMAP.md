@@ -492,6 +492,19 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A pinned trade vanishes from the HUD as it is made** (2026-09-28;
+  the maintainer: "as the trades are being made why isn't it being
+  tracked?", "when the trades are complete the things can just
+  disappear from the hud"). The pinned list was a snapshot and nothing
+  read the trades. The journal writes a MaterialTrade for each (paid
+  and received by Frontier's names, the trader type):
+  `query::material_trades_since` and the `material_trades_since`
+  command return every trade since the pin's moment; the overlay
+  refetches on every journal change and whenever the pin changes, and
+  a pinned line whose give and get match a trade since the pin (each
+  journal trade paying for one line) is gone; the header counts "N of
+  M made"; with nothing left and nothing short the section disappears.
+  Pinned in the store with a trade as the maintainer's journal wrote it.
 - **The trade list on the HUD, tracked from the build planner**
   (2026-09-28; the maintainer: "we need to be able to selectively show
   what we're supposed to trade for in the hud. Like i'm at the material

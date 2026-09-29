@@ -231,6 +231,7 @@ export const COMMANDS = {
   voiceInterrupt: ["voice_interrupt"],
   setMuted: ["set_muted", ["muted"]],
   recentCallouts: ["recent_callouts"],
+  materialTradesSince: ["material_trades_since", ["since"]],
   setOverlayInteractive: ["set_overlay_interactive", ["interactive"]],
   overlayVisible: ["overlay_visible", ["visible"]],
   // Ship computer. ai_ask resolves to {text, citations: [{url, title}], …}.
@@ -293,7 +294,7 @@ export const {
   powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions, missionStack, missionsHere,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
-  getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, setOverlayInteractive, overlayVisible, aiAsk, aiReset,
+  getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, materialTradesSince, setOverlayInteractive, overlayVisible, aiAsk, aiReset,
 } = wrapped;
 
 /** set_ai_config takes the three common fields plus provider-specific extras. */

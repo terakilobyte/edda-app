@@ -74,6 +74,47 @@ pub fn engineers(conn: &Connection) -> Result<Vec<Engineer>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// One material trade as the journal wrote it: what was paid, what came
+/// back, by Frontier's own names.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct MaterialTradeRow {
+    pub ts: String,
+    pub trader_type: String,
+    pub paid: String,
+    pub paid_qty: i64,
+    pub received: String,
+    pub received_qty: i64,
+}
+
+/// Every MaterialTrade at or after `since` (an ISO timestamp), oldest
+/// first: the HUD ticks a pinned trade off as it is made (maintainer,
+/// 2026-09-28: "as the trades are being made why isn't it being
+/// tracked?").
+pub fn material_trades_since(conn: &Connection, since: &str) -> Result<Vec<MaterialTradeRow>> {
+    let mut stmt = conn.prepare("SELECT ts, raw FROM events WHERE event = 'MaterialTrade' AND ts >= ?1 ORDER BY ts, file, offset")?;
+    let rows = stmt.query_map([since], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (ts, raw) = row?;
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
+        let side = |k: &str| -> Option<(String, i64)> {
+            let s = v.get(k)?;
+            let name = s.get("Material_Localised").and_then(|n| n.as_str()).or_else(|| s.get("Material").and_then(|n| n.as_str()))?;
+            Some((name.to_string(), s.get("Quantity").and_then(|q| q.as_i64()).unwrap_or(0)))
+        };
+        let (Some((paid, paid_qty)), Some((received, received_qty))) = (side("Paid"), side("Received")) else { continue };
+        out.push(MaterialTradeRow {
+            ts,
+            trader_type: v.get("TraderType").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+            paid,
+            paid_qty,
+            received,
+            received_qty,
+        });
+    }
+    Ok(out)
+}
+
 /// How the journal proves a technology-broker module is already
 /// unlocked: the `TechnologyBroker` event that unlocked it, or a ship
 /// that has carried it (a module cannot be bought before its unlock).
@@ -534,5 +575,22 @@ mod unlock_tests {
         ]);
         assert_eq!(of("hpt_guardian_shardcannon_fixed_medium"), vec![UnlockProof::Fitted { ship: "python_nx".into(), ship_name: None, blueprint: Some("weapon_longrange".into()) }], "the fitted medium is the modified one: its blueprint says so");
         assert!(of("hpt_guardian_plasmalauncher_fixed_large").is_empty());
+    }
+}
+
+#[cfg(test)]
+mod material_trade_tests {
+    use super::*;
+
+    #[test]
+    fn trades_since_a_moment_come_back_by_frontiers_names() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        let raw = r#"{ "timestamp":"2026-09-29T03:31:21Z", "event":"MaterialTrade", "MarketID":3223843584, "TraderType":"manufactured", "Paid":{ "Material":"biotechconductors", "Material_Localised":"Biotech Conductors", "Category":"Manufactured", "Quantity":9 }, "Received":{ "Material":"conductivecomponents", "Material_Localised":"Conductive Components", "Category":"Manufactured", "Quantity":243 } }"#;
+        conn.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 1, '2026-09-29T03:31:21Z', 'MaterialTrade', ?1)", [raw]).unwrap();
+        let got = material_trades_since(&conn, "2026-09-29T03:00:00Z").unwrap();
+        assert_eq!(got, vec![MaterialTradeRow { ts: "2026-09-29T03:31:21Z".into(), trader_type: "manufactured".into(), paid: "Biotech Conductors".into(), paid_qty: 9, received: "Conductive Components".into(), received_qty: 243 }]);
+        assert!(material_trades_since(&conn, "2026-09-29T04:00:00Z").unwrap().is_empty(), "nothing after the moment");
     }
 }
