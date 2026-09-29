@@ -504,6 +504,8 @@ pub enum NameKind {
     Station,
     /// Ship hulls, from the bundled journal catalog: no API, no index.
     Ship,
+    /// Module names, from the bundled outfitting table: no API, no index.
+    Module,
 }
 
 #[tauri::command]
@@ -518,6 +520,9 @@ pub async fn name_complete(state: State<'_, AppState>, routing: State<'_, Arc<Ro
             .into_iter()
             .map(|name| NameHit { name: name.to_string(), detail: None })
             .collect());
+    }
+    if kind == NameKind::Module {
+        return Ok(ed_journal::modules::complete_modules(p, NAME_HITS).into_iter().map(|name| NameHit { name, detail: None }).collect());
     }
     if p.len() < 2 {
         return Ok(Vec::new());

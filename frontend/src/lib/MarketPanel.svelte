@@ -150,10 +150,15 @@
         <Autocomplete bind:value={text} minWidth="100%" fetch={(p) => nameComplete("ship", p)} onenter={run}
           placeholder="Type-10 Defender, Mandalay…" />
       {:else}
-        <input bind:value={text} style="width:100%" onkeydown={(e) => e.key === "Enter" && run()}
-          placeholder="5A fuel scoop, beam laser…" />
+        <!-- Module names complete from the bundled outfitting table (maintainer,
+             2026-09-29: typing "heat" offered nothing). -->
+        <Autocomplete bind:value={text} minWidth="100%" fetch={(p) => nameComplete("module", p)} onenter={run}
+          placeholder="5A fuel scoop, beam laser, heat sink…" />
       {/if}
     </label>
+    {#if kind === "outfitting" && /sirius|modified|pre-?eng|v1\b/i.test(text)}
+      <p class="muted small" style="flex-basis:100%">Pre-engineered modules are not sold at outfitting. The Sirius ones (heat sink launcher, AX missile racks) are bought per unit from the technology brokers on Sirius Corporation's megaships — Galaxy → Services → “Technology Broker (Sirius)” lists them; the modified Guardian weapons from the Guardian broker at Prospect's Deep in Mbooni; the V1 drives and scanner from any Human broker.</p>
+    {/if}
     {#if kind === "commodity"}
       <label>Action
         <select bind:value={side}>

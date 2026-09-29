@@ -1191,6 +1191,7 @@ pub async fn service_options() -> Result<Vec<ServiceOption>, String> {
     for (key, label) in [
         ("guardian_technology_broker", "Technology Broker (Guardian)"),
         ("human_technology_broker", "Technology Broker (Human)"),
+        ("sirius_technology_broker", "Technology Broker (Sirius)"),
         ("raw_material_trader", "Material Trader (raw)"),
         ("manufactured_material_trader", "Material Trader (manufactured)"),
         ("encoded_material_trader", "Material Trader (encoded)"),
@@ -1900,7 +1901,11 @@ pub async fn nearest_service(
         .ok_or_else(|| crate::remote_lookup::api_down("nearest service"))?;
     Ok(match kinded {
         Some((base, kind, economies)) => {
-            let split = crate::remote_lookup::split_by_economy(hits, economies, galaxy::NEAREST_SERVICE_LIMIT);
+            let split = if kind == "Sirius" {
+                crate::remote_lookup::split_sirius(hits, galaxy::NEAREST_SERVICE_LIMIT)
+            } else {
+                crate::remote_lookup::split_by_economy(hits, economies, galaxy::NEAREST_SERVICE_LIMIT)
+            };
             ServiceSearch { origin, kind_known: split.kind_known, note: Some(crate::remote_lookup::kind_note(base, kind, split.kind_known)), stations: split.stations }
         }
         None => ServiceSearch { origin, stations: hits, kind_known: true, note: None },

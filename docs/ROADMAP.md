@@ -492,6 +492,19 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **The Engineers tab; module names complete; the Sirius brokers**
+  (2026-09-29). The directory had gone into the Engineering panel,
+  hidden since 0.3.5 — "engineering tab is still hidden/missing" — so
+  it is its own tab now, after Build planner, refreshed on every
+  journal change. The Market tab's outfitting box completed nothing
+  ("heat" offered no Heat Sink Launcher): module names now complete
+  from the bundled outfitting table, and a box naming a pre-engineered
+  module says such modules are not sold at outfitting and where they
+  are. The Sirius pre-engineered modules come from the technology
+  brokers on five Sirius Corporation megaships (the wiki's Heatsink
+  Launcher page): "Technology Broker (Sirius)" in the services search
+  names them and lists any in range, and a Sirius broker line in the
+  plan says where it is bought.
 - **The engineers directory, and a fitted variant is fitted** (2026-09-29;
   the maintainer: "one thing I do miss from the engineer tab is showing
   which engineers can do what — and who is unlocked, known, unknown",

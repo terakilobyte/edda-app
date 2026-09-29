@@ -226,7 +226,7 @@ pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, pr
         crate::routing::NameKind::Station => "station",
         // Hulls come from the bundled catalog; the server has no such list
         // and must not be asked per keystroke for one.
-        crate::routing::NameKind::Ship => return None,
+        crate::routing::NameKind::Ship | crate::routing::NameKind::Module => return None,
     };
     let started = std::time::Instant::now();
     let response = state
@@ -263,6 +263,19 @@ pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, pr
 /// Economies whose stations host each material-trader kind: the dump
 /// (and so the server) says only "Material Trader"; the kind follows
 /// the station economy, as the trader-finding guides have it.
+/// The technology brokers on Sirius Corporation's megaships, where the
+/// Sirius pre-engineered modules are bought per unit: ship and system,
+/// from the community wiki's Heatsink Launcher page (Unlock Locations,
+/// fetched 2026-09-27). Megaships move rarely; the wiki is the source
+/// until a Docked event of the maintainer's says otherwise.
+pub const SIRIUS_BROKER_SHIPS: &[(&str, &str)] = &[
+    ("Chariot of Rhea", "Leesti"),
+    ("El Centinela Cadejo", "Arimpox"),
+    ("Kumiho Sky", "Andecavi"),
+    ("Spirit of Laelaps", "V886 Centauri"),
+    ("The Witness Odysseus", "Alioth"),
+];
+
 /// A service key that names a KIND of a service the data only lists
 /// plainly: `raw_material_trader` is a material trader at an Extraction
 /// or Refinery station, `guardian_technology_broker` a technology broker
@@ -289,6 +302,9 @@ pub fn kinded_service(key: &str) -> Option<(&'static str, &'static str, &'static
         _ => match kind.as_str() {
             "guardian" => Some((base, "Guardian", &["High Tech"])),
             "human" => Some((base, "Human", &["Industrial"])),
+            // No economy tells a Sirius broker: it is one of five named
+            // megaships (SIRIUS_BROKER_SHIPS); the caller filters by name.
+            "sirius" => Some((base, "Sirius", &[])),
             _ => None,
         },
     }
@@ -297,6 +313,10 @@ pub fn kinded_service(key: &str) -> Option<(&'static str, &'static str, &'static
 /// What a kind's answer means, in words: the rule, and when the data
 /// could not apply it, that the list is every station of the service.
 pub fn kind_note(base: &str, kind: &str, kind_known: bool) -> String {
+    if kind == "Sirius" {
+        let ships = SIRIUS_BROKER_SHIPS.iter().map(|(s, sys)| format!("{s} ({sys})")).collect::<Vec<_>>().join(", ");
+        return format!("The Sirius pre-engineered modules are bought per unit from the technology brokers on Sirius Corporation's megaships: {ships}. Listed here are those the data finds in range; the megaships are the source either way.");
+    }
     let rule = match base {
         "technology_broker" => "A broker's type follows its station's economy: High Tech stations offer the Guardian modules, Industrial stations the Human ones.",
         _ => "A material trader's kind follows its station's economy: raw at Extraction and Refinery, manufactured at Industrial, encoded at High Tech and Military.",
@@ -375,6 +395,16 @@ pub struct TraderHits {
     /// False when no station carried an economy, so `stations` is every
     /// material trader nearby rather than the ones of this kind.
     pub kind_known: bool,
+}
+
+/// The Sirius megaship brokers among `hits`, by station name.
+pub(crate) fn split_sirius(hits: Vec<StationWithService>, limit: usize) -> TraderHits {
+    let mut out: Vec<StationWithService> = hits
+        .into_iter()
+        .filter(|h| h.station.name.as_deref().is_some_and(|n| SIRIUS_BROKER_SHIPS.iter().any(|(s, _)| s.eq_ignore_ascii_case(n))))
+        .collect();
+    out.truncate(limit);
+    TraderHits { stations: out, kind_known: true }
 }
 
 pub(crate) fn split_by_economy(hits: Vec<StationWithService>, economies: &[&str], limit: usize) -> TraderHits {
@@ -647,6 +677,7 @@ mod kinded_service_tests {
         assert_eq!(kinded_service("Technology Broker (Human)".replace(['(', ')'], "").trim()), Some(("technology_broker", "Human", &["Industrial"][..])), "the panel's label spelling");
         assert_eq!(kinded_service("raw_material_trader").map(|k| k.1), Some("raw"));
         assert_eq!(kinded_service("material_trader_encoded").map(|k| k.2), Some(&["High Tech", "Military"][..]));
+        assert_eq!(kinded_service("sirius_technology_broker"), Some(("technology_broker", "Sirius", &[][..])));
         assert_eq!(kinded_service("technology_broker"), None, "the plain service is the API's own");
         assert_eq!(kinded_service("thargoid_technology_broker"), None);
     }

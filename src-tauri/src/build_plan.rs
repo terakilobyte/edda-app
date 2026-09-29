@@ -91,6 +91,11 @@ pub struct Unlock {
     pub note: Option<String>,
     /// Already in storage, and where: nothing to buy or unlock for it.
     pub stored: Option<String>,
+    /// Where this is bought, when the broker is not any broker of its
+    /// type: the Sirius megaships (maintainer, 2026-09-29: "where I can
+    /// buy the pre-engineered heat sink launchers").
+    #[serde(rename = "where")]
+    pub where_: Option<String>,
     /// The same module fitted on other owned ships, by ship: known from
     /// the journal, not spent (moving it strips that ship).
     pub also_on: Vec<String>,
@@ -433,6 +438,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 note: None,
                 stored: Some(format!("bought at the broker at {} — in storage there once the game lists it", ts.get(11..16).unwrap_or(&ts))),
                 also_on,
+                where_: None,
                 units: 1,
                 slots: Vec::new(),
             });
@@ -461,6 +467,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 per_unit: false,
                 note: None,
                 stored: Some(where_),
+                where_: None,
                 also_on,
                 units: 1,
                 slots: Vec::new(),
@@ -485,6 +492,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                     slots: Vec::new(),
                     stored: None,
                     also_on,
+                where_: None,
                 });
             }
             continue;
@@ -541,6 +549,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                 slots: Vec::new(),
                 stored: None,
                 also_on,
+                where_: None,
             });
             continue;
         }
@@ -573,6 +582,12 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             slots: Vec::new(),
             stored: None,
             also_on,
+            where_: recipe.name.starts_with("Sirius ").then(|| {
+                format!(
+                    "bought per unit from the technology brokers on Sirius Corporation's megaships: {}",
+                    crate::remote_lookup::SIRIUS_BROKER_SHIPS.iter().map(|(s, sys)| format!("{s} ({sys})")).collect::<Vec<_>>().join(", ")
+                )
+            }),
         });
     }
     // One line per variant and recipe, not one per slot: the ticks then

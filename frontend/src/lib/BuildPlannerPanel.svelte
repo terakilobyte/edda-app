@@ -435,6 +435,9 @@
             {#if u.commodities.length}
               <div style="margin-left:1rem"><strong>plus, to buy:</strong> {u.commodities.map((c) => `${c.need} ${c.name}`).join(", ")} <span class="muted">· see Commodities to buy above</span></div>
             {/if}
+            {#if u.where}
+              <div style="margin-left:1rem" class="small">{u.where}</div>
+            {/if}
             {#if u.also_on?.length}
               <div style="margin-left:1rem" class="muted">also fitted on {[...new Set(u.also_on)].join(", ")} — moving one strips that ship</div>
             {/if}

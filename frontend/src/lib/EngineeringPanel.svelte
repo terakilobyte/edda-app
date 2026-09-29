@@ -6,7 +6,7 @@
   // Per-module engineering lives on the Ships tab; "Plan" there lands here.
   import { eng } from "./engineering.svelte.js";
   import ShoppingReport from "./ShoppingReport.svelte";
-  import { listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, checkExperimental, listEngineers, materialShopping, shipSlef, engineerDirectory } from "./api.js";
+  import { listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, checkExperimental, listEngineers, materialShopping, shipSlef } from "./api.js";
 
   let error = $state("");
   let loading = $state(false);
@@ -16,15 +16,6 @@
   const blueprints = $derived(eng.options.filter((b) => b.grades.length > 0));
   const experimentals = $derived(eng.options.filter((b) => b.grades.length === 0));
   const grades = $derived(blueprints.find((b) => b.name === eng.blueprintName)?.grades ?? []);
-  // The engineers directory: every engineer, status, where, what they do.
-  let directory = $state([]);
-  let directoryError = $state("");
-  let directoryFilter = $state("");
-  const directoryRows = $derived.by(() => {
-    const f = directoryFilter.trim().toLowerCase();
-    if (!f) return directory;
-    return directory.filter((e) => e.name.toLowerCase().includes(f) || (e.system ?? "").toLowerCase().includes(f) || (e.base ?? "").toLowerCase().includes(f) || e.does.some((d) => d.module_type.toLowerCase().includes(f)));
-  });
   $effect(() => {
     if (grades.length) {
       if (!grades.includes(Number(eng.targetGrade))) eng.targetGrade = grades[grades.length - 1];
@@ -36,9 +27,6 @@
     try {
       if (!eng.moduleTypes.length) {
         [eng.moduleTypes, eng.engineers] = await Promise.all([listModuleTypes(), listEngineers()]);
-      }
-      if (!directory.length) {
-        try { directory = await engineerDirectory(); } catch (e) { directoryError = String(e); }
       }
       // A module handed over from the Ships tab.
       if (eng.planRequest) {
@@ -232,47 +220,11 @@
 
   <ShoppingReport shopping={eng.shopping} picked={eng.picked} onToggle={togglePick} />
 
-  <!-- The directory (maintainer, 2026-09-29): every engineer, the journal's
-       word on them, where they are, what they do to what grade, and — for
-       one not unlocked — what unlocking them adds over the grades the
-       unlocked ones already reach, most first: the order to unlock in.
-       Filter by a name, a system or a module type; a grade pill filters too. -->
-  <h3 style="margin-top:1rem">Engineers
-    <span class="muted">{directory.filter((e) => e.unlocked).length} unlocked · {directory.filter((e) => e.status === "Invited").length} invited · {directory.filter((e) => e.status === "Known").length} known · {directory.filter((e) => e.status === "Not known").length} not yet met · of {directory.length}</span>
-    <input placeholder="filter: engineer, system, or module type" bind:value={directoryFilter} style="margin-left:0.6rem; min-width:16rem" />
-    {#if directoryFilter}<button class="quiet mini" onclick={() => (directoryFilter = "")}>clear</button>{/if}
-  </h3>
-  {#if directoryError}<p class="error small">{directoryError}</p>{/if}
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Engineer</th><th>Status</th><th>Where</th><th>Does, to grade</th><th>Unlocking adds</th></tr></thead>
-      <tbody>
-        {#each directoryRows as e (e.name)}
-          <tr class={e.unlocked ? "" : e.status === "Not known" ? "dim" : ""}>
-            <td><strong>{e.name}</strong>{#if e.guide_step != null}<span class="muted small"> · guide step {e.guide_step}</span>{/if}</td>
-            <td><span class="pill {e.unlocked ? 'ok' : e.status === 'Invited' ? 'warn' : ''}">{e.status}{e.rank ? ` · rank ${e.rank}` : ""}</span>
-              {#if !e.unlocked && e.unlock}<div class="muted small" title={e.invite ?? ""}>{e.status === "Not known" && e.invite ? `invite: ${e.invite} · ` : ""}unlock: {e.unlock}</div>{/if}</td>
-            <td class="small">{e.system ?? "—"}{e.base ? ` · ${e.base}` : ""}</td>
-            <td>
-              {#each e.does as d}
-                <button class="pill {eng.moduleType === d.module_type ? 'accent' : ''}" style="cursor:pointer; margin:0.1rem" title="Filter the directory to {d.module_type}" onclick={() => (directoryFilter = d.module_type)}>{d.module_type} G{d.max_grade}</button>
-              {/each}
-            </td>
-            <td class="small">
-              {#if e.unlocked}
-                <span class="muted">—</span>
-              {:else if e.gains.length}
-                {#each e.gains as g}
-                  <span class="pill ok" style="margin:0.1rem" title="{g.from_grade ? `you reach G${g.from_grade} now` : 'no unlocked engineer does this'}">{g.module_type} {g.from_grade ? `G${g.from_grade}→G${g.to_grade}` : `G${g.to_grade} (none now)`}</span>
-                {/each}
-              {:else}
-                <span class="muted">nothing beyond your unlocked engineers</span>
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+  <h3 style="margin-top:1rem">Engineers <span class="muted">({unlocked.length} unlocked of {eng.engineers.length} known)</span></h3>
+  <div class="row small">
+    {#each eng.engineers as e}
+      <span class="pill {e.progress === 'Unlocked' ? 'ok' : e.progress === 'Invited' ? 'warn' : ''}">{e.name} · {e.progress ?? "?"}{e.rank ? ` · ${e.rank}` : ""}</span>
+    {/each}
   </div>
 </section>
 

@@ -172,6 +172,23 @@ pub fn item_name(symbol: &str) -> String {
     format!("{} {}{}{mount}", row.name, row.class, row.rating)
 }
 
+/// Module names that contain `text`, for a search box: EDCD's distinct
+/// names from the bundled outfitting table, alphabetical, at most
+/// `limit`. Typing "heat" offers "Heat Sink Launcher" (maintainer,
+/// 2026-09-29: the Market tab's outfitting box completed nothing).
+pub fn complete_modules(text: &str, limit: usize) -> Vec<String> {
+    let want = text.trim().to_ascii_lowercase();
+    if want.is_empty() {
+        return Vec::new();
+    }
+    let mut names: Vec<&str> = outfitting_table().values().map(|r| r.name).filter(|n| n.to_ascii_lowercase().contains(&want)).collect();
+    names.sort_unstable();
+    names.dedup();
+    // Names that START with the text first, the rest after.
+    names.sort_by_key(|n| !n.to_ascii_lowercase().starts_with(&want));
+    names.into_iter().take(limit).map(str::to_string).collect()
+}
+
 /// A module as a technology broker's recipe names it: a weapon by its
 /// mount and size word ("Guardian Shard Cannon (Fixed, Large)", "Remote
 /// Release Flechette Launcher (Fixed)"), anything else as `item_name`.
@@ -484,6 +501,10 @@ mod tests {
         assert_eq!(recipe_name("hpt_guardian_shardcannon_fixed_large"), "Guardian Shard Cannon (Fixed, Large)");
         assert_eq!(recipe_name("hpt_flechettelauncher_fixed_medium"), "Remote Release Flechette Launcher (Fixed, Medium)");
         assert_eq!(recipe_name("int_guardianfsdbooster_size5"), item_name("int_guardianfsdbooster_size5"));
+        let heat = complete_modules("heat", 10);
+        assert!(heat.iter().any(|n| n == "Heat Sink Launcher"), "{heat:?}");
+        assert!(heat.iter().all(|n| n.to_ascii_lowercase().contains("heat")), "{heat:?}");
+        assert!(complete_modules("", 10).is_empty());
         assert_eq!(
             item_name("int_dronecontrol_collection_size3_class5"),
             "Collector Limpet Controller 3A"

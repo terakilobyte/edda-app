@@ -16,14 +16,13 @@ what you already own: modules in storage, the ones you just bought at
 a broker, gear fitted on your other ships. Commodities to buy get their
 own table with the nearest sellers, the whole list updates as you
 trade, buy and collect, and you can put your trades on the HUD while
-you stand at the material trader. Plus an engineers directory, better
+you stand at the material trader. Plus an Engineers tab, better
 plotting from the SRV, market searches that work from deep space, and
 no more "Under attack" spam.
 
 **Building a ship.** Import an EDSY build and the planner tells you
-exactly what's left to do: which modules to swap, what to buy at the
-broker (and how many times, since the modified ones are bought per
-unit), and what's already yours. Anything sitting in storage shows
+exactly what's left to do: which modules to swap, what to buy and how
+many, and what's already yours. Anything sitting in storage shows
 where it is and what the transfer costs. Modules print with their
 class and rating now, so a 3C and a 3D read as different things.
 
@@ -37,7 +36,7 @@ appear on the HUD. At a material trader, that trader's kind is listed
 first, and each trade disappears as you make it. No tabbing back and
 forth.
 
-**Engineers.** The Engineering tab now lists every engineer: who you've
+**Engineers.** A new Engineers tab lists every engineer: who you've
 unlocked, who you've met, who you haven't, where they are, what they
 can do to which grade, and which ones are worth unlocking next.
 

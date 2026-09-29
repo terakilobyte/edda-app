@@ -26,6 +26,7 @@
   import { eng as engStore } from "./lib/engineering.svelte.js";
   import ShipsPanel from "./lib/ShipsPanel.svelte";
   import BuildPlannerPanel from "./lib/BuildPlannerPanel.svelte";
+  import EngineersPanel from "./lib/EngineersPanel.svelte";
   import { planner } from "./lib/planner.svelte.js";
   import Onboarding from "./lib/Onboarding.svelte";
   import WhatsNew from "./lib/WhatsNew.svelte";
@@ -50,6 +51,7 @@
     ["powerplay", "Powerplay"],
     ["ships", "Ships"],
     ["planner", "Build planner"],
+    ["engineers", "Engineers"],
     ["voice", "Voice"],
     ["settings", "Settings"],
     ["report", "Report"],
@@ -67,7 +69,9 @@
   $effect(() => { if (helpStore.requested) pick("help"); });
   // The Engineering tab is hidden since 0.3.5 (maintainer, 2026-09-20: "I
   // think it's now replaced fully by the build planner"); EngineeringPanel
-  // stays on disk. A module handed over the old way lands on the planner.
+  // stays on disk. What was missed from it — who can do what, who is
+  // unlocked — is the Engineers tab (2026-09-29). A module handed over the
+  // old way lands on the planner.
   $effect(() => { if (engStore.openTab) { pick("planner"); engStore.openTab = false; } });
   // The Ships tab's Plan build lands on the Build planner with that ship.
   $effect(() => { if (planner.openTab) { pick("planner"); planner.openTab = false; } });
@@ -254,6 +258,7 @@
           {:else if k === "inventory"}<InventoryPanel />
           {:else if k === "ships"}<ShipsPanel />
           {:else if k === "planner"}<BuildPlannerPanel />
+          {:else if k === "engineers"}<EngineersPanel />
           {:else if k === "voice"}<VoiceSettings />
           {:else if k === "settings"}<SystemSettings onSetup={repeatOnboarding} />
           {:else if k === "report"}<ReportPanel />
