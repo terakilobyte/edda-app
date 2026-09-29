@@ -332,14 +332,28 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     // Swaps to technology-broker modules: the unlock recipe, materials
     // pooled with the rest, commodities listed to buy.
     let jc = ed_journal::Catalog::load();
-    let (cargo, proven, mut storage, fitted_elsewhere) = state.with_read(|s| {
+    let (cargo, proven, mut storage, storage_ts, fitted_elsewhere) = state.with_read(|s| {
         (
             cargo_by_name(s.conn(), &jc),
             ed_store::query::unlocked_modules(s.conn()).unwrap_or_default(),
             ed_store::query::stored_modules(s.conn()).unwrap_or_default(),
+            ed_store::query::stored_modules_ts(s.conn()).ok().flatten(),
             modules_on_other_ships(s.conn(), ship_id),
         )
     });
+    // Units bought at a broker AFTER the last storage snapshot: the game
+    // writes StoredModules at the next dock or outfitting screen, not at
+    // the purchase, so six shards bought in three minutes showed as one
+    // in storage and five to buy (maintainer, 2026-09-29: "are we not
+    // summing correctly?"). Each such event, matched to its variant by
+    // what it paid, is one unit owned until the snapshot catches up.
+    let mut bought_since: Vec<(String, Vec<(String, i64)>, String)> = proven
+        .iter()
+        .filter_map(|(item, p)| match p {
+            ed_store::query::UnlockProof::Broker { ts, paid, .. } if storage_ts.as_deref().is_none_or(|s| ts.as_str() > s) => Some((item.clone(), paid.clone(), ts.clone())),
+            _ => None,
+        })
+        .collect();
     let mut unlocks = Vec::new();
     for s in swaps {
         let (slot, item) = (&s.slot, &s.item);
@@ -359,6 +373,16 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             None => catalog.unlock_recipe(&plain_recipe_name),
         };
         let item_name = preset.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| plain_name.clone());
+        let paid_is = |paid: &[(String, i64)], recipe: &ed_engineering::Blueprint| -> bool {
+            let mut want: Vec<(String, i64)> = recipe.ingredients.iter().map(|i| (i.name.to_ascii_lowercase(), i.quantity)).collect();
+            let mut got: Vec<(String, i64)> = paid
+                .iter()
+                .map(|(sym, n)| (jc.by_symbol(sym).map(|i| i.name.to_ascii_lowercase()).unwrap_or_else(|| sym.to_ascii_lowercase()), *n))
+                .collect();
+            want.sort();
+            got.sort();
+            want == got
+        };
         let same_engineering = |bp: Option<&str>, lvl: Option<i64>| match &preset {
             Some(p) => bp.is_some_and(|b| p.blueprint.eq_ignore_ascii_case(b) || p.blueprints.iter().any(|x| x.eq_ignore_ascii_case(b))) && lvl.is_none_or(|l| l == p.level),
             None => bp.is_none(),
@@ -376,6 +400,28 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         // this slot (maintainer, 2026-09-28: "I'm about to buy those
         // modshards"). Each stored unit satisfies one slot.
         let stored_at = storage.iter().position(|m| m.item.eq_ignore_ascii_case(item) && same_engineering(m.blueprint.as_deref(), m.level));
+        let bought_at = match (&preset, recipe) {
+            (Some(_), Some(r)) => bought_since.iter().position(|(it, paid, _)| it.eq_ignore_ascii_case(item) && paid_is(paid, r)),
+            _ => None,
+        };
+        if let (None, Some(i)) = (stored_at, bought_at) {
+            let (_, _, ts) = bought_since.remove(i);
+            unlocks.push(Unlock {
+                slot_name: ed_journal::modules::slot_name(slot),
+                item_name,
+                broker: preset.as_ref().map(|p| p.broker.clone()).unwrap_or_default(),
+                materials: Vec::new(),
+                commodities: Vec::new(),
+                unlocked: None,
+                per_unit: false,
+                note: None,
+                stored: Some(format!("bought at the broker at {} — in storage there once the game lists it", ts.get(11..16).unwrap_or(&ts))),
+                also_on,
+                units: 1,
+                slots: Vec::new(),
+            });
+            continue;
+        }
         if let Some(i) = stored_at {
             let m = storage.remove(i);
             let where_ = match (&m.system, m.in_transit) {
@@ -433,16 +479,6 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         // modified variant share a symbol: a fitted module proves the
         // variant whose blueprint it carries, and a broker event proves
         // the recipe whose materials it paid.
-        let paid_is = |paid: &[(String, i64)], recipe: &ed_engineering::Blueprint| -> bool {
-            let mut want: Vec<(String, i64)> = recipe.ingredients.iter().map(|i| (i.name.to_ascii_lowercase(), i.quantity)).collect();
-            let mut got: Vec<(String, i64)> = paid
-                .iter()
-                .map(|(sym, n)| (jc.by_symbol(sym).map(|i| i.name.to_ascii_lowercase()).unwrap_or_else(|| sym.to_ascii_lowercase()), *n))
-                .collect();
-            want.sort();
-            got.sort();
-            want == got
-        };
         let plain_recipe = catalog.unlock_recipe(&plain_recipe_name);
         let key = item.to_ascii_lowercase();
         // A pre-engineered variant is bought each time, so nothing in the
@@ -777,5 +813,18 @@ mod sirius_sink_tests {
         let to_buy = report.unlocks.iter().find(|u| u.stored.is_none()).expect("the one to buy");
         assert_eq!((to_buy.units, to_buy.per_unit), (1, true));
         assert_eq!(report.commodities.iter().map(|c| (c.name.as_str(), c.need)).collect::<Vec<_>>(), vec![("Power Converter", 2)]);
+
+        // The second bought at the broker AFTER the snapshot (the game lists it in
+        // storage only at the next dock): it counts as owned now, nothing to buy.
+        state.with_store(|s| {
+            s.conn().execute(
+                "INSERT INTO events (file, offset, ts, event, raw) VALUES ('Journal.1.log', 3, '2026-09-27T11:05:00Z', 'TechnologyBroker', ?1)",
+                [r#"{ "timestamp":"2026-09-27T11:05:00Z", "event":"TechnologyBroker", "BrokerType":"guardian", "MarketID":1, "ItemsUnlocked":[{ "Name":"Hpt_Guardian_ShardCannon_Fixed_Medium" }], "Commodities":[{ "Name":"powerconverter", "Count":2 }], "Materials":[{ "Name":"guardian_weaponblueprint", "Count":1 },{ "Name":"guardian_sentinel_wreckagecomponents", "Count":5 },{ "Name":"guardian_techcomponent", "Count":5 },{ "Name":"germanium", "Count":4 }] }"#],
+            ).unwrap();
+        });
+        let report = super::report(&state, Some(33), None, &[], &swaps, false, true).expect("the plan");
+        assert!(report.unlocks.iter().all(|u| u.stored.is_some()), "{:?}", report.unlocks);
+        assert!(report.unlocks.iter().any(|u| u.stored.as_deref().is_some_and(|s| s.starts_with("bought at the broker at 11:05"))), "{:?}", report.unlocks);
+        assert!(report.commodities.is_empty() && report.fully_met, "nothing left to buy: {:?}", report.commodities);
     }
 }

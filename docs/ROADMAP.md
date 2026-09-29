@@ -492,6 +492,19 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A broker purchase after the last storage snapshot counts as a unit
+  owned** (2026-09-29; the maintainer, after buying six modified shards
+  in three minutes and reading "1 in storage, × 5 to buy": "are we not
+  summing correctly?"). The sum was right for what the journal said:
+  the game writes StoredModules at the next dock or outfitting screen,
+  not at the purchase, and the last snapshot (03:55:02) fell after the
+  first purchase only. The plan now takes every TechnologyBroker event
+  later than the storage snapshot whose payment matches the variant's
+  recipe as one unit bought and not yet listed, satisfies one slot
+  with it ("bought at the broker at 03:56 — in storage there once the
+  game lists it"), and prices only the rest; once the snapshot catches
+  up, storage takes over. Pinned end to end: one in storage, one bought
+  after the snapshot, nothing left to buy.
 - **Modules in storage are known, and a build that calls for one owned
   is told so** (2026-09-28; the maintainer: "do we know what ship
   modules someone has in storage?", "if a build calls for a ship module

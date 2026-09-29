@@ -111,6 +111,12 @@ pub fn stored_modules(conn: &Connection) -> Result<Vec<StoredModule>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// When the storage table was last snapshotted (the latest StoredModules
+/// event's timestamp), or None when no snapshot exists.
+pub fn stored_modules_ts(conn: &Connection) -> Result<Option<String>> {
+    Ok(conn.query_row("SELECT MAX(ts) FROM stored_modules", [], |r| r.get::<_, Option<String>>(0))?)
+}
+
 /// One material trade as the journal wrote it: what was paid, what came
 /// back, by Frontier's own names.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
