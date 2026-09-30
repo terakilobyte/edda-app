@@ -529,6 +529,18 @@ verdicts live in the CSV headers under `docs/benches/`.
   Generator". Local server development is back: the WSL PostgreSQL copy
   (edda_dev, 127.0.0.1:55432) took every migration in 106 s — 0009 56 s,
   0015 47 s, 0021 10 ms here against 133 s on the box.
+- **Missions: the login roll-call closes what the game no longer lists**
+  (2026-09-29, maintainer: "we're tracking a permit acquisition
+  opportunity as an active mission, but I already have the permit").
+  `MISSION_genericPermit1` wrote `MissionAccepted` on 2026-09-27 and
+  nothing else — the permit is granted on the spot — so the store held it
+  Active for two days while nine logins' `Missions` events listed
+  `Active: []`. The store now reads `Missions`: an open mission the game
+  lists Active stays (its `Expires` fills a missing expiry), one listed
+  Complete is ready to turn in, one listed Failed failed, and one in
+  none of the three is closed as completed at that login. A roll-call
+  before a mission's acceptance says nothing about it. Test:
+  `the_login_roll_call_closes_what_the_game_no_longer_lists`.
 - **Trade: a loaded leg is timed at the range for its own tons**
   (2026-09-29, maintainer: "nonsensical that a single leg is more
   profitable than a round trip when the round trip incorporates the

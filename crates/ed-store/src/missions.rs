@@ -30,6 +30,14 @@
 //! completes a mission whose objective is done-then-return (kills,
 //! assassinations, salvage, scans); for deliveries, couriers and
 //! passengers it only moves the destination.
+//!
+//! The game's own word wins over ours: every login writes a `Missions`
+//! event listing what is Active, Complete (ready to turn in) and Failed
+//! by id. A mission we still hold open that is in none of the three is
+//! over — some end without any event of their own (maintainer,
+//! 2026-09-29: a "Permit Acquisition Opportunity", `MISSION_genericPermit1`,
+//! wrote `MissionAccepted` and nothing else; the permit was granted on
+//! the spot and nine logins since listed `Active: []`).
 
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -128,7 +136,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
     let mut stmt = conn.prepare(
         "SELECT ts, event, raw FROM events
          WHERE event IN ('MissionAccepted','MissionCompleted','MissionFailed',
-                         'MissionAbandoned','MissionRedirected','CargoDepot',
+                         'MissionAbandoned','MissionRedirected','CargoDepot','Missions',
                          'Docked','Location','FSDJump','CarrierJump')
            AND ts >= ?1
          ORDER BY ts, file, offset",
@@ -254,6 +262,41 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                             m.status = MissionStatus::Abandoned;
                             m.ended = Some(ts.clone());
                         }
+                    }
+                }
+            }
+            "Missions" => {
+                // The login roll-call. Ids the game lists decide the status
+                // of every mission we hold open; one it no longer lists at
+                // all is closed as completed (an abandon or a failure writes
+                // its own event, a silent end is the game handing over what
+                // the mission was for). `Expires` is seconds left, filled in
+                // only where the acceptance gave no `Expiry`.
+                let ids = |list: &str| -> Vec<(i64, i64)> {
+                    v.get(list)
+                        .and_then(Value::as_array)
+                        .map(|a| a.iter().filter_map(|e| Some((i(e, "MissionID")?, i(e, "Expires").unwrap_or(0)))).collect())
+                        .unwrap_or_default()
+                };
+                let (active, complete, failed) = (ids("Active"), ids("Complete"), ids("Failed"));
+                let epoch = crate::query::epoch_secs(&ts);
+                for m in out.iter_mut().filter(|m| matches!(m.status, MissionStatus::Active | MissionStatus::ReadyToTurnIn)) {
+                    let listed = |list: &[(i64, i64)]| list.iter().find(|(id, _)| *id == m.id).map(|(_, left)| *left);
+                    if let Some(left) = listed(&active) {
+                        if m.expiry.is_none() && left > 0 {
+                            m.expiry = epoch.map(|e| crate::session::iso_from_epoch(e + left));
+                        }
+                    } else if let Some(left) = listed(&complete) {
+                        m.status = MissionStatus::ReadyToTurnIn;
+                        if m.expiry.is_none() && left > 0 {
+                            m.expiry = epoch.map(|e| crate::session::iso_from_epoch(e + left));
+                        }
+                    } else if listed(&failed).is_some() {
+                        m.status = MissionStatus::Failed;
+                        m.ended = Some(ts.clone());
+                    } else {
+                        m.status = MissionStatus::Completed;
+                        m.ended = Some(ts.clone());
                     }
                 }
             }
@@ -558,6 +601,37 @@ mod tests {
         "#).unwrap();
         let ms = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
         assert_eq!(ms.iter().find(|m| m.id == 2).unwrap().status, MissionStatus::ReadyToTurnIn, "the redirect does");
+    }
+
+    /// The maintainer's permit mission of 2026-09-27: accepted, granted on
+    /// the spot, never another event of its own; the next login's roll-call
+    /// does not list it, so it is over. A mission the roll-call DOES list
+    /// stays as the game says, and one it lists as Complete is ready to
+    /// turn in.
+    #[test]
+    fn the_login_roll_call_closes_what_the_game_no_longer_lists() {
+        let conn = db();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',6,'2026-08-26T13:05:00Z','MissionAccepted','{"timestamp":"2026-08-26T13:05:00Z","event":"MissionAccepted","Faction":"Azimuth Biotech","Name":"MISSION_genericPermit1","LocalisedName":"Permit Acquisition Opportunity","Wing":false,"Influence":"None","Reputation":"None","MissionID":3}'),
+            ('K',1,'2026-08-26T20:00:00Z','Missions','{"timestamp":"2026-08-26T20:00:00Z","event":"Missions","Active":[{"MissionID":1,"Name":"Mission_Massacre_name","PassengerMission":false,"Expires":3600}],"Failed":[],"Complete":[{"MissionID":2,"Name":"Mission_Assassinate_name","PassengerMission":false,"Expires":100}]}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-08-26T20:30:00Z").unwrap();
+        let permit = ms.iter().find(|m| m.id == 3).unwrap();
+        assert_eq!(permit.status, MissionStatus::Completed, "not in the roll-call: over");
+        assert_eq!(permit.ended.as_deref(), Some("2026-08-26T20:00:00Z"));
+        assert_eq!(ms.iter().find(|m| m.id == 1).unwrap().status, MissionStatus::Active);
+        assert_eq!(ms.iter().find(|m| m.id == 2).unwrap().status, MissionStatus::ReadyToTurnIn, "listed Complete: ready to turn in");
+        let live = active(&conn, "2026-08-26T20:30:00Z").unwrap();
+        assert!(live.iter().all(|m| m.id != 3), "the permit is off the HUD");
+        assert_eq!(live.len(), 2);
+        // A roll-call BEFORE a mission was accepted says nothing about it.
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('L',1,'2026-08-26T21:00:00Z','MissionAccepted','{"timestamp":"2026-08-26T21:00:00Z","event":"MissionAccepted","Faction":"X","Name":"Mission_Courier","LocalisedName":"Courier","Expiry":"2026-08-28T00:00:00Z","Reward":1,"MissionID":4}');
+        "#).unwrap();
+        let ms = missions(&conn, "", "2026-08-26T21:30:00Z").unwrap();
+        assert_eq!(ms.iter().find(|m| m.id == 4).unwrap().status, MissionStatus::Active);
     }
 
     #[test]
