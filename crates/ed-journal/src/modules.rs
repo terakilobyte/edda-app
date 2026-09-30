@@ -291,6 +291,55 @@ fn outfitting_table() -> &'static std::collections::HashMap<String, OutfittingRo
     })
 }
 
+/// EDCD's name for an outfitting row by FDev id — the only way to name a
+/// pre-engineered variant, which shares its symbol with the plain module
+/// (129044376 is "Balanced Power Distributor"; its symbol prints as
+/// "Power Distributor 5A"). None for an id the table does not have.
+pub fn variant_name(fdev_id: i64) -> Option<&'static str> {
+    static BY_ID: std::sync::OnceLock<std::collections::HashMap<i64, &'static str>> = std::sync::OnceLock::new();
+    BY_ID
+        .get_or_init(|| {
+            include_str!("../data/outfitting.csv")
+                .lines()
+                .skip(1)
+                .filter_map(|line| {
+                    let cols: Vec<&str> = line.split(',').collect();
+                    Some((cols.first()?.trim().parse().ok()?, *cols.get(3)?))
+                })
+                .collect()
+        })
+        .get(&fdev_id)
+        .copied()
+}
+
+/// The merc-coin pre-engineered variants sold under a plain module's
+/// symbol, by FDev id and EDCD name (the `mercgear` category rows of the
+/// vendored outfitting table: Balanced Power Distributor under
+/// `int_powerdistributor_size5_class5`). Empty for a symbol with none.
+/// Measured 2026-09-30: every outfitting/3 board on the relay carried the
+/// same merc set, so on a board without prices a twin symbol is always
+/// present and says nothing about a credit sale of the plain module.
+pub fn merc_variants_of(symbol: &str) -> Vec<(i64, &'static str)> {
+    static TWINS: std::sync::OnceLock<std::collections::HashMap<String, Vec<(i64, &'static str)>>> = std::sync::OnceLock::new();
+    TWINS
+        .get_or_init(|| {
+            let mut map: std::collections::HashMap<String, Vec<(i64, &'static str)>> = std::collections::HashMap::new();
+            for line in include_str!("../data/outfitting.csv").lines().skip(1) {
+                let cols: Vec<&str> = line.split(',').collect();
+                if cols.len() < 4 || cols[2].trim() != "mercgear" {
+                    continue;
+                }
+                if let Ok(id) = cols[0].trim().parse::<i64>() {
+                    map.entry(cols[1].trim().to_ascii_lowercase()).or_default().push((id, cols[3].trim()));
+                }
+            }
+            map
+        })
+        .get(&bare_symbol(symbol))
+        .cloned()
+        .unwrap_or_default()
+}
+
 /// A journal item symbol, bare or wrapped (`$hpt_pulselaser_fixed_small_name;`).
 fn bare_symbol(symbol: &str) -> String {
     let s = symbol.trim().to_ascii_lowercase();
@@ -375,6 +424,24 @@ pub fn complete_modules(text: &str, limit: usize) -> Vec<String> {
 #[cfg(test)]
 mod resolve_search_tests {
     use super::{complete_modules, outfitting_table, resolve_search, squash, NAME_ALIASES};
+
+    #[test]
+    fn a_symbols_merc_twins_are_known() {
+        let pd = super::merc_variants_of("int_powerdistributor_size5_class5");
+        assert_eq!(pd, vec![(129044376, "Balanced Power Distributor")]);
+        let racks = super::merc_variants_of("Hpt_BasicMissileRack_Fixed_Medium");
+        assert_eq!(racks.len(), 3, "{racks:?}");
+        assert!(super::merc_variants_of("int_fuelscoop_size5_class5").is_empty());
+        let twins = outfitting_table().keys().filter(|s| !super::merc_variants_of(s).is_empty()).count();
+        assert_eq!(twins, 22, "the 2026-09-29 count of symbols with a merc twin");
+    }
+
+    #[test]
+    fn a_variant_is_named_by_its_id() {
+        assert_eq!(super::variant_name(129044376), Some("Balanced Power Distributor"));
+        assert_eq!(super::variant_name(128064202), Some("Power Distributor"));
+        assert_eq!(super::variant_name(1), None);
+    }
 
     /// Every alias points at a name the vendored table really has.
     #[test]

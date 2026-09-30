@@ -501,6 +501,43 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Merc-coin modules: the feed's v3 prices are kept, the commander's own
+  boards are exact, merc-only listings hide from a commander with no
+  coins** (2026-09-29, maintainer: "for outfitting we're counting items
+  sold for merc coin … if a player doesn't have merc coin we shouldn't
+  show the result"; "how does inara do it?"). Grounded: the game's
+  Outfitting.json at Omega Prospect (Merope) lists 24 merc-coin items,
+  every one a 2026 pre-engineered variant under the PLAIN module's
+  symbol (Balanced Power Distributor = `int_powerdistributor_size5_class5`,
+  500 MC, 0 Cr); 22 symbols in outfitting.csv carry such a twin. EDDN
+  outfitting/2 is bare symbols and EDMC sends every module regardless of
+  price, so a v2 board cannot tell them apart; outfitting/3
+  (https://eddn.edcd.io/schemas/outfitting/3) carries `id`, `BuyPrice`,
+  `BuyMercCoinsPrice` per entry — which our decoder accepted and
+  flattened to names. Inara shows Omega Prospect with 98 credit-priced
+  modules and no merc ones: it reads v3 prices. Measured on the relay
+  (`docs/benches/2026-09-29-eddn-outfitting-v3-share.csv`): 10 of 98
+  outfitting boards in 600 s were v3 (EDO Materials Helper, EDDI); EDMC
+  (`develop` too, 6.1.x) and EDDiscovery send v2. Every v3 board carried
+  the SAME merc-only set — the merc catalogue is the same at every
+  outfitting station — so a twin symbol on a v2 board is always there
+  and proves nothing about a credit sale; the client marks such a row
+  "unconfirmed".
+  Now: the decoder keeps v3 prices (`Snapshot.module_prices`), 0024 adds
+  `credits_price` / `merc_price` / `merc_variant_ids` to outfitting
+  (NULL = v2, unknown), the server drops `credits_price = 0` rows unless
+  the request says `currency: any`, and the client (a) records the
+  commander's own Outfitting.json per station in `outfitting_seen`
+  (schema 9) and overrides the feed with it, (b) reads `MercCoins_Current`
+  from Statistics and asks for `any` only with a balance, (c) names a
+  merc variant by its FDev id ("Balanced Power Distributor", not "Power
+  Distributor 5A"), notes a station that sells both, and counts what it
+  hid. Honest limit: ~90 % of boards are v2, so an unvisited station can
+  still list a merc-only variant as the plain module, and says
+  "unconfirmed" rather than pretending. The only cure for
+  the commons is EDDA uploading outfitting/3 itself — a boss decision,
+  not taken here. The "engineer" station service is NOT a marker (33,760
+  stations have it).
 - **Module search: names resolve to exact symbols, the server matches
   them exactly, the symbol column is indexed** (2026-09-29, maintainer:
   "module search in the market is taking forever, returning no results";

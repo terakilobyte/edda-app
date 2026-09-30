@@ -222,6 +222,7 @@ mod tests {
             observed_at: at(),
             values: Vec::new(),
             prohibited: Vec::new(),
+            module_prices: Vec::new(),
         })
     }
 

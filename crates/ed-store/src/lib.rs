@@ -33,6 +33,7 @@ pub mod merit_capture;
 pub mod mining;
 pub mod missions;
 pub mod observe;
+pub mod outfitting_seen;
 #[cfg(feature = "postgres")]
 pub mod postgres;
 pub mod presets;

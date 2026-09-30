@@ -154,6 +154,19 @@ pub struct BodySignals {
     pub observed_at: ObservedAt,
 }
 
+/// One priced module entry of an outfitting/3 board: the symbol, the
+/// FDev id that tells a pre-engineered variant from the plain module it
+/// shares the symbol with, and the two prices. A merc-coin-only module
+/// has `credits == 0` and `merc_coins > 0` (2026-09-29: the market tab
+/// listed Balanced Power Distributors as 5A distributors for credits).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct ModulePrice {
+    pub symbol: String,
+    pub fdev_id: Option<i64>,
+    pub credits: i64,
+    pub merc_coins: i64,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Snapshot<T> {
     pub system_name: String,
@@ -165,6 +178,11 @@ pub struct Snapshot<T> {
     /// (`prohibited` in commodity/3), lowercased. Empty elsewhere.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prohibited: Vec<String>,
+    /// Outfitting snapshots from an outfitting/3 board: every priced
+    /// entry, one per FDev id (several may share a symbol). Empty for a
+    /// v2 board, a shipyard, or a market.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub module_prices: Vec<ModulePrice>,
 }
 
 /// Station identity from a `Docked` event. `market_id` is the station

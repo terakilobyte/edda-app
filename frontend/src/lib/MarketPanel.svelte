@@ -242,6 +242,7 @@
       <strong>{kind === "commodity" ? report.commodity : report.query}</strong>
       <span>{results.length} result{results.length === 1 ? "" : "s"} from {report.origin}</span>
       {#if results.length >= 75}<span class="pill warn" title="The search stops at 75 matches — tighten the radius, depth, or price age to see the rest">first 75 only</span>{/if}
+      {#if report.merc_hidden}<span class="pill" title="Pre-engineered variants sold only for merc coins, which you hold none of. Known from boards that carry prices; most community boards do not, so some stations may still list one as the plain module.">{report.merc_hidden} merc-coin-only hidden</span>{/if}
       <span class="pill ok" title="Answered by the community API's live board{report.as_of ? ` (as of ${report.as_of.replace("T", " ").replace("Z", " UTC")})` : ""}">live</span>
       {#if elapsed != null}<span class="muted">{elapsed < 1000 ? `${elapsed.toFixed(0)} ms` : `${(elapsed / 1000).toFixed(1)} s`}</span>{/if}
     </div>
@@ -269,7 +270,7 @@
             {#each results as r}
               <tr>
                 {#if kind !== "commodity"}
-                  <td><strong>{r.name}</strong>{#if kind === "outfitting" && (r.class || r.rating)}<span class="pill">{r.class ?? "?"}{r.rating ?? ""}</span>{/if}<div class="symbol">{r.symbol}</div></td>
+                  <td><strong>{r.name}</strong>{#if kind === "outfitting" && (r.class || r.rating)}<span class="pill">{r.class ?? "?"}{r.rating ?? ""}</span>{/if}{#if r.unconfirmed}<span class="pill" title={r.merc_note}>unconfirmed</span>{:else if r.merc_note}<span class="pill warn" title={r.merc_note}>{r.credits_price === 0 ? "merc coins only" : "MC variant too"} · {r.merc_price} MC</span>{/if}<div class="symbol">{r.symbol}</div></td>
                 {/if}
                 <td><strong>{r.station}</strong>{#if r.is_carrier}<span class="pill">carrier</span>{:else if r.station === "Stronghold Carrier"}<span class="pill">stronghold</span>{/if}
                   <button class="route-icon" onclick={() => requestRoute(r.system)}

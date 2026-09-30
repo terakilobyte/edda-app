@@ -19,7 +19,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 /// A bump triggers a rebuild of the derived tables from `events`; it does NOT
 /// require re-reading the journal files, which is the whole point of keeping
 /// the event log.
-pub const SCHEMA_VERSION: i64 = 8; // 8: stored_modules, replayed from StoredModules (2026-09-28)
+pub const SCHEMA_VERSION: i64 = 9; // 9: outfitting_seen, the commander's own boards' prices per station (2026-09-29)
 
 const DDL: &str = r#"
 PRAGMA journal_mode = WAL;
@@ -371,6 +371,22 @@ CREATE TABLE IF NOT EXISTS stored_modules (
     in_transit      INTEGER NOT NULL DEFAULT 0,
     buy_price       INTEGER,
     ts              TEXT    NOT NULL
+);
+
+-- Module prices the commander has seen at a station, from the game's own
+-- Outfitting.json at each dock: cheapest credit price (0 = not sold for
+-- credits), cheapest merc-coin price (0 = none), the merc entries' FDev
+-- ids. The community feed's v2 boards carry symbols only, and a
+-- pre-engineered merc-coin variant shares the plain module's symbol
+-- (2026-09-29). See outfitting_seen.rs.
+CREATE TABLE IF NOT EXISTS outfitting_seen (
+    market_id   INTEGER NOT NULL,
+    symbol      TEXT    NOT NULL,
+    credits     INTEGER NOT NULL,
+    merc        INTEGER NOT NULL,
+    variant_ids TEXT,
+    ts          TEXT    NOT NULL,
+    PRIMARY KEY (market_id, symbol)
 );
 
 CREATE TABLE IF NOT EXISTS ships (

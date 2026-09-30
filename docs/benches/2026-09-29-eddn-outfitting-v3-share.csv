@@ -1,0 +1,24 @@
+# EDDN relay samples, 2026-09-30 ~04:40 UTC (240 s) and ~05:20 UTC (600 s), knob
+# docs/benches/knobs/eddn_outfitting_v3_share.py.
+# QUESTION: can the server tell a merc-coin-only pre-engineered module from the plain module it
+# shares a symbol with? Only outfitting/3 carries per-module id/BuyPrice/BuyMercCoinsPrice.
+# VERDICT: 10 of 98 outfitting boards in 600 s were v3 (EDO Materials Helper 8, EDDI 2); EDMC
+# (73) and EDDiscovery (7) send v2 bare names. Every one of the 10 v3 boards carried the SAME
+# merc-coin-only set (each merc symbol counted exactly 10, the medium seeker rack 30 = 3 variants
+# x 10): the merc catalogue looks identical at every outfitting station, so on a v2 board the 22
+# twin symbols are ALWAYS present and say nothing about a credit sale of the plain module.
+# Keeping v3 prices is right; the commander's own Outfitting.json is exact for visited stations;
+# a twin symbol on a v2 board is "unconfirmed", not "sold for credits". Pre-registered
+# expectation: v3 share under 20 %. Met (10 %).
+sample_s,schema,shape,uploader,boards
+240,outfitting/2,strings,E:D Market Connector [Windows],16
+240,outfitting/2,strings,EDDiscovery,3
+240,outfitting/2,strings,E:D Market Connector [Linux],1
+240,outfitting/3,objects,EDDI,1
+600,outfitting/2,strings,E:D Market Connector [Windows],65
+600,outfitting/2,strings,E:D Market Connector [Linux],8
+600,outfitting/2,strings,EDO Materials Helper,8
+600,outfitting/2,strings,EDDiscovery,7
+600,outfitting/3,objects,EDO Materials Helper,8
+600,outfitting/3,objects,EDDI,2
+600,outfitting/3,boards with merc-only modules,all,10

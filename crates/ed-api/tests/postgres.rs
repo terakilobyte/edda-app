@@ -771,6 +771,7 @@ async fn a_board_listing_a_symbol_twice_is_applied_once() {
             },
             values,
             prohibited: Vec::new(),
+            module_prices: Vec::new(),
         }
     }
     let gold = |sell_price| Commodity {
@@ -1282,6 +1283,11 @@ async fn market_search_mirrors_the_local_contract() {
              (4, 'palladium'), (5, 'palladium'); \
          INSERT INTO station_services (station_id, service) VALUES (5, 'blackmarket'); \
          INSERT INTO outfitting (station_id, module_symbol) VALUES (1, 'int_fsd_size5_class5'); \
+         INSERT INTO modules (symbol) VALUES ('int_powerdistributor_size6_class5'); \
+         INSERT INTO outfitting (station_id, module_symbol, credits_price, merc_price, merc_variant_ids) VALUES \
+             (1, 'int_powerdistributor_size6_class5', 0, 500, '129045442'), \
+             (2, 'int_powerdistributor_size6_class5', 1591740, 0, NULL), \
+             (8, 'int_powerdistributor_size6_class5', NULL, NULL, NULL); \
          INSERT INTO shipyard (station_id, ship_symbol) VALUES (1, 'panthermkii');",
     )
     .execute(&pool)
@@ -1370,6 +1376,25 @@ async fn market_search_mirrors_the_local_contract() {
     )
     .await;
     assert!(stations(&value).is_empty(), "{value}");
+    // Merc coins (2026-09-29): a row an outfitting/3 board priced at 0
+    // credits is a merc-coin-only variant and is dropped by default; a
+    // v2 row (unknown price) stays; `currency: any` keeps them all with
+    // their prices and the variant's FDev id.
+    let body = |currency: Option<&str>| {
+        let mut b = json!({"kind": "module", "text": "x", "system": "Sol", "symbols": ["int_powerdistributor_size6_class5"], "include_carriers": true});
+        if let Some(c) = currency { b["currency"] = json!(c); }
+        b
+    };
+    let value = read(app.clone().oneshot(post(body(None))).await.unwrap()).await;
+    let mut names = stations(&value);
+    names.sort();
+    assert_eq!(names, vec!["Sentinel Rest", "Small Outpost"], "the merc-only board is dropped, the unknown one stays: {value}");
+    let value = read(app.clone().oneshot(post(body(Some("any")))).await.unwrap()).await;
+    assert_eq!(stations(&value).len(), 3, "{value}");
+    let merc = value["results"].as_array().unwrap().iter().find(|r| r["station"] == "Good Port").unwrap();
+    assert_eq!(merc["credits_price"], 0);
+    assert_eq!(merc["merc_price"], 500);
+    assert_eq!(merc["merc_variants"], json!([129045442]));
     let value = read(
         app.clone()
             .oneshot(post(json!({

@@ -588,6 +588,7 @@ async fn apply_outfitting(
         .execute(&mut **transaction)
         .await?;
     replace_availability(transaction, "modules", "outfitting", "module_symbol", station_id, &message.values).await?;
+    apply_module_prices(transaction, station_id, &message.module_prices).await?;
     update_station_snapshot(
         transaction,
         station_id,
@@ -652,6 +653,56 @@ async fn apply_shipyard(
 /// board) in two statements rather than two per row: a Spansh hydration
 /// writes hundreds of thousands of boards. A board listing a symbol twice
 /// is applied once.
+/// The outfitting/3 prices, folded per symbol onto the rows just written:
+/// `credits_price` is the cheapest credit price among the entries under
+/// that symbol (0 when none sells for credits), `merc_price` the cheapest
+/// merc-coin price (0 when none), `merc_variant_ids` the FDev ids of the
+/// merc-coin entries so the client can name the pre-engineered variant. A
+/// v2 board leaves all three NULL: unknown, not "free". (2026-09-29: a
+/// station's Balanced Power Distributor, 500 merc coins, showed as a 5A
+/// distributor for credits.)
+async fn apply_module_prices(
+    transaction: &mut Transaction<'_, Postgres>,
+    station_id: i64,
+    prices: &[ed_domain::ModulePrice],
+) -> Result<()> {
+    if prices.is_empty() {
+        return Ok(());
+    }
+    let mut by: std::collections::BTreeMap<&str, (i64, i64, Vec<i64>)> = std::collections::BTreeMap::new();
+    for p in prices {
+        let e = by.entry(p.symbol.as_str()).or_insert((0, 0, Vec::new()));
+        if p.credits > 0 && (e.0 == 0 || p.credits < e.0) {
+            e.0 = p.credits;
+        }
+        if p.merc_coins > 0 {
+            if e.1 == 0 || p.merc_coins < e.1 {
+                e.1 = p.merc_coins;
+            }
+            if let Some(id) = p.fdev_id {
+                e.2.push(id);
+            }
+        }
+    }
+    let symbols: Vec<&str> = by.keys().copied().collect();
+    let credits: Vec<i64> = by.values().map(|v| v.0).collect();
+    let merc: Vec<i64> = by.values().map(|v| v.1).collect();
+    let variants: Vec<String> = by.values().map(|v| v.2.iter().map(i64::to_string).collect::<Vec<_>>().join(",")).collect();
+    sqlx::query(
+        "UPDATE outfitting o SET credits_price = p.c, merc_price = p.m, merc_variant_ids = NULLIF(p.v, '') \
+         FROM unnest($2::text[], $3::bigint[], $4::bigint[], $5::text[]) AS p(s, c, m, v) \
+         WHERE o.station_id = $1 AND o.module_symbol = p.s",
+    )
+    .bind(station_id)
+    .bind(&symbols)
+    .bind(&credits)
+    .bind(&merc)
+    .bind(&variants)
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
+}
+
 async fn replace_availability(
     transaction: &mut Transaction<'_, Postgres>,
     catalog: &str,

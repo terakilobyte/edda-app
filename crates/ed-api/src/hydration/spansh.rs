@@ -100,6 +100,7 @@ pub fn station_operations(
             // not read them yet; the live EDDN commodity/3 capture fills
             // station_prohibited in the meantime (2026-09-04 ingest).
             prohibited: Vec::new(),
+            module_prices: Vec::new(),
         }
     }
     if let Some(market) = &station.market {

@@ -52,6 +52,11 @@ pub struct MarketSearchApiRequest {
     /// empty keeps the substring match for an older client.
     #[serde(default)]
     pub symbols: Vec<String>,
+    /// Modules: `credits` (default) drops rows an outfitting/3 board
+    /// priced at 0 credits — merc-coin-only pre-engineered variants — and
+    /// keeps rows whose price is unknown (v2 boards); `any` keeps them
+    /// all. The client sends `any` when the commander holds merc coins.
+    pub currency: Option<String>,
     /// Origin system name — required on the wire; the server has no
     /// notion of "current system" and must not acquire one.
     pub system: String,
@@ -418,6 +423,12 @@ async fn availability_rows(
     } else {
         format!("a.{column} = ANY($10::text[])")
     };
+    let credits_only = matches!(which, Availability::Outfitting) && !req.currency.as_deref().is_some_and(|c| c.trim().eq_ignore_ascii_case("any"));
+    let currency_clause = if credits_only { "AND (a.credits_price IS NULL OR a.credits_price > 0)" } else { "" };
+    let price_cols = match which {
+        Availability::Outfitting => "a.credits_price, a.merc_price, a.merc_variant_ids",
+        Availability::Shipyard => "NULL::bigint, NULL::bigint, NULL::text",
+    };
     let sql = format!(
         "SELECT st.id, st.name, sy.name, \
                 sqrt((sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$4)^2) AS distance_ly, \
@@ -425,11 +436,12 @@ async fn availability_rows(
                 COALESCE(st.is_carrier, false), \
                 a.{column}, \
                 EXTRACT(EPOCH FROM {observed})::DOUBLE PRECISION, \
-                sy.controlling_power, sy.power_state \
+                sy.controlling_power, sy.power_state, \
+                {price_cols} \
          FROM {table} a \
          JOIN stations st ON st.id = a.station_id \
          JOIN systems sy ON sy.address = st.system_address \
-         WHERE {item_clause} \
+         WHERE {item_clause} {currency_clause} \
            AND sy.cell = ANY($7) \
            AND (sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$4)^2 <= $5*$5 \
            AND {pad} \
@@ -442,7 +454,7 @@ async fn availability_rows(
         stronghold = STRONGHOLD_CARRIER,
     );
     #[allow(clippy::type_complexity)]
-    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, String, Option<f64>, Option<String>, Option<String>)> =
+    let rows: Vec<(i64, Option<String>, String, f64, Option<f64>, Option<i32>, Option<i32>, Option<i32>, bool, String, Option<f64>, Option<String>, Option<String>, Option<i64>, Option<i64>, Option<String>)> =
         sqlx::query_as(&sql)
             .bind(req.text.trim())
             .bind(ox)
@@ -479,6 +491,11 @@ async fn availability_rows(
                     // static and it owns them (2026-09-12).
                     "controlling_power": r.11,
                     "power_state": r.12,
+                    // outfitting/3 prices (2026-09-29): null = unknown (v2
+                    // board); credits_price 0 = merc coins only.
+                    "credits_price": r.13,
+                    "merc_price": r.14,
+                    "merc_variants": r.15.map(|v| v.split(',').filter_map(|x| x.parse::<i64>().ok()).collect::<Vec<_>>()).unwrap_or_default(),
                 }),
             )
         })
@@ -577,6 +594,7 @@ mod tests {
             kind: "commodity".into(),
             text: "Palladium".into(),
             symbols: Vec::new(),
+            currency: None,
             system: "Sol".into(),
             radius_ly: None,
             min_pad: None,

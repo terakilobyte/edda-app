@@ -115,17 +115,41 @@ mod wire_text_tests {
     }
 }
 
+/// The commander's merc coin balance, from the journal's own Statistics
+/// event (`MercCoins_Current`, written at every login); 0 when unknown,
+/// so a merc-coin-only listing is never shown to someone who cannot buy
+/// it (maintainer, 2026-09-29).
+fn merc_coins(state: &AppState) -> i64 {
+    fn find(v: &serde_json::Value) -> Option<i64> {
+        match v {
+            serde_json::Value::Object(m) => m.get("MercCoins_Current").and_then(serde_json::Value::as_i64).or_else(|| m.values().find_map(find)),
+            _ => None,
+        }
+    }
+    state
+        .with_read(|s| Ok::<_, CapError>(ed_store::session::latest_event_raw(s.conn(), "Statistics")?))
+        .ok()
+        .flatten()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|v| find(&v))
+        .unwrap_or(0)
+}
+
 /// The wire body for POST /v1/market/search, mirrored from the local
 /// request plus locally-resolved context.
 fn wire_body(
     query: &MarketSearchRequest,
     system: &str,
     min_pad: Option<ed_store::lookup::PadSize>,
+    merc_coins: i64,
 ) -> serde_json::Value {
     serde_json::json!({
         "kind": query.kind,
         "text": wire_text(&query.kind, &query.text),
         "symbols": wire_symbols(&query.kind, &query.text),
+        // Merc-coin-only pre-engineered variants are dropped server-side
+        // unless the commander can pay for them (2026-09-29).
+        "currency": if merc_coins > 0 { "any" } else { "credits" },
         "system": system,
         "radius_ly": query.radius_ly,
         "min_pad": match min_pad {
@@ -265,7 +289,8 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
             .map_err(|e| CapError::internal(e.to_string()))??
     };
     let api = crate::exchange::endpoint(state).ok_or_else(|| crate::remote_lookup::api_down("no API endpoint"))?;
-    let mut value = post(state, &api, &wire_body(query, &system, min_pad), &query.kind, &system, query.radius_ly).await?;
+    let merc = merc_coins(state);
+    let mut value = post(state, &api, &wire_body(query, &system, min_pad, merc), &query.kind, &system, query.radius_ly).await?;
     let none = value["results"].as_array().is_some_and(|r| r.is_empty());
     if none {
         let origin = system.clone();
@@ -278,7 +303,7 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
             .flatten();
         if let Some((near, dist, neighbours)) = near {
             let radius = query.radius_ly.unwrap_or(100.0);
-            let again = post(state, &api, &wire_body(query, &near, min_pad), &query.kind, &near, query.radius_ly).await?;
+            let again = post(state, &api, &wire_body(query, &near, min_pad, merc), &query.kind, &near, query.radius_ly).await?;
             let results = again["results"].as_array().map(|r| r.len()).unwrap_or(0);
             tracing::info!(origin = %system, near = %near, dist_ly = dist, neighbours_30ly = neighbours, results, "market search: origin outside the bubble; asked again from the nearest system inside it");
             value = again;
@@ -289,6 +314,14 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
     }
     enrich_names(query.kind.trim(), &mut value, holds_elite(state));
     apply_local_filters(query, &mut value, pledged_power(state).as_deref());
+    if query.kind.trim() == "module" {
+        // The commander's own boards are exact where the feed is not.
+        let ids: Vec<i64> = value["results"].as_array().map(|r| r.iter().filter_map(|row| row["station_id"].as_i64()).collect()).unwrap_or_default();
+        let seen = state
+            .with_read(|s| Ok::<_, CapError>(ed_store::outfitting_seen::for_markets(s.conn(), &ids)?))
+            .unwrap_or_default();
+        apply_merc_prices(&mut value, &seen, merc);
+    }
     // The server echoes the wire text; the panel shows what was typed
     // (maintainer, 2026-09-29: `int_shieldgenerator_size%_class3_fast` in
     // the header "isn't pretty").
@@ -296,6 +329,133 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
         value["query"] = serde_json::Value::String(query.text.trim().to_owned());
     }
     Ok(value)
+}
+
+/// Merc-coin knowledge onto module rows: the commander's own seen prices
+/// override the feed's (a v2 board knows nothing; the game's own file
+/// knows everything); a row that sells only for merc coins is dropped
+/// for a commander with none and counted in `merc_hidden`; a row with a
+/// merc-coin variant is named and noted, so "Power Distributor 5A" at a
+/// station that sells the Balanced one for 500 MC says so.
+fn apply_merc_prices(value: &mut serde_json::Value, seen: &[ed_store::outfitting_seen::SeenPrice], merc_coins: i64) {
+    let Some(results) = value.get_mut("results").and_then(|r| r.as_array_mut()) else {
+        return;
+    };
+    let mut hidden = 0usize;
+    results.retain_mut(|row| {
+        let station = row["station_id"].as_i64();
+        let symbol = row["symbol"].as_str().unwrap_or_default().to_ascii_lowercase();
+        if let Some(s) = seen.iter().find(|s| Some(s.market_id) == station && s.symbol == symbol) {
+            row["credits_price"] = serde_json::json!(s.credits);
+            row["merc_price"] = serde_json::json!(s.merc);
+            row["merc_variants"] = serde_json::json!(s.variant_ids);
+            row["price_source"] = serde_json::json!("your own board");
+        }
+        let credits = row["credits_price"].as_i64();
+        let merc = row["merc_price"].as_i64().unwrap_or(0);
+        if credits.is_none() && merc == 0 {
+            // A board without prices (outfitting/2, ~90 % of the relay,
+            // 2026-09-30) lists the merc catalogue's symbols at every
+            // station; whether the plain module is sold for credits here
+            // is unknown, and the row says so instead of pretending.
+            let twins = ed_journal::modules::merc_variants_of(&symbol);
+            if !twins.is_empty() {
+                let names: Vec<&str> = twins.iter().map(|(_, n)| *n).collect();
+                row["unconfirmed"] = serde_json::json!(true);
+                row["merc_note"] = serde_json::json!(format!(
+                    "Unconfirmed: this board carries no prices, and every station lists this symbol as merc-coin gear ({}). Whether the plain module is sold for credits here is unknown.",
+                    names.join(" / ")
+                ));
+            }
+            return true;
+        }
+        if merc > 0 {
+            let variants: Vec<&str> = row["merc_variants"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_i64().and_then(ed_journal::modules::variant_name)).collect())
+                .unwrap_or_default();
+            let what = if variants.is_empty() { "an engineered variant".to_owned() } else { variants.join(" / ") };
+            if credits == Some(0) {
+                if merc_coins <= 0 {
+                    hidden += 1;
+                    return false;
+                }
+                if !variants.is_empty() {
+                    row["name"] = serde_json::json!(variants.join(" / "));
+                }
+                row["merc_note"] = serde_json::json!(format!("Merc coins only: {what}, {merc} MC. Not sold for credits here."));
+            } else {
+                row["merc_note"] = serde_json::json!(format!("Also {what} for {merc} MC here."));
+            }
+        }
+        true
+    });
+    if hidden > 0 {
+        value["merc_hidden"] = serde_json::json!(hidden);
+    }
+}
+
+#[cfg(test)]
+mod merc_tests {
+    use super::apply_merc_prices;
+    use ed_store::outfitting_seen::SeenPrice;
+
+    fn rows() -> serde_json::Value {
+        serde_json::json!({"results": [
+            {"station_id": 1, "symbol": "int_powerdistributor_size5_class5", "name": "Power Distributor 5A", "credits_price": 0, "merc_price": 500, "merc_variants": [129044376]},
+            {"station_id": 2, "symbol": "int_powerdistributor_size5_class5", "name": "Power Distributor 5A", "credits_price": 1591740, "merc_price": 500, "merc_variants": [129044376]},
+            {"station_id": 3, "symbol": "int_powerdistributor_size5_class5", "name": "Power Distributor 5A", "credits_price": null, "merc_price": null, "merc_variants": []}
+        ]})
+    }
+
+    /// No merc coins: the merc-only row goes and is counted; the both-ways
+    /// row stays with a note; the unknown row is untouched.
+    #[test]
+    fn without_merc_coins_the_merc_only_listing_is_hidden_and_counted() {
+        let mut v = rows();
+        apply_merc_prices(&mut v, &[], 0);
+        let r = v["results"].as_array().unwrap();
+        assert_eq!(r.len(), 2);
+        assert_eq!(v["merc_hidden"], 1);
+        assert_eq!(r[0]["merc_note"], "Also Balanced Power Distributor for 500 MC here.");
+        assert_eq!(r[1]["unconfirmed"], true, "a twin symbol on a board without prices: {}", r[1]);
+        assert!(r[1]["merc_note"].as_str().unwrap().starts_with("Unconfirmed: "));
+    }
+
+    /// A symbol with no merc twin on a board without prices is left alone.
+    #[test]
+    fn an_unpriced_row_without_a_twin_is_untouched() {
+        let mut v = serde_json::json!({"results": [
+            {"station_id": 3, "symbol": "int_fuelscoop_size5_class5", "name": "Fuel Scoop 5A", "credits_price": null, "merc_price": null, "merc_variants": []}
+        ]});
+        apply_merc_prices(&mut v, &[], 0);
+        let r = v["results"].as_array().unwrap();
+        assert!(r[0].get("merc_note").is_none() && r[0].get("unconfirmed").is_none(), "{v}");
+    }
+
+    /// With merc coins the merc-only row is shown under the variant's name.
+    #[test]
+    fn with_merc_coins_the_variant_is_named() {
+        let mut v = rows();
+        apply_merc_prices(&mut v, &[], 300);
+        let r = v["results"].as_array().unwrap();
+        assert_eq!(r.len(), 3);
+        assert_eq!(r[0]["name"], "Balanced Power Distributor");
+        assert_eq!(r[0]["merc_note"], "Merc coins only: Balanced Power Distributor, 500 MC. Not sold for credits here.");
+        assert!(v.get("merc_hidden").is_none());
+    }
+
+    /// The commander's own board overrides a feed row that knew nothing.
+    #[test]
+    fn a_seen_board_overrides_the_feed() {
+        let mut v = rows();
+        let seen = vec![SeenPrice { market_id: 3, symbol: "int_powerdistributor_size5_class5".into(), credits: 0, merc: 500, variant_ids: vec![129044376], ts: "t".into() }];
+        apply_merc_prices(&mut v, &seen, 0);
+        let r = v["results"].as_array().unwrap();
+        assert_eq!(r.len(), 1, "stations 1 and 3 are merc-only now: {v}");
+        assert_eq!(v["merc_hidden"], 2);
+        assert_eq!(r[0]["station_id"], 2);
+    }
 }
 
 /// How many inhabited systems within 30 ly make a system "inside the
@@ -403,7 +563,9 @@ mod tests {
     /// the pad as an explicit size — never the hull.
     #[test]
     fn wire_body_carries_resolved_context_not_the_hull() {
-        let body = wire_body(&query(), "Ega", Some(PadSize::Large));
+        let body = wire_body(&query(), "Ega", Some(PadSize::Large), 0);
+        assert_eq!(body["currency"], "credits");
+        assert_eq!(wire_body(&query(), "Ega", None, 120)["currency"], "any", "a commander with merc coins sees merc listings");
         assert_eq!(body["system"], "Ega");
         assert_eq!(body["min_pad"], "l");
         assert_eq!(body["side"], "sell");
@@ -411,7 +573,7 @@ mod tests {
         assert_eq!(body["max_age_hours"], 2.0);
         assert_eq!(body["include_prohibited"], true);
         assert!(body.get("hull").is_none() && body.to_string().to_lowercase().contains("panther") == false);
-        let unpadded = wire_body(&query(), "Ega", None);
+        let unpadded = wire_body(&query(), "Ega", None, 0);
         assert_eq!(unpadded["min_pad"], "any");
     }
 

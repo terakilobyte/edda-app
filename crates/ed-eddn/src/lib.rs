@@ -83,16 +83,23 @@ pub struct CommodityMessage {
 pub struct ModuleEntry {
     #[serde(alias = "Name")]
     pub name: String,
+    #[serde(default)]
+    pub id: Option<i64>,
+    #[serde(default, alias = "BuyPrice")]
+    pub buy_price: Option<i64>,
+    #[serde(default, alias = "BuyMercCoinsPrice")]
+    pub buy_merc_coins_price: Option<i64>,
 }
 
-/// outfitting/3 declares `modules` as an array of symbol strings, but
-/// live uploaders also ship `{ "name": ... }` objects (observed
-/// 2026-09-01 at several a minute -- rejecting them silently cost
-/// whole boards) and raw Outfitting.json-style entries with capital
-/// `Name` plus price/id fields (captured off the relay 2026-09-02,
-/// arriving in one uploader's docking bursts -- the very first catch
-/// of edda_eddn_decode_errors_total in production). All forms decode
-/// to the symbol.
+/// outfitting/2 declares `modules` as an array of symbol strings;
+/// outfitting/3 (https://eddn.edcd.io/schemas/outfitting/3, checked
+/// 2026-09-29) makes each entry an object with `id`, `Name`, `BuyPrice`
+/// and `BuyMercCoinsPrice`. Live uploaders ship all of: bare strings,
+/// `{ "name": ... }` objects (2026-09-01) and the full v3 entries
+/// (captured 2026-09-02). All forms decode to the symbol; the v3 prices
+/// and ids are kept on the snapshot as `module_prices`, because that is
+/// the only way to tell a merc-coin pre-engineered variant from the plain
+/// module it shares a symbol with (2026-09-29).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum ModuleRef {
@@ -402,6 +409,7 @@ impl Envelope {
     fn journal_operation(&self) -> Option<Operation> {
         match &self.payload {
             Payload::Commodity(message) => Some(Operation::Market(Snapshot {
+                module_prices: Vec::new(),
                 system_name: message.system_name.clone(),
                 station_name: message.station_name.clone(),
                 market_id: message.market_id,
@@ -421,6 +429,19 @@ impl Envelope {
                 observed_at: observed_at(&message.timestamp)?,
                 values: normalize_symbols(message.modules.iter().map(ModuleRef::symbol)),
                 prohibited: Vec::new(),
+                module_prices: message
+                    .modules
+                    .iter()
+                    .filter_map(|m| match m {
+                        ModuleRef::Entry(e) if e.buy_price.is_some() || e.buy_merc_coins_price.is_some() => Some(ed_domain::ModulePrice {
+                            symbol: e.name.trim().to_lowercase(),
+                            fdev_id: e.id,
+                            credits: e.buy_price.unwrap_or(0),
+                            merc_coins: e.buy_merc_coins_price.unwrap_or(0),
+                        }),
+                        _ => None,
+                    })
+                    .collect(),
             })),
             Payload::Shipyard(message) => Some(Operation::Shipyard(Snapshot {
                 system_name: message.system_name.clone(),
@@ -429,6 +450,7 @@ impl Envelope {
                 observed_at: observed_at(&message.timestamp)?,
                 values: normalize_symbols(message.ships.iter().map(String::as_str)),
                 prohibited: Vec::new(),
+                module_prices: Vec::new(),
             })),
             Payload::Journal(message) => {
                 let system_name = message.star_system.clone()?;
@@ -1255,6 +1277,30 @@ mod tests {
                 "hpt_basicmissilerack_fixed_large"
             ]
         );
+        assert_eq!(snapshot.module_prices.len(), 2, "v3 prices are kept");
+        assert_eq!(snapshot.module_prices[0].credits, 1_391_227);
+        assert_eq!(snapshot.module_prices[0].fdev_id, Some(128049494));
+    }
+
+    /// A merc-coin board as the game writes it (Omega Prospect, Merope,
+    /// 2026-09-30): the pre-engineered variant shares the plain module's
+    /// symbol and is told apart only by id and by `BuyPrice: 0`.
+    #[test]
+    fn a_merc_coin_variant_keeps_its_price_and_id() {
+        let raw = r#"{"$schemaRef":"https://eddn.edcd.io/schemas/outfitting/3","header":{},
+          "message":{"systemName":"Merope","stationName":"Omega Prospect","marketId":128797355,
+          "timestamp":"2026-09-30T04:25:28Z","horizons":true,"odyssey":true,
+          "modules":[{"id":128064202,"Name":"Int_PowerDistributor_Size5_Class5","BuyPrice":1591740,"BuyMercCoinsPrice":0},
+                     {"id":129044376,"Name":"Int_PowerDistributor_Size5_Class5","BuyPrice":0,"BuyMercCoinsPrice":500},
+                     {"id":129044375,"Name":"Hpt_Railgun_Fixed_Medium","BuyPrice":0,"BuyMercCoinsPrice":950}]}}"#;
+        let envelope = decode(raw.as_bytes()).unwrap();
+        let Operation::Outfitting(snapshot) = envelope.operation().unwrap() else {
+            panic!("expected outfitting operation");
+        };
+        assert_eq!(snapshot.values, vec!["hpt_railgun_fixed_medium", "int_powerdistributor_size5_class5"], "symbols stay deduplicated");
+        assert_eq!(snapshot.module_prices.len(), 3, "but every priced entry survives");
+        let merc: Vec<_> = snapshot.module_prices.iter().filter(|p| p.credits == 0 && p.merc_coins > 0).map(|p| p.fdev_id).collect();
+        assert_eq!(merc, vec![Some(129044376), Some(129044375)]);
     }
 }
 

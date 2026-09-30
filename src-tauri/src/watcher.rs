@@ -393,6 +393,11 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                     }
                                 }
                                 if stats.ingest.snapshots_updated > 0 {
+                                    // The dock's outfitting board, priced in credits
+                                    // and merc coins, kept per station (2026-09-29).
+                                    if let Err(e) = ed_store::outfitting_seen::record_latest(conn) {
+                                        tracing::warn!(error = %e, "outfitting board not recorded");
+                                    }
                                     if let Ok(Some(raw)) =
                                         ed_store::session::snapshot_raw(conn, "Status.json")
                                     {
