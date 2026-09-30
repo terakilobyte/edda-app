@@ -529,6 +529,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   Generator". Local server development is back: the WSL PostgreSQL copy
   (edda_dev, 127.0.0.1:55432) took every migration in 106 s — 0009 56 s,
   0015 47 s, 0021 10 ms here against 133 s on the box.
+- **Trade: a loaded leg is timed at the range for its own tons**
+  (2026-09-29, maintainer: "nonsensical that a single leg is more
+  profitable than a round trip when the round trip incorporates the
+  single leg"). Every loaded leg was timed at the FULL-hold laden range
+  whatever it carried, while a leg's repeat rate flies back empty at the
+  unladen range; a 10 t return therefore cost one jump more than the
+  empty return, and the loop's cr/h fell under the leg's. The `Leg` doc
+  claimed the opposite. `Ship::range_at_tons` is the 1/mass curve
+  through both Loadout figures; `cycle`, `make_leg`, `pair_rate` and
+  `fill_hold` use it, so a light return costs no extra jump and the loop
+  beats the leg whenever the return earns anything. A FULL hold back
+  that earns less than its extra jump still loses to the leg repeated
+  empty — honestly — and the Round trips tab now says so in a line.
+  Test: `a_light_return_cargo_does_not_cost_a_full_holds_jumps`.
 - **Migrations run before the restart; the readiness wait is 300 s**
   (2026-09-29, the follow-up from the 0.4.0 server deploy). `ed-api
   migrate` applies every migration not yet recorded and exits;

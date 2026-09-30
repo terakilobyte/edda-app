@@ -184,7 +184,11 @@ pub struct Leg {
     pub duration: cost::Duration,
     pub profit_per_hour: f64,
     /// Flying back empty to do it again. This is the rate legs are ranked
-    /// by, so a one-way number can never outshine the loop it belongs to.
+    /// by. A loop's rate carries cargo back instead, so it beats this one
+    /// whenever the return cargo earns more than any extra jump a loaded
+    /// hold costs — and legitimately does not when it earns less. What it
+    /// must never do is charge a light return for a full hold's jumps
+    /// (2026-09-29: `Ship::range_at_tons`).
     pub return_duration: cost::Duration,
     pub profit_per_hour_repeat: f64,
     pub buy_age_hours: f64,
@@ -602,7 +606,7 @@ pub fn make_leg(from: &StationRef, to: &StationRef, a: &MarketRow, b: &MarketRow
     let per_ton = b.sell_price - a.buy_price;
     let profit = per_ton * tons;
     let distance = from.distance_to(to);
-    let (duration, return_duration, cycle_hours) = cycle(from, to, distance, ship, timing);
+    let (duration, return_duration, cycle_hours) = cycle(from, to, distance, ship, timing, tons);
     Leg {
         from: from.clone(),
         to: to.clone(),
@@ -620,7 +624,7 @@ pub fn make_leg(from: &StationRef, to: &StationRef, a: &MarketRow, b: &MarketRow
         tons,
         profit,
         distance_ly: distance,
-        jumps: cost::jump_count(distance, ship.laden_range_ly),
+        jumps: cost::jump_count(distance, ship.range_at_tons(tons)),
         profit_per_hour: profit as f64 / duration.hours().max(1e-6),
         profit_per_hour_repeat: profit as f64 / cycle_hours.max(1e-6),
         duration,
@@ -631,11 +635,12 @@ pub fn make_leg(from: &StationRef, to: &StationRef, a: &MarketRow, b: &MarketRow
     }
 }
 
-/// Loaded out, empty back: different ranges, different jump counts. The
-/// one place the leg's timing arithmetic lives — `make_leg` and the
-/// pre-materialisation score both use it.
-fn cycle(from: &StationRef, to: &StationRef, distance: f64, ship: &Ship, timing: &cost::Timing) -> (cost::Duration, cost::Duration, f64) {
-    let duration = timing.leg_seconds_at_range(distance, to.arrival_ls.unwrap_or(0.0), ship.laden_range_ly);
+/// Loaded out at the range for `tons` aboard, empty back: different
+/// ranges, different jump counts. The one place the leg's timing
+/// arithmetic lives — `make_leg`, `fill_hold` and the pre-materialisation
+/// score all use it.
+fn cycle(from: &StationRef, to: &StationRef, distance: f64, ship: &Ship, timing: &cost::Timing, tons: i64) -> (cost::Duration, cost::Duration, f64) {
+    let duration = timing.leg_seconds_at_range(distance, to.arrival_ls.unwrap_or(0.0), ship.range_at_tons(tons));
     let return_duration = timing.leg_seconds_at_range(distance, from.arrival_ls.unwrap_or(0.0), ship.jump_range_ly);
     let cycle_hours = (duration.seconds + return_duration.seconds) / 3600.0;
     (duration, return_duration, cycle_hours)
@@ -645,7 +650,7 @@ fn cycle(from: &StationRef, to: &StationRef, distance: f64, ship: &Ship, timing:
 /// is filled: `make_leg`'s number without the allocations.
 fn pair_rate(from: &StationRef, to: &StationRef, per_ton: i64, avail: i64, ship: &Ship, timing: &cost::Timing) -> f64 {
     let tons = ship.cargo_capacity.min(avail).max(0);
-    let (_, _, cycle_hours) = cycle(from, to, from.distance_to(to), ship, timing);
+    let (_, _, cycle_hours) = cycle(from, to, from.distance_to(to), ship, timing, tons);
     (per_ton * tons) as f64 / cycle_hours.max(1e-6)
 }
 
@@ -661,7 +666,7 @@ const MATERIALISED_LEGS: usize = 100_000;
 
 /// Fill whatever hold the primary commodity left with the next-best ones.
 /// Every ton weighs the same, so greedy by profit per ton is exact.
-fn fill_hold(leg: &mut Leg, cands: &[(i64, i64, &MarketRow, &MarketRow)], ship: &Ship) {
+fn fill_hold(leg: &mut Leg, cands: &[(i64, i64, &MarketRow, &MarketRow)], ship: &Ship, timing: &cost::Timing) {
     let mut room = ship.cargo_capacity - leg.tons;
     for (per_ton, avail, a, b) in cands.iter().skip(1) {
         if room <= 0 {
@@ -687,9 +692,13 @@ fn fill_hold(leg: &mut Leg, cands: &[(i64, i64, &MarketRow, &MarketRow)], ship: 
         room -= t;
     }
     if !leg.extra.is_empty() {
+        // A fuller hold is a heavier ship: the loaded run is re-timed.
+        let (duration, return_duration, cycle_hours) = cycle(&leg.from, &leg.to, leg.distance_ly, ship, timing, leg.tons);
+        leg.jumps = cost::jump_count(leg.distance_ly, ship.range_at_tons(leg.tons));
+        leg.duration = duration;
+        leg.return_duration = return_duration;
         leg.profit_per_hour = leg.profit as f64 / leg.duration.hours().max(1e-6);
-        let cycle = (leg.duration.seconds + leg.return_duration.seconds) / 3600.0;
-        leg.profit_per_hour_repeat = leg.profit as f64 / cycle.max(1e-6);
+        leg.profit_per_hour_repeat = leg.profit as f64 / cycle_hours.max(1e-6);
     }
 }
 
@@ -877,7 +886,7 @@ fn best_legs(
         if leg.tons <= 0 {
             continue;
         }
-        fill_hold(&mut leg, &v, ship);
+        fill_hold(&mut leg, &v, ship, &c.timing);
         legs.push(leg);
     }
     legs.sort_by(|a, b| {
@@ -1528,6 +1537,64 @@ mod tests {
         // Silver at Outpost A pays 9000 on a 2020 price. Must not appear.
         assert!(r.legs.iter().all(|l| l.symbol != "silver"));
         assert!(r.excluded.stale_price_rows >= 1);
+    }
+
+    fn bare_station(id: i64, x: f64) -> StationRef {
+        StationRef {
+            station_id: id,
+            station: format!("S{id}"),
+            system: format!("Sys{id}"),
+            system_id64: id,
+            x,
+            y: 0.0,
+            z: 0.0,
+            arrival_ls: Some(1_000.0),
+            max_pad: Some(PadSize::Large),
+            class: StationClass::Starport,
+            is_carrier: false,
+            controlling_power: None,
+            power_state: None,
+            powers: Vec::new(),
+        }
+    }
+    fn bare_row(station_id: i64, symbol: &str, buy: i64, sell: i64, supply: i64, demand: i64) -> MarketRow {
+        MarketRow { station_id, symbol: symbol.into(), name: None, buy_price: buy, sell_price: sell, demand, supply, age_hours: 1.0 }
+    }
+
+    /// The report the maintainer read on 2026-09-29: a leg out-ranked the
+    /// loop that contained it. The return was a few tons, timed at the
+    /// full-hold range — one jump more than the empty return the leg was
+    /// timed with. At the range for the tons actually carried the light
+    /// return costs no extra jump, and the loop's rate is the leg's plus
+    /// the return's earnings, as it must be.
+    #[test]
+    fn a_light_return_cargo_does_not_cost_a_full_holds_jumps() {
+        let ship = Ship { cargo_capacity: 720, jump_range_ly: 60.0, laden_range_ly: 25.0 };
+        let timing = cost::Timing::default();
+        let (a, b) = (bare_station(1, 0.0), bare_station(2, 50.0));
+        let out = make_leg(&a, &b, &bare_row(1, "gold", 1_000, 11_000, 5_000, 5_000), &bare_row(2, "gold", 0, 11_000, 0, 5_000), &ship, &timing);
+        assert_eq!(out.tons, 720);
+        assert_eq!(out.jumps, 2, "a full hold at 25 ly needs two jumps for 50 ly");
+        // Ten tons back: nearly the empty range, one jump.
+        let back = make_leg(&b, &a, &bare_row(2, "tea", 100, 300, 10, 10), &bare_row(1, "tea", 0, 300, 0, 10), &ship, &timing);
+        assert_eq!(back.tons, 10);
+        assert_eq!(back.jumps, 1, "{} ly at {} ly", back.distance_ly, ship.range_at_tons(10));
+        assert_eq!(back.duration.seconds, out.return_duration.seconds, "a light return takes the empty return's time");
+        let trips = round_trips(&[out.clone(), back.clone()], 10);
+        let trip = trips.first().expect("the pair loops");
+        assert!(
+            trip.profit_per_hour > out.profit_per_hour_repeat,
+            "loop {} cr/h must beat the leg repeated empty {} cr/h",
+            trip.profit_per_hour,
+            out.profit_per_hour_repeat
+        );
+        // A FULL hold back that barely pays is a different matter: its
+        // extra jump is real, and repeating the leg empty can honestly win.
+        let heavy = make_leg(&b, &a, &bare_row(2, "biowaste", 10, 20, 5_000, 5_000), &bare_row(1, "biowaste", 0, 20, 0, 5_000), &ship, &timing);
+        assert_eq!(heavy.tons, 720);
+        assert_eq!(heavy.jumps, 2);
+        let trips = round_trips(&[out.clone(), heavy], 10);
+        assert!(trips[0].profit_per_hour < out.profit_per_hour_repeat, "7,200 cr of return does not pay for an 18 s jump");
     }
 
     #[test]

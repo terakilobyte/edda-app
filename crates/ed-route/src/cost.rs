@@ -226,6 +226,26 @@ pub struct Ship {
 }
 
 impl Ship {
+    /// The jump range with `tons` aboard. Range scales with 1/mass, and
+    /// the two Loadout figures fix the curve: unladen at 0 t, laden at a
+    /// full hold, a hyperbola between. A 10 t return in a 720 t hold flies
+    /// at very nearly the empty range — timing it at the full-hold range
+    /// charged a round trip for jumps it never makes, and a leg repeated
+    /// with an empty hold then out-ranked the loop that contained it
+    /// (maintainer, 2026-09-29). Out of range inputs fall back to the
+    /// unladen range.
+    pub fn range_at_tons(&self, tons: i64) -> f64 {
+        let (empty, full) = (self.jump_range_ly, self.laden_range_ly);
+        let cap = self.cargo_capacity as f64;
+        if tons <= 0 || cap <= 0.0 || !(full > 0.0) || full >= empty {
+            return if tons > 0 && full > 0.0 && full < empty { full } else { empty };
+        }
+        // empty * m / (m + cap) == full  =>  m == cap * full / (empty - full)
+        let m = cap * full / (empty - full);
+        let t = (tons as f64).min(cap);
+        empty * m / (m + t)
+    }
+
     /// Laden range from the Loadout numbers: `max * (unladen + fuel) /
     /// (unladen + fuel + cargo)`. Falls back to the unladen range when the
     /// masses are unknown.
@@ -269,6 +289,24 @@ pub fn jump_count(distance_ly: f64, jump_range_ly: f64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Both Loadout figures are honoured exactly and the curve between
+    /// them is 1/mass: a light load costs almost nothing, a full hold
+    /// costs what the Loadout says.
+    #[test]
+    fn range_follows_the_hold() {
+        let ship = Ship { cargo_capacity: 720, jump_range_ly: 60.0, laden_range_ly: 25.0 };
+        assert_eq!(ship.range_at_tons(0), 60.0);
+        assert!((ship.range_at_tons(720) - 25.0).abs() < 1e-9);
+        assert!((ship.range_at_tons(10) - 58.9).abs() < 0.1, "{}", ship.range_at_tons(10));
+        assert!(ship.range_at_tons(360) > 25.0 && ship.range_at_tons(360) < 60.0);
+        assert_eq!(ship.range_at_tons(9_999), ship.range_at_tons(720), "beyond the hold is a full hold");
+        // Degenerate inputs never divide by zero.
+        let odd = Ship { cargo_capacity: 0, jump_range_ly: 30.0, laden_range_ly: 30.0 };
+        assert_eq!(odd.range_at_tons(50), 30.0);
+        let same = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 30.0 };
+        assert_eq!(same.range_at_tons(50), 30.0);
+    }
 
     /// Every timing term is optional on the wire and defaults to the
     /// documented constant; the commander's own constants change the

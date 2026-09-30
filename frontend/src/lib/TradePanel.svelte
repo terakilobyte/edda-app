@@ -248,6 +248,15 @@
       {#if report.round_trips.length === 0}
         <p class="muted">No round trips found: nothing sells back the other way inside these constraints.</p>
       {:else}
+        {#if (report.legs?.[0]?.profit_per_hour_repeat ?? 0) > report.round_trips[0].profit_per_hour}
+          <!-- Both rates are credits per hour, but a leg's counts the flight
+               back EMPTY and a loop's carries cargo back. A loaded hold can
+               need one more jump than an empty one; when the return cargo
+               earns less than that jump costs, repeating the leg honestly
+               wins (maintainer, 2026-09-29: "nonsensical that a single leg
+               is more profitable than a round trip"). Said out loud here. -->
+          <p class="muted small">Repeating the best single leg with an empty hold ({fmtCrShort(report.legs[0].profit_per_hour_repeat)} cr/h) beats every loop here: the return cargo earns less than the extra jump a loaded hold costs.</p>
+        {/if}
         <div class="table-wrap">
           <table>
             <thead><tr>
