@@ -1,0 +1,15 @@
+-- 2026-09-29: the module and ship searches match the symbol column
+-- exactly (the client resolves names to symbols from its catalog), and
+-- the only index on outfitting was the (station_id, symbol) primary key,
+-- useless for a symbol-first lookup: a search for the eight Bi-Weave
+-- symbols read all 66M outfitting rows (4.3 s, seq scan) on the local
+-- copy; with this index 0.75 s. CONCURRENTLY so the EDDN writer's
+-- outfitting writes are not locked out for the build (3 min 41 s on the
+-- 66M-row local copy, the same as a plain build; the deploy's migrate
+-- step runs it before the restart with the old service still serving).
+-- One statement per file: CONCURRENTLY refuses a transaction block, and
+-- a multi-statement batch is one. No IF NOT EXISTS on purpose: a build
+-- that failed half-way leaves an INVALID index of this name, and the
+-- rerun must fail loudly on it rather than record the migration.
+-- Measured in docs/benches/2026-09-29-outfitting-search.csv.
+CREATE INDEX CONCURRENTLY outfitting_module_symbol_idx ON outfitting (module_symbol, station_id);

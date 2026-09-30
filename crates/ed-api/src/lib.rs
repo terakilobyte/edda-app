@@ -60,6 +60,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("0019_body_mining_locations.sql", include_str!("../migrations/0019_body_mining_locations.sql")),
     ("0020_station_services_service_index.sql", include_str!("../migrations/0020_station_services_service_index.sql")),
     ("0021_commodity_fold_by_name.sql", include_str!("../migrations/0021_commodity_fold_by_name.sql")),
+    ("0022_availability_symbol_idx.sql", include_str!("../migrations/0022_availability_symbol_idx.sql")),
+    ("0023_shipyard_symbol_idx.sql", include_str!("../migrations/0023_shipyard_symbol_idx.sql")),
 ];
 
 pub async fn database_pool(config: &ServiceConfig) -> Result<PgPool> {

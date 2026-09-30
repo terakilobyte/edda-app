@@ -1396,6 +1396,30 @@ async fn market_search_mirrors_the_local_contract() {
     assert_eq!(stations(&value), vec!["Good Port"]);
     assert_eq!(value["results"][0]["symbol"], "int_fsd_size5_class5");
     assert!(value["results"][0]["class"].is_null());
+    // Exact symbols from the client's catalog: the text is ignored, the
+    // symbols decide (2026-09-29); a symbol nobody stocks answers nothing.
+    let value = read(
+        app.clone()
+            .oneshot(post(json!({
+                "kind": "module", "text": "biweaveshieldgenerator", "system": "Sol",
+                "symbols": ["Int_FSD_Size5_Class5", "int_fsd_size6_class5"],
+            })))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(stations(&value), vec!["Good Port"]);
+    let value = read(
+        app.clone()
+            .oneshot(post(json!({
+                "kind": "module", "text": "size5_class5", "system": "Sol",
+                "symbols": ["int_fsd_size7_class5"],
+            })))
+            .await
+            .unwrap(),
+    )
+    .await;
+    assert!(stations(&value).is_empty(), "{value}");
     let value = read(
         app.clone()
             .oneshot(post(json!({

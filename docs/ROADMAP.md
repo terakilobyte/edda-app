@@ -501,6 +501,34 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Module search: names resolve to exact symbols, the server matches
+  them exactly, the symbol column is indexed** (2026-09-29, maintainer:
+  "module search in the market is taking forever, returning no results";
+  "why are we not aligned on common names?"). The commodity search got
+  the symbol-is-the-key treatment on the 27th; the module search had
+  not: it built a stem from the typed words by hand ("Bi-Weave Shield
+  Generator" → `biweaveshieldgenerator`, which no symbol contains — the
+  real ones are `int_shieldgenerator_sizeN_class3_fast`) and the server
+  substring-matched it over the whole outfitting table. Measured on the
+  local 66M-row copy (`docs/benches/2026-09-29-outfitting-search.csv`,
+  knob `outfitting_search_bench.sql`): the substring match reads every
+  row whatever the text, 17-19 s (6-7 s and an 8 s timeout on the box);
+  exact symbols 4.3 s without an index, 0.75 s with one. Now
+  `ed_journal::modules::resolve_search` turns the words into the
+  outfitting table's symbols (EDCD name, a commander alias, or a symbol
+  typed in; a leading size or size+rating narrows; an exact name wins
+  over names containing it), the wire carries `symbols`, the server
+  matches `= ANY` when they are present and keeps the substring match
+  for an older client; for an older SERVER the text is the symbols as
+  one LIKE pattern (`int_shieldgenerator_size%_class3_fast`), so the
+  search answers correctly on production before the server ships, only
+  slowly. 0022/0023 add `(symbol, station_id)` indexes
+  — CONCURRENTLY, one statement per file (3 min 41 s for outfitting
+  locally, plain or concurrent; the EDDN writer is not locked out). The
+  completion box keeps a typed size: "5A bi" offers "5A Bi-Weave Shield
+  Generator". Local server development is back: the WSL PostgreSQL copy
+  (edda_dev, 127.0.0.1:55432) took every migration in 106 s — 0009 56 s,
+  0015 47 s, 0021 10 ms here against 133 s on the box.
 - **Migrations run before the restart; the readiness wait is 300 s**
   (2026-09-29, the follow-up from the 0.4.0 server deploy). `ed-api
   migrate` applies every migration not yet recorded and exits;

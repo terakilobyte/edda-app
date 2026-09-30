@@ -26,17 +26,38 @@ fn rating_class(rating: u8) -> Option<u32> {
     }
 }
 
-pub fn search_fragment(text: &str) -> Option<String> {
+/// A size and rating split off the words that name the module: the slot
+/// size, the class digit (A is the best of five) and the remaining
+/// alphanumeric words, lower-cased. Leading as commanders say it ("5A
+/// fuel scoop", "3 d fuel scoop", "6 fuel scoop") or trailing as the
+/// game's outfitting screen prints it ("Bi-Weave Shield Generator 5C",
+/// "shield generator 5 a").
+fn size_rating_words(text: &str) -> (Option<u32>, Option<u32>, Vec<String>) {
     let lower = text.trim().to_ascii_lowercase();
-    if lower.is_empty() {
-        return None;
-    }
-    // A leading size+rating ("5A", "3 d") names the slot size and, for
-    // internals, the class digit: A is the best of five.
     let mut size: Option<u32> = None;
     let mut class: Option<u32> = None;
     let mut words: Vec<String> = Vec::new();
-    for w in lower.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()) {
+    let mut tokens: Vec<&str> = lower.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    // Trailing "5c" / "5 c" / "5" after at least one word.
+    let is_size_token = |w: &str| {
+        let b = w.as_bytes();
+        (b.len() == 1 || b.len() == 2 && rating_class(b[1]).is_some()) && b[0].is_ascii_digit() && (1..=8).contains(&((b[0] - b'0') as u32))
+    };
+    if tokens.len() >= 2 {
+        let last = tokens[tokens.len() - 1];
+        let before = tokens[tokens.len() - 2];
+        if last.len() == 1 && rating_class(last.as_bytes()[0]).is_some() && tokens.len() >= 3 && before.len() == 1 && is_size_token(before) {
+            size = Some((before.as_bytes()[0] - b'0') as u32);
+            class = rating_class(last.as_bytes()[0]);
+            tokens.truncate(tokens.len() - 2);
+        } else if is_size_token(last) && !tokens[..tokens.len() - 1].iter().all(|w| is_size_token(w)) {
+            let b = last.as_bytes();
+            size = Some((b[0] - b'0') as u32);
+            class = b.get(1).and_then(|r| rating_class(*r));
+            tokens.truncate(tokens.len() - 1);
+        }
+    }
+    for w in tokens {
         let b = w.as_bytes();
         // A rating written apart from the size ("3 D fuel scoop").
         if size.is_some() && class.is_none() && words.is_empty() && b.len() == 1 {
@@ -56,6 +77,132 @@ pub fn search_fragment(text: &str) -> Option<String> {
         }
         words.push(w.to_string());
     }
+    (size, class, words)
+}
+
+/// The rating letter the outfitting table prints for a class digit.
+fn class_rating(class: u32) -> Option<char> {
+    match class {
+        5 => Some('A'),
+        4 => Some('B'),
+        3 => Some('C'),
+        2 => Some('D'),
+        1 => Some('E'),
+        _ => None,
+    }
+}
+
+/// A name with everything but letters and digits removed, lower-cased:
+/// "Bi-Weave Shield Generator" and "bi weave shield generator" agree.
+fn squash(name: &str) -> String {
+    name.chars().filter(char::is_ascii_alphanumeric).map(|c| c.to_ascii_lowercase()).collect()
+}
+
+/// What commanders call a module when it is not what EDCD calls it,
+/// squashed on both sides. Each target is an exact EDCD name from the
+/// vendored outfitting table (checked by `aliases_name_real_modules`).
+const NAME_ALIASES: &[(&str, &str)] = &[
+    ("afmu", "Auto Field-Maintenance Unit"),
+    ("autofieldmaintenance", "Auto Field-Maintenance Unit"),
+    ("srvhangar", "Planetary Vehicle Hangar"),
+    ("vehiclehangar", "Planetary Vehicle Hangar"),
+    ("scb", "Shield Cell Bank"),
+    ("shieldcell", "Shield Cell Bank"),
+    ("hrp", "Hull Reinforcement Package"),
+    ("hullreinforcement", "Hull Reinforcement Package"),
+    ("mrp", "Module Reinforcement Package"),
+    ("modulereinforcement", "Module Reinforcement Package"),
+    ("fsd", "Frame Shift Drive"),
+    ("framshiftdrive", "Frame Shift Drive"),
+    ("fsdsco", "Frame Shift Drive (SCO)"),
+    ("scodrive", "Frame Shift Drive (SCO)"),
+    ("scofsd", "Frame Shift Drive (SCO)"),
+    ("sco", "Frame Shift Drive (SCO)"),
+    ("fsdbooster", "Guardian FSD Booster"),
+    ("interdictor", "Frame Shift Drive Interdictor"),
+    ("fsdinterdictor", "Frame Shift Drive Interdictor"),
+    ("wakescanner", "Frame Shift Wake Scanner"),
+    ("kws", "Kill Warrant Scanner"),
+    ("dss", "Detailed Surface Scanner"),
+    ("ecm", "Electronic Countermeasure"),
+    ("biweave", "Bi-Weave Shield Generator"),
+    ("biweaveshield", "Bi-Weave Shield Generator"),
+    ("prismatic", "Prismatic Shield Generator"),
+    ("prismaticshield", "Prismatic Shield Generator"),
+    ("fragcannon", "Fragment Cannon"),
+    ("frag", "Fragment Cannon"),
+    ("pa", "Plasma Accelerator"),
+    ("plasma", "Plasma Accelerator"),
+    ("heatsink", "Heat Sink Launcher"),
+    ("heatsinks", "Heat Sink Launcher"),
+    ("chaff", "Chaff Launcher"),
+    ("pdt", "Point Defence"),
+    ("pointdefense", "Point Defence"),
+    ("distributor", "Power Distributor"),
+    ("pd", "Power Distributor"),
+    ("gauss", "Guardian Gauss Cannon"),
+    ("shards", "Guardian Shard Cannon"),
+    ("shardcannon", "Guardian Shard Cannon"),
+    ("plasmacharger", "Guardian Plasma Charger"),
+];
+
+/// The outfitting symbols a commander means by `text`, from the vendored
+/// outfitting table alone: the words name a module (EDCD's name, an alias
+/// commanders use, or a symbol typed straight in) and a leading size or
+/// size+rating narrows it ("5A bi-weave" is one symbol, "bi-weave" is
+/// eight). An exact name wins over names that merely contain the words
+/// ("shield generator" is not also the Bi-Weave and the Prismatic);
+/// "docking computer" reaches both computers. Empty when the table has
+/// no such module — the server then still gets the words to try
+/// (maintainer, 2026-09-29: a hand-built stem `biweaveshieldgenerator`
+/// went up, matched no symbol, and the search answered nothing after
+/// seven seconds).
+pub fn resolve_search(text: &str) -> Vec<String> {
+    let (size, class, words) = size_rating_words(text);
+    let joined = words.join("");
+    if joined.is_empty() {
+        return Vec::new();
+    }
+    let table = outfitting_table();
+    // A symbol typed straight in, bare or wrapped.
+    let typed_symbol = bare_symbol(text);
+    if table.contains_key(&typed_symbol) {
+        return vec![typed_symbol];
+    }
+    let want = NAME_ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == joined)
+        .map(|(_, name)| squash(name))
+        .unwrap_or(joined);
+    let matches = |exact: bool| -> Vec<String> {
+        let mut out: Vec<String> = table
+            .iter()
+            .filter(|(_, row)| {
+                let name = squash(row.name);
+                if exact { name == want } else { name.contains(&want) }
+            })
+            .filter(|(_, row)| size.is_none_or(|n| row.class == n.to_string()))
+            .filter(|(_, row)| class.and_then(class_rating).is_none_or(|r| row.rating.eq_ignore_ascii_case(&r.to_string())))
+            .map(|(symbol, _)| symbol.clone())
+            .collect();
+        out.sort_unstable();
+        out
+    };
+    let exact = matches(true);
+    if !exact.is_empty() {
+        return exact;
+    }
+    let containing = matches(false);
+    if !containing.is_empty() || class.is_none() {
+        return containing;
+    }
+    // "5A bi-weave": Bi-Weaves only come in C. The size is the slot and
+    // stays; the rating that no module of that name has is dropped.
+    resolve_search(&format!("{} {}", size.map(|n| n.to_string()).unwrap_or_default(), words.join(" ")))
+}
+
+pub fn search_fragment(text: &str) -> Option<String> {
+    let (size, class, words) = size_rating_words(text);
     let joined = words.join("");
     let stem = match joined.as_str() {
         "" => return None,
@@ -177,16 +324,125 @@ pub fn item_name(symbol: &str) -> String {
 /// `limit`. Typing "heat" offers "Heat Sink Launcher" (maintainer,
 /// 2026-09-29: the Market tab's outfitting box completed nothing).
 pub fn complete_modules(text: &str, limit: usize) -> Vec<String> {
-    let want = text.trim().to_ascii_lowercase();
+    // "5A bi" completes to "5A Bi-Weave Shield Generator": the size and
+    // rating the commander typed ride along on every offer (maintainer,
+    // 2026-09-29: "why can't I search for module sizes along with the
+    // name?" — the box matched "5a bi" against names and offered nothing).
+    let (size, class, words) = size_rating_words(text);
+    let want = words.join("");
     if want.is_empty() {
         return Vec::new();
     }
-    let mut names: Vec<&str> = outfitting_table().values().map(|r| r.name).filter(|n| n.to_ascii_lowercase().contains(&want)).collect();
+    let prefix = match (size, class.and_then(class_rating)) {
+        (Some(n), Some(r)) => format!("{n}{r} "),
+        (Some(n), None) => format!("{n} "),
+        _ => String::new(),
+    };
+    let table = outfitting_table();
+    // The name is complete: offer its sizes and ratings as the game
+    // prints them ("Bi-Weave Shield Generator 5C"), so the size is a
+    // choice on screen and not a convention to know (maintainer,
+    // 2026-09-29: "why can't I search module size?"). With a size typed,
+    // that size's ratings.
+    {
+        let rating = class.and_then(class_rating);
+        let mut variants: Vec<(u32, String, String)> = table
+            .values()
+            .filter(|r| squash(r.name) == want && !r.class.is_empty() && !r.rating.is_empty())
+            .filter(|r| size.is_none_or(|n| r.class == n.to_string()))
+            .filter(|r| rating.is_none_or(|x| r.rating.eq_ignore_ascii_case(&x.to_string())))
+            .map(|r| (r.class.parse::<u32>().unwrap_or(0), r.rating.to_string(), r.name.to_string()))
+            .collect();
+        variants.sort_unstable();
+        variants.dedup();
+        if !variants.is_empty() {
+            return variants.into_iter().take(limit).map(|(c, r, n)| format!("{n} {c}{r}")).collect();
+        }
+    }
+    let mut names: Vec<&str> = table
+        .iter()
+        .filter(|(_, r)| size.is_none_or(|n| r.class == n.to_string()))
+        .map(|(_, r)| r.name)
+        .filter(|n| squash(n).contains(&want))
+        .collect();
     names.sort_unstable();
     names.dedup();
     // Names that START with the text first, the rest after.
-    names.sort_by_key(|n| !n.to_ascii_lowercase().starts_with(&want));
-    names.into_iter().take(limit).map(str::to_string).collect()
+    names.sort_by_key(|n| !squash(n).starts_with(&want));
+    names.into_iter().take(limit).map(|n| format!("{prefix}{n}")).collect()
+}
+
+#[cfg(test)]
+mod resolve_search_tests {
+    use super::{complete_modules, outfitting_table, resolve_search, squash, NAME_ALIASES};
+
+    /// Every alias points at a name the vendored table really has.
+    #[test]
+    fn aliases_name_real_modules() {
+        let names: std::collections::HashSet<String> = outfitting_table().values().map(|r| squash(r.name)).collect();
+        for (alias, name) in NAME_ALIASES {
+            assert!(names.contains(&squash(name)), "alias {alias:?} -> {name:?} is not in outfitting.csv");
+        }
+    }
+
+    /// The search that failed on 2026-09-29, and the shapes around it.
+    #[test]
+    fn words_become_exact_symbols() {
+        let biweave = resolve_search("Bi-Weave Shield Generator");
+        assert_eq!(biweave.len(), 8, "{biweave:?}");
+        assert!(biweave.iter().all(|s| s.starts_with("int_shieldgenerator_size") && s.ends_with("_class3_fast")), "{biweave:?}");
+        assert_eq!(resolve_search("5C bi-weave"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        assert_eq!(resolve_search("5 biweave"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        // Trailing, as the outfitting screen prints it.
+        assert_eq!(resolve_search("Bi-Weave Shield Generator 5C"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        assert_eq!(resolve_search("bi-weave 5"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        assert_eq!(resolve_search("shield generator 5 a"), vec!["int_shieldgenerator_size5_class5"]);
+        assert_eq!(resolve_search("fuel scoop 7a"), vec!["int_fuelscoop_size7_class5"]);
+        // A rating the family never comes in keeps the size, drops the rating.
+        assert_eq!(resolve_search("5A bi-weave"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        assert_eq!(resolve_search("bi-weave 5A"), vec!["int_shieldgenerator_size5_class3_fast"]);
+        assert_eq!(resolve_search("5A fuel scoop"), vec!["int_fuelscoop_size5_class5"]);
+        assert_eq!(resolve_search("3 D fuel scoop"), vec!["int_fuelscoop_size3_class2"]);
+        // An exact name does not drag in the names that contain it.
+        let plain = resolve_search("shield generator");
+        assert!(plain.iter().all(|s| !s.ends_with("_fast") && !s.ends_with("_strong")), "{plain:?}");
+        assert!(!plain.is_empty());
+        // Words that several names contain reach all of them.
+        let dc = resolve_search("docking computer");
+        assert!(dc.iter().any(|s| s.contains("dockingcomputer_advanced")) && dc.iter().any(|s| s.contains("dockingcomputer_standard")), "{dc:?}");
+        // Aliases.
+        assert_eq!(resolve_search("5A AFMU"), vec!["int_repairer_size5_class5"]);
+        assert_eq!(resolve_search("6A FSD"), vec!["int_hyperdrive_size6_class5"]);
+        assert_eq!(resolve_search("5A SCB"), vec!["int_shieldcellbank_size5_class5"]);
+        assert!(resolve_search("heat sink").iter().all(|s| s.starts_with("hpt_heatsinklauncher")));
+        // A symbol typed straight in.
+        assert_eq!(resolve_search("Int_FuelScoop_Size5_Class5"), vec!["int_fuelscoop_size5_class5"]);
+        assert_eq!(resolve_search("$int_fuelscoop_size5_class5_name;"), vec!["int_fuelscoop_size5_class5"]);
+        // Nothing the table knows: empty, so the words go up as they are.
+        assert!(resolve_search("thargoid toaster").is_empty());
+        assert!(resolve_search("   ").is_empty());
+    }
+
+    /// The size prefix rides along on the completions.
+    #[test]
+    fn completion_keeps_the_typed_size() {
+        let hits = complete_modules("5A bi", 12);
+        assert_eq!(hits[0], "5A Bi-Weave Shield Generator", "{hits:?}");
+        assert!(hits.iter().all(|h| h.starts_with("5A ")), "{hits:?}");
+        let hits = complete_modules("heat", 12);
+        assert_eq!(hits, vec!["Heat Sink Launcher"]);
+        // The name complete: its sizes, as the game prints them.
+        let hits = complete_modules("Bi-Weave Shield Generator", 12);
+        assert_eq!(hits.len(), 8, "{hits:?}");
+        assert_eq!(hits[0], "Bi-Weave Shield Generator 1C");
+        assert_eq!(hits[7], "Bi-Weave Shield Generator 8C");
+        let hits = complete_modules("Fuel Scoop 5", 12);
+        assert_eq!(hits, vec!["Fuel Scoop 5A", "Fuel Scoop 5B", "Fuel Scoop 5C", "Fuel Scoop 5D", "Fuel Scoop 5E"], "{hits:?}");
+        assert_eq!(complete_modules("Fuel Scoop 5A", 12), vec!["Fuel Scoop 5A"]);
+        // A size no module of that name comes in offers nothing.
+        assert!(complete_modules("8A heat", 12).is_empty());
+        assert!(complete_modules("5", 12).is_empty());
+    }
 }
 
 /// A module as a technology broker's recipe names it: a weapon by its

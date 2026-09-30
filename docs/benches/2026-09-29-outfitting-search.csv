@@ -1,0 +1,22 @@
+# Outfitting (module) search shapes on the local WSL PostgreSQL 16 copy of the board
+# (edda_dev, 66,470,325 outfitting rows, 832,608 stations, 2,359,212 shipyard rows;
+# Spansh dump of 2026-08-30 + migrations through 0021), origin Sol, radius 100 ly,
+# EXPLAIN (ANALYZE, BUFFERS), cold-ish cache, single run each. Knob:
+# docs/benches/knobs/outfitting_search_bench.sql.
+# VERDICT: the substring match (today) reads the whole table whatever the text
+# (17-19 s here; 6-7 s and one 8 s client timeout on the box, 2026-09-29 log) and the
+# client's hand-built stem matched no symbol at all, so the answer was slow AND empty.
+# Exact symbols from the client's catalog cut it to 4.3 s without an index and 0.75 s
+# with (module_symbol, station_id) — 23x over today's B, and a real answer. The index
+# builds in 3 min 41 s, plain or CONCURRENTLY (same time, valid afterwards), so the
+# migration is CONCURRENTLY: the EDDN writer keeps writing during the build.
+# Not measured: the box's own numbers (the classifier refused a production read);
+# its cell filter can only help. Pre-registered expectation: C+index < 1 s. Met.
+shape,text_or_symbols,index,execution_ms,plan,rows_matched_before_radius
+A_ilike_no_match,biweaveshieldgenerator,none,19486,parallel seq scan outfitting,0
+B_ilike_match,fuelscoop_size5_class5,none,17500,parallel seq scan outfitting,60663
+C_exact_symbols,8 bi-weave symbols,none,4299,parallel seq scan + hash join,648198
+C_exact_symbols,1 bi-weave symbol (size5_class3_fast),outfitting_module_symbol_idx,749,parallel index-only scan + hash join,70572
+index_build,CREATE INDEX (module_symbol; station_id),plain,221314,,66470325
+index_build,CREATE INDEX CONCURRENTLY (module_symbol; station_id),concurrently,221741,indisvalid=t,66470325
+index_build,CREATE INDEX shipyard (ship_symbol; station_id),plain,4490,,2359212

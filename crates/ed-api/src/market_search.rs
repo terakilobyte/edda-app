@@ -43,6 +43,15 @@ pub struct MarketSearchApiRequest {
     /// `commodity`, `module` or `ship`.
     pub kind: String,
     pub text: String,
+    /// Modules and ships: the exact symbols to match, resolved by the
+    /// client from its catalog. When present the search is an equality
+    /// on the symbol column (indexed since 0022) instead of a substring
+    /// match on `text` over the whole table (measured 2026-09-29 on a
+    /// 66M-row copy: 17-19 s for the ILIKE whatever the text; the
+    /// client's hand-built stem also matched no symbol at all). Absent or
+    /// empty keeps the substring match for an older client.
+    #[serde(default)]
+    pub symbols: Vec<String>,
     /// Origin system name — required on the wire; the server has no
     /// notion of "current system" and must not acquire one.
     pub system: String,
@@ -402,6 +411,13 @@ async fn availability_rows(
         Availability::Outfitting => ("outfitting", "module_symbol", "st.outfitting_observed_at"),
         Availability::Shipyard => ("shipyard", "ship_symbol", "st.shipyard_observed_at"),
     };
+    // Symbols are stored lower-case (the EDDN writer lower-cases them).
+    let symbols: Vec<String> = req.symbols.iter().map(|s| s.trim().to_ascii_lowercase()).filter(|s| !s.is_empty()).collect();
+    let item_clause = if symbols.is_empty() {
+        format!("a.{column} ILIKE '%' || $1 || '%'")
+    } else {
+        format!("a.{column} = ANY($10::text[])")
+    };
     let sql = format!(
         "SELECT st.id, st.name, sy.name, \
                 sqrt((sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$4)^2) AS distance_ly, \
@@ -413,7 +429,7 @@ async fn availability_rows(
          FROM {table} a \
          JOIN stations st ON st.id = a.station_id \
          JOIN systems sy ON sy.address = st.system_address \
-         WHERE a.{column} ILIKE '%' || $1 || '%' \
+         WHERE {item_clause} \
            AND sy.cell = ANY($7) \
            AND (sy.x-$2)^2 + (sy.y-$3)^2 + (sy.z-$4)^2 <= $5*$5 \
            AND {pad} \
@@ -437,6 +453,7 @@ async fn availability_rows(
             .bind(cells_covering(ox, oy, oz, radius))
             .bind(req.include_stronghold_carriers.unwrap_or(true))
             .bind(req.powers.clone())
+            .bind(symbols)
             // Fresh plan per execution — see `search`.
             .persistent(false)
             .fetch_all(pool)
@@ -559,6 +576,7 @@ mod tests {
         MarketSearchApiRequest {
             kind: "commodity".into(),
             text: "Palladium".into(),
+            symbols: Vec::new(),
             system: "Sol".into(),
             radius_ly: None,
             min_pad: None,

@@ -38,10 +38,46 @@ fn catalog() -> &'static ed_journal::Catalog {
 /// nothing for a good sold 28 ly away (maintainer, 2026-09-27). The
 /// symbol reaches the real row on any server; the server's own fix
 /// (0021 and the resolver order) is the belt.
+/// The exact symbols the words name, for a server that matches symbols
+/// exactly instead of substring-matching the text (2026-09-29: the
+/// ILIKE over the whole outfitting table took 17-19 s on a 66M-row copy
+/// whatever the text, and the hand-built stem matched nothing anyway).
+/// Empty for a commodity (searched by name server-side) and for words
+/// the catalog cannot place; `text` still travels for an older server.
+fn wire_symbols(kind: &str, text: &str) -> Vec<String> {
+    match kind {
+        "ship" => ed_journal::ships::resolve(text).map(|s| vec![s.to_owned()]).unwrap_or_default(),
+        "module" => ed_journal::modules::resolve_search(text),
+        _ => Vec::new(),
+    }
+}
+
+/// The longest common prefix and suffix of the symbols around one `%`.
+fn like_pattern(symbols: &[String]) -> String {
+    let first = symbols[0].as_bytes();
+    let prefix = (0..first.len())
+        .take_while(|&i| symbols.iter().all(|s| s.as_bytes().get(i) == Some(&first[i])))
+        .count();
+    let suffix = (0..first.len() - prefix)
+        .take_while(|&i| symbols.iter().all(|s| s.len() > prefix + i && s.as_bytes()[s.len() - 1 - i] == first[first.len() - 1 - i]))
+        .count();
+    format!("{}%{}", &symbols[0][..prefix], &symbols[0][symbols[0].len() - suffix..])
+}
+
 fn wire_text(kind: &str, text: &str) -> String {
     match kind {
         "ship" => ed_journal::ships::resolve(text).map(str::to_owned).unwrap_or_else(|| text.to_owned()),
-        "module" => ed_journal::modules::search_fragment(text).unwrap_or_else(|| text.to_owned()),
+        // A server older than `symbols` substring-matches this text, so it
+        // is the resolved symbols as one LIKE pattern: the eight Bi-Weave
+        // sizes are `int_shieldgenerator_size%_class3_fast`, one symbol is
+        // itself. `_` is LIKE's single-character wildcard and matches the
+        // literal underscore too, which is harmless here. Words the catalog
+        // cannot place fall back to the old hand-built stem.
+        "module" => match ed_journal::modules::resolve_search(text).as_slice() {
+            [] => ed_journal::modules::search_fragment(text).unwrap_or_else(|| text.to_owned()),
+            [one] => one.clone(),
+            many => like_pattern(many),
+        },
         _ => catalog()
             .by_name(text.trim())
             .filter(|i| i.kind == ed_journal::Kind::Commodity)
@@ -62,8 +98,15 @@ mod wire_text_tests {
         assert_eq!(wire_text("ship", "Imperial Cutter"), "cutter");
         assert_eq!(wire_text("ship", "Mandalay"), "mandalay");
         assert_eq!(wire_text("ship", "Krait"), "Krait", "ambiguous: let the server try");
-        assert_eq!(wire_text("module", "5A fuel scoop"), "fuelscoop_size5_class5");
-        assert_eq!(wire_text("module", "beam laser"), "beamlaser");
+        assert_eq!(wire_text("module", "5A fuel scoop"), "int_fuelscoop_size5_class5", "one symbol: itself");
+        assert_eq!(wire_text("module", "Bi-Weave Shield Generator"), "int_shieldgenerator_size%_class3_fast", "several: one LIKE pattern an old server can match");
+        assert_eq!(wire_text("module", "beam laser"), "hpt_beamlaser_%", "fixed/gimballed/turreted, all sizes");
+        assert_eq!(wire_text("module", "thargoid toaster"), "thargoidtoaster", "unknown words: the old stem");
+        assert_eq!(super::wire_symbols("module", "5A fuel scoop"), vec!["int_fuelscoop_size5_class5"]);
+        assert_eq!(super::wire_symbols("module", "Bi-Weave Shield Generator").len(), 8, "the search that answered nothing on 2026-09-29");
+        assert_eq!(super::wire_symbols("ship", "Type-10 Defender"), vec!["type9_military"]);
+        assert!(super::wire_symbols("commodity", "Gold").is_empty());
+        assert!(super::wire_symbols("module", "thargoid toaster").is_empty(), "unknown words: the text alone goes up");
         assert_eq!(wire_text("commodity", "Gold"), "gold");
         assert_eq!(wire_text("commodity", "Micro Controllers"), "microcontrollers", "the display name reaches the real row");
         assert_eq!(wire_text("commodity", "Low Temperature Diamonds"), "lowtemperaturediamond");
@@ -82,6 +125,7 @@ fn wire_body(
     serde_json::json!({
         "kind": query.kind,
         "text": wire_text(&query.kind, &query.text),
+        "symbols": wire_symbols(&query.kind, &query.text),
         "system": system,
         "radius_ly": query.radius_ly,
         "min_pad": match min_pad {
@@ -245,6 +289,12 @@ pub async fn search(state: &AppState, query: &MarketSearchRequest) -> Result<ser
     }
     enrich_names(query.kind.trim(), &mut value, holds_elite(state));
     apply_local_filters(query, &mut value, pledged_power(state).as_deref());
+    // The server echoes the wire text; the panel shows what was typed
+    // (maintainer, 2026-09-29: `int_shieldgenerator_size%_class3_fast` in
+    // the header "isn't pretty").
+    if value.get("query").is_some() {
+        value["query"] = serde_json::Value::String(query.text.trim().to_owned());
+    }
     Ok(value)
 }
 
@@ -315,7 +365,7 @@ async fn post(state: &AppState, api: &str, body: &serde_json::Value, kind: &str,
     match response.json::<serde_json::Value>().await {
         Ok(value) if value.get("results").is_some() => {
             let results = value["results"].as_array().map(|r| r.len());
-            tracing::info!(kind = %kind, results, ms, origin = %origin, radius_ly = ?radius_ly, text = %body["text"], "market search served by API");
+            tracing::info!(kind = %kind, results, ms, origin = %origin, radius_ly = ?radius_ly, text = %body["text"], symbols = body["symbols"].as_array().map(Vec::len).unwrap_or(0), "market search served by API");
             Ok(value)
         }
         _ => {
