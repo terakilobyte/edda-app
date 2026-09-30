@@ -201,7 +201,6 @@
     <button class="quiet" title="Search every commodity in the cargo hold sell-side and rank stations by the combined price" onclick={runHold} disabled={holdLoading}>{holdLoading ? "Valuing hold…" : "Sell my hold"}</button>
   </div>
 
-  <p class="muted small">Community reports can be stale. Unknown landing pads fail closed when a pad is required.</p>
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if holdReport}
