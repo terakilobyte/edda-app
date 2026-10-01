@@ -3,6 +3,17 @@
   // excluded, and labels every time estimate as estimated. State lives in
   // trade.svelte.js so a running search survives switching tabs.
   import { trade, runSearch, stopSearch, sortBy, sortedLegs, LEG_SORTS } from "./trade.svelte.js";
+  // The minor factions controlling the stations in the current report, for
+  // the "sell to faction" box (maintainer, 2026-09-30: grinding Alioth
+  // Independents for the permit). Clicking a faction in a row picks it.
+  const factions = $derived.by(() => {
+    const r = trade.report;
+    if (!r) return [];
+    const names = new Set();
+    for (const l of r.legs ?? []) { if (l.from.controlling_faction) names.add(l.from.controlling_faction); if (l.to.controlling_faction) names.add(l.to.controlling_faction); }
+    return [...names].sort();
+  });
+  const pickFaction = (name) => { trade.query.sellFaction = trade.query.sellFaction === name ? "" : name; };
   import { boardLine } from "./tradeView.js";
   import { tradeFollow, followTrade, stopTrade } from "./tradeFollow.svelte.js";
   import { ship } from "./ship.svelte.js";
@@ -53,6 +64,8 @@
   const isPinnedRing = (r) => !!pinned?.stops && pinned.stops.length === r.legs.length && pinned.stops.every((s, i) => s.station === r.legs[i].from.station);
   const isPinned = (t) => !!pinned?.a && pinned.a.station === t.out.from.station && pinned.b.station === t.out.to.station;
 </script>
+
+{#snippet faction(st)}{#if st.controlling_faction}<button class="quiet tiny faction {trade.query.sellFaction === st.controlling_faction ? 'on' : ''}" title={trade.query.sellFaction === st.controlling_faction ? "Selling to this faction only — click to clear" : "Only sell to this faction"} onclick={() => pickFaction(st.controlling_faction)}>{st.controlling_faction}</button>{:else}<span class="muted small">faction unknown</span>{/if}{/snippet}
 
 <section class="panel">
   <h2>Profit finder <span class="sub">community prices · ranked by credits per hour</span></h2>
@@ -128,6 +141,11 @@
     </span>
   </div>
   <div class="row" style="margin-bottom:0.5rem">
+    <label title="Only sell at stations this minor faction controls. Reputation is earned where you sell, so every loop is two sales to it. Click a faction in the results to pick it.">sell to faction
+      <input list="trade-factions" placeholder="any faction" bind:value={trade.query.sellFaction} style="min-width:14rem" />
+      <datalist id="trade-factions">{#each factions as f}<option value={f}></option>{/each}</datalist>
+      {#if trade.query.sellFaction}<button class="quiet tiny" title="Clear" onclick={() => (trade.query.sellFaction = "")}>×</button>{/if}
+    </label>
     <label title="Closed loops of three or more stops, every leg loaded (round trips are always searched)"><input type="checkbox" checked={trade.query.maxStops > 0} onchange={(e) => (trade.query.maxStops = e.currentTarget.checked ? 3 : 0)} /> search for trade rings</label>
     {#if trade.query.maxStops > 0}
       <label>how many stops? <select bind:value={trade.query.maxStops}>
@@ -221,8 +239,8 @@
                 <tr>
                   <td><button class="quiet tiny" title="Follow this leg: EDDA targets each end's system and briefs both pads (fly back empty)" onclick={() => followTrade([l], "leg")}>▶</button>
                     <strong>{l.commodity}</strong>{#each l.extra ?? [] as x}<div class="muted small">+ {x.tons} t {x.commodity}</div>{/each}</td>
-                  <td>{l.from.station}<div class="muted small">{l.from.system} <button class="copy" title="Copy system name" onclick={() => copy(l.from.system)}>{copied === l.from.system ? "✓" : "⧉"}</button></div></td>
-                  <td>{l.to.station}<div class="muted small">{l.to.system} <button class="copy" title="Copy system name" onclick={() => copy(l.to.system)}>{copied === l.to.system ? "✓" : "⧉"}</button> · {l.to.class}</div></td>
+                  <td>{l.from.station}<div class="muted small">{l.from.system} <button class="copy" title="Copy system name" onclick={() => copy(l.from.system)}>{copied === l.from.system ? "✓" : "⧉"}</button></div>{@render faction(l.from)}</td>
+                  <td>{l.to.station}<div class="muted small">{l.to.system} <button class="copy" title="Copy system name" onclick={() => copy(l.to.system)}>{copied === l.to.system ? "✓" : "⧉"}</button> · {l.to.class}</div>{@render faction(l.to)}</td>
                   <!-- Maintainer ruling 2026-09-09: "repeat rate only on single legs" -
                        the one-way figure (profit ÷ loaded flight, as if you
                        never flew back) is nonsense for a delivery you repeat;
@@ -268,7 +286,8 @@
                   <td><button class="quiet tiny" title={isPinned(t) ? "Unpin from HUD" : "Pin this loop to the HUD"} onclick={() => pinLoop(isPinned(t) ? null : t)}>{isPinned(t) ? "★" : "☆"}</button>
                     <button class="quiet tiny" title="Follow this loop: EDDA targets each stop's system and briefs every arrival" onclick={() => followTrade([t.out, t.back], "round_trip")}>▶</button></td>
                   <td><strong>{t.out.from.station}</strong> ⇄ <strong>{t.out.to.station}</strong>
-                    <div class="muted small">{t.out.from.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.from.system)}>{copied === t.out.from.system ? "✓" : "⧉"}</button> ⇄ {t.out.to.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.to.system)}>{copied === t.out.to.system ? "✓" : "⧉"}</button> · {fmtLy(t.out.distance_ly)}</div></td>
+                    <div class="muted small">{t.out.from.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.from.system)}>{copied === t.out.from.system ? "✓" : "⧉"}</button> ⇄ {t.out.to.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.to.system)}>{copied === t.out.to.system ? "✓" : "⧉"}</button> · {fmtLy(t.out.distance_ly)}</div>
+                    <div class="small">{@render faction(t.out.from)} ⇄ {@render faction(t.out.to)}</div></td>
                   <td>{t.out.commodity}{#each t.out.extra ?? [] as x}<span class="muted small"> + {x.tons} t {x.commodity}</span>{/each}<div class="muted small">{fmtCr(t.out.profit)} · {t.out.tons} t · s {fmtInt(t.out.supply)} · d {fmtInt(t.out.demand)}</div></td>
                   <td>{t.back.commodity}{#each t.back.extra ?? [] as x}<span class="muted small"> + {x.tons} t {x.commodity}</span>{/each}<div class="muted small">{fmtCr(t.back.profit)} · {t.back.tons} t · s {fmtInt(t.back.supply)} · d {fmtInt(t.back.demand)}</div></td>
                   <td class="r num"><strong>{fmtCrShort(t.profit_per_hour)}</strong></td>
@@ -302,4 +321,6 @@
   .progress { display: flex; gap: 0.8rem; align-items: center; background: var(--bg-2); border: 1px solid var(--line); border-radius: 5px; padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; }
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .faction { padding: 0 0.35rem; font-size: 0.75rem; }
+  .faction.on { border-color: var(--accent); color: var(--accent); }
 </style>

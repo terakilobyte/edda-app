@@ -59,15 +59,15 @@ const STATION_COLS: &str = "st.id AS station_id, st.name AS station_name, sy.nam
                             st.pad_medium AS pad_medium, st.pad_large AS pad_large, \
                             COALESCE(st.is_carrier, false) AS is_carrier, st.station_type AS station_type, \
                             sy.controlling_power AS controlling_power, sy.power_state AS power_state, \
-                            sy.powers AS powers";
+                            sy.powers AS powers, st.controlling_faction AS controlling_faction";
 
 /// Every name `station_ref` fetches, so a test can hold the list and the
 /// reader together without a live database.
 #[cfg(test)]
-pub(crate) const STATION_FIELDS: [&str; 16] = [
+pub(crate) const STATION_FIELDS: [&str; 17] = [
     "station_id", "station_name", "system_name", "system_address", "x", "y", "z", "arrival_ls",
     "pad_small", "pad_medium", "pad_large", "is_carrier", "station_type", "controlling_power",
-    "power_state", "powers",
+    "power_state", "powers", "controlling_faction",
 ];
 
 pub(crate) fn station_ref(row: &sqlx::postgres::PgRow) -> StationRef {
@@ -91,6 +91,7 @@ pub(crate) fn station_ref(row: &sqlx::postgres::PgRow) -> StationRef {
             .get::<Option<String>, _>("powers")
             .map(|s| s.split(',').map(|p| p.trim().to_owned()).filter(|p| !p.is_empty()).collect())
             .unwrap_or_default(),
+        controlling_faction: row.get::<Option<String>, _>("controlling_faction").map(|f| f.trim().to_owned()).filter(|f| !f.is_empty()),
     }
 }
 
@@ -522,6 +523,7 @@ mod tests {
             controlling_power: None,
             power_state: None,
             powers: Vec::new(),
+            controlling_faction: None,
         }
     }
 

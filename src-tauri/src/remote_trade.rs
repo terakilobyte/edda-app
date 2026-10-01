@@ -258,6 +258,7 @@ mod tests {
             x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
             class: StationClass::of(Some("Coriolis")), is_carrier: false,
             controlling_power: None, power_state: None, powers: Vec::new(),
+            controlling_faction: None,
         };
         let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {

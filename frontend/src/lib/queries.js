@@ -33,6 +33,7 @@ export function profitQueryFrom(q) {
     sell_state: q.sellState ?? "any",
     buy_power_mode: q.buyPowerMode ?? "controls",
     sell_power_mode: q.sellPowerMode ?? "controls",
+    sell_faction: (q.sellFaction ?? "").trim() || null,
     max_leg_ly: Number(q.maxLegLy ?? 150),
     min_supply: Number(q.minSupply ?? 1) || 1,
     min_demand: Number(q.minDemand ?? 1) || 1,

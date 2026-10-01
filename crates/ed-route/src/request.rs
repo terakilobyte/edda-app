@@ -49,6 +49,10 @@ pub struct ProfitRequest {
     pub buy_state: Option<String>,
     pub sell_power: Option<String>,
     pub sell_state: Option<String>,
+    /// Only sell where this minor faction controls the station; "any",
+    /// empty or absent = no filter.
+    #[serde(default)]
+    pub sell_faction: Option<String>,
     pub buy_power_mode: Option<String>,
     pub sell_power_mode: Option<String>,
     pub max_leg_ly: Option<f64>,
@@ -238,6 +242,12 @@ pub fn plan(
     c.sell_power = resolve(&req.sell_power)?;
     c.buy_state = norm(&req.buy_state);
     c.sell_state = norm(&req.sell_state);
+    c.sell_faction = req
+        .sell_faction
+        .as_deref()
+        .map(str::trim)
+        .filter(|f| !f.is_empty() && !f.eq_ignore_ascii_case("any"))
+        .map(str::to_owned);
     if let Some(m) = &req.buy_power_mode {
         c.buy_power_mode = m.clone();
     }
