@@ -1159,6 +1159,7 @@ fn find_profit_schema() -> Value {
             "sell_state": { "type": "string", "description": "Only sell in systems in this Powerplay state" },
             "buy_power_mode": { "type": "string", "enum": ["controls", "present", "undermining"], "description": "how buy_power matches: the power controls the system (default), is present at all, or is present but not controlling (undermining/acquiring)" },
             "sell_power_mode": { "type": "string", "enum": ["controls", "present", "undermining"], "description": "same for the sell side" },
+            "sell_faction": { "type": "string", "description": "Only sell at stations controlled by this minor faction (exact name); reputation is earned where you sell, so every round trip is two sales to it" },
             "max_leg_ly": { "type": "number", "description": "longest single leg considered, default 150; 0 = unlimited (slow galaxy-wide)" },
             "ship_id": { "type": "integer", "description": "plan for one of the commander's stored ships (an id from list_ships) instead of the one being flown; cargo_capacity and min_pad still override" }
         }

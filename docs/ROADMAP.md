@@ -501,6 +501,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Trade: controlling faction on both ends, selectable as the sell-side
+  filter** (2026-09-30, maintainer grinding Alioth Independents for the
+  Alioth permit — Allied with that minor faction, then its invitation
+  mission within ~12 ly of Alioth, per the wiki). `StationRef.
+  controlling_faction` from `stations.controlling_faction` (EDDN Docked);
+  `Constraints.sell_faction` keeps legs whose sell station the faction
+  controls, so a loop is two sales to it; the panel shows factions on
+  both ends, click to filter, "any" = none. Measured: 78 Ursae Majoris is
+  all Terran Colonial Forces (wrong faction); Sugiyama Territories ⇄
+  Mahon Bell -2117 sells to Alioth Independents both ways at 13.9M/loop.
 - **Merc-coin modules: the feed's v3 prices are kept, the commander's own
   boards are exact, merc-only listings hide from a commander with no
   coins** (2026-09-29, maintainer: "for outfitting we're counting items

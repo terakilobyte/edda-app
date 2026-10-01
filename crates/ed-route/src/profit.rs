@@ -84,6 +84,11 @@ pub struct Constraints {
     /// (controls or contesting), or `undermining` (present, not controlling).
     pub buy_power_mode: String,
     pub sell_power_mode: String,
+    /// Only sell at stations this minor faction controls (case-insensitive,
+    /// exact name). Reputation is earned where you sell, so a round trip
+    /// under this filter is two sales to the faction. `None` = any.
+    #[serde(default)]
+    pub sell_faction: Option<String>,
     /// Longest single leg to consider. Bounds the pairing work; a leg
     /// beyond this never wins on cr/h anyway. 0 = unlimited.
     pub max_leg_ly: f64,
@@ -132,6 +137,7 @@ impl Default for Constraints {
             sell_state: None,
             buy_power_mode: "controls".into(),
             sell_power_mode: "controls".into(),
+            sell_faction: None,
             max_leg_ly: 150.0,
         }
     }
@@ -154,6 +160,13 @@ pub struct StationRef {
     pub power_state: Option<String>,
     /// Every power present in the system, controlling or contesting.
     pub powers: Vec<String>,
+    /// The minor faction that controls the station (EDDN `Docked`), the
+    /// one a profitable sale earns reputation with. None when the feed
+    /// has not said (maintainer, 2026-09-30: grinding the Alioth
+    /// Independents for the Alioth permit — "controlling faction on both
+    /// sides, so that it's selectable").
+    #[serde(default)]
+    pub controlling_faction: Option<String>,
 }
 
 impl StationRef {
@@ -383,6 +396,8 @@ fn candidate_stations(
             controlling_power: st.controlling_power,
             power_state: st.power_state,
             powers: st.powers,
+            // The local galaxy copy does not carry station factions.
+            controlling_faction: None,
         };
         if s.is_carrier && !c.include_carriers {
             excluded.carriers += 1;
@@ -750,6 +765,7 @@ fn best_legs(
     let sell_ok: std::collections::HashSet<i64> = stations
         .iter()
         .filter(|s| pp_ok(s, &c.sell_power, &c.sell_power_mode, &c.sell_state))
+        .filter(|s| c.sell_faction.as_deref().is_none_or(|f| s.controlling_faction.as_deref().is_some_and(|x| x.trim().eq_ignore_ascii_case(f))))
         .map(|s| s.station_id)
         .collect();
 
@@ -1244,6 +1260,7 @@ mod tests {
             x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
             class: StationClass::of(Some("Coriolis")), is_carrier: false,
             controlling_power: None, power_state: None, powers: Vec::new(),
+            controlling_faction: None,
         };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
             station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
@@ -1275,6 +1292,7 @@ mod tests {
             arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
             class: StationClass::of(Some("Coriolis")), is_carrier: false,
             controlling_power: None, power_state: None, powers: Vec::new(),
+            controlling_faction: None,
         };
         let row = |st: i64| MarketRow {
             station_id: st, symbol: "gold".into(), name: None, buy_price: 100, sell_price: 200,
@@ -1306,6 +1324,7 @@ mod tests {
             x, y: 0.0, z: 0.0, arrival_ls: None, max_pad: Some(PadSize::Large),
             class: StationClass::of(Some("Coriolis")), is_carrier: false,
             controlling_power: None, power_state: None, powers: Vec::new(),
+            controlling_faction: None,
         };
         let row = |st: i64, sym: &str, buy: i64, sell: i64| MarketRow {
             station_id: st, symbol: sym.into(), name: None, buy_price: buy, sell_price: sell,
@@ -1346,6 +1365,7 @@ mod tests {
             x, y: 0.0, z: 0.0, arrival_ls: Some(100.0), max_pad: Some(PadSize::Large),
             class: StationClass::of(Some("Coriolis")), is_carrier: false,
             controlling_power: None, power_state: None, powers: Vec::new(),
+            controlling_faction: None,
         };
         let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
         let buy = MarketRow { station_id: 1, symbol: "gold".into(), name: Some("Gold".into()), buy_price: 100, sell_price: 0, demand: 0, supply: 500, age_hours: 1.0 };
@@ -1555,6 +1575,7 @@ mod tests {
             controlling_power: None,
             power_state: None,
             powers: Vec::new(),
+            controlling_faction: None,
         }
     }
     fn bare_row(station_id: i64, symbol: &str, buy: i64, sell: i64, supply: i64, demand: i64) -> MarketRow {
@@ -1567,6 +1588,35 @@ mod tests {
     /// timed with. At the range for the tons actually carried the light
     /// return costs no extra jump, and the loop's rate is the leg's plus
     /// the return's earnings, as it must be.
+    /// Reputation is earned where you sell: with `sell_faction` set, only
+    /// legs whose SELL station the faction controls survive, and a round
+    /// trip is therefore two sales to it. Case does not matter; a station
+    /// the feed has no faction for never matches.
+    #[test]
+    fn sell_faction_keeps_only_legs_that_sell_to_it() {
+        let ship = Ship { cargo_capacity: 100, jump_range_ly: 30.0, laden_range_ly: 25.0 };
+        let mut a = bare_station(1, 0.0);
+        a.controlling_faction = Some("Alioth Independents".into());
+        let mut b = bare_station(2, 10.0);
+        b.controlling_faction = Some("Terran Colonial Forces".into());
+        let c = bare_station(3, 20.0); // faction unknown
+        let stations = vec![a, b, c];
+        let rows = vec![
+            bare_row(1, "gold", 100, 0, 1000, 0), bare_row(2, "gold", 0, 500, 0, 1000), bare_row(3, "gold", 0, 500, 0, 1000),
+            bare_row(2, "tea", 100, 0, 1000, 0), bare_row(1, "tea", 0, 300, 0, 1000),
+            bare_row(3, "silver", 100, 0, 1000, 0), bare_row(1, "silver", 0, 300, 0, 1000),
+        ];
+        let open = Constraints { radius_ly: 100.0, max_leg_ly: 0.0, ..Default::default() };
+        let all = best_legs(&stations, &rows, None, &ship, &open, &SearchControl::none());
+        assert!(all.iter().any(|l| l.to.station_id == 2) && all.iter().any(|l| l.to.station_id == 3), "{}", all.len());
+        let only = Constraints { sell_faction: Some("alioth independents".into()), ..open };
+        let legs = best_legs(&stations, &rows, None, &ship, &only, &SearchControl::none());
+        assert!(!legs.is_empty());
+        assert!(legs.iter().all(|l| l.to.station_id == 1), "every surviving leg sells at the faction's station: {:?}", legs.iter().map(|l| (l.from.station_id, l.to.station_id)).collect::<Vec<_>>());
+        let trips = round_trips(&legs, 10);
+        assert!(trips.is_empty(), "no loop sells to the faction at both ends here");
+    }
+
     #[test]
     fn a_light_return_cargo_does_not_cost_a_full_holds_jumps() {
         let ship = Ship { cargo_capacity: 720, jump_range_ly: 60.0, laden_range_ly: 25.0 };

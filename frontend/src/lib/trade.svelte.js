@@ -36,6 +36,9 @@ export const trade = $state({
     sellState: "any",
     buyPowerMode: "controls",
     sellPowerMode: "controls",
+    // Only sell where this minor faction controls the station (rep grind;
+    // maintainer, 2026-09-30, the Alioth permit). "" = any.
+    sellFaction: "",
     maxLegLy: 150,
   },
   report: null,

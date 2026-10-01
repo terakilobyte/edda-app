@@ -28,6 +28,7 @@
  * @property {string|null} sell_state
  * @property {string|null} buy_power_mode
  * @property {string|null} sell_power_mode
+ * @property {string|null} sell_faction
  * @property {number|null} max_leg_ly
  * @property {number|null} min_supply
  * @property {number|null} min_demand
@@ -36,7 +37,7 @@ export const PROFIT_QUERY_KEYS = Object.freeze([
   "system", "from_current_station", "from_station_id", "radius_ly", "max_age_hours", "include_carriers", "include_prohibited",
   "ship_id", "cargo_capacity", "jump_range_ly", "min_pad", "limit", "max_stations", "max_arrival_ls", "max_stops",
   "buy_power", "buy_state", "sell_power", "sell_state", "buy_power_mode", "sell_power_mode", "max_leg_ly",
-  "min_supply", "min_demand",
+  "min_supply", "min_demand", "sell_faction",
 ]);
 
 // ── src-tauri/src/routing.rs: PlotQuery ─────────────────────────────
