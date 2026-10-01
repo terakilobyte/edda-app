@@ -501,6 +501,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Local mirror of production** (2026-10-01, boss: "sync the server db
+  to the wsl db too so that we're one for one"). `scripts/mirror-prod-db.sh`
+  dumps the box (directory format, 2 jobs, zstd: 1.8 GB in 65 s), rsyncs
+  it (3 min at the PC's ~10 MB/s), restores into `edda_mirror` with 6
+  jobs (30 min, index builds; 46 GB), verifies (850,979 stations,
+  803,949 with a faction, 102.6M market rows, 68.1M outfitting rows,
+  schema at 0023), migrates with the local binary and repoints the WSL
+  `ed-api serve` + `ed-api ingest` at it; the EDDN feed keeps it current.
+  Dev builds fly against it (`dev_api_local`). Also found and fixed on
+  the way: the decoder dropped `Docked.StationFaction`, so station
+  factions only ever came from the Spansh dump.
 - **Trade: controlling faction on both ends, selectable as the sell-side
   filter** (2026-09-30, maintainer grinding Alioth Independents for the
   Alioth permit — Allied with that minor faction, then its invitation
