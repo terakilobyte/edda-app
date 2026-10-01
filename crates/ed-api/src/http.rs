@@ -909,10 +909,11 @@ async fn names_complete(
     let kind: &'static str = match query.kind.as_str() {
         "system" => "system",
         "station" => "station",
+        "faction" => "faction",
         _ => {
             metrics::counter!("edda_names_complete_requests_total", "kind" => "invalid", "outcome" => "invalid")
                 .increment(1);
-            return (StatusCode::BAD_REQUEST, "kind is \"system\" or \"station\"").into_response();
+            return (StatusCode::BAD_REQUEST, "kind is \"system\", \"station\" or \"faction\"").into_response();
         }
     };
     let counter = |outcome: &'static str| {
@@ -937,6 +938,7 @@ async fn names_complete(
             }
             Err(error) => Err(error),
         },
+        "faction" => names::complete_factions(&state.pool, prefix, limit).await,
         _ => names::complete_stations(&state.pool, prefix, limit).await,
     };
     metrics::histogram!("edda_names_complete_seconds", "kind" => kind).record(started.elapsed().as_secs_f64());

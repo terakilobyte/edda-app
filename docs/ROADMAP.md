@@ -501,6 +501,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Faction completion from a precomputed list** (2026-10-01, boss: "no
+  auto complete for factions … seems like something we could
+  pre-compute"). Measured on the mirror: 38,911 distinct factions; a
+  DISTINCT over `stations.controlling_faction` is ~140 ms per keystroke
+  and a btree index makes it 1 s. 0025 creates `factions(name)`, backfills
+  it from the station table (0.8 s), and the writer adds a name the first
+  time a Docked event carries it; `/v1/names/complete?kind=faction`
+  answers prefix matches first, then contains. The trade panel's box uses
+  the shared Autocomplete, with the current report's factions ahead of
+  the server's.
 - **Local mirror of production** (2026-10-01, boss: "sync the server db
   to the wsl db too so that we're one for one"). `scripts/mirror-prod-db.sh`
   dumps the box (directory format, 2 jobs, zstd: 1.8 GB in 65 s), rsyncs

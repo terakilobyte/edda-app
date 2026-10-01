@@ -224,6 +224,7 @@ pub async fn complete_names(state: &AppState, kind: crate::routing::NameKind, pr
     let kind = match kind {
         crate::routing::NameKind::System => "system",
         crate::routing::NameKind::Station => "station",
+        crate::routing::NameKind::Faction => "faction",
         // Hulls come from the bundled catalog; the server has no such list
         // and must not be asked per keystroke for one.
         crate::routing::NameKind::Ship | crate::routing::NameKind::Module => return None,

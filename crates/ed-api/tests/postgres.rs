@@ -1395,6 +1395,22 @@ async fn market_search_mirrors_the_local_contract() {
     assert_eq!(merc["credits_price"], 0);
     assert_eq!(merc["merc_price"], 500);
     assert_eq!(merc["merc_variants"], json!([129045442]));
+
+    // Faction completion (2026-10-01) answers from the precomputed list,
+    // names that start with the text before names that contain it.
+    sqlx::query("INSERT INTO factions (name) VALUES ('Alioth Independents'), ('Independents of Olgrea'), ('Terran Colonial Forces') ON CONFLICT DO NOTHING")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let response = app
+        .clone()
+        .oneshot(Request::get("/v1/names/complete?kind=faction&prefix=indep").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let hits = read(response).await;
+    let names: Vec<&str> = hits.as_array().unwrap().iter().map(|h| h["name"].as_str().unwrap()).collect();
+    assert_eq!(names, vec!["Independents of Olgrea", "Alioth Independents"], "{hits}");
     let value = read(
         app.clone()
             .oneshot(post(json!({

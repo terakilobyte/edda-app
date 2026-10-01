@@ -353,6 +353,13 @@ async fn apply_station_identity(
     .bind(identity.controlling_faction.as_deref())
     .execute(&mut **transaction)
     .await?;
+    if let Some(faction) = identity.controlling_faction.as_deref().map(str::trim).filter(|f| !f.is_empty()) {
+        // The completion list (0025): names only ever join it.
+        sqlx::query("INSERT INTO factions (name) VALUES ($1) ON CONFLICT DO NOTHING")
+            .bind(faction)
+            .execute(&mut **transaction)
+            .await?;
+    }
     if !identity.services.is_empty() {
         sqlx::query("DELETE FROM station_services WHERE station_id = $1")
             .bind(station_id)

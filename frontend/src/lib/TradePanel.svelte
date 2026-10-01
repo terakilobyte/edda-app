@@ -14,6 +14,16 @@
     return [...names].sort();
   });
   const pickFaction = (name) => { trade.query.sellFaction = trade.query.sellFaction === name ? "" : name; };
+  // The server's precomputed faction list (38,911 names on 2026-10-01),
+  // with the factions of the current report ahead of it.
+  async function completeFactions(prefix) {
+    const p = prefix.trim().toLowerCase();
+    const local = factions.filter((f) => f.toLowerCase().includes(p)).map((name) => ({ name, detail: "in these results" }));
+    let remote = [];
+    try { remote = await nameComplete("faction", prefix); } catch { remote = []; }
+    const seen = new Set(local.map((h) => h.name.toLowerCase()));
+    return [...local, ...remote.filter((h) => !seen.has(h.name.toLowerCase()))].slice(0, 12);
+  }
   import { boardLine } from "./tradeView.js";
   import { tradeFollow, followTrade, stopTrade } from "./tradeFollow.svelte.js";
   import { ship } from "./ship.svelte.js";
@@ -142,8 +152,7 @@
   </div>
   <div class="row" style="margin-bottom:0.5rem">
     <label title="Only sell at stations this minor faction controls. Reputation is earned where you sell, so every loop is two sales to it. Click a faction in the results to pick it.">sell to faction
-      <input list="trade-factions" placeholder="any faction" bind:value={trade.query.sellFaction} style="min-width:14rem" />
-      <datalist id="trade-factions">{#each factions as f}<option value={f}></option>{/each}</datalist>
+      <Autocomplete bind:value={trade.query.sellFaction} minWidth="14rem" placeholder="any faction" fetch={completeFactions} />
       {#if trade.query.sellFaction}<button class="quiet tiny" title="Clear" onclick={() => (trade.query.sellFaction = "")}>×</button>{/if}
     </label>
     <label title="Closed loops of three or more stops, every leg loaded (round trips are always searched)"><input type="checkbox" checked={trade.query.maxStops > 0} onchange={(e) => (trade.query.maxStops = e.currentTarget.checked ? 3 : 0)} /> search for trade rings</label>

@@ -506,6 +506,9 @@ pub enum NameKind {
     Ship,
     /// Module names, from the bundled outfitting table: no API, no index.
     Module,
+    /// Minor faction names, from the server's precomputed list (0025):
+    /// no local source (2026-10-01, the trade panel's "sell to faction").
+    Faction,
 }
 
 #[tauri::command]
@@ -523,6 +526,12 @@ pub async fn name_complete(state: State<'_, AppState>, routing: State<'_, Arc<Ro
     }
     if kind == NameKind::Module {
         return Ok(ed_journal::modules::complete_modules(p, NAME_HITS).into_iter().map(|name| NameHit { name, detail: None }).collect());
+    }
+    if kind == NameKind::Faction {
+        if p.len() < 2 {
+            return Ok(Vec::new());
+        }
+        return Ok(crate::remote_lookup::complete_names(&state, kind, p, NAME_HITS).await.unwrap_or_default());
     }
     if p.len() < 2 {
         return Ok(Vec::new());

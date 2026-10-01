@@ -77,6 +77,24 @@ pub async fn complete_stations(pool: &PgPool, prefix: &str, limit: usize) -> Res
     Ok(rows.into_iter().map(|(name, system)| NameHit { name, detail: system }).collect())
 }
 
+/// Minor faction names from the precomputed `factions` table (0025):
+/// names that START with the text first, then names that contain it, so
+/// "indep" reaches "Alioth Independents" and "alio" lists it first.
+pub async fn complete_factions(pool: &PgPool, prefix: &str, limit: usize) -> Result<Vec<NameHit>> {
+    let escaped = prefix.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "SELECT name FROM factions \
+         WHERE lower(name) LIKE lower($1) || '%' OR lower(name) LIKE '%' || lower($1) || '%' \
+         ORDER BY (lower(name) LIKE lower($1) || '%') DESC, name \
+         LIMIT $2",
+    )
+    .bind(&escaped)
+    .bind(limit as i64)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|(name,)| NameHit { name, detail: None }).collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
