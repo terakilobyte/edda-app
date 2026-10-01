@@ -189,6 +189,14 @@ pub struct JournalMessage {
     pub station_economy: Option<String>,
     #[serde(rename = "StationGovernment", default)]
     pub station_government: Option<String>,
+    /// `Docked.StationFaction` — the minor faction that controls the
+    /// station, which a profitable sale earns reputation with. Until
+    /// 2026-09-30 this was dropped and `stations.controlling_faction`
+    /// only ever came from the Spansh dump: 803,651 of 850,958 stations
+    /// on production, as stale as the last hydration while factions flip
+    /// with the BGS.
+    #[serde(rename = "StationFaction", default)]
+    pub station_faction: Option<StationFaction>,
     // Scan / SAASignalsFound / FSSBodySignals (2026-09-09, maintainer: what the
     // dump adds that the feed carried gets parsed): the arrival star's
     // class for the routing index, prospecting bodies, ring hotspots and
@@ -302,6 +310,12 @@ pub fn ring_parent_name(ring_name: &str) -> Option<&str> {
     let stripped = ring_name.trim().strip_suffix(" Ring")?;
     let (parent, letter) = stripped.rsplit_once(' ')?;
     (letter.len() == 1 && letter.chars().all(|c| c.is_ascii_uppercase())).then_some(parent)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct StationFaction {
+    #[serde(rename = "Name", default)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -481,7 +495,13 @@ impl Envelope {
                             .station_government
                             .as_deref()
                             .map(ed_domain::station::government_from_journal),
-                        controlling_faction: None,
+                        controlling_faction: message
+                            .station_faction
+                            .as_ref()
+                            .and_then(|f| f.name.as_deref())
+                            .map(str::trim)
+                            .filter(|n| !n.is_empty())
+                            .map(str::to_owned),
                         services: message.station_services.clone().unwrap_or_default(),
                     }));
                 }
@@ -1465,7 +1485,7 @@ mod teaching_tests {
     #[test]
     fn a_docked_teaches_the_station_economy_in_dump_spelling() {
         let env = journal(
-            r#"{"timestamp":"2026-09-12T10:00:00Z","event":"Docked","StarSystem":"Deciat","SystemAddress":6681123623626,"StationName":"Garay Terminal","MarketID":3229756928,"StationType":"Coriolis","DistFromStarLS":636.8,"StationEconomy":"$economy_HighTech;","StationGovernment":"$government_Corporate;","StationServices":["dock","autodock","commodities","contacts","materialtrader"]}"#,
+            r#"{"timestamp":"2026-09-12T10:00:00Z","event":"Docked","StarSystem":"Deciat","SystemAddress":6681123623626,"StationName":"Garay Terminal","MarketID":3229756928,"StationType":"Coriolis","DistFromStarLS":636.8,"StationEconomy":"$economy_HighTech;","StationGovernment":"$government_Corporate;","StationFaction":{"Name":"Ryders of the Void","FactionState":"Boom"},"StationServices":["dock","autodock","commodities","contacts","materialtrader"]}"#,
         );
         let ops = env.operations();
         let Some(Operation::StationIdentity(id)) = ops
@@ -1477,6 +1497,7 @@ mod teaching_tests {
         assert_eq!(id.primary_economy.as_deref(), Some("High Tech"));
         assert_eq!(id.government.as_deref(), Some("Corporate"));
         assert_eq!(id.station_name, "Garay Terminal");
+        assert_eq!(id.controlling_faction.as_deref(), Some("Ryders of the Void"), "Docked.StationFaction.Name is the station's controlling faction (2026-09-30)");
         // The journal already writes its own service keys; the dump's
         // names are the ones that need translating, and that happens in
         // the hydration path, not here.
