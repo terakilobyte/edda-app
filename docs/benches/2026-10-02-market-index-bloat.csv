@@ -1,0 +1,14 @@
+# VERDICT: the database's growth was one index. market_commodity_fresh_idx (0012; (commodity_symbol, observed_at DESC) INCLUDE five columns) was 38 GB on the box against 9.7 GB freshly built from the same data on the production mirror, because the board writer replaces a station's board by DELETE + INSERT (338M inserts / 236M deletes on market since the stats began ~2026-09-07) and a B-tree keyed on observed_at never reuses the pages those deletes free. REINDEX INDEX CONCURRENTLY: 38 GB -> 8,750 MB, database 85 GB -> 56 GB, 3 min 9 s, ingest unblocked throughout. The first attempt deadlocked after 3 min 25 s with the 0.4.1 release deploy's post-restart "ANALYZE market" (04:39:14Z, deploy job started 04:36:38Z) and left an invalid market_commodity_fresh_idx_ccnew (+9 GB) that DROP INDEX CONCURRENTLY removed. Rate: ~28 GB of bloat in ~25 days, so a weekly reindex (deploy/edda-weekly.sh, Sundays 01:00 UTC, after the hydrate's 00:05-00:25) holds it at ~10 GB. market_pkey has grown the same way (5,373 MB vs 4,413 on the mirror) and outfitting_pkey slightly (5,516 vs 4,212); both left for a later measurement. Not done: a writer that updates boards in place, which would stop the bloat at its source; it needs the share of rows a refreshed board actually changes, unmeasured.
+# Box: Postgres 16, 2026-10-02 04:35-04:45Z; mirror numbers from Waldorf's edda_mirror restored 2026-10-01 00:25Z (102.76M market rows). The market table holds one board per station (620,114 stations, median 94 rows, 102.7M rows) — no history; the heap is flat.
+object,box before,mirror fresh,box after reindex
+market_commodity_fresh_idx,38 GB,9694 MB,8750 MB
+market_pkey,5373 MB,4413 MB,5373 MB (not reindexed)
+market_sell_idx,1653 MB,836 MB,1653 MB (not reindexed)
+market_station_fresh_idx,917 MB,803 MB,917 MB (not reindexed)
+market heap,11 GB,9950 MB,11 GB
+market total,56 GB,25 GB,~27 GB
+outfitting_pkey,5516 MB,4212 MB,5516 MB (not reindexed)
+database,85 GB,49 GB,56 GB
+reindex wall time,,,3 min 9 s (first attempt 3 min 25 s then deadlock with deploy ANALYZE)
+market n_tup_ins / n_tup_del since stats began,338369794 / 235657918,,
+disk / (301 GB),130 GB (45%),,~101 GB after reindex (expected)

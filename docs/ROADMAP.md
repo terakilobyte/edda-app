@@ -8,6 +8,21 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **The database's growth was one index** (2026-10-02, measured on
+  the box and the mirror). `market_commodity_fresh_idx` was 38 GB
+  against 9.7 GB freshly built from the same data: the board writer
+  replaces a board by DELETE + INSERT and the observed_at-keyed B-tree
+  never reuses freed pages. A concurrent reindex gave back 29 GB
+  (database 85 → 56 GB) in 3 min without blocking ingest; the weekly
+  timer now does it every Sunday with one retry, after the first
+  attempt deadlocked with a deploy's post-restart ANALYZE
+  (`docs/benches/2026-10-02-market-index-bloat.csv`). Open: the writer
+  could update boards in place and stop the bloat at the source — build
+  it only after measuring what share of a refreshed board's rows
+  actually change; `market_pkey` and `outfitting_pkey` carry ~1 GB of
+  the same bloat each, left for that measurement. Also open: the app
+  artifact directory keeps every installer since 0.2.0 (~2 GB); prune
+  to the last two.
 - **Clients dashboard: four panels removed, three made honest at zero**
   (2026-09-20, live audit through the tunnel, 95 panels). "Coverage
   gaps /h by path/kind" read `edda_client_events_total{callsite=~
