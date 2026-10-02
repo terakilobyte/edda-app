@@ -7,6 +7,50 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.1
+
+Trade for reputation: every leg and loop now shows which faction runs
+each station, and you can click one to search only loops that sell to
+it, to aid in reputation grinding. Module search is fixed and fast: it finds the thing you typed, in the size you typed,
+instead of taking seven seconds to find nothing. Pre-engineered
+merc-coin modules no longer pretend to be the plain module sold for
+credits. And a mission the game quietly finished, like a permit
+acquisition, no longer sits on your HUD forever.
+
+**Trading for rep.** Both ends of every leg and loop show their
+controlling faction. Click a faction, or type it into the new "sell to
+faction" box, and the search keeps only legs that sell at that faction's
+stations, so a round trip is two sales to them. The box completes from
+the whole galaxy's faction list as you type.
+
+**Round trips that made no sense.** A loaded leg used to be timed as if
+the hold were always full, so a loop with a light return looked slower
+than the same leg flown back empty. The range now follows what you
+actually carry. When repeating a leg empty really is faster per hour
+than a loop, the Round trips tab says so instead of leaving you to
+wonder.
+
+**Module search.** Type the module the way the game names it, "5A fuel
+scoop" or "Bi-Weave Shield Generator 5C", and the search finds exactly
+that. Finish typing a name and the box offers its sizes. Results come
+back in about a second.
+
+**Merc coins.** Modules sold for merc coins are the engineered variants
+and share a name with the plain module. Where the community data carries
+prices, the search tells them apart, names the variant, and hides
+merc-only listings unless you hold merc coins. Where it doesn't, it says
+"unconfirmed" rather than guessing. Every station you dock at is exact
+from your own game data.
+
+**Missions.** The game writes a roll-call of your missions at every
+login; EDDA now reads it, so a mission that finished without its own
+event, like a permit acquisition, leaves the HUD.
+
+**Smaller things.** The developer note under the Market search is gone.
+Trade-data purchases in the galaxy map never reach the journal, so
+nothing in EDDA can react to them; your own station visits are what
+improve the data for everyone.
+
 ## 0.4.0
 
 The build planner got a lot smarter. Import a build from EDSY and it
