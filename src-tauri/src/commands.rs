@@ -2359,7 +2359,7 @@ pub async fn set_persona(state: State<'_, AppState>, id: String) -> Result<Perso
         cfg.save(&state.data_dir).map_err(err)?;
     }
     // Personality changes the wording only; the voice is chosen separately.
-    state.voice.say(p.sample);
+    state.voice.say_unthrottled(p.sample);
     personas(state).await
 }
 
@@ -2379,7 +2379,7 @@ pub async fn voice_use_windows(state: State<'_, AppState>) -> Result<VoiceStatus
     state.voice.audio().set_server(None);
     state.voice.use_windows();
     crate::telemetry::set_voice_engine("voice_windows");
-    state.voice.say("Windows voice selected.");
+    state.voice.say_unthrottled("Windows voice selected.");
     voice_status(state).await
 }
 
@@ -2450,7 +2450,7 @@ async fn install_curated_voice(state: &AppState, model: &str) -> Result<String, 
     }).await.map_err(err)?.map_err(err)?;
     state.voice.reload(&data_dir);
     state.voice.set_model(spec.model);
-    state.voice.say(format!("{} installed and ready.", spec.label));
+    state.voice.say_unthrottled(format!("{} installed and ready.", spec.label));
     Ok(spec.model.into())
 }
 
@@ -2577,7 +2577,7 @@ pub async fn voice_server_set(
         state.voice.audio().set_server(if enabled { Some(c.clone()) } else { None });
         c
     };
-    state.voice.say("Hello, Commander. All systems online.");
+    state.voice.say_unthrottled("Hello, Commander. All systems online.");
     let audio = state.voice.audio().clone();
     tauri::async_runtime::spawn_blocking(move || voice_server_view(&audio, enabled, saved, enabled))
             .await
@@ -2700,7 +2700,7 @@ pub async fn set_voice(state: State<'_, AppState>, model: String) -> Result<Stri
         ed_voice::Backend::Sapi => "voice_windows",
         _ => "voice_none",
     });
-    state.voice.say("Hello, Commander. All systems online.");
+    state.voice.say_unthrottled("Hello, Commander. All systems online.");
     Ok(model)
 }
 
@@ -2871,7 +2871,8 @@ pub fn say(state: State<AppState>, text: String) {
 #[tauri::command]
 pub fn say_now(state: State<AppState>, text: String) {
     state.voice.interrupt();
-    state.voice.say(speakable(&text));
+    // Barge-in is always an explicit request: no repeat gate.
+    state.voice.say_unthrottled(speakable(&text));
 }
 
 #[tauri::command]

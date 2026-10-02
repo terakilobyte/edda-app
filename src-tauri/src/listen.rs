@@ -815,7 +815,7 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
                     // Wake word: cut anything being said, acknowledge, open the window.
                     let st = app.state::<AppState>();
                     st.voice.interrupt();
-                    st.voice.say("Yes, Commander?");
+                    st.voice.say_unthrottled("Yes, Commander?");
                     free_rec.reset();
                     order_pcm.clear();
                     order_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(cfg.window_secs.max(2)));
@@ -927,7 +927,7 @@ fn handle_heard(app: &AppHandle, text: &str) {
         crate::events::LISTEN_REPLY,
         serde_json::json!({ "text": reply, "route": artefacts.0, "profit": artefacts.1 }),
     );
-    state.voice.say(&reply);
+    state.voice.say_unthrottled(&reply);
     listen(&state).phase = 1;
     let _ = app.emit(crate::events::LISTEN_STATE, serde_json::json!({ "phase": "idle" }));
 }

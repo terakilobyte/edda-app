@@ -516,6 +516,36 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Shield callouts need a shield generator; every utterance passes the
+  repeat gate** (2026-10-02, maintainer: "only make shield callouts when
+  a shield generator is equipped"; "anything the voice says should go
+  through the same debounce logic we have for 'under attack'"). The
+  Loadout's modules set `has_shield_generator`; a shieldless hull's
+  `ShieldState` (the game writes ShieldsUp:false at every launch) says
+  nothing. The `RepeatGate` moved into `VoiceHandle::say` (kind "voice",
+  10 s) so AI replies, route-following messages and the `say` command are
+  debounced like callouts; `say_unthrottled` is for speech the commander
+  asked for this instant — voice samples, greetings after picking an
+  engine, barge-in, spoken-order replies including "repeat that", and the
+  wake acknowledgement.
+- **A route request plots right away** (2026-10-02, maintainer: "that
+  opens the app router but I still have to click plot there, why not do
+  it right away?"). `RoutePanel.plot()` ran only the in-game arm when the
+  destination was inside `game_route_max_ly` with the map controls taught,
+  and returned with no EDDA route — from a result-list arrow that looked
+  like nothing happened. It now runs EDDA's own plot first, every time,
+  then arms Elite's plotter as before.
+- **One renderer for a place you can go** (2026-10-02, maintainer: mining
+  results had no way to navigate to a system — "same as we do on every
+  other system result page … wire this into a unified flow/renderer,
+  these inconsistencies make us look unpolished"). `Place.svelte`: the
+  system name, the route arrow (Route tab plots there) and a copy button
+  for the galaxy map, with one shared clipboard state
+  (`clipboard.svelte.js`). Used by Market, Galaxy services, Trade (legs
+  and loops, both ends), Mining (all five tables), Engineers, Powerplay,
+  the build planner's sellers, the shopping list's three lists, and the
+  Route tab's hop list (arrow off there). Before: an arrow in two panels,
+  a text "route" button in two, a copy button in two, nothing in three.
 - **Faction completion from a precomputed list** (2026-10-01, boss: "no
   auto complete for factions … seems like something we could
   pre-compute"). Measured on the mirror: 38,911 distinct factions; a
