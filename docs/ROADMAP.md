@@ -516,6 +516,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A route request plots right away** (2026-10-02, maintainer: "that
+  opens the app router but I still have to click plot there, why not do
+  it right away?"). `RoutePanel.plot()` ran only the in-game arm when the
+  destination was inside `game_route_max_ly` with the map controls taught,
+  and returned with no EDDA route — from a result-list arrow that looked
+  like nothing happened. It now runs EDDA's own plot first, every time,
+  then arms Elite's plotter as before.
 - **One renderer for a place you can go** (2026-10-02, maintainer: mining
   results had no way to navigate to a system — "same as we do on every
   other system result page … wire this into a unified flow/renderer,
