@@ -13,8 +13,8 @@
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
   import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
-  import { requestRoute } from "./route.svelte.js";
   import { useTabActive, journalResource } from "./lifecycle.svelte.js";
+  import Place from "./Place.svelte";
 
   let ships = $state([]);
   let hulls = $state([]);
@@ -402,8 +402,7 @@
                     {:else if c.sellers.length}
                       <div class="row small">
                         {#each c.sellers as s}
-                          <span class="pill">{s.station} · {s.system} · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}
-                            <button class="mini" onclick={() => requestRoute(s.system)} title="Plot a route there in the Route tab">route</button></span>
+                          <span class="pill">{s.station} · <Place system={s.system} station={s.station} /> · {s.distance_ly != null ? `${s.distance_ly.toFixed(0)} ly` : "?"}{s.price != null ? ` · ${Math.round(s.price).toLocaleString()} cr` : ""} · {s.quantity} in stock{s.age_hours != null && s.age_hours > 48 ? ` · ${s.age_hours.toFixed(0)} h old` : ""}</span>
                         {/each}
                       </div>
                       {#if c.sellers_from}<div class="muted small">from {c.sellers_from}</div>{/if}

@@ -8,6 +8,7 @@
   import { openHelp } from "./help.svelte.js";
   import { fmtInt, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
+  import Place from "./Place.svelte";
 
   let seen = $state([]);
   let timeline = $state([]);
@@ -52,7 +53,7 @@
         <tbody>
           {#each seen as p}
             <tr>
-              <td>{p.system_name}</td>
+              <td><Place system={p.system_name} /></td>
               <td>{p.controlling_power ?? "—"}</td>
               <td>{p.powerplay_state ?? "—"}</td>
               <td class="r num">{p.control_progress != null ? `${(p.control_progress * 100).toFixed(1)}%` : "—"}</td>
