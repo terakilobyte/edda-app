@@ -516,6 +516,18 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Shield callouts need a shield generator; every utterance passes the
+  repeat gate** (2026-10-02, maintainer: "only make shield callouts when
+  a shield generator is equipped"; "anything the voice says should go
+  through the same debounce logic we have for 'under attack'"). The
+  Loadout's modules set `has_shield_generator`; a shieldless hull's
+  `ShieldState` (the game writes ShieldsUp:false at every launch) says
+  nothing. The `RepeatGate` moved into `VoiceHandle::say` (kind "voice",
+  10 s) so AI replies, route-following messages and the `say` command are
+  debounced like callouts; `say_unthrottled` is for speech the commander
+  asked for this instant — voice samples, greetings after picking an
+  engine, barge-in, spoken-order replies including "repeat that", and the
+  wake acknowledgement.
 - **A route request plots right away** (2026-10-02, maintainer: "that
   opens the app router but I still have to click plot there, why not do
   it right away?"). `RoutePanel.plot()` ran only the in-game arm when the

@@ -35,6 +35,15 @@ pub struct VoiceHandle {
     muted: std::sync::atomic::AtomicBool,
     /// What was last said, for "repeat".
     last: Mutex<Option<String>>,
+    /// The same words again inside a window are not said again, whatever
+    /// asked for them: callouts had this gate in the watcher since
+    /// 2026-09-27 ("Under attack." 182 times in one fight), but AI replies,
+    /// route-following messages and the direct `say` command went straight
+    /// to the queue (maintainer, 2026-10-02: "anything the voice says should
+    /// go through the same debounce logic"). `say_unthrottled` is for speech
+    /// the commander explicitly asked for this instant: a voice sample, a
+    /// greeting after choosing an engine, "repeat that".
+    gate: Mutex<crate::callouts::RepeatGate>,
     /// Speech server, output device and the interrupt generation, shared
     /// with the voice thread.
     audio: Arc<ed_voice::Audio>,
@@ -58,6 +67,7 @@ impl VoiceHandle {
             model: Mutex::new(model),
             muted: std::sync::atomic::AtomicBool::new(false),
             last: Mutex::new(None),
+            gate: Mutex::new(crate::callouts::RepeatGate::default()),
             audio,
         }
     }
@@ -86,7 +96,28 @@ impl VoiceHandle {
     }
 
     /// Queue a line. Never blocks; a full queue drops this line with a log.
+    /// Identical text inside the voice window (see `RepeatGate::window`,
+    /// kind "voice") is not said again; the repeat is counted and logged
+    /// with the next one that passes.
     pub fn say(&self, text: impl Into<String>) {
+        let text: String = text.into();
+        match self.gate.lock().unwrap_or_else(|e| e.into_inner()).admit("voice", &text, std::time::Instant::now()) {
+            None => {
+                tracing::debug!(text = %text, "voice: repeated inside its window; not said again");
+                return;
+            }
+            Some(repeats) if repeats > 0 => {
+                tracing::info!(text = %text, repeats, window_s = crate::callouts::RepeatGate::window("voice").as_secs(), "voice: repeats not said inside the window");
+            }
+            Some(_) => {}
+        }
+        self.say_unthrottled(text);
+    }
+
+    /// Queue a line past the repeat gate: for speech the commander asked
+    /// for this instant (a voice sample, "repeat that", a greeting after
+    /// picking an engine). Everything automatic goes through [`say`].
+    pub fn say_unthrottled(&self, text: impl Into<String>) {
         let text: String = text.into();
         *self.last.lock().unwrap_or_else(|e| e.into_inner()) = Some(text.clone());
         if self.muted.load(std::sync::atomic::Ordering::Relaxed) {
