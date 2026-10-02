@@ -27,26 +27,13 @@
   import { boardLine } from "./tradeView.js";
   import { tradeFollow, followTrade, stopTrade } from "./tradeFollow.svelte.js";
   import { ship } from "./ship.svelte.js";
-  // Copy a system name for the galaxy map search box.
-  let copied = $state("");
-  async function copy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text; document.body.appendChild(ta); ta.select();
-      try { document.execCommand("copy"); } catch {}
-      ta.remove();
-    }
-    copied = text;
-    setTimeout(() => (copied === text) && (copied = ""), 1200);
-  }
   const arrow = (k) => (trade.sortKey === k ? (trade.sortDir < 0 ? " ▼" : " ▲") : "");
   import { powerplayOptions, nameComplete } from "./api.js";
   import { fmtCr, fmtCrShort, fmtLy, fmtLs, fmtMin, fmtAge, fmtInt } from "./format.js";
   import { KEYS, persisted } from "./storage.svelte.js";
   import Autocomplete from "./Autocomplete.svelte";
   import { onMount } from "svelte";
+  import Place from "./Place.svelte";
 
   // Powerplay filter options come from the galaxy tables.
   let pp = $state({ powers: [], states: [], pledged: null });
@@ -220,7 +207,7 @@
                   <td>
                     <ol class="ring">
                       {#each r.legs as l}
-                        <li><strong>{l.from.station}</strong> <span class="muted small">({l.from.system} <button class="copy" title="Copy system name" onclick={() => copy(l.from.system)}>{copied === l.from.system ? "✓" : "⧉"}</button>)</span> — buy {l.commodity}{#each l.extra ?? [] as x} + {x.tons} t {x.commodity}{/each} ({l.tons} t · s {fmtInt(l.supply)} · d {fmtInt(l.demand)}), {fmtCrShort(l.profit)} at the next stop</li>
+                        <li><strong>{l.from.station}</strong> <span class="muted small">(<Place system={l.from.system} station={l.from.station} />)</span> — buy {l.commodity}{#each l.extra ?? [] as x} + {x.tons} t {x.commodity}{/each} ({l.tons} t · s {fmtInt(l.supply)} · d {fmtInt(l.demand)}), {fmtCrShort(l.profit)} at the next stop</li>
                       {/each}
                     </ol>
                   </td>
@@ -248,8 +235,8 @@
                 <tr>
                   <td><button class="quiet tiny" title="Follow this leg: EDDA targets each end's system and briefs both pads (fly back empty)" onclick={() => followTrade([l], "leg")}>▶</button>
                     <strong>{l.commodity}</strong>{#each l.extra ?? [] as x}<div class="muted small">+ {x.tons} t {x.commodity}</div>{/each}</td>
-                  <td>{l.from.station}<div class="muted small">{l.from.system} <button class="copy" title="Copy system name" onclick={() => copy(l.from.system)}>{copied === l.from.system ? "✓" : "⧉"}</button></div>{@render faction(l.from)}</td>
-                  <td>{l.to.station}<div class="muted small">{l.to.system} <button class="copy" title="Copy system name" onclick={() => copy(l.to.system)}>{copied === l.to.system ? "✓" : "⧉"}</button> · {l.to.class}</div>{@render faction(l.to)}</td>
+                  <td>{l.from.station}<div class="muted small"><Place system={l.from.system} station={l.from.station} /></div>{@render faction(l.from)}</td>
+                  <td>{l.to.station}<div class="muted small"><Place system={l.to.system} station={l.to.station} /> · {l.to.class}</div>{@render faction(l.to)}</td>
                   <!-- Maintainer ruling 2026-09-09: "repeat rate only on single legs" -
                        the one-way figure (profit ÷ loaded flight, as if you
                        never flew back) is nonsense for a delivery you repeat;
@@ -295,7 +282,7 @@
                   <td><button class="quiet tiny" title={isPinned(t) ? "Unpin from HUD" : "Pin this loop to the HUD"} onclick={() => pinLoop(isPinned(t) ? null : t)}>{isPinned(t) ? "★" : "☆"}</button>
                     <button class="quiet tiny" title="Follow this loop: EDDA targets each stop's system and briefs every arrival" onclick={() => followTrade([t.out, t.back], "round_trip")}>▶</button></td>
                   <td><strong>{t.out.from.station}</strong> ⇄ <strong>{t.out.to.station}</strong>
-                    <div class="muted small">{t.out.from.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.from.system)}>{copied === t.out.from.system ? "✓" : "⧉"}</button> ⇄ {t.out.to.system} <button class="copy" title="Copy system name" onclick={() => copy(t.out.to.system)}>{copied === t.out.to.system ? "✓" : "⧉"}</button> · {fmtLy(t.out.distance_ly)}</div>
+                    <div class="muted small"><Place system={t.out.from.system} station={t.out.from.station} /> ⇄ <Place system={t.out.to.system} station={t.out.to.station} /> · {fmtLy(t.out.distance_ly)}</div>
                     <div class="small">{@render faction(t.out.from)} ⇄ {@render faction(t.out.to)}</div></td>
                   <td>{t.out.commodity}{#each t.out.extra ?? [] as x}<span class="muted small"> + {x.tons} t {x.commodity}</span>{/each}<div class="muted small">{fmtCr(t.out.profit)} · {t.out.tons} t · s {fmtInt(t.out.supply)} · d {fmtInt(t.out.demand)}</div></td>
                   <td>{t.back.commodity}{#each t.back.extra ?? [] as x}<span class="muted small"> + {x.tons} t {x.commodity}</span>{/each}<div class="muted small">{fmtCr(t.back.profit)} · {t.back.tons} t · s {fmtInt(t.back.supply)} · d {fmtInt(t.back.demand)}</div></td>
@@ -324,8 +311,6 @@
   .pp .lbl { color: var(--muted); font-size: 0.8rem; }
   ol.ring { margin: 0; padding-left: 1.2rem; }
   ol.ring li { margin: 0.1rem 0; }
-  button.copy { background: transparent; color: var(--muted); border: none; padding: 0 0.2rem; font-size: 0.85rem; cursor: pointer; line-height: 1; }
-  button.copy:hover { color: var(--accent); filter: none; }
   th.sortable:hover { color: var(--accent); }
   .progress { display: flex; gap: 0.8rem; align-items: center; background: var(--bg-2); border: 1px solid var(--line); border-radius: 5px; padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; }
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }

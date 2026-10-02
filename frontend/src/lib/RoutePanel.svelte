@@ -109,6 +109,15 @@
     routing.route = null;
     gamePlotMessage = "";
     const from = routing.from.trim();
+    // EDDA's own route first, every time: the panel shows it at once and the
+    // follower has something to follow. Until 2026-10-02 a destination inside
+    // the "ask Elite to plot" range only ARMED the in-game plotter and
+    // returned, so a route arrow from a result list landed here with the
+    // destination filled and nothing plotted (maintainer: "that opens the app
+    // router but I still have to click plot there, why not do it right
+    // away?"). The in-game arm follows, so one Target Next press still asks
+    // Elite for the whole journey when it is in range.
+    await runPlot(plotQueryFrom({ from, to, supercharge, reserve, shipId, injections: injections.value, whiteDwarfs: whiteDwarfs.value, safeMargins: safeMargins.value }));
     if (!from || from.toLowerCase() === currentSystem.toLowerCase()) {
       try {
         const [origin, system, max, points] = await Promise.all([findSystem(currentSystem), findSystem(to), gameRouteMaxGet(), mapPointsGet()]);
@@ -116,16 +125,11 @@
         if (max > 0 && distance != null && distance <= max && points?.search && points?.result && points?.plot) {
           try { gamePlotMessage = await routePlotInGame(system.name ?? to); }
           catch (e) { routing.error = String(e); }
-          return;
         }
-      } catch { /* unavailable or not taught: use EDDA's local planner */ }
+      } catch { /* unavailable or not taught: EDDA's route stands on its own */ }
     }
-    await runPlot(plotQueryFrom({ from, to, supercharge, reserve, shipId, injections: injections.value, whiteDwarfs: whiteDwarfs.value, safeMargins: safeMargins.value }));
   }
 
-  async function copy(text) {
-    try { await navigator.clipboard.writeText(text); } catch {}
-  }
 </script>
 
 <section class="panel">
@@ -239,7 +243,7 @@
           {#each route.hops as h, i}
             <tr class="{h.boosted ? 'boost' : ''} {follow.active && follow.next?.name === h.name ? 'next' : ''}">
               <td class="num">{i}</td>
-              <td>{h.name} <button class="copy" title="Copy system name" onclick={() => copy(h.name)}>⧉</button></td>
+              <td><Place system={h.name} route={false} /></td>
               <td><span class="pill {h.class === 'neutron' ? 'cyan' : h.scoopable ? 'ok' : 'warn'}">{h.class === "unknown" ? (h.scoopable ? "star unknown · scoopable" : "star unknown · no scoop") : h.class.replace("_", " ") + (h.scoopable ? (["neutron", "white_dwarf", "black_hole"].includes(h.class) ? " · scoopable companion" : "") : " · no scoop")}</span></td>
               <td class="r num">{h.distance_ly.toFixed(1)} ly{#if h.injection} <span class="pill warn" title="Synthesise this FSD injection before the jump">{h.injection} injection</span>{/if}</td>
               <td class="r num" title={h.fuel_after != null ? "tonnes in the tank on arrival" : ""}>{#if h.fuel_after != null}{h.fuel_after.toFixed(1)} t{#if h.refuel} <span class="pill ok" title="scoop here">scoop</span>{/if}{/if}</td>
@@ -309,7 +313,5 @@
   .try-harder { margin: 0.2rem 0 0.6rem; }
   .help { display: inline-block; width: 1.1rem; height: 1.1rem; line-height: 1.1rem; text-align: center; border-radius: 50%; border: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; cursor: help; margin-left: 0.2rem; }
   tr.boost td { background: #7ec8ff10; }
-  button.copy { background: transparent; color: var(--muted); border: none; padding: 0 0.2rem; font-size: 0.85rem; cursor: pointer; }
-  button.copy:hover { color: var(--accent); filter: none; }
   tr.next td { background: rgba(240, 123, 5, 0.12); }
 </style>

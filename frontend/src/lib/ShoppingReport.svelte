@@ -1,7 +1,7 @@
 <script>
   // A shopping report as the Engineering tab and the Ships tab's build plan
   // both show it: trades from what you carry, nearest traders, farm plans.
-  import { requestRoute } from "./route.svelte.js";
+  import Place from "./Place.svelte";
   import { traderStatus } from "./engineering.svelte.js";
   import { KEYS, persisted } from "./storage.svelte.js";
 
@@ -96,8 +96,7 @@
         {#if t.nearest.length}
           <div class="row small" style="margin-top:0.2rem">
             {#each t.nearest as n}
-              <span class="pill">{n.station.name} · {n.station.system_name} · {n.distance_ly.toFixed(1)} ly{n.station.distance_to_arrival != null ? ` · ${Math.round(n.station.distance_to_arrival)} ls` : ""}
-                <button class="mini" onclick={() => requestRoute(n.station.system_name)} title="Plot a route there in the Route tab">route</button></span>
+              <span class="pill">{n.station.name} · {n.station.system_name} · {n.distance_ly.toFixed(1)} ly{n.station.distance_to_arrival != null ? ` · ${Math.round(n.station.distance_to_arrival)} ls` : ""} <Place system={n.station.system_name} /></span>
             {/each}
           </div>
         {:else}
@@ -123,7 +122,7 @@
                   <td class="r num">{o.collect}</td><td>{o.farm_material}</td>
                   <td class="muted">{o.rate ? `trade ${o.rate} → ${o.get} ${plan.material} at a ${o.kind} trader` : "use directly"}</td>
                   <td class="r num">{o.distance_ly != null ? o.distance_ly.toFixed(0) : "?"}</td>
-                  <td>{#if o.system}<button class="mini" onclick={() => requestRoute(o.system)} title="Plot a route there in the Route tab">route</button>{/if}</td>
+                  <td><Place system={o.system} /></td>
                 </tr>
               {/each}
             </tbody>
@@ -145,13 +144,12 @@
         {#if src.witnessed.length}
           <div style="margin:0.2rem 0 0.2rem 1rem"><span class="ok">You picked it up before</span>
             {#each src.witnessed as w}
-              <span class="pill">{place(w.system, w.body)} · {w.count} unit{w.count === 1 ? "" : "s"} over {w.pickups} pickup{w.pickups === 1 ? "" : "s"}{w.distance_ly != null ? ` · ${w.distance_ly.toFixed(0)} ly` : ""}
-                <button class="mini" onclick={() => requestRoute(w.system)} title="Plot a route there in the Route tab">route</button></span>
+              <span class="pill">{place(w.system, w.body)} · {w.count} unit{w.count === 1 ? "" : "s"} over {w.pickups} pickup{w.pickups === 1 ? "" : "s"}{w.distance_ly != null ? ` · ${w.distance_ly.toFixed(0)} ly` : ""} <Place system={w.system} /></span>
             {/each}
           </div>
         {/if}
         {#each src.known as k}
-          <div style="margin:0.2rem 0 0.2rem 1rem"><strong>{k.site}</strong>{place(k.system, k.body) ? ` · ${place(k.system, k.body)}` : ""}{k.distance_ly != null ? ` · ${k.distance_ly.toFixed(0)} ly` : ""}: <span class="muted">{k.method}</span>{#if k.system}<button class="mini" onclick={() => requestRoute(k.system)} style="margin-left:0.3rem">route</button>{/if}</div>
+          <div style="margin:0.2rem 0 0.2rem 1rem"><strong>{k.site}</strong>{place(k.system, k.body) ? ` · ${place(k.system, k.body)}` : ""}{k.distance_ly != null ? ` · ${k.distance_ly.toFixed(0)} ly` : ""}: <span class="muted">{k.method}</span> <Place system={k.system} /></div>
         {/each}
         {#each src.methods as m}
           <div class="muted" style="margin:0.15rem 0 0 1rem">{m}</div>
