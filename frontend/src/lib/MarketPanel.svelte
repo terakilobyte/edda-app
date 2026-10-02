@@ -2,8 +2,8 @@
   import { commoditySearch, outfittingSearch, shipyardSearch, sellHoldSearch, getStatus, listCommodities, nameComplete, powerplayOptions } from "./api.js";
   import { fmtInt, fmtLs, fmtLy, fmtTs } from "./format.js";
   import Autocomplete from "./Autocomplete.svelte";
-  import { requestRoute } from "./route.svelte.js";
   import { onMount } from "svelte";
+  import Place from "./Place.svelte";
 
   let kind = $state("commodity");
   let text = $state("");
@@ -272,11 +272,8 @@
                 {#if kind !== "commodity"}
                   <td><strong>{r.name}</strong>{#if kind === "outfitting" && (r.class || r.rating)}<span class="pill">{r.class ?? "?"}{r.rating ?? ""}</span>{/if}{#if r.unconfirmed}<span class="pill" title={r.merc_note}>unconfirmed</span>{:else if r.merc_note}<span class="pill warn" title={r.merc_note}>{r.credits_price === 0 ? "merc coins only" : "MC variant too"} · {r.merc_price} MC</span>{/if}<div class="symbol">{r.symbol}</div></td>
                 {/if}
-                <td><strong>{r.station}</strong>{#if r.is_carrier}<span class="pill">carrier</span>{:else if r.station === "Stronghold Carrier"}<span class="pill">stronghold</span>{/if}
-                  <button class="route-icon" onclick={() => requestRoute(r.system)}
-                    title="Plot a route to {r.station}, {r.system}" aria-label="Plot a route to {r.station}, {r.system}">➤</button>
-                </td>
-                <td>{r.system}</td><td class="r num">{fmtLy(r.distance_ly)}</td><td class="r num">{fmtLs(r.distance_to_arrival)}</td>
+                <td><strong>{r.station}</strong>{#if r.is_carrier}<span class="pill">carrier</span>{:else if r.station === "Stronghold Carrier"}<span class="pill">stronghold</span>{/if}</td>
+                <td><Place system={r.system} station={r.station} /></td><td class="r num">{fmtLy(r.distance_ly)}</td><td class="r num">{fmtLs(r.distance_to_arrival)}</td>
                 <td><span class="pill {r.max_pad === 'large' ? 'ok' : r.max_pad ? '' : 'warn'}">{padLabel(r.max_pad)}</span></td>
                 {#if kind !== "commodity"}
                   <td class="r num">{#if r.discount_percent}<span class="pill ok" title={(r.discounts ?? []).map((d) => `${d.percent}% — ${d.why}`).join("\n")}>−{r.discount_percent}%</span>{:else}<span class="muted">—</span>{/if}</td>
@@ -307,6 +304,4 @@
   .symbol { font-family: monospace; font-size: 0.65rem; color: var(--muted); margin-top: 0.12rem; }
   button.sort { appearance: none; border: 0; background: transparent; color: inherit; padding: 0; font: inherit; font-weight: inherit; cursor: pointer; white-space: nowrap; }
   button.sort:hover { color: var(--accent); filter: none; }
-  button.route-icon { appearance: none; border: 0; background: transparent; color: var(--accent); padding: 0 0.2rem; margin-left: 0.2rem; cursor: pointer; font-size: 0.9rem; line-height: 1; }
-  button.route-icon:hover { color: var(--accent-2); filter: none; transform: translateX(1px); }
 </style>

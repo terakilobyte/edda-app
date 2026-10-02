@@ -9,6 +9,7 @@
   import { fmtInt, fmtLy, fmtLs } from "./format.js";
   import Autocomplete from "./Autocomplete.svelte";
   import { journalResource } from "./lifecycle.svelte.js";
+  import Place from "./Place.svelte";
 
   // Autocomplete over what the data can actually answer: hotspot
   // minerals, surface raw materials, the laser-mined goods that resolve to
@@ -141,7 +142,7 @@
         {#each report.marks as m}
           <tr>
             <td><strong>{m.label}</strong></td>
-            <td>{m.system}</td>
+            <td><Place system={m.system} station={m.station} /></td>
             <td>{[m.station, m.body].filter(Boolean).join(" — ")}{m.latitude != null && m.longitude != null ? ` @ ${m.latitude.toFixed(3)}, ${m.longitude.toFixed(3)}` : ""}</td>
             <td class="num">{m.distance_ly != null ? fmtLy(m.distance_ly) : "—"}</td>
             <td class="muted">{m.note ?? ""}</td>
@@ -171,7 +172,7 @@
         <tbody>
           {#each report.hotspots as h}
             <tr>
-              <td>{h.system}</td>
+              <td><Place system={h.system} /></td>
               <td>{h.ring}</td>
               <td>{h.ring_type ?? "?"}</td>
               <td class="num">{h.count}</td>
@@ -203,7 +204,7 @@
         <tbody>
           {#each report.sites as b}
             <tr>
-              <td>{b.system}</td>
+              <td><Place system={b.system} /></td>
               <td>{b.body ?? "?"}{#if !b.is_landable}<span class="pill warn" style="margin-left:0.3rem" title="The scan did not mark this body landable">not landable?</span>{/if}</td>
               <td class="muted">{b.ground ?? (b.sub_type ?? "?")}{#if b.volcanism}<div class="small">{b.volcanism}</div>{/if}</td>
               <td class="num">{b.mining_locations}</td>
@@ -224,7 +225,7 @@
         <tbody>
           {#each report.rings as r}
             <tr>
-              <td>{r.system}</td>
+              <td><Place system={r.system} /></td>
               <td>{r.body ?? "?"}</td>
               <td>{r.ring}</td>
               <td class="num">{fmtLy(r.distance_ly)}</td>
@@ -244,7 +245,7 @@
         <tbody>
           {#each report.bodies as b}
             <tr>
-              <td>{b.system}</td>
+              <td><Place system={b.system} /></td>
               <td>{b.body ?? "?"}</td>
               <td class="muted">{b.sub_type ?? ""}</td>
               <td class="num">{b.percent.toFixed(1)}%</td>

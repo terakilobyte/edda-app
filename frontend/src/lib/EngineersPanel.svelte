@@ -12,6 +12,7 @@
   import { onMount } from "svelte";
   import { engineerDirectory } from "./api.js";
   import { journalResource } from "./lifecycle.svelte.js";
+  import Place from "./Place.svelte";
 
   let directory = $state([]);
   let error = $state("");
@@ -52,7 +53,7 @@
             <td><strong>{e.name}</strong>{#if e.guide_step != null}<span class="muted small"> · guide step {e.guide_step}</span>{/if}</td>
             <td><span class="pill {e.unlocked ? 'ok' : e.status === 'Invited' ? 'warn' : ''}">{e.status}{e.rank ? ` · rank ${e.rank}` : ""}</span>
               {#if !e.unlocked && e.unlock}<div class="muted small" title={e.invite ?? ""}>{e.status === "Not known" && e.invite ? `invite: ${e.invite} · ` : ""}unlock: {e.unlock}</div>{/if}</td>
-            <td class="small">{e.system ?? "—"}{e.base ? ` · ${e.base}` : ""}</td>
+            <td class="small"><Place system={e.system} station={e.base} />{e.base ? ` · ${e.base}` : ""}</td>
             <td>
               {#each e.does as d}
                 <button class="pill" style="cursor:pointer; margin:0.1rem" title="Filter to {d.module_type}" onclick={() => (filter = d.module_type)}>{d.module_type} G{d.max_grade}</button>
