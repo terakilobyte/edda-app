@@ -71,9 +71,19 @@ pub struct Mission {
     pub target_faction: Option<String>,
     pub target: Option<String>,
     pub target_type: Option<String>,
-    /// The target count the game stated at acceptance. Progress towards
-    /// it is not tracked (see module docs); the status says when it is met.
+    /// The target count the game stated at acceptance. The status says
+    /// when it is met; `kills_seen` is the opt-in estimate.
     pub kill_count: Option<i64>,
+    /// SPECULATIVE, opt-in (boss, 2026-10-03: "let's make it a checkbox"
+    /// after users asked again): the kills the journal has SEEN credited
+    /// to this mission — `Bounty`/`FactionKillBond` on the target faction,
+    /// in the mission's system, one mission per giver at a time (the
+    /// game's rules as measured 2026-09-16/19), capped at the target. A
+    /// floor, not the game's tally: a target that dies before the scan
+    /// completes writes no event (46 of 65 redirected massacres were 2–23
+    /// short at the redirect, `docs/benches/2026-09-19-*`). It never moves
+    /// the status; the redirect does. None when the estimate is off.
+    pub kills_seen: Option<i64>,
     pub commodity: Option<String>,
     pub count: Option<i64>,
     /// Cumulative delivery-depot counters reported directly by the game.
@@ -131,16 +141,24 @@ pub fn redirect_completes(kind: &str) -> bool {
 }
 
 /// Every mission accepted at or after `since` (ISO timestamp; `""` for all),
-/// newest first. `now` is an ISO timestamp used to mark expiry.
+/// newest first. `now` is an ISO timestamp used to mark expiry. Without
+/// the speculative kill estimate; see [`missions_with`].
 pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission>> {
-    let mut stmt = conn.prepare(
+    missions_with(conn, since, now, false)
+}
+
+/// [`missions`], optionally with the speculative kill estimate
+/// (`kills_seen`) folded in from the kill events.
+pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kills: bool) -> Result<Vec<Mission>> {
+    let kill_events = if speculative_kills { ",'Bounty','FactionKillBond'" } else { "" };
+    let mut stmt = conn.prepare(&format!(
         "SELECT ts, event, raw FROM events
          WHERE event IN ('MissionAccepted','MissionCompleted','MissionFailed',
                          'MissionAbandoned','MissionRedirected','CargoDepot','Missions',
-                         'Docked','Location','FSDJump','CarrierJump')
+                         'Docked','Location','FSDJump','CarrierJump'{kill_events})
            AND ts >= ?1
-         ORDER BY ts, file, offset",
-    )?;
+         ORDER BY ts, file, offset"
+    ))?;
     let rows: Vec<(String, String, String)> = stmt
         .query_map([since], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<rusqlite::Result<_>>()?;
@@ -186,6 +204,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                     target: loc(&v, "Target"),
                     target_type: loc(&v, "TargetType"),
                     kill_count: i(&v, "KillCount"),
+                    kills_seen: if speculative_kills { Some(0) } else { None },
                     commodity: loc(&v, "Commodity"),
                     count: i(&v, "Count"),
                     items_collected: 0,
@@ -265,6 +284,37 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
                     }
                 }
             }
+            "Bounty" | "FactionKillBond" => {
+                // Only read when the estimate is on. One kill credits ONE
+                // mission per giver (consecutive within a faction), every
+                // giver at once (concurrent across them); `out` is in
+                // acceptance order, so the earliest live mission of each
+                // giver advances. Only in the mission's system; unknown
+                // whereabouts (no jump seen yet) still credit. The status
+                // is never touched here.
+                let victim = s(&v, "VictimFaction");
+                let pilot = loc(&v, "PilotName");
+                let mut credited_givers: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+                for m in out.iter_mut().filter(|m| m.status == MissionStatus::Active) {
+                    if m.kill_count.is_some() && m.target_faction.is_some() && m.target_faction == victim {
+                        if let (Some(h), Some(d)) = (&here, &m.destination_system) {
+                            if !h.eq_ignore_ascii_case(d) {
+                                continue;
+                            }
+                        }
+                        let giver = (m.faction.to_ascii_lowercase(), m.target_faction.as_deref().unwrap_or("").to_ascii_lowercase());
+                        if !credited_givers.insert(giver) {
+                            continue;
+                        }
+                        let seen = m.kills_seen.unwrap_or(0) + 1;
+                        m.kills_seen = Some(match m.kill_count { Some(k) => seen.min(k), None => seen });
+                    } else if let (Some(t), Some(p)) = (&m.target, &pilot) {
+                        if m.kind == "assassinate" && p.eq_ignore_ascii_case(t) {
+                            m.kills_seen = Some(1);
+                        }
+                    }
+                }
+            }
             "Missions" => {
                 // The login roll-call. Ids the game lists decide the status
                 // of every mission we hold open; one it no longer lists at
@@ -324,7 +374,12 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
 /// than sinking to the bottom of it (maintainer, 2026-09-16) -- in HUD
 /// order (see [`in_hud_order`]).
 pub fn active(conn: &Connection, now: &str) -> Result<Vec<Mission>> {
-    let mut live: Vec<Mission> = missions(conn, "", now)?
+    active_with(conn, now, false)
+}
+
+/// [`active`], optionally with the speculative kill estimate.
+pub fn active_with(conn: &Connection, now: &str, speculative_kills: bool) -> Result<Vec<Mission>> {
+    let mut live: Vec<Mission> = missions_with(conn, "", now, speculative_kills)?
         .into_iter()
         .filter(|m| {
             matches!(
@@ -582,6 +637,34 @@ mod tests {
         conn
     }
 
+    /// The opt-in estimate (2026-10-03): with it on, the kills the journal
+    /// saw are counted under the game's rules and capped; the status still
+    /// never moves. With it off, `kills_seen` is None.
+    #[test]
+    fn speculative_kills_are_a_floor_and_never_the_status() {
+        let conn = db();
+        conn.execute_batch(r#"
+            INSERT INTO events (file,offset,ts,event,raw) VALUES
+            ('J',6,'2026-08-26T12:34:00Z','MissionAccepted','{"timestamp":"2026-08-26T12:34:00Z","event":"MissionAccepted","Faction":"Wongi General Corp.","Name":"Mission_Massacre","LocalisedName":"second from the same giver","TargetFaction":"Kulkan Lung Blue Ring","KillCount":3,"DestinationSystem":"Crucis Sector WU-P b5-1","Expiry":"2026-08-28T05:31:15Z","Reward":1,"MissionID":9}'),
+            ('J',7,'2026-08-26T12:35:00Z','MissionAccepted','{"timestamp":"2026-08-26T12:35:00Z","event":"MissionAccepted","Faction":"Another Giver","Name":"Mission_Massacre","LocalisedName":"another giver, same target","TargetFaction":"Kulkan Lung Blue Ring","KillCount":2,"DestinationSystem":"Crucis Sector WU-P b5-1","Expiry":"2026-08-28T05:31:15Z","Reward":1,"MissionID":10}'),
+            ('J',8,'2026-08-26T13:03:00Z','Bounty','{"timestamp":"2026-08-26T13:03:00Z","event":"Bounty","Target":"eagle","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1000}'),
+            ('J',9,'2026-08-26T13:04:00Z','Bounty','{"timestamp":"2026-08-26T13:04:00Z","event":"Bounty","Target":"eagle","VictimFaction":"Kulkan Lung Blue Ring","TotalReward":1000}');
+        "#).unwrap();
+        let off = missions(&conn, "", "2026-08-26T14:00:00Z").unwrap();
+        assert!(off.iter().all(|m| m.kills_seen.is_none()), "off: no estimate anywhere");
+        let on = missions_with(&conn, "", "2026-08-26T14:00:00Z", true).unwrap();
+        let by = |id: i64| on.iter().find(|m| m.id == id).unwrap();
+        // Five target-faction kills in the fixture (three in db(), two here);
+        // the first Wongi massacre takes them all up to its cap of 3 and the
+        // second Wongi one, same giver, waits its turn: consecutive within a
+        // giver. The other giver counts concurrently, capped at 2.
+        assert_eq!(by(1).kills_seen, Some(3), "capped at the target");
+        assert_eq!(by(9).kills_seen, Some(0), "same giver: not until the first is done");
+        assert_eq!(by(10).kills_seen, Some(2), "another giver counts at the same time, capped");
+        assert_eq!(by(2).kills_seen, Some(1), "the named pilot's bounty marks the hit");
+        assert!(on.iter().all(|m| m.status == MissionStatus::Active), "an estimate never moves a status");
+    }
+
     /// The decision of 2026-09-19: kills move nothing. Three target-faction
     /// bounties, one of them the named assassination target, and both
     /// missions are still Active -- only the game's redirect completes them.
@@ -826,6 +909,7 @@ mod tests {
             target: None,
             target_type: None,
             kill_count: target,
+            kills_seen: None,
             commodity: None,
             count: None,
             items_collected: 0,

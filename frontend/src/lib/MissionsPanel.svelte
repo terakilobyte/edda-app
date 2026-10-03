@@ -1,7 +1,7 @@
 <script>
   // Missions from the journal, including game-reported cargo-depot progress.
   import { onDestroy } from "svelte";
-  import { missions, missionStack, missionsHere } from "./api.js";
+  import { missions, missionStack, missionsHere, speculativeMissions, speculativeMissionsSet } from "./api.js";
   import { fmtCr, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
   import { KEYS, persisted } from "./storage.svelte.js";
@@ -19,6 +19,17 @@
   onDestroy(() => stackingMode.dispose());
 
   const res = journalResource(async () => { list = await missions(!showAll); stack = await missionStack(); here = await missionsHere(); });
+  // The opt-in kill estimate (boss, 2026-10-03: "let's make it a checkbox"
+  // after users asked again). Off by default: the journal cannot see every
+  // kill the game credits, so what it shows is a floor, labelled as such.
+  let estimate = $state(false);
+  speculativeMissions().then((v) => (estimate = v)).catch(() => {});
+  async function setEstimate(on) {
+    estimate = on;
+    try { await speculativeMissionsSet(on); } catch {}
+    res.refresh?.();
+    list = await missions(!showAll);
+  }
   const refresh = res.refresh;
   const error = $derived(res.error);
 
@@ -37,6 +48,7 @@
 
 <section class="panel">
   <h2>Missions <span class="sub">from the journal · delivery progress direct from the game</span>
+    <label class="check small" style="margin-left:auto; font-weight:normal" title="Count the kills your journal saw towards each massacre and assassination. A floor, not the game's tally: a target that dies before your scan completes writes no journal entry, so the game's own count can run ahead. The mission still completes only when the game says so."><input type="checkbox" checked={estimate} onchange={(e) => setEstimate(e.currentTarget.checked)} /> estimate kill progress <span class="pill warn">speculative</span></label>
     <label class="tog" title="On the HUD, list every faction you already hold a massacre from against this target, so you never accept a second from the same giver: those progress one after another, not together."><input type="checkbox" checked={stackingMode.value} onchange={(e) => (stackingMode.value = e.currentTarget.checked)} /> stacking mode</label>
     <label class="tog"><input type="checkbox" bind:checked={showAll} onchange={refresh} /> history</label>
   </h2>
@@ -85,14 +97,19 @@
               <td class="small">{m.faction}</td>
               <td>
                 {#if m.kill_count}
-                  <div class="num" title="The game's mission panel is the only kill tally there is: kills your ship never scanned leave no journal entry. The row turns ready when the game says so.">{m.kill_count} kills</div>
+                  {#if m.kills_seen != null}
+                    <div class="num" title="Kills your journal saw, credited the way the game does (in the mission's system, one mission per giver at a time). A floor: the game's own tally can run ahead. The row turns ready only when the game says so.">≥ {m.kills_seen} / {m.kill_count} <span class="muted small">seen</span></div>
+                    <div class="bar" style="width:90px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.kills_seen) / m.kill_count)}%"></div></div>
+                  {:else}
+                    <div class="num" title="The game's mission panel is the only kill tally there is: kills your ship never scanned leave no journal entry. The row turns ready when the game says so. Tick 'estimate kill progress' above for a floor from your own kill events.">{m.kill_count} kills</div>
+                  {/if}
                   {#if m.destination_system}<div class="muted small">in {m.destination_system}</div>{/if}
                 {:else if m.total_items_to_deliver}
                   <div class="num">{m.items_delivered} / {m.total_items_to_deliver} delivered</div>
                   <div class="bar" style="width:110px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.items_delivered) / m.total_items_to_deliver)}%"></div></div>
                   <div class="muted small">{Math.max(0, m.items_collected - m.items_delivered)} aboard · {m.items_collected} collected</div>
                 {:else if m.kind === "assassinate"}
-                  {m.status === "ready_to_turn_in" ? "target down" : "target alive"}
+                  {m.status === "ready_to_turn_in" ? "target down" : m.kills_seen ? "target down (seen)" : "target alive"}
                 {:else}
                   <span class="muted">—</span>
                 {/if}

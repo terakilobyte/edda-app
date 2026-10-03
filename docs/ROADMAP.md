@@ -516,6 +516,18 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Speculative kill tracking is back as an opt-in estimate** (2026-10-03,
+  boss: users asked again; "let's make it a checkbox"). The 2026-09-19
+  burial stands on its measurement — the journal cannot see every kill
+  the game credits (46 of 65 redirected massacres 2–23 short at the
+  redirect) — so what returns is a FLOOR, labelled "speculative", off by
+  default: `kills_seen` counts `Bounty`/`FactionKillBond` on the target
+  faction, in the mission's system, one mission per giver at a time,
+  capped at the target; it never moves a status, the redirect still does.
+  Config `speculative_missions`; the Missions tab checkbox; "≥ n / N
+  seen" on the row and the HUD. The kill-progress callouts of September
+  were NOT restored. Premise change: user demand plus explicit opt-in and
+  labelling, not any new journal data.
 - **Shield callouts need a shield generator; every utterance passes the
   repeat gate** (2026-10-02, maintainer: "only make shield callouts when
   a shield generator is equipped"; "anything the voice says should go
