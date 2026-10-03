@@ -524,8 +524,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   default: `kills_seen` counts `Bounty`/`FactionKillBond` on the target
   faction, in the mission's system, one mission per giver at a time,
   capped at the target; it never moves a status, the redirect still does.
-  Config `speculative_missions`; the Missions tab checkbox; "≥ n / N
-  seen" on the row and the HUD. The kill-progress callouts of September
+  A completed massacre is a measurement (boss: "one is 54 and one is 64,
+  we're tracking 45 but then the 54 finishes — how many kills do we know
+  we have?" — 54): its KillCount raises the floor of every other giver's
+  mission on the same target and system that was active before its first
+  kill; a same-giver mission waited its turn and one accepted after the
+  kills began keeps its own count. Config `speculative_missions`; the
+  Missions tab checkbox; "≥ n / N seen" on the row and the HUD. The kill-progress callouts of September
   were NOT restored. Premise change: user demand plus explicit opt-in and
   labelling, not any new journal data.
 - **Shield callouts need a shield generator; every utterance passes the

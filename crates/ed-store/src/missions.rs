@@ -84,6 +84,13 @@ pub struct Mission {
     /// short at the redirect, `docs/benches/2026-09-19-*`). It never moves
     /// the status; the redirect does. None when the estimate is off.
     pub kills_seen: Option<i64>,
+    /// When the first credited kill was seen (estimate on). A completed
+    /// massacre raises the floor of every other giver's mission on the
+    /// same target that was active before this moment: kills happen after
+    /// undocking, so a mission accepted before the first kill was there
+    /// for all of them.
+    #[serde(skip)]
+    pub first_kill_seen: Option<String>,
     pub commodity: Option<String>,
     pub count: Option<i64>,
     /// Cumulative delivery-depot counters reported directly by the game.
@@ -205,6 +212,7 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                     target_type: loc(&v, "TargetType"),
                     kill_count: i(&v, "KillCount"),
                     kills_seen: if speculative_kills { Some(0) } else { None },
+                    first_kill_seen: None,
                     commodity: loc(&v, "Commodity"),
                     count: i(&v, "Count"),
                     items_collected: 0,
@@ -248,6 +256,17 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                 let Some(id) = i(&v, "MissionID") else {
                     continue;
                 };
+                // A completed massacre is a measurement: the game just said
+                // its KillCount kills were credited on that target in that
+                // system. Every OTHER giver's mission on the same target that
+                // was already active when this one was accepted received
+                // them all too, so its floor rises to that count (boss,
+                // 2026-10-03: "one is 54 and one is 64, we're tracking 45
+                // but then the 54 finishes — how many kills do we know we
+                // have?" — 54). A same-giver mission waited its turn and got
+                // none; one accepted later got an unknown share, so neither
+                // moves. Noted here, applied after the borrow below ends.
+                let mut measured: Option<(String, Option<String>, String, String, i64)> = None;
                 if let Some(m) = out.iter_mut().find(|m| m.id == id) {
                     match event.as_str() {
                         "MissionRedirected" => {
@@ -255,6 +274,10 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                             // job done (tester report, 2026-09-19).
                             if m.status == MissionStatus::Active && redirect_completes(&m.kind) {
                                 m.status = MissionStatus::ReadyToTurnIn;
+                                if let (Some(k), Some(tf), true) = (m.kill_count, m.target_faction.clone(), speculative_kills) {
+                                    let since = m.first_kill_seen.clone().unwrap_or_else(|| ts.clone());
+                                    measured = Some((tf, m.destination_system.clone(), m.faction.clone(), since, k));
+                                }
                             }
                             // The hand-in moves even if we already inferred completion.
                             if let Some(sys) = s(&v, "NewDestinationSystem") {
@@ -283,6 +306,25 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                         }
                     }
                 }
+                if let Some((tf, dest, giver, since, k)) = measured {
+                    for other in out.iter_mut().filter(|o| o.status == MissionStatus::Active && o.id != id) {
+                        let same_target = other.target_faction.as_deref().is_some_and(|t| t.eq_ignore_ascii_case(&tf));
+                        let same_system = match (&other.destination_system, &dest) {
+                            (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+                            _ => true,
+                        };
+                        let other_giver = !other.faction.eq_ignore_ascii_case(&giver);
+                        let was_there_first = other.accepted < since;
+                        if same_target && same_system && other_giver && was_there_first {
+                            if let Some(target) = other.kill_count {
+                                let floor = k.min(target);
+                                if other.kills_seen.unwrap_or(0) < floor {
+                                    other.kills_seen = Some(floor);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             "Bounty" | "FactionKillBond" => {
                 // Only read when the estimate is on. One kill credits ONE
@@ -308,6 +350,9 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                         }
                         let seen = m.kills_seen.unwrap_or(0) + 1;
                         m.kills_seen = Some(match m.kill_count { Some(k) => seen.min(k), None => seen });
+                        if m.first_kill_seen.is_none() {
+                            m.first_kill_seen = Some(ts.clone());
+                        }
                     } else if let (Some(t), Some(p)) = (&m.target, &pilot) {
                         if m.kind == "assassinate" && p.eq_ignore_ascii_case(t) {
                             m.kills_seen = Some(1);
@@ -665,6 +710,38 @@ mod tests {
         assert!(on.iter().all(|m| m.status == MissionStatus::Active), "an estimate never moves a status");
     }
 
+    /// The boss's case (2026-10-03): one 54, one 64, the journal saw 45,
+    /// then the 54 completes. The 64 from another giver was active the whole
+    /// time, so it received those 54 too: its floor is 54. A same-giver
+    /// mission waited its turn (0), and one accepted after the 54 keeps its
+    /// own count.
+    #[test]
+    fn a_completed_massacre_raises_the_floor_of_its_concurrent_neighbours() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        let mut rows: Vec<String> = vec![
+            "('J',1,'2026-08-26T12:00:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:00:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver A\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":54,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":54}')".to_string(),
+            "('J',2,'2026-08-26T12:01:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:01:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver B\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":64,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":64}')".to_string(),
+            "('J',3,'2026-08-26T12:02:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:02:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver A\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":70,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":70}')".to_string(),
+        ];
+        for n in 0..45 {
+            let bounty = "{\"timestamp\":\"t\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}";
+            rows.push(format!("('J',{},'2026-08-26T13:{:02}:00Z','Bounty','{}')", 10 + n, n, bounty));
+        }
+        rows.push("('J',90,'2026-08-26T13:50:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T13:50:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver C\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":80,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":80}')".to_string());
+        rows.push("('J',99,'2026-08-26T13:55:00Z','MissionRedirected','{\"timestamp\":\"2026-08-26T13:55:00Z\",\"event\":\"MissionRedirected\",\"MissionID\":54,\"NewDestinationStation\":\"S\",\"NewDestinationSystem\":\"Home\"}')".to_string());
+        conn.execute_batch(&format!("INSERT INTO events (file,offset,ts,event,raw) VALUES {};", rows.join(",\n"))).unwrap();
+        let ms = missions_with(&conn, "", "2026-08-26T14:00:00Z", true).unwrap();
+        let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
+        assert_eq!(by(54).status, MissionStatus::ReadyToTurnIn);
+        assert_eq!(by(54).kills_seen, Some(45), "the journal saw 45 of the 54 the game counted");
+        assert_eq!(by(64).kills_seen, Some(54), "another giver, accepted before the first kill: at least the 54 the game just confirmed");
+        assert_eq!(by(70).kills_seen, Some(0), "same giver: it waited its turn and got none of them");
+        assert_eq!(by(80).kills_seen, Some(0), "accepted after the 54: its share is unknown, so its own count stands");
+    }
+
+
     /// The decision of 2026-09-19: kills move nothing. Three target-faction
     /// bounties, one of them the named assassination target, and both
     /// missions are still Active -- only the game's redirect completes them.
@@ -910,6 +987,7 @@ mod tests {
             target_type: None,
             kill_count: target,
             kills_seen: None,
+            first_kill_seen: None,
             commodity: None,
             count: None,
             items_collected: 0,
