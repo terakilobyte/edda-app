@@ -110,6 +110,10 @@ pub struct AppConfig {
     /// opt-OUT — `None` means enabled; `Some(false)` is the unchecked box.
     #[serde(default)]
     pub send_telemetry: Option<bool>,
+    /// Opt-in: estimate massacre/assassination progress from the kill
+    /// events the journal saw (a floor; see `ed_store::missions`). Off by
+    /// default (boss, 2026-10-03: "let's make it a checkbox").
+    pub speculative_missions: Option<bool>,
 }
 
 fn default_game_route_ly() -> u32 { 1_000 }

@@ -50,6 +50,8 @@ impl RepeatGate {
         std::time::Duration::from_secs(match kind {
             "danger" => 30,
             "fuel" | "heat" => 20,
+            // Anything the voice says, whatever asked for it (2026-10-02).
+            "voice" => 10,
             _ => 10,
         })
     }
@@ -134,6 +136,12 @@ pub struct CalloutState {
     pub in_danger: bool,
     pub tank_full_said: bool,
     pub shields_down: bool,
+    /// Whether the current Loadout carries a shield generator; None until
+    /// a Loadout has been seen. A shieldless hull gets `ShieldState
+    /// ShieldsUp:false` from the game at every launch, which is not news
+    /// (maintainer, 2026-10-02: "only make shield callouts when a shield
+    /// generator is equipped").
+    pub has_shield_generator: Option<bool>,
     pub next_star_class: Option<String>,
     pub target_fuel_warned: bool,
     /// SystemAddress the fuel-trap guard already warned about, so
@@ -386,6 +394,15 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             st.ship = loc(v, "Ship").map(ed_journal::ships::display_name);
             if let Some(cap) = v.get("FuelCapacity").and_then(|c| f(c, "Main")) {
                 st.fuel_capacity = Some(cap);
+            }
+            if let Some(modules) = v.get("Modules").and_then(Value::as_array) {
+                st.has_shield_generator = Some(modules.iter().any(|m| {
+                    m.get("Item").and_then(Value::as_str).is_some_and(|item| item.to_ascii_lowercase().contains("int_shieldgenerator"))
+                }));
+                // A hull without shields has no shields to lose.
+                if st.has_shield_generator == Some(false) {
+                    st.shields_down = false;
+                }
             }
             // A different ship than before: say which one we are in now.
             let id = i(v, "ShipID");
@@ -705,6 +722,12 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
         }
         "ShieldState" => {
             let up = b(v, "ShieldsUp").unwrap_or(true);
+            // No generator fitted: the game still reports ShieldsUp:false
+            // at launch; nothing to announce.
+            if st.has_shield_generator == Some(false) {
+                st.shields_down = !up;
+                return out;
+            }
             if up != !st.shields_down {
                 st.shields_down = !up;
                 out.push(Callout::new(
@@ -1051,6 +1074,27 @@ mod tests {
     fn ev(v: Value) -> Vec<Callout> {
         let mut st = CalloutState::default();
         from_event(&v, &mut st)
+    }
+
+    /// A shieldless hull (no int_shieldgenerator in the Loadout) says
+    /// nothing about shields; one with a generator does; before any
+    /// Loadout the old behaviour stands (2026-10-02).
+    #[test]
+    fn shield_callouts_need_a_shield_generator() {
+        let loadout = |items: &[&str]| json!({"timestamp": "t", "event": "Loadout", "Ship": "python_nx", "ShipID": 7,
+            "Modules": items.iter().map(|i| json!({"Slot": "x", "Item": i})).collect::<Vec<_>>()});
+        let down = json!({"timestamp": "t", "event": "ShieldState", "ShieldsUp": false});
+        let up = json!({"timestamp": "t", "event": "ShieldState", "ShieldsUp": true});
+        let mut bare = CalloutState::default();
+        from_event(&loadout(&["int_powerplant_size5_class5", "hpt_railgun_fixed_medium"]), &mut bare);
+        assert_eq!(bare.has_shield_generator, Some(false));
+        assert!(from_event(&down, &mut bare).is_empty(), "no generator: silence");
+        assert!(from_event(&up, &mut bare).is_empty());
+        let mut shielded = CalloutState::default();
+        from_event(&loadout(&["int_powerplant_size5_class5", "Int_ShieldGenerator_Size5_Class3_Fast"]), &mut shielded);
+        assert_eq!(shielded.has_shield_generator, Some(true));
+        assert_eq!(from_event(&down, &mut shielded).len(), 1, "a generator: shields down is news");
+        assert!(ev(down.clone()).len() == 1, "no Loadout seen yet: speak as before");
     }
 
     fn arrival(text: &str) -> Callout {

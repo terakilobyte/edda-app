@@ -619,6 +619,8 @@ pub fn run() {
             commands::feedback_send,
             commands::telemetry_prefs,
             commands::telemetry_prefs_set,
+            commands::speculative_missions_get,
+            commands::speculative_missions_set,
             routing::galaxy_complete,
             routing::galaxy_find,
             routing::edsm_system,

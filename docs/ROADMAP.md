@@ -516,6 +516,65 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Speculative kill tracking is back as an opt-in estimate** (2026-10-03,
+  boss: users asked again; "let's make it a checkbox"). The 2026-09-19
+  burial stands on its measurement — the journal cannot see every kill
+  the game credits (46 of 65 redirected massacres 2–23 short at the
+  redirect) — so what returns is a FLOOR, labelled "speculative", off by
+  default: `kills_seen` counts `Bounty`/`FactionKillBond` on the target
+  faction, in the mission's system, one mission per giver at a time,
+  capped at the target; it never moves a status, the redirect still does.
+  A completed massacre is a measurement (boss: "one is 54 and one is 64,
+  we're tracking 45 but then the 54 finishes — how many kills do we know
+  we have?" — 54): its KillCount raises the floor of every other giver's
+  mission on the same target and system that was active before its first
+  kill; a same-giver mission waited its turn and one accepted after the
+  kills began keeps its own count — unless the stream is calibrated:
+  a completion fixes the stream's exact miss count (boss's journal,
+  2026-10-03: 24 of 35 seen at Jet Central's redirect, 45 of 63 at the
+  Ahayan Defence one — ~30 % unseen), a quiet gap (no kill, no
+  UnderAttack/HullDamage/Died/FighterDestroyed) carries it to a later
+  acceptance, and when a calibrated neighbour completes the newcomer's
+  count is the game's own for that instant, shown "= n" (boss: "it should
+  grant the delta, no?" / "we know when we're in combat, right?"). With
+  combat in the gap, as on 2026-10-03 (UnderAttack 21:31 between the
+  21:19 completion and the 21:43 acceptances), it stays a floor. Config
+  `speculative_missions`; the Missions tab checkbox; "≥ n / N seen" or
+  "= n / N exact" on the row and the HUD; knob
+  `cargo run -p ed-store --example missions_dump -- <store>` (with
+  `EDDA_MISSIONS_TRACE=1` for the per-kill trace). The kill-progress callouts of September
+  were NOT restored. Premise change: user demand plus explicit opt-in and
+  labelling, not any new journal data.
+- **Shield callouts need a shield generator; every utterance passes the
+  repeat gate** (2026-10-02, maintainer: "only make shield callouts when
+  a shield generator is equipped"; "anything the voice says should go
+  through the same debounce logic we have for 'under attack'"). The
+  Loadout's modules set `has_shield_generator`; a shieldless hull's
+  `ShieldState` (the game writes ShieldsUp:false at every launch) says
+  nothing. The `RepeatGate` moved into `VoiceHandle::say` (kind "voice",
+  10 s) so AI replies, route-following messages and the `say` command are
+  debounced like callouts; `say_unthrottled` is for speech the commander
+  asked for this instant — voice samples, greetings after picking an
+  engine, barge-in, spoken-order replies including "repeat that", and the
+  wake acknowledgement.
+- **A route request plots right away** (2026-10-02, maintainer: "that
+  opens the app router but I still have to click plot there, why not do
+  it right away?"). `RoutePanel.plot()` ran only the in-game arm when the
+  destination was inside `game_route_max_ly` with the map controls taught,
+  and returned with no EDDA route — from a result-list arrow that looked
+  like nothing happened. It now runs EDDA's own plot first, every time,
+  then arms Elite's plotter as before.
+- **One renderer for a place you can go** (2026-10-02, maintainer: mining
+  results had no way to navigate to a system — "same as we do on every
+  other system result page … wire this into a unified flow/renderer,
+  these inconsistencies make us look unpolished"). `Place.svelte`: the
+  system name, the route arrow (Route tab plots there) and a copy button
+  for the galaxy map, with one shared clipboard state
+  (`clipboard.svelte.js`). Used by Market, Galaxy services, Trade (legs
+  and loops, both ends), Mining (all five tables), Engineers, Powerplay,
+  the build planner's sellers, the shopping list's three lists, and the
+  Route tab's hop list (arrow off there). Before: an arrow in two panels,
+  a text "route" button in two, a copy button in two, nothing in three.
 - **Faction completion from a precomputed list** (2026-10-01, boss: "no
   auto complete for factions … seems like something we could
   pre-compute"). Measured on the mirror: 38,911 distinct factions; a

@@ -2359,7 +2359,7 @@ pub async fn set_persona(state: State<'_, AppState>, id: String) -> Result<Perso
         cfg.save(&state.data_dir).map_err(err)?;
     }
     // Personality changes the wording only; the voice is chosen separately.
-    state.voice.say(p.sample);
+    state.voice.say_unthrottled(p.sample);
     personas(state).await
 }
 
@@ -2379,7 +2379,7 @@ pub async fn voice_use_windows(state: State<'_, AppState>) -> Result<VoiceStatus
     state.voice.audio().set_server(None);
     state.voice.use_windows();
     crate::telemetry::set_voice_engine("voice_windows");
-    state.voice.say("Windows voice selected.");
+    state.voice.say_unthrottled("Windows voice selected.");
     voice_status(state).await
 }
 
@@ -2450,7 +2450,7 @@ async fn install_curated_voice(state: &AppState, model: &str) -> Result<String, 
     }).await.map_err(err)?.map_err(err)?;
     state.voice.reload(&data_dir);
     state.voice.set_model(spec.model);
-    state.voice.say(format!("{} installed and ready.", spec.label));
+    state.voice.say_unthrottled(format!("{} installed and ready.", spec.label));
     Ok(spec.model.into())
 }
 
@@ -2577,7 +2577,7 @@ pub async fn voice_server_set(
         state.voice.audio().set_server(if enabled { Some(c.clone()) } else { None });
         c
     };
-    state.voice.say("Hello, Commander. All systems online.");
+    state.voice.say_unthrottled("Hello, Commander. All systems online.");
     let audio = state.voice.audio().clone();
     tauri::async_runtime::spawn_blocking(move || voice_server_view(&audio, enabled, saved, enabled))
             .await
@@ -2700,7 +2700,7 @@ pub async fn set_voice(state: State<'_, AppState>, model: String) -> Result<Stri
         ed_voice::Backend::Sapi => "voice_windows",
         _ => "voice_none",
     });
-    state.voice.say("Hello, Commander. All systems online.");
+    state.voice.say_unthrottled("Hello, Commander. All systems online.");
     Ok(model)
 }
 
@@ -2871,7 +2871,8 @@ pub fn say(state: State<AppState>, text: String) {
 #[tauri::command]
 pub fn say_now(state: State<AppState>, text: String) {
     state.voice.interrupt();
-    state.voice.say(speakable(&text));
+    // Barge-in is always an explicit request: no repeat gate.
+    state.voice.say_unthrottled(speakable(&text));
 }
 
 #[tauri::command]
@@ -2962,12 +2963,13 @@ pub async fn missions(
     active_only: Option<bool>,
 ) -> Result<Vec<ed_store::missions::Mission>, String> {
     let now = now_iso();
+    let speculative = speculative_missions_on(&state);
     state
         .with_read(|s| {
             if active_only.unwrap_or(true) {
-                ed_store::missions::active(s.conn(), &now)
+                ed_store::missions::active_with(s.conn(), &now, speculative)
             } else {
-                ed_store::missions::missions(s.conn(), "", &now)
+                ed_store::missions::missions_with(s.conn(), "", &now, speculative)
             }
         })
         .map_err(err)
@@ -3349,6 +3351,23 @@ mod feedback_tests {
 }
 
 /// The telemetry consent state (opt-out: absent choice reads as on).
+/// The opt-in kill estimate switch (boss, 2026-10-03).
+pub(crate) fn speculative_missions_on(state: &AppState) -> bool {
+    state.config.lock().unwrap_or_else(|e| e.into_inner()).speculative_missions == Some(true)
+}
+
+#[tauri::command]
+pub async fn speculative_missions_get(state: tauri::State<'_, crate::state::AppState>) -> Result<bool, String> {
+    Ok(speculative_missions_on(&state))
+}
+
+#[tauri::command]
+pub async fn speculative_missions_set(state: tauri::State<'_, crate::state::AppState>, enabled: bool) -> Result<(), String> {
+    let mut config = state.config.lock().unwrap_or_else(|e| e.into_inner());
+    config.speculative_missions = Some(enabled);
+    config.save(&state.data_dir).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn telemetry_prefs(state: tauri::State<'_, crate::state::AppState>) -> Result<bool, String> {
     Ok(crate::telemetry::consented(&state.config))
