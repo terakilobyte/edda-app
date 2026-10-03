@@ -529,8 +529,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   we have?" — 54): its KillCount raises the floor of every other giver's
   mission on the same target and system that was active before its first
   kill; a same-giver mission waited its turn and one accepted after the
-  kills began keeps its own count. Config `speculative_missions`; the
-  Missions tab checkbox; "≥ n / N seen" on the row and the HUD. The kill-progress callouts of September
+  kills began keeps its own count — unless the stream is calibrated:
+  a completion fixes the stream's exact miss count (boss's journal,
+  2026-10-03: 24 of 35 seen at Jet Central's redirect, 45 of 63 at the
+  Ahayan Defence one — ~30 % unseen), a quiet gap (no kill, no
+  UnderAttack/HullDamage/Died/FighterDestroyed) carries it to a later
+  acceptance, and when a calibrated neighbour completes the newcomer's
+  count is the game's own for that instant, shown "= n" (boss: "it should
+  grant the delta, no?" / "we know when we're in combat, right?"). With
+  combat in the gap, as on 2026-10-03 (UnderAttack 21:31 between the
+  21:19 completion and the 21:43 acceptances), it stays a floor. Config
+  `speculative_missions`; the Missions tab checkbox; "≥ n / N seen" or
+  "= n / N exact" on the row and the HUD; knob
+  `cargo run -p ed-store --example missions_dump -- <store>` (with
+  `EDDA_MISSIONS_TRACE=1` for the per-kill trace). The kill-progress callouts of September
   were NOT restored. Premise change: user demand plus explicit opt-in and
   labelling, not any new journal data.
 - **Shield callouts need a shield generator; every utterance passes the

@@ -98,7 +98,7 @@
               <td>
                 {#if m.kill_count}
                   {#if m.kills_seen != null}
-                    <div class="num" title="Kills your journal saw, credited the way the game does (in the mission's system, one mission per giver at a time). A floor: the game's own tally can run ahead. The row turns ready only when the game says so.">≥ {m.kills_seen} / {m.kill_count} <span class="muted small">seen</span></div>
+                    <div class="num" title={m.kills_exact ? "The game's own count, worked out exactly: a mission that shared this target just completed, and the kills it was credited since this one joined are known." : "Kills your journal saw, credited the way the game does (in the mission's system, one mission per giver at a time). A floor: the game's own tally can run ahead. The row turns ready only when the game says so."}>{m.kills_exact ? "=" : "≥"} {m.kills_seen} / {m.kill_count} <span class="muted small">{m.kills_exact ? "exact" : "seen"}</span></div>
                     <div class="bar" style="width:90px"><div class="bar-fill" style="width:{Math.min(100, (100 * m.kills_seen) / m.kill_count)}%"></div></div>
                   {:else}
                     <div class="num" title="The game's mission panel is the only kill tally there is: kills your ship never scanned leave no journal entry. The row turns ready when the game says so. Tick 'estimate kill progress' above for a floor from your own kill events.">{m.kill_count} kills</div>

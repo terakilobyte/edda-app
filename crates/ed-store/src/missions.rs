@@ -84,13 +84,27 @@ pub struct Mission {
     /// short at the redirect, `docs/benches/2026-09-19-*`). It never moves
     /// the status; the redirect does. None when the estimate is off.
     pub kills_seen: Option<i64>,
-    /// When the first credited kill was seen (estimate on). A completed
-    /// massacre raises the floor of every other giver's mission on the
-    /// same target that was active before this moment: kills happen after
-    /// undocking, so a mission accepted before the first kill was there
-    /// for all of them.
+    /// True when the last thing that changed `kills_seen` made it the
+    /// game's exact number for that instant (a calibrated neighbour
+    /// completed); the next seen kill makes it a floor again.
+    pub kills_exact: bool,
+    /// Raw kills credited to this mission since it started receiving them
+    /// (uncapped; the estimate's bookkeeping, not shown).
     #[serde(skip)]
-    pub first_kill_seen: Option<String>,
+    pub kills_raw: i64,
+    /// The kill stream's raw count when this mission started receiving
+    /// kills — None when it was there before the stream's first kill.
+    #[serde(skip)]
+    pub stream_raw_at_start: Option<i64>,
+    /// The stream's EXACT miss count at that start, when known: a
+    /// calibration (a completion, see below) stood and nothing happened
+    /// in between — no kill seen, no UnderAttack, HullDamage, Died or
+    /// FighterDestroyed (boss, 2026-10-03: "we know when we're in combat,
+    /// right?"). None when the start was before the first kill (misses
+    /// are counted from the first kill, so zero) or when combat in the
+    /// gap makes it unknowable.
+    #[serde(skip)]
+    pub stream_misses_at_start: Option<i64>,
     pub commodity: Option<String>,
     pub count: Option<i64>,
     /// Cumulative delivery-depot counters reported directly by the game.
@@ -157,7 +171,7 @@ pub fn missions(conn: &Connection, since: &str, now: &str) -> Result<Vec<Mission
 /// [`missions`], optionally with the speculative kill estimate
 /// (`kills_seen`) folded in from the kill events.
 pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kills: bool) -> Result<Vec<Mission>> {
-    let kill_events = if speculative_kills { ",'Bounty','FactionKillBond'" } else { "" };
+    let kill_events = if speculative_kills { ",'Bounty','FactionKillBond','UnderAttack','HullDamage','Died','FighterDestroyed'" } else { "" };
     let mut stmt = conn.prepare(&format!(
         "SELECT ts, event, raw FROM events
          WHERE event IN ('MissionAccepted','MissionCompleted','MissionFailed',
@@ -175,6 +189,22 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
     // being read: the dock at acceptance is the giver and first hand-in.
     let mut here: Option<String> = None;
     let mut docked: Option<(String, String)> = None;
+    // The kill streams (estimate on): one per target faction + system, the
+    // shared supply of kills every concurrent mission draws from. A
+    // completed mission is a measurement of its stream — the game said
+    // exactly how many kills happened since that mission started — and
+    // the stream remembers it as its exact miss count at that moment.
+    #[derive(Default)]
+    struct Stream {
+        first_kill: Option<String>,
+        raw: i64,
+        /// (when, exact misses since the first kill) from the latest completion.
+        misses_known: Option<(String, i64)>,
+    }
+    let mut streams: std::collections::HashMap<(String, String), Stream> = std::collections::HashMap::new();
+    let stream_key = |m: &Mission| (m.target_faction.clone().unwrap_or_default().to_ascii_lowercase(), m.destination_system.clone().unwrap_or_default().to_ascii_lowercase());
+    // The last moment anything violent was seen: a kill, or being hit.
+    let mut last_combat: Option<String> = None;
     for (ts, event, raw) in rows {
         let Ok(v) = serde_json::from_str::<Value>(&raw) else {
             continue;
@@ -212,7 +242,10 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                     target_type: loc(&v, "TargetType"),
                     kill_count: i(&v, "KillCount"),
                     kills_seen: if speculative_kills { Some(0) } else { None },
-                    first_kill_seen: None,
+                    kills_exact: false,
+                    kills_raw: 0,
+                    stream_raw_at_start: None,
+                    stream_misses_at_start: None,
                     commodity: loc(&v, "Commodity"),
                     count: i(&v, "Count"),
                     items_collected: 0,
@@ -231,6 +264,23 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                     status: MissionStatus::Active,
                     ended: None,
                 });
+                if speculative_kills {
+                    let m = out.last_mut().expect("just pushed");
+                    if m.kill_count.is_some() {
+                        let st = streams.entry(stream_key(m)).or_default();
+                        if st.first_kill.is_some() {
+                            // Joined mid-stream: what the stream had seen, and —
+                            // only if nothing violent happened since the last
+                            // completion — exactly how many it had missed.
+                            m.stream_raw_at_start = Some(st.raw);
+                            m.stream_misses_at_start = st
+                                .misses_known
+                                .as_ref()
+                                .filter(|(when, _)| last_combat.as_deref().is_none_or(|lc| lc <= when.as_str()))
+                                .map(|(_, misses)| *misses);
+                        }
+                    }
+                }
             }
             "CargoDepot" => {
                 let Some(id) = i(&v, "MissionID") else {
@@ -256,27 +306,25 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                 let Some(id) = i(&v, "MissionID") else {
                     continue;
                 };
-                // A completed massacre is a measurement: the game just said
-                // its KillCount kills were credited on that target in that
-                // system. Every OTHER giver's mission on the same target that
-                // was already active when this one was accepted received
-                // them all too, so its floor rises to that count (boss,
-                // 2026-10-03: "one is 54 and one is 64, we're tracking 45
-                // but then the 54 finishes — how many kills do we know we
-                // have?" — 54). A same-giver mission waited its turn and got
-                // none; one accepted later got an unknown share, so neither
-                // moves. Noted here, applied after the borrow below ends.
-                let mut measured: Option<(String, Option<String>, String, String, i64)> = None;
+                // A completed massacre is a measurement of its kill stream:
+                // the game just said exactly how many kills happened since
+                // this mission started receiving them. Settled after the
+                // borrow below ends — see `measured`.
+                // (stream key, giver, this mission's start in stream raw terms,
+                //  its exact misses at start if known, its own raw count, its target)
+                let mut measured: Option<((String, String), String, Option<i64>, Option<i64>, i64, i64)> = None;
                 if let Some(m) = out.iter_mut().find(|m| m.id == id) {
                     match event.as_str() {
                         "MissionRedirected" => {
                             // A courier's redirect is a new drop-off, not a
                             // job done (tester report, 2026-09-19).
                             if m.status == MissionStatus::Active && redirect_completes(&m.kind) {
+                                if std::env::var_os("EDDA_MISSIONS_TRACE").is_some() {
+                                    eprintln!("{ts} REDIRECT {} ({}) seen {:?}/{:?}", m.id, m.faction, m.kills_seen, m.kill_count);
+                                }
                                 m.status = MissionStatus::ReadyToTurnIn;
-                                if let (Some(k), Some(tf), true) = (m.kill_count, m.target_faction.clone(), speculative_kills) {
-                                    let since = m.first_kill_seen.clone().unwrap_or_else(|| ts.clone());
-                                    measured = Some((tf, m.destination_system.clone(), m.faction.clone(), since, k));
+                                if let (Some(k), true) = (m.kill_count, speculative_kills) {
+                                    measured = Some((stream_key(m), m.faction.clone(), m.stream_raw_at_start, m.stream_misses_at_start, m.kills_raw, k));
                                 }
                             }
                             // The hand-in moves even if we already inferred completion.
@@ -306,21 +354,60 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                         }
                     }
                 }
-                if let Some((tf, dest, giver, since, k)) = measured {
-                    for other in out.iter_mut().filter(|o| o.status == MissionStatus::Active && o.id != id) {
-                        let same_target = other.target_faction.as_deref().is_some_and(|t| t.eq_ignore_ascii_case(&tf));
-                        let same_system = match (&other.destination_system, &dest) {
-                            (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
-                            _ => true,
-                        };
-                        let other_giver = !other.faction.eq_ignore_ascii_case(&giver);
-                        let was_there_first = other.accepted < since;
-                        if same_target && same_system && other_giver && was_there_first {
-                            if let Some(target) = other.kill_count {
-                                let floor = k.min(target);
-                                if other.kills_seen.unwrap_or(0) < floor {
-                                    other.kills_seen = Some(floor);
-                                }
+                if let Some((key, giver, a_start_raw, a_start_misses, a_raw, k)) = measured {
+                    let st = streams.entry(key.clone()).or_default();
+                    // Misses are counted from the stream's first kill. A mission
+                    // there from the start saw the whole stream, so its gap is
+                    // the stream's: exact. One that joined mid-stream with an
+                    // exact snapshot extends it. Otherwise nothing is learned.
+                    let misses_now: Option<i64> = match (a_start_raw, a_start_misses) {
+                        (None, _) => Some(k - a_raw),
+                        (Some(_), Some(m0)) => Some(m0 + (k - a_raw)),
+                        (Some(_), None) => None,
+                    };
+                    if let Some(misses) = misses_now {
+                        st.misses_known = Some((ts.clone(), misses.max(0)));
+                    }
+                    let stream_raw_now = st.raw;
+                    let a_start = a_start_raw.unwrap_or(0);
+                    let mut successor_found = false;
+                    for other in out.iter_mut().filter(|o| o.status == MissionStatus::Active && o.id != id && o.kill_count.is_some()) {
+                        if stream_key(other) != key {
+                            continue;
+                        }
+                        let same_giver = other.faction.eq_ignore_ascii_case(&giver);
+                        if same_giver {
+                            // The giver's next mission starts receiving now; it
+                            // knows the stream exactly as of this instant.
+                            if !successor_found {
+                                successor_found = true;
+                                other.stream_raw_at_start = Some(stream_raw_now);
+                                other.stream_misses_at_start = misses_now;
+                            }
+                            continue;
+                        }
+                        let o_start = other.stream_raw_at_start.unwrap_or(0);
+                        let target = other.kill_count.unwrap_or(i64::MAX);
+                        if o_start <= a_start {
+                            // There before (or with) the completed one: it got
+                            // every kill the game just counted. A floor.
+                            let floor = k.min(target);
+                            if other.kills_seen.unwrap_or(0) < floor {
+                                other.kills_seen = Some(floor);
+                                other.kills_exact = false;
+                            }
+                        } else if let (Some(o_misses), Some(a_misses)) = (other.stream_misses_at_start, a_start_raw.map_or(Some(0), |_| a_start_misses)) {
+                            // Joined after the completed one started, with the
+                            // stream exactly known at its start: what the game
+                            // counted since then is exact (boss, 2026-10-03:
+                            // "it should grant the delta" — it does, when the
+                            // delta is known, which needs a calibration and a
+                            // quiet gap).
+                            let before_it = (o_start - a_start) + (o_misses - a_misses);
+                            let exact = (k - before_it).clamp(0, target);
+                            if exact >= other.kills_seen.unwrap_or(0) {
+                                other.kills_seen = Some(exact);
+                                other.kills_exact = true;
                             }
                         }
                     }
@@ -336,6 +423,8 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                 // is never touched here.
                 let victim = s(&v, "VictimFaction");
                 let pilot = loc(&v, "PilotName");
+                last_combat = Some(ts.clone());
+                let mut touched: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
                 let mut credited_givers: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
                 for m in out.iter_mut().filter(|m| m.status == MissionStatus::Active) {
                     if m.kill_count.is_some() && m.target_faction.is_some() && m.target_faction == victim {
@@ -350,15 +439,30 @@ pub fn missions_with(conn: &Connection, since: &str, now: &str, speculative_kill
                         }
                         let seen = m.kills_seen.unwrap_or(0) + 1;
                         m.kills_seen = Some(match m.kill_count { Some(k) => seen.min(k), None => seen });
-                        if m.first_kill_seen.is_none() {
-                            m.first_kill_seen = Some(ts.clone());
+                        m.kills_exact = false;
+                        m.kills_raw += 1;
+                        if std::env::var_os("EDDA_MISSIONS_TRACE").is_some() {
+                            eprintln!("{ts} kill -> {} ({}) seen {:?}/{:?} raw {} here={:?}", m.id, m.faction, m.kills_seen, m.kill_count, m.kills_raw, here);
                         }
+                        touched.insert(stream_key(m));
                     } else if let (Some(t), Some(p)) = (&m.target, &pilot) {
                         if m.kind == "assassinate" && p.eq_ignore_ascii_case(t) {
                             m.kills_seen = Some(1);
                         }
                     }
                 }
+                for key in touched {
+                    let st = streams.entry(key).or_default();
+                    st.raw += 1;
+                    if st.first_kill.is_none() {
+                        st.first_kill = Some(ts.clone());
+                    }
+                }
+            }
+            "UnderAttack" | "HullDamage" | "Died" | "FighterDestroyed" => {
+                // Being hit says nothing about kills, except that a kill
+                // could have gone unseen: a quiet gap is no longer quiet.
+                last_combat = Some(ts.clone());
             }
             "Missions" => {
                 // The login roll-call. Ids the game lists decide the status
@@ -736,11 +840,51 @@ mod tests {
         let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
         assert_eq!(by(54).status, MissionStatus::ReadyToTurnIn);
         assert_eq!(by(54).kills_seen, Some(45), "the journal saw 45 of the 54 the game counted");
-        assert_eq!(by(64).kills_seen, Some(54), "another giver, accepted before the first kill: at least the 54 the game just confirmed");
+        assert_eq!(by(64).kills_seen, Some(54), "another giver, there from the first kill: at least the 54 the game just confirmed");
         assert_eq!(by(70).kills_seen, Some(0), "same giver: it waited its turn and got none of them");
         assert_eq!(by(80).kills_seen, Some(0), "accepted after the 54: its share is unknown, so its own count stands");
     }
 
+
+    /// The boss's delta (2026-10-03: "one needs 81, it's marked at 66; a
+    /// new one needs 44; the 81 finishes — we know we got 81−66 for
+    /// sure"): exact only when the stream was calibrated and nothing
+    /// violent happened before the new acceptance. Here: A 54 and B 64
+    /// from the first kill; 45 seen when A completes (9 missed, now
+    /// known); a quiet gap; C 44 accepted knowing the stream exactly
+    /// (45 seen + 9 missed); 7 more seen; B completes at 64, so the game
+    /// counted 64 − 54 = 10 since C joined: C reads 10, exact, though it
+    /// only saw 7.
+    #[test]
+    fn a_calibrated_stream_makes_the_newcomers_count_exact() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(&format!("INSERT INTO events (file,offset,ts,event,raw) VALUES {};", "('J',1,'2026-08-26T12:00:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:00:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver A\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":54,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":54}'),\n('J',2,'2026-08-26T12:01:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:01:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver B\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":64,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":64}'),\n('J',10,'2026-08-26T13:00:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:00:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',11,'2026-08-26T13:01:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:01:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',12,'2026-08-26T13:02:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:02:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',13,'2026-08-26T13:03:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:03:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',14,'2026-08-26T13:04:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:04:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',15,'2026-08-26T13:05:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:05:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',16,'2026-08-26T13:06:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:06:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',17,'2026-08-26T13:07:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:07:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',18,'2026-08-26T13:08:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:08:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',19,'2026-08-26T13:09:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:09:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',20,'2026-08-26T13:10:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:10:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',21,'2026-08-26T13:11:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:11:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',22,'2026-08-26T13:12:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:12:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',23,'2026-08-26T13:13:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:13:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',24,'2026-08-26T13:14:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:14:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',25,'2026-08-26T13:15:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:15:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',26,'2026-08-26T13:16:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:16:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',27,'2026-08-26T13:17:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:17:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',28,'2026-08-26T13:18:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:18:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',29,'2026-08-26T13:19:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:19:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',30,'2026-08-26T13:20:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:20:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',31,'2026-08-26T13:21:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:21:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',32,'2026-08-26T13:22:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:22:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',33,'2026-08-26T13:23:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:23:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',34,'2026-08-26T13:24:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:24:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',35,'2026-08-26T13:25:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:25:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',36,'2026-08-26T13:26:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:26:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',37,'2026-08-26T13:27:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:27:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',38,'2026-08-26T13:28:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:28:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',39,'2026-08-26T13:29:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:29:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',40,'2026-08-26T13:30:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:30:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',41,'2026-08-26T13:31:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:31:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',42,'2026-08-26T13:32:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:32:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',43,'2026-08-26T13:33:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:33:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',44,'2026-08-26T13:34:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:34:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',45,'2026-08-26T13:35:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:35:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',46,'2026-08-26T13:36:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:36:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',47,'2026-08-26T13:37:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:37:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',48,'2026-08-26T13:38:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:38:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',49,'2026-08-26T13:39:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:39:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',50,'2026-08-26T13:40:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:40:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',51,'2026-08-26T13:41:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:41:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',52,'2026-08-26T13:42:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:42:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',53,'2026-08-26T13:43:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:43:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',54,'2026-08-26T13:44:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:44:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',55,'2026-08-26T13:50:00Z','MissionRedirected','{\"timestamp\":\"2026-08-26T13:50:00Z\",\"event\":\"MissionRedirected\",\"MissionID\":54,\"NewDestinationStation\":\"S\",\"NewDestinationSystem\":\"Home\"}'),\n('J',56,'2026-08-26T13:55:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T13:55:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver C\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":44,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":44}'),\n('J',57,'2026-08-26T14:00:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:00:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',58,'2026-08-26T14:01:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:01:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',59,'2026-08-26T14:02:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:02:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',60,'2026-08-26T14:03:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:03:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',61,'2026-08-26T14:04:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:04:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',62,'2026-08-26T14:05:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:05:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',63,'2026-08-26T14:06:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:06:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',64,'2026-08-26T14:20:00Z','MissionRedirected','{\"timestamp\":\"2026-08-26T14:20:00Z\",\"event\":\"MissionRedirected\",\"MissionID\":64,\"NewDestinationStation\":\"S\",\"NewDestinationSystem\":\"Home\"}')")).unwrap();
+        let ms = missions_with(&conn, "", "2026-08-26T15:00:00Z", true).unwrap();
+        let by = |id: i64| ms.iter().find(|m| m.id == id).unwrap();
+        assert_eq!(by(54).kills_seen, Some(45));
+        assert_eq!(by(64).status, MissionStatus::ReadyToTurnIn);
+        assert_eq!(by(44).kills_seen, Some(10), "64 minus the 54 that happened before it joined: {:?}", by(44));
+        assert!(by(44).kills_exact, "the game's own number for that instant");
+    }
+
+    /// The same, but you were shot at between the calibration and the new
+    /// acceptance: a kill could have gone unseen in the gap, the stream's
+    /// state at the acceptance is unknown, and the newcomer keeps the 7 it
+    /// saw. Measured on the boss's 2026-10-03 journal: three UnderAttack
+    /// at 21:31 between the 63's completion and the 21:43 acceptances.
+    #[test]
+    fn combat_in_the_gap_keeps_the_newcomer_at_its_floor() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn.execute_batch(&format!("INSERT INTO events (file,offset,ts,event,raw) VALUES {};", "('J',1,'2026-08-26T12:00:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:00:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver A\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":54,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":54}'),\n('J',2,'2026-08-26T12:01:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T12:01:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver B\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":64,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":64}'),\n('J',10,'2026-08-26T13:00:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:00:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',11,'2026-08-26T13:01:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:01:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',12,'2026-08-26T13:02:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:02:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',13,'2026-08-26T13:03:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:03:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',14,'2026-08-26T13:04:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:04:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',15,'2026-08-26T13:05:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:05:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',16,'2026-08-26T13:06:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:06:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',17,'2026-08-26T13:07:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:07:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',18,'2026-08-26T13:08:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:08:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',19,'2026-08-26T13:09:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:09:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',20,'2026-08-26T13:10:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:10:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',21,'2026-08-26T13:11:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:11:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',22,'2026-08-26T13:12:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:12:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',23,'2026-08-26T13:13:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:13:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',24,'2026-08-26T13:14:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:14:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',25,'2026-08-26T13:15:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:15:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',26,'2026-08-26T13:16:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:16:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',27,'2026-08-26T13:17:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:17:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',28,'2026-08-26T13:18:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:18:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',29,'2026-08-26T13:19:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:19:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',30,'2026-08-26T13:20:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:20:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',31,'2026-08-26T13:21:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:21:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',32,'2026-08-26T13:22:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:22:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',33,'2026-08-26T13:23:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:23:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',34,'2026-08-26T13:24:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:24:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',35,'2026-08-26T13:25:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:25:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',36,'2026-08-26T13:26:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:26:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',37,'2026-08-26T13:27:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:27:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',38,'2026-08-26T13:28:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:28:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',39,'2026-08-26T13:29:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:29:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',40,'2026-08-26T13:30:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:30:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',41,'2026-08-26T13:31:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:31:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',42,'2026-08-26T13:32:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:32:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',43,'2026-08-26T13:33:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:33:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',44,'2026-08-26T13:34:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:34:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',45,'2026-08-26T13:35:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:35:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',46,'2026-08-26T13:36:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:36:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',47,'2026-08-26T13:37:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:37:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',48,'2026-08-26T13:38:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:38:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',49,'2026-08-26T13:39:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:39:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',50,'2026-08-26T13:40:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:40:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',51,'2026-08-26T13:41:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:41:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',52,'2026-08-26T13:42:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:42:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',53,'2026-08-26T13:43:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:43:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',54,'2026-08-26T13:44:00Z','Bounty','{\"timestamp\":\"2026-08-26T13:44:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',55,'2026-08-26T13:50:00Z','MissionRedirected','{\"timestamp\":\"2026-08-26T13:50:00Z\",\"event\":\"MissionRedirected\",\"MissionID\":54,\"NewDestinationStation\":\"S\",\"NewDestinationSystem\":\"Home\"}'),\n('J',56,'2026-08-26T13:52:00Z','UnderAttack','{\"timestamp\":\"2026-08-26T13:52:00Z\",\"event\":\"UnderAttack\",\"Target\":\"You\"}'),\n('J',57,'2026-08-26T13:55:00Z','MissionAccepted','{\"timestamp\":\"2026-08-26T13:55:00Z\",\"event\":\"MissionAccepted\",\"Faction\":\"Giver C\",\"Name\":\"Mission_Massacre\",\"TargetFaction\":\"Pirates\",\"KillCount\":44,\"DestinationSystem\":\"Here\",\"Expiry\":\"2026-08-28T05:31:15Z\",\"Reward\":1,\"MissionID\":44}'),\n('J',58,'2026-08-26T14:00:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:00:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',59,'2026-08-26T14:01:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:01:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',60,'2026-08-26T14:02:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:02:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',61,'2026-08-26T14:03:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:03:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',62,'2026-08-26T14:04:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:04:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',63,'2026-08-26T14:05:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:05:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',64,'2026-08-26T14:06:00Z','Bounty','{\"timestamp\":\"2026-08-26T14:06:00Z\",\"event\":\"Bounty\",\"VictimFaction\":\"Pirates\",\"TotalReward\":1}'),\n('J',65,'2026-08-26T14:20:00Z','MissionRedirected','{\"timestamp\":\"2026-08-26T14:20:00Z\",\"event\":\"MissionRedirected\",\"MissionID\":64,\"NewDestinationStation\":\"S\",\"NewDestinationSystem\":\"Home\"}')")).unwrap();
+        let ms = missions_with(&conn, "", "2026-08-26T15:00:00Z", true).unwrap();
+        let c = ms.iter().find(|m| m.id == 44).unwrap();
+        assert_eq!(c.kills_seen, Some(7), "{c:?}");
+        assert!(!c.kills_exact);
+    }
 
     /// The decision of 2026-09-19: kills move nothing. Three target-faction
     /// bounties, one of them the named assassination target, and both
@@ -987,7 +1131,10 @@ mod tests {
             target_type: None,
             kill_count: target,
             kills_seen: None,
-            first_kill_seen: None,
+            kills_exact: false,
+            kills_raw: 0,
+            stream_raw_at_start: None,
+            stream_misses_at_start: None,
             commodity: None,
             count: None,
             items_collected: 0,

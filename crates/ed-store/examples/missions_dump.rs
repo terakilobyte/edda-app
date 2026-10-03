@@ -10,18 +10,17 @@ fn main() -> anyhow::Result<()> {
     let conn = rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let now = chrono_free_now();
     let ms = ed_store::missions::missions_with(&conn, "", &now, true)?;
-    println!("{:<12} {:<16} {:<28} {:<24} {:>5} {:>5} {:<20} {}", "id", "status", "giver", "target", "goal", "seen", "accepted", "first kill seen");
+    println!("{:<12} {:<16} {:<28} {:<24} {:>5} {:>6} {:<20}", "id", "status", "giver", "target", "goal", "seen", "accepted");
     for m in ms.iter().filter(|m| m.kill_count.is_some() && matches!(m.status, ed_store::missions::MissionStatus::Active | ed_store::missions::MissionStatus::ReadyToTurnIn)) {
         println!(
-            "{:<12} {:<16} {:<28} {:<24} {:>5} {:>5} {:<20} {}",
+            "{:<12} {:<16} {:<28} {:<24} {:>5} {:>6} {:<20}",
             m.id,
             format!("{:?}", m.status),
             m.faction.chars().take(28).collect::<String>(),
             m.target_faction.clone().unwrap_or_default().chars().take(24).collect::<String>(),
             m.kill_count.unwrap_or(0),
-            m.kills_seen.unwrap_or(0),
+            format!("{}{}", if m.kills_exact { "=" } else { "≥" }, m.kills_seen.unwrap_or(0)),
             &m.accepted[..16],
-            m.first_kill_seen.clone().map(|t| t[..16].to_string()).unwrap_or_else(|| "-".into())
         );
     }
     Ok(())
