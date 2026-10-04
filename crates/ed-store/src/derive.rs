@@ -291,7 +291,6 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
             loc = current;
         }
     }
-    let mut engineers_json: Option<(String, Value)> = None;
     let mut loadout: Option<(String, Value)> = None;
     let mut nav: Option<(String, Value)> = None;
     // Ownership is re-read from the whole log only when a pass carried an
@@ -309,8 +308,46 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
         ed_journal::inventory::apply_event(&mut inv, &v);
 
         match event.as_str() {
-            "EngineerProgress" if v.get("Engineers").is_some() => {
-                engineers_json = Some((ts.clone(), v.clone()));
+            "EngineerProgress" => {
+                // Two forms. The login roll-call carries `Engineers`, the
+                // whole list: a snapshot that replaces the table. The event
+                // the game writes the moment you unlock or rank up names ONE
+                // engineer (`Engineer`, `Progress`, `Rank`) — ignored until
+                // 2026-10-03, so Broo Tarquin and Juri Ishmaak, unlocked and
+                // ranked to 5 that afternoon, stayed "Invited" until the next
+                // login and the build planner said no engineer could do G5
+                // lasers (boss: "are we confident in our knowledge of
+                // engineer abilities?"). Both are applied here, in event
+                // order, so a later single event overrides an earlier
+                // roll-call and a later roll-call resets everything.
+                if let Some(list) = v.get("Engineers").and_then(Value::as_array) {
+                    tx.execute("DELETE FROM engineers", [])?;
+                    let mut ins = tx.prepare(
+                        "INSERT OR REPLACE INTO engineers
+                             (name, engineer_id, progress, rank, rank_progress, ts)
+                         VALUES (?1,?2,?3,?4,?5,?6)",
+                    )?;
+                    for e in list {
+                        let Some(name) = s(e, "Engineer") else { continue };
+                        ins.execute(params![name, i(e, "EngineerID"), s(e, "Progress"), i(e, "Rank"), i(e, "RankProgress"), ts])?;
+                        stats.engineers += 1;
+                    }
+                } else if let Some(name) = s(&v, "Engineer") {
+                    // A rank is only ever reported for an unlocked engineer.
+                    let progress = s(&v, "Progress").or_else(|| i(&v, "Rank").map(|_| "Unlocked".to_string()));
+                    tx.execute(
+                        "INSERT INTO engineers (name, engineer_id, progress, rank, rank_progress, ts)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                         ON CONFLICT(name) DO UPDATE SET
+                             engineer_id   = COALESCE(excluded.engineer_id, engineers.engineer_id),
+                             progress      = COALESCE(excluded.progress, engineers.progress),
+                             rank          = COALESCE(excluded.rank, engineers.rank),
+                             rank_progress = COALESCE(excluded.rank_progress, engineers.rank_progress),
+                             ts            = excluded.ts",
+                        params![name, i(&v, "EngineerID"), progress, i(&v, "Rank"), i(&v, "RankProgress"), ts],
+                    )?;
+                    stats.engineers += 1;
+                }
             }
 
             "Location" | "FSDJump" | "CarrierJump" => {
@@ -573,31 +610,6 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
         }
     }
 
-    if let Some((ts, v)) = engineers_json {
-        tx.execute("DELETE FROM engineers", [])?;
-        if let Some(list) = v.get("Engineers").and_then(Value::as_array) {
-            let mut ins = tx.prepare(
-                "INSERT OR REPLACE INTO engineers
-                     (name, engineer_id, progress, rank, rank_progress, ts)
-                 VALUES (?1,?2,?3,?4,?5,?6)",
-            )?;
-            for e in list {
-                let Some(name) = s(e, "Engineer") else {
-                    continue;
-                };
-                ins.execute(params![
-                    name,
-                    i(e, "EngineerID"),
-                    s(e, "Progress"),
-                    i(e, "Rank"),
-                    i(e, "RankProgress"),
-                    ts,
-                ])?;
-                stats.engineers += 1;
-            }
-        }
-    }
-
     if ship_events {
         let owned = owned_ships(&tx)?;
         tx.execute("UPDATE ships SET owned = 0", [])?;
@@ -800,6 +812,35 @@ mod resume_tests {
     /// incremental pass used to re-apply 2021 on top of 2026.
     const OLD: &str = "Journal.210213193049.01.log";
     const NEW: &str = "Journal.2026-09-16T055300.01.log";
+
+    /// The boss's 2026-10-03 afternoon: the 13:04 roll-call has Broo
+    /// Tarquin "Invited"; at 14:14 the game writes the single-engineer
+    /// form — Unlocked, Rank 1 — then four rank-ups to 5 with no Progress
+    /// field. All of it must land, in order; a later roll-call still resets.
+    #[test]
+    fn a_single_engineer_progress_event_updates_the_table() {
+        let conn = db();
+        let ev = |offset: i64, ts: &str, raw: &str| {
+            conn.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES (?1, ?2, ?3, 'EngineerProgress', ?4)", params![NEW, offset, ts, raw]).unwrap();
+        };
+        ev(1, "2026-10-03T13:04:37Z", r#"{"timestamp":"2026-10-03T13:04:37Z","event":"EngineerProgress","Engineers":[{"Engineer":"Broo Tarquin","EngineerID":300030,"Progress":"Invited"},{"Engineer":"Hera Tani","EngineerID":300090,"Progress":"Unlocked","RankProgress":0,"Rank":5}]}"#);
+        ev(2, "2026-10-03T14:14:51Z", r#"{"timestamp":"2026-10-03T14:14:51Z","event":"EngineerProgress","Engineer":"Broo Tarquin","EngineerID":300030,"Progress":"Unlocked","Rank":1}"#);
+        ev(3, "2026-10-03T14:16:10Z", r#"{"timestamp":"2026-10-03T14:16:10Z","event":"EngineerProgress","Engineer":"Broo Tarquin","EngineerID":300030,"Rank":5}"#);
+        ev(4, "2026-10-03T15:04:30Z", r#"{"timestamp":"2026-10-03T15:04:30Z","event":"EngineerProgress","Engineer":"The Sarge","EngineerID":300040,"Progress":"Invited"}"#);
+        derive_all(&conn).unwrap();
+        let row = |name: &str| conn.query_row("SELECT progress, rank FROM engineers WHERE name = ?1", [name], |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<i64>>(1)?))).unwrap();
+        assert_eq!(row("Broo Tarquin"), (Some("Unlocked".into()), Some(5)), "unlocked and ranked by the single events");
+        assert_eq!(row("Hera Tani"), (Some("Unlocked".into()), Some(5)), "the roll-call's entry stands");
+        assert_eq!(row("The Sarge"), (Some("Invited".into()), None), "a new name from a single event is added");
+        // A rank-only event for a name never seen still means unlocked.
+        ev(5, "2026-10-03T15:05:00Z", r#"{"timestamp":"2026-10-03T15:05:00Z","event":"EngineerProgress","Engineer":"Juri Ishmaak","EngineerID":300250,"Rank":2}"#);
+        derive_incremental(&conn).unwrap();
+        assert_eq!(row("Juri Ishmaak"), (Some("Unlocked".into()), Some(2)));
+        // The next login's roll-call replaces the table wholesale.
+        ev(6, "2026-10-04T09:00:00Z", r#"{"timestamp":"2026-10-04T09:00:00Z","event":"EngineerProgress","Engineers":[{"Engineer":"Broo Tarquin","EngineerID":300030,"Progress":"Unlocked","RankProgress":10,"Rank":5}]}"#);
+        derive_incremental(&conn).unwrap();
+        assert_eq!(conn.query_row("SELECT count(*) FROM engineers", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    }
 
     #[test]
     fn a_no_change_sync_leaves_a_veteran_where_the_journal_left_them() {

@@ -19,7 +19,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 /// A bump triggers a rebuild of the derived tables from `events`; it does NOT
 /// require re-reading the journal files, which is the whole point of keeping
 /// the event log.
-pub const SCHEMA_VERSION: i64 = 9; // 9: outfitting_seen, the commander's own boards' prices per station (2026-09-29)
+pub const SCHEMA_VERSION: i64 = 10; // 10: re-derive so single-engineer EngineerProgress events land (2026-10-03)
 
 const DDL: &str = r#"
 PRAGMA journal_mode = WAL;

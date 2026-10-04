@@ -516,6 +516,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Engineer unlocks landed only at the next login** (2026-10-03, boss:
+  "it says I don't have some engineers unlocked … are we confident in our
+  knowledge of engineer abilities?"). The table was right (audited
+  2026-09-19); the store was not: it derived only the roll-call form of
+  `EngineerProgress` (the `Engineers` array at login) and ignored the
+  single-engineer events the game writes on unlock and rank-up. His
+  journal: Broo Tarquin unlocked 14:14 and ranked to 5 by 14:16, Juri
+  Ishmaak unlocked 15:02, The Sarge and Bris Dekker invited 15:04 — all
+  still "Invited"/absent in the store, so the planner said no engineer
+  could do G5 lasers. Both forms now apply in event order (a rank-only
+  event means unlocked); schema 10 forces the re-derive.
 - **Speculative kill tracking is back as an opt-in estimate** (2026-10-03,
   boss: users asked again; "let's make it a checkbox"). The 2026-09-19
   burial stands on its measurement — the journal cannot see every kill
