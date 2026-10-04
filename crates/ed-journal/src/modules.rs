@@ -264,9 +264,18 @@ mod search_fragment_tests {
 /// newer than the table.
 struct OutfittingRow {
     name: &'static str,
+    category: &'static str,
     mount: &'static str,
     class: &'static str,
     rating: &'static str,
+}
+
+/// EDCD's category for an outfitting symbol: `hardpoint`, `utility`,
+/// `internal`, `standard` or `mercgear`. None for a symbol the table does
+/// not have (the journal's `$ext_drive_*` and `$modularcargobaydoor` target
+/// keys are not outfitting symbols).
+pub fn category(symbol: &str) -> Option<&'static str> {
+    outfitting_table().get(&symbol.trim().to_ascii_lowercase()).map(|r| r.category)
 }
 
 fn outfitting_table() -> &'static std::collections::HashMap<String, OutfittingRow> {
@@ -282,6 +291,7 @@ fn outfitting_table() -> &'static std::collections::HashMap<String, OutfittingRo
             }
             map.entry(cols[1].trim().to_ascii_lowercase()).or_insert(OutfittingRow {
                 name: cols[3].trim(),
+                category: cols[2].trim(),
                 mount: cols[4].trim(),
                 class: cols[7].trim(),
                 rating: cols[8].trim(),

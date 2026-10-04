@@ -24,6 +24,7 @@ pub static REGISTRY: &[ToolSpec] = &[
     ToolSpec { name: "material_shopping_list", description: "For an engineering plan, what the commander is short and how to cover it at material traders from what they already carry: exact trades (give N of X for M of Y, at the raw/manufactured/encoded trader), what is still short after trading, and the nearest traders of each kind needed from the current position. Uses real exchange rates (6:1 per grade up, 3:1 per grade down, x6 across groups). First-hand. Use get_engineering_gap first if you only want the raw shortfall.", schema: material_shopping_list_schema, run: material_shopping_list },
     ToolSpec { name: "game_control", description: "Press one of the commander's own game bindings (their Custom.binds) -- the ship computer's hands. Works only while the game window has focus. Controls: landing_gear, cargo_scoop, lights, night_vision, hardpoints, flight_assist, heat_sink, chaff, shield_cell, ecm, boost, supercruise, hyperspace, jump_or_supercruise, target_next_route, target_ahead, next_target, previous_target, next_hostile, highest_threat, next_subsystem, galaxy_map, system_map, fss, discovery_scan, hud_mode, silent_running, cargo_eject_all, orbit_lines, throttle_zero/50/75/100. Example: 'four pips to systems' = pips_reset, then pips_systems times 2. Toggles just toggle; if you cannot tell the current state, say so.", schema: game_control_schema, run: game_control },
     ToolSpec { name: "set_pips", description: "Set the power distributor to an exact split: systems / engines / weapons pips adding up to 6, each at most 4 (halves allowed). Works out the button presses itself (reset, then the shortest sequence) and reports what was reached. Use this for ANY pips order ('full pips to systems' = 4/1/1; 'four to systems, rest to engines' = 4/2/0; 'balanced' = 2/2/2); do not use game_control for pips. Needs the game window focused.", schema: set_pips_schema, run: set_pips },
+    ToolSpec { name: "target_subsystem", description: "Target one specific subsystem (module) on the ship the commander has locked: power_plant, drives (thrusters/engines), fsd, shield_generator, power_distributor, life_support, sensors, cargo_hatch, interdictor, shield_cell_bank, shield_booster, weapon (first hardpoint) or utility. The game has no such binding, so this closes the loop through the journal: it presses Cycle Next Subsystem and reads each ShipTargeted line until the asked module comes round, then stops. Needs a locked, fully scanned target and the game window focused; says so when it is not. Use this, never game_control next_subsystem, whenever the commander names a module ('target their engines', 'go for the power plant').", schema: target_subsystem_schema, run: target_subsystem },
     ToolSpec { name: "follow_route", description: "The route the commander is following in the game (plotted here or imported from Spansh) and actions on it. action=status: jumps left, next system, scoop/boost notes. action=target_next: put the next system into the game's galaxy map (key macro; the game window must be focused). action=skip: mark the next hop as done without jumping. action=stop: stop following. Use for spoken orders like 'target the next system', 'what's next', 'how many jumps left'. If nothing is being followed here but the game has its own plotted route (current_route), 'target next' means game_control target_next_route; if neither, say there is no route.", schema: follow_route_schema, run: follow_route },
     ToolSpec { name: "material_sources", description: "Where to collect one material: community-known farm sites (crash sites, crystal shards, Dav's Hope, HGE guidance) and, first-hand, every place the commander has actually picked it up before from their journal — with distance from the current system. Use for anything still short after material_shopping_list; offer plot_route to the chosen site.", schema: material_sources_schema, run: material_sources },
     ToolSpec { name: "ship_modules", description: "One ship's full build from its latest Loadout (the same data as the Ships tab), engineered modules first: slot, outfitting names ('Fuel Scoop 7A'), module type and blueprint resolved to the names get_engineering_gap uses, grade, quality, engineer, experimental effect. Without ship_id it is the ship being flown; pass ship_id from list_ships for ANY owned ship, stored or aboard a carrier. Use it to plan from the REAL current grade (pass it as from_grade) and to see what is fitted. To find WHICH ship carries a module, use find_module instead. First-hand.", schema: ship_modules_schema, run: ship_modules },
@@ -822,6 +823,30 @@ fn set_pips(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         }
     }
     Ok(json!({ "ok": true, "reached": { "systems": reached[0], "engines": reached[1], "weapons": reached[2] }, "presses": presses.iter().map(|(n, t)| format!("{n} x{t}")).collect::<Vec<_>>() }))
+}
+
+fn target_subsystem_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "subsystem": { "type": "string", "enum": crate::subsystem::KINDS.iter().map(|k| k.id).collect::<Vec<_>>() }
+        },
+        "required": ["subsystem"]
+    })
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct SubsystemRequest {
+    subsystem: String,
+}
+
+fn target_subsystem(ctx: &Ctx, input: &Value) -> CapResult<Value> {
+    let req: SubsystemRequest = parse(input)?;
+    Ok(match ctx.fx.target_subsystem(ctx.state, &req.subsystem) {
+        Ok(m) => json!({ "ok": true, "result": m }),
+        Err(e) => json!({ "ok": false, "error": e }),
+    })
 }
 
 fn follow_route_schema() -> Value {

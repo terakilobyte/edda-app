@@ -9,6 +9,7 @@ mod capabilities;
 mod commands;
 mod contracts;
 mod control;
+mod subsystem;
 mod eval;
 mod events;
 mod exchange;

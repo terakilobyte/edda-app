@@ -516,6 +516,31 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **"Target their engines" is a lap through the journal, not a blind
+  press** (2026-10-04, boss, after the ship computer pressed Cycle Next
+  Subsystem once and landed on the cargo hatch: "how do other apps target
+  a specific subsystem?"). The game has no per-module binding and the
+  cycle order is the target's own module list, so a fixed count lands
+  somewhere different on every hull. It does write a `ShipTargeted`
+  (ScanStage 3) line with the subsystem's symbol on every change — the
+  boss's 2026-08-22 log has nine in eight seconds, one per press; today's
+  single press at 14:31:23.339 produced the hatch line in the same
+  second. `src-tauri/src/subsystem.rs` closes the loop: press, tail the
+  journal at 150 ms (boss ruling; the watcher's 500 ms is for callouts),
+  compare the symbol family, press again; stops on the match, a lost
+  target, an unanswered press (an unscanned target cycles nothing — the
+  reply names the scan stage), or a budget of 36 presses (duplicates such
+  as two multi-cannons make a lap undetectable by symbol). Kinds are
+  keyed by symbol family (`int_powerplant`, `ext_drive` is what the
+  journal writes for thrusters, `modularcargobaydoor` for the hatch,
+  `int_hyperdrive`, …); "weapon" and "utility" are EDCD's `hardpoint` /
+  `utility` categories from the vendored outfitting table, so point
+  defence is a utility, not a gun. Spoken order ("target / lock / go for
+  the …") and ship-computer tool `target_subsystem`; "next subsystem" is
+  still the blind step. Binds are read fresh from the newest
+  `Custom.*.binds` at every press (yours: Ctrl+O). Every request traces
+  presses, ms, the subsystems passed and the verdict (`subsystem
+  targeting`); the first flights are the measurement of the lap time.
 - **Scoop talk needs a scoop** (2026-10-04, maintainer: "edda should only
   say a star is scoopable if I have a fuel scoop installed. Otherwise it
   should say if there's fuel available if there's a station I could dock

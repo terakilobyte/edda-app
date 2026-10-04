@@ -92,6 +92,9 @@ Write dates and times naturally ('August 26th, around noon UTC'), never as \nISO
 /// runs the real tools against a fake that records instead of acting.
 pub trait Effects: Send + Sync {
     fn press(&self, state: &AppState, name: &str, times: u32) -> Result<String, String>;
+    /// Target a named subsystem on the locked ship by the journal-closed lap
+    /// (`crate::subsystem`); returns what to say.
+    fn target_subsystem(&self, state: &AppState, kind: &str) -> Result<String, String>;
     /// Speak; returns the backend label.
     fn say(&self, state: &AppState, text: &str) -> Value;
     fn target_next(&self, state: &AppState) -> Result<String, String>;
@@ -110,6 +113,12 @@ pub struct Live;
 impl Effects for Live {
     fn press(&self, _state: &AppState, name: &str, times: u32) -> Result<String, String> {
         crate::control::press(name, times)
+    }
+    fn target_subsystem(&self, state: &AppState, kind: &str) -> Result<String, String> {
+        let k = crate::subsystem::kind_by_id(kind)
+            .or_else(|| crate::subsystem::parse_request(&kind.to_lowercase()))
+            .ok_or_else(|| format!("unknown subsystem {kind:?}; known: {}", crate::subsystem::KINDS.iter().map(|k| k.id).collect::<Vec<_>>().join(", ")))?;
+        crate::subsystem::target(state, k).map(|o| o.text())
     }
     fn say(&self, state: &AppState, text: &str) -> Value {
         state.voice.say(text.to_string());
@@ -177,6 +186,13 @@ impl Effects for Recording {
         crate::control::lookup(name)?;
         self.note(format!("press {name} x{times}"));
         Ok(format!("(simulated) {name} x{times}"))
+    }
+    fn target_subsystem(&self, _state: &AppState, kind: &str) -> Result<String, String> {
+        let k = crate::subsystem::kind_by_id(kind)
+            .or_else(|| crate::subsystem::parse_request(&kind.to_lowercase()))
+            .ok_or_else(|| format!("unknown subsystem {kind:?}"))?;
+        self.note(format!("target_subsystem {}", k.id));
+        Ok(format!("(simulated) {} targeted", k.spoken))
     }
     fn say(&self, _state: &AppState, text: &str) -> Value {
         self.note(format!("say {text:?}"));

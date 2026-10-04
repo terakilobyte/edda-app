@@ -893,6 +893,15 @@ fn handle_heard(app: &AppHandle, text: &str) {
                 format!("Watching for {}.", labels.join(", "))
             }
         }
+        None if crate::subsystem::parse_order(&t).is_some() => {
+            // A named subsystem ("target their engines"): the lap through
+            // the journal, not one blind press of Cycle Next Subsystem.
+            let kind = crate::subsystem::parse_order(&t).unwrap();
+            match crate::subsystem::target(&state, kind) {
+                Ok(o) => o.text(),
+                Err(e) => format!("Couldn't do that: {e}"),
+            }
+        }
         None if cockpit_order(&t).is_some() => {
             // Cockpit orders: pressed straight from the binds, no model round trip.
             let (presses, ack) = cockpit_order(&t).unwrap();
@@ -983,7 +992,7 @@ fn cockpit_order(t: &str) -> Option<(Vec<(&'static str, u32)>, String)> {
         (&["highest threat"], "highest_threat", "Targeting the highest threat."),
         (&["next hostile", "target next hostile"], "next_hostile", "Next hostile."),
         (&["next target", "cycle target", "next ship", "target next ship"], "next_target", "Next target."),
-        (&["next subsystem", "cycle subsystem", "power plant", "powerplant", "target the drives", "target drives", "target fsd", "target the fsd"], "next_subsystem", "Next subsystem."),
+        (&["next subsystem", "cycle subsystem"], "next_subsystem", "Next subsystem."),
         (&["discovery scan", "honk"], "discovery_scan", "Scanning."),
         (&["galaxy map"], "galaxy_map", "Galaxy map."),
         (&["system map"], "system_map", "System map."),
@@ -1009,7 +1018,7 @@ fn direct_order(t: &str) -> Option<Order> {
     let has = |words: &[&str]| words.iter().any(|w| t.contains(w));
     // Combat targeting is not routing: "target next hostile", "next target",
     // "next subsystem", "target the power plant" go to the cockpit keys.
-    if !guided && has(&["hostile", "subsystem", "power plant", "powerplant", "drives", "fsd", "next target", "next ship", "target ahead", "highest threat"]) {
+    if !guided && (crate::subsystem::parse_order(t).is_some() || has(&["hostile", "subsystem", "next target", "next ship", "target ahead", "highest threat"])) {
         return None;
     }
     // Signal watch: "(I'm) looking for X", "watch for X", "stop looking for X", "what are we watching for".
