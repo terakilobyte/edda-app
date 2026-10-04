@@ -532,6 +532,11 @@ verdicts live in the CSV headers under `docs/benches/`.
   `crates/ed-store/examples/`. Also: EDDA said the game was running
   because EliteDangerous64.exe was still alive with no window after the
   session ended — process detection told the truth.
+- **Engineer table vs the wiki overview, 2026-10-04** (boss: "is our
+  engineering in line with this?", pasting the wiki's Engineers table):
+  25 engineers each side, one difference — Lori Jameson's Kill Warrant
+  Scanner G3, which the overview omits and her own wiki article lists.
+  Ours stands. Knob: `docs/benches/knobs/engineer_table_vs_wiki_overview.py`.
 - **Engineer unlocks landed only at the next login** (2026-10-03, boss:
   "it says I don't have some engineers unlocked … are we confident in our
   knowledge of engineer abilities?"). The table was right (audited
