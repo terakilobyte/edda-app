@@ -35,9 +35,19 @@ fn game_process_present(sys: &mut System) -> bool {
 
 /// One observation of the process list, applied to `running`: emits the
 /// state on the first call and on every change, and speaks the change.
+/// Every transition — and the state found at startup — is also written
+/// to the log with a timestamp, so a game process that lingers after a
+/// session (2026-10-03: EliteDangerous64.exe alive with no window for an
+/// unknown time after Shutdown; a dev restart in between left no record
+/// of when it went) has its exit on record next time.
 pub fn observe(now: bool, first: bool, running: &AtomicBool, announcer: &Announcer) {
     let was = running.swap(now, Ordering::SeqCst);
     if first || now != was {
+        if first {
+            tracing::info!(running = now, "game process at startup");
+        } else {
+            tracing::info!(running = now, "game process {}", if now { "appeared" } else { "exited" });
+        }
         announcer.events.emit(GAME_STATE, serde_json::json!({ "running": now }));
         if !first {
             let ts = chrono::Utc::now().to_rfc3339();
