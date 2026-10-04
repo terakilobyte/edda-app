@@ -523,6 +523,7 @@ pub fn run() {
             eval::ai_eval,
             commands::get_inventory,
             mat_trader::material_trade_plan,
+            mat_trader::material_grid,
             commands::list_commodities,
             commands::list_module_types,
             commands::list_blueprint_names,

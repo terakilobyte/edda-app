@@ -553,7 +553,28 @@ verdicts live in the CSV headers under `docs/benches/`.
   capacities, geometric rates; within a group every routing is
   equivalent, so greedy is exact there, and the only real decisions are
   the floor, the order (units vs value) and whether to pay 6× to cross.
-  The Trader tab plans for the docked station's type
+  The boss's actual aim, said after doing it by hand: "fill up on the
+  G1-3 mats, then rebalance G4/G5 so I'd have room to accept mat rewards
+  from missions since it's all G4/5" ("a mission where I pass up the
+  material reward because I was full hurts my soul"). So the defaults are
+  that workflow: only G4/G5 are spent, across and up are off, and a
+  **room pass** follows the fill — anything still over 85 % of its cap
+  (knob) moves into a G4/G5 that has room, own group first (1:3 down,
+  6:1 up), then across at the same grade (6:1), then one down (2:1),
+  never pushing a receiver over the ceiling. The first plan's cross
+  trades "didn't make sense" to him for exactly this reason: they were
+  filling other groups' G1s from his full G1s at 6:1. **Layout** (boss
+  screenshot of Reiter City's manufactured trader): the Inventory tab is
+  the game's grid — one row per trader group, G1 to G5 left to right,
+  count over cap in each cell — and the Trader tab is gone; "Material
+  trading mode" on the Inventory tab draws the plan on the cells (−given,
+  +received) and, with a material selected, shows in every other cell
+  what you would pay of it for one of the selected, as the game does
+  (216 ⇄ 1 on a G1 for a G4). OPEN: the group order on the game's
+  screen — Chemical, Thermic, Heat are from the screenshot; the rest of
+  manufactured, and raw and encoded, are laid out from memory until the
+  boss scrolls the screen.
+  The planner plans for the docked station's type
   when a `MaterialTrade` was made there or its economy says (else the
   type with most to spend), shows sources, the give/receive list with the
   counts left, what stays short, and the nearest traders of that type;

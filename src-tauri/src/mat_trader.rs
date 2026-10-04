@@ -98,6 +98,7 @@ pub struct TraderView {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // the tab's knobs, one argument each
 pub async fn material_trade_plan(
     state: State<'_, AppState>,
     kind: Option<String>,
@@ -106,16 +107,21 @@ pub async fn material_trade_plan(
     cross: Option<bool>,
     up: Option<bool>,
     order: Option<String>,
+    min_source_grade: Option<u8>,
+    room_below: Option<f64>,
 ) -> Result<TraderView, String> {
     let policy = Policy {
+        min_source_grade: min_source_grade.unwrap_or(4).clamp(1, 5),
+        // The tab sends 0 for "no room pass".
+        room_below: room_below.filter(|r| *r > 0.0).map(|r| r.clamp(0.1, 1.0)),
         order: match order.as_deref().map(str::trim) {
             Some("nearest_first") | Some("nearest") => FillOrder::NearestFirst,
             _ => FillOrder::BottomFirst,
         },
         source_min: source_min.unwrap_or(0.9).clamp(0.1, 1.0),
         floor: floor.unwrap_or(0.5).clamp(0.0, 1.0),
-        cross: cross.unwrap_or(true),
-        up: up.unwrap_or(true),
+        cross: cross.unwrap_or(false),
+        up: up.unwrap_or(false),
     };
     let catalog = ed_journal::Catalog::load();
     let (inv, docked, system) = state.with_read(|s| {
@@ -144,6 +150,43 @@ pub async fn material_trade_plan(
     Ok(TraderView { kind, kind_from, docked_kind: docked.map(|(k, _)| k), plan, traders, traders_known, origin_system: system })
 }
 
+/// One cell of the Inventory tab's grid: every catalogued material, held
+/// or not, with what the game's trader screen shows about it.
+#[derive(Debug, Serialize)]
+pub struct MaterialCell {
+    pub symbol: String,
+    pub name: String,
+    /// "raw", "manufactured" or "encoded".
+    pub kind: String,
+    /// Trader group ("Thermic", or "4" for a raw category); None for the
+    /// Guardian and Thargoid materials no trader takes.
+    pub group: Option<String>,
+    pub grade: u8,
+    pub cap: i64,
+    pub count: i64,
+}
+
+/// The whole material inventory, zeros included, laid out for the grid.
+#[tauri::command]
+pub async fn material_grid(state: State<'_, AppState>) -> Result<Vec<MaterialCell>, String> {
+    let catalog = ed_journal::Catalog::load();
+    let inv = state.with_read(|s| inventory(s.conn()));
+    let mut out: Vec<MaterialCell> = catalog
+        .materials()
+        .map(|i| MaterialCell {
+            symbol: i.symbol.to_lowercase(),
+            name: i.name.clone(),
+            kind: i.category.to_ascii_lowercase(),
+            group: Some(i.group.clone()).filter(|g| !g.is_empty() && g != "None"),
+            grade: i.grade,
+            cap: mat_trade::cap(i.grade),
+            count: inv.get(&i.symbol.to_lowercase()).copied().unwrap_or(0),
+        })
+        .collect();
+    out.sort_by(|a, b| a.kind.cmp(&b.kind).then(a.group.cmp(&b.group)).then(a.grade.cmp(&b.grade)).then(a.name.cmp(&b.name)));
+    Ok(out)
+}
+
 /// The callout's question after a pickup: did `symbol` just cross the
 /// source threshold, and is there a trade for it? One sentence when both,
 /// else None. `before` is the count before this pickup.
@@ -163,6 +206,8 @@ pub fn suggestion(conn: &rusqlite::Connection, symbol: &str, before: i64, now: i
         return None;
     }
     let direction = p.trades[0].direction;
+    let purpose = if direction == "room" { " to make room" } else { "" };
+    let direction = if direction == "room" { "" } else { direction };
     let mut names: Vec<String> = Vec::new();
     for t in &p.trades {
         if !names.contains(&t.recv_name) {
@@ -178,10 +223,11 @@ pub fn suggestion(conn: &rusqlite::Connection, symbol: &str, before: i64, now: i
     };
     let more = if p.trades.len() > names.len() { ", among others" } else { "" };
     Some(format!(
-        "{} is nearly full, {now} of {}. A {} trader would trade the surplus {direction} into {into}{more}.",
+        "{} is nearly full, {now} of {}. A {} trader would trade the surplus {direction}{}into {into}{more}{purpose}.",
         item.name,
         mat_trade::cap(item.grade),
-        item.category.to_ascii_lowercase()
+        item.category.to_ascii_lowercase(),
+        if direction.is_empty() { "" } else { " " }
     ))
 }
 
@@ -234,9 +280,10 @@ mod tests {
         assert!(suggestion(&c, "militarygradealloys", 90, 91).is_none(), "already over: said once");
         assert!(suggestion(&c, "militarygradealloys", 80, 85).is_none(), "not there yet");
         let full = conn_with(&[("militarygradealloys", 90), ("thermicalloys", 150), ("precipitatedalloys", 200), ("heatresistantceramics", 250), ("temperedalloys", 300)], None, &[]);
-        // Everything below is full, but across is allowed by default: other
-        // manufactured groups are empty, so there is still a trade.
-        assert!(suggestion(&full, "militarygradealloys", 89, 90).is_some_and(|s| s.contains("across")));
+        // Everything below is full and cross is off by default, but the room
+        // pass finds G4/G5 elsewhere with room: 90 is over the 85 ceiling.
+        let s = suggestion(&full, "militarygradealloys", 89, 90).unwrap();
+        assert!(s.ends_with("to make room.") && s.contains("would trade the surplus into"), "{s}");
         assert!(suggestion(&c, "guardian_powerconduit", 0, 100).is_none(), "untradeable");
     }
 }

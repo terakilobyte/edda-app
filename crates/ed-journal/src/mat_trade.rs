@@ -10,8 +10,12 @@
 //! `None`) do not trade.
 //!
 //! The planner answers the question asked at the trader (boss, 2026-10-04:
-//! "I need to go trade down materials maximally"): what to give and what to
-//! take so that materials nearing their cap fill the gaps below them. By
+//! "I need to go trade down materials maximally"; then, having done it by
+//! hand: "essentially I wanted to fill up on the G1-3 mats, then rebalance
+//! G4/G5 so I'd have room to accept mat rewards from missions since it's
+//! all G4/5"): what to give and what to take so that the near-full G4 and
+//! G5 fill the gaps below them, and whatever is still crowding a cap
+//! afterwards moves into a G4 or G5 that has room. By
 //! default it fills from the bottom grade up, because that is where one
 //! unit goes furthest (1:81 at the bottom, 1:3 one grade down) and the
 //! boss asked for "maximally"; nearest-grade-first is the option that keeps
@@ -74,6 +78,13 @@ pub enum FillOrder {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Policy {
     pub order: FillOrder,
+    /// Only materials of this grade or above are spent (4: the G4/G5 that
+    /// mission rewards crowd; 1: anything near full).
+    pub min_source_grade: u8,
+    /// After the gaps are filled, a source still above this share of its
+    /// cap trades into a G4 or G5 with room until it is at or below it, so
+    /// a reward fits. None: no such pass.
+    pub room_below: Option<f64>,
     /// A material at this fraction of its cap or above is a source.
     pub source_min: f64,
     /// Sources are never spent below this fraction of their cap.
@@ -86,7 +97,7 @@ pub struct Policy {
 
 impl Default for Policy {
     fn default() -> Self {
-        Policy { order: FillOrder::BottomFirst, source_min: 0.9, floor: 0.5, cross: true, up: true }
+        Policy { order: FillOrder::BottomFirst, min_source_grade: 4, room_below: Some(0.85), source_min: 0.9, floor: 0.5, cross: false, up: false }
     }
 }
 
@@ -104,7 +115,7 @@ pub struct Trade {
     pub recv_qty: i64,
     pub recv_before: i64,
     pub recv_after: i64,
-    /// "down", "across" or "up".
+    /// "down", "across", "up", or "room" (the make-room pass).
     pub direction: &'static str,
     /// The trader's unit, "1:27".
     pub ratio: String,
@@ -124,6 +135,8 @@ pub struct Line {
 pub struct Plan {
     pub kind: String,
     pub policy_order: FillOrder,
+    pub policy_min_source_grade: u8,
+    pub policy_room_below: Option<f64>,
     pub policy_source_min: f64,
     pub policy_floor: f64,
     /// Materials at or above the source threshold, before trading.
@@ -151,6 +164,7 @@ pub fn plan(catalog: &Catalog, inventory: &HashMap<String, i64>, kind: &str, pol
         .iter()
         .copied()
         .filter(|i| only.is_none_or(|o| i.symbol.eq_ignore_ascii_case(o)))
+        .filter(|i| i.grade >= policy.min_source_grade)
         .filter(|i| (count(&have, i) as f64) >= (cap(i.grade) as f64 * policy.source_min).ceil())
         .collect();
     // Highest grade first: its surplus is the dearest to leave idle.
@@ -163,15 +177,17 @@ pub fn plan(catalog: &Catalog, inventory: &HashMap<String, i64>, kind: &str, pol
     let source_lines: Vec<Line> = sources.iter().map(|i| line(i, count(&have, i))).collect();
 
     let mut trades: Vec<Trade> = Vec::new();
-    let mut trade = |have: &mut HashMap<String, i64>, src: &Item, dst: &Item, direction: &'static str| {
+    // One trade line: `src` into `dst`, spending down to `stop` and filling
+    // up to `until`, in whole units of the trader's ratio.
+    let mut trade = |have: &mut HashMap<String, i64>, src: &Item, dst: &Item, stop: i64, until: i64, direction: &'static str| {
         let Some((give, recv)) = ratio(src, dst) else { return };
         let sk = src.symbol.to_lowercase();
         let dk = dst.symbol.to_lowercase();
-        if is_source.contains(&dk) {
+        if direction != "room" && is_source.contains(&dk) {
             return;
         }
-        let surplus = have[&sk] - floors[&sk];
-        let gap = cap(dst.grade) - have[&dk];
+        let surplus = have[&sk] - stop;
+        let gap = until - have[&dk];
         let n = (surplus / give).min(gap / recv);
         if n <= 0 {
             return;
@@ -204,11 +220,12 @@ pub fn plan(catalog: &Catalog, inventory: &HashMap<String, i64>, kind: &str, pol
             FillOrder::NearestFirst => (1..grade).rev().collect(),
         }
     };
+    let floor_of = |src: &Item| floors[&src.symbol.to_lowercase()];
     // Down, own group.
     for src in &sources {
         for g in below(src.grade) {
             for dst in items.iter().filter(|i| i.group == src.group && i.grade == g) {
-                trade(&mut have, src, dst, "down");
+                trade(&mut have, src, dst, floor_of(src), cap(dst.grade), "down");
             }
         }
     }
@@ -217,7 +234,7 @@ pub fn plan(catalog: &Catalog, inventory: &HashMap<String, i64>, kind: &str, pol
         for src in &sources {
             for g in std::iter::once(src.grade).chain(below(src.grade)) {
                 for dst in items.iter().filter(|i| i.group != src.group && i.grade == g) {
-                    trade(&mut have, src, dst, "across");
+                    trade(&mut have, src, dst, floor_of(src), cap(dst.grade), "across");
                 }
             }
         }
@@ -227,14 +244,35 @@ pub fn plan(catalog: &Catalog, inventory: &HashMap<String, i64>, kind: &str, pol
         for src in &sources {
             for g in (src.grade + 1)..=5 {
                 for dst in items.iter().filter(|i| i.group == src.group && i.grade == g) {
-                    trade(&mut have, src, dst, "up");
+                    trade(&mut have, src, dst, floor_of(src), cap(dst.grade), "up");
                 }
+            }
+        }
+    }
+    // Room: a source still crowding its cap moves into a G4 or G5 that
+    // has room, so the next mission reward fits. Own group first (G5 down
+    // to G4 at 1:3, G4 up to G5 at 6:1), then across at the same grade
+    // (6:1), then across one grade down (2:1). Never pushes the receiver
+    // over the ceiling, never below the giver's own floor.
+    if let Some(share) = policy.room_below {
+        let ceiling = |i: &Item| (cap(i.grade) as f64 * share).floor() as i64;
+        let candidates: Vec<&Item> = items.iter().copied().filter(|i| i.grade >= 4).collect();
+        for src in sources.iter().filter(|s| s.grade >= 4) {
+            let stop = ceiling(src).max(floor_of(src));
+            let own: Vec<&Item> = candidates.iter().copied().filter(|i| i.group == src.group && i.symbol != src.symbol).collect();
+            let same: Vec<&Item> = candidates.iter().copied().filter(|i| i.group != src.group && i.grade == src.grade).collect();
+            let down: Vec<&Item> = candidates.iter().copied().filter(|i| i.group != src.group && i.grade + 1 == src.grade).collect();
+            for dst in own.iter().chain(same.iter()).chain(down.iter()) {
+                if have[&src.symbol.to_lowercase()] <= stop {
+                    break;
+                }
+                trade(&mut have, src, dst, stop, ceiling(dst), "room");
             }
         }
     }
     let near_full = |i: &Item| (cap(i.grade) as f64 * policy.source_min).ceil() as i64;
     let still_short = items.iter().filter(|i| count(&have, i) < near_full(i)).map(|i| line(i, count(&have, i))).collect();
-    Plan { kind: kind.to_string(), policy_order: policy.order, policy_source_min: policy.source_min, policy_floor: policy.floor, sources: source_lines, trades, still_short }
+    Plan { kind: kind.to_string(), policy_order: policy.order, policy_min_source_grade: policy.min_source_grade, policy_room_below: policy.room_below, policy_source_min: policy.source_min, policy_floor: policy.floor, sources: source_lines, trades, still_short }
 }
 
 /// The trader types, as the journal spells them.
@@ -295,11 +333,11 @@ mod tests {
     fn bottom_first_fills_the_most_from_the_same_surplus() {
         let c = cat();
         let have = inv(&[("pharmaceuticalisolators", 99), ("chemicalstorageunits", 27), ("chemicalprocessors", 4), ("chemicaldistillery", 3), ("chemicalmanipulators", 0)]);
-        let p = plan(&c, &have, "manufactured", &Policy { cross: false, up: false, ..Policy::default() }, None);
+        let p = plan(&c, &have, "manufactured", &Policy { room_below: None, ..Policy::default() }, None);
         let t: Vec<(&str, i64, i64)> = p.trades.iter().map(|t| (t.recv_symbol.as_str(), t.give_qty, t.recv_qty)).collect();
         assert_eq!(t, [("chemicalstorageunits", 3, 243), ("chemicalprocessors", 9, 243), ("chemicaldistillery", 21, 189), ("chemicalmanipulators", 16, 48)]);
         assert_eq!(p.trades.iter().map(|t| t.give_qty).sum::<i64>(), 49, "every spare unit spent");
-        let near = plan(&c, &have, "manufactured", &Policy { order: FillOrder::NearestFirst, cross: false, up: false, ..Policy::default() }, None);
+        let near = plan(&c, &have, "manufactured", &Policy { order: FillOrder::NearestFirst, room_below: None, ..Policy::default() }, None);
         assert_eq!(near.trades.len(), 1);
         assert_eq!((near.trades[0].recv_symbol.as_str(), near.trades[0].give_qty, near.trades[0].recv_qty), ("chemicalmanipulators", 49, 147));
     }
@@ -309,7 +347,7 @@ mod tests {
     #[test]
     fn trading_down_fills_the_nearest_grade_first_and_keeps_the_floor() {
         let c = cat();
-        let p = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 0), ("precipitatedalloys", 0), ("heatresistantceramics", 0), ("temperedalloys", 0)]), "manufactured", &Policy { order: FillOrder::NearestFirst, cross: false, up: false, ..Policy::default() }, None);
+        let p = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 0), ("precipitatedalloys", 0), ("heatresistantceramics", 0), ("temperedalloys", 0)]), "manufactured", &Policy { order: FillOrder::NearestFirst, room_below: None, ..Policy::default() }, None);
         assert_eq!(p.sources.len(), 1);
         let t: Vec<(&str, i64, i64)> = p.trades.iter().map(|t| (t.recv_symbol.as_str(), t.give_qty, t.recv_qty)).collect();
         // 50 to spend: 50 -> 150 thermic alloys (cap). Nothing left for the rest.
@@ -317,19 +355,20 @@ mod tests {
         assert_eq!(p.trades[0].give_after, 50, "the floor is half the cap");
         assert!(p.still_short.iter().any(|l| l.symbol == "precipitatedalloys"), "the honest remainder");
         assert!(!p.still_short.iter().any(|l| l.symbol == "thermicalloys"), "filled to cap: not short");
-        let crumbs = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 149), ("precipitatedalloys", 199), ("heatresistantceramics", 249), ("temperedalloys", 299)]), "manufactured", &Policy { cross: false, up: false, ..Policy::default() }, None);
+        let crumbs = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 149), ("precipitatedalloys", 199), ("heatresistantceramics", 249), ("temperedalloys", 299)]), "manufactured", &Policy { room_below: None, ..Policy::default() }, None);
         assert!(!crumbs.still_short.iter().any(|l| ["thermicalloys", "precipitatedalloys", "heatresistantceramics", "temperedalloys"].contains(&l.symbol.as_str())), "one short of a cap is not a shortage: {:?}", crumbs.still_short.iter().map(|l| (&l.name, l.count)).collect::<Vec<_>>());
     }
 
     #[test]
     fn a_gap_is_filled_in_whole_trades_from_every_full_material() {
         let c = cat();
-        let p = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 150), ("precipitatedalloys", 191), ("heatresistantceramics", 250), ("temperedalloys", 100)]), "manufactured", &Policy { order: FillOrder::NearestFirst, cross: false, up: false, ..Policy::default() }, None);
+        let p = plan(&c, &inv(&[("militarygradealloys", 100), ("thermicalloys", 150), ("precipitatedalloys", 191), ("heatresistantceramics", 250), ("temperedalloys", 100)]), "manufactured", &Policy { order: FillOrder::NearestFirst, room_below: None, ..Policy::default() }, None);
         let t: Vec<(&str, i64, i64)> = p.trades.iter().map(|t| (t.recv_symbol.as_str(), t.give_qty, t.recv_qty)).collect();
-        // Precipitated is itself near full (191 of 200), so it is a source, not a target.
-        // Tempered's gap of 200: two G5 trades at 1:81 (162; a third would overflow),
-        // then one G4 at 1:27, then one G3 at 1:9 -- every full material contributes.
-        assert_eq!(t, [("temperedalloys", 2, 162), ("temperedalloys", 1, 27), ("temperedalloys", 1, 9)]);
+        // Only G4 and G5 are spent by default. Nearest first: the G5 fills
+        // precipitated's gap of 9 (one trade at 1:9), then tempered's 200
+        // takes two trades at 1:81 (a third would overflow); the full G4
+        // adds one at 1:27. Every spendable material contributes.
+        assert_eq!(t, [("precipitatedalloys", 1, 9), ("temperedalloys", 2, 162), ("temperedalloys", 1, 27)]);
     }
 
     #[test]
@@ -339,15 +378,15 @@ mod tests {
         let full_group1 = [("yttrium", 150), ("niobium", 200), ("vanadium", 250), ("carbon", 300)];
         let mut have: Vec<(&str, i64)> = full_group1.to_vec();
         have.extend([("technetium", 120), ("molybdenum", 0)]);
-        let off = plan(&c, &inv(&have), "raw", &Policy { cross: false, up: false, ..Policy::default() }, None);
+        let off = plan(&c, &inv(&have), "raw", &Policy { room_below: None, ..Policy::default() }, None);
         assert!(off.trades.is_empty(), "nothing to do in its own group");
-        let on = plan(&c, &inv(&have), "raw", &Policy::default(), None);
+        let on = plan(&c, &inv(&have), "raw", &Policy { cross: true, up: true, room_below: None, ..Policy::default() }, None);
         let first = &on.trades[0];
         // Yttrium first (highest grade), same grade across first: 6:1, twelve
         // whole trades of the 75 it may spend; the other full materials follow.
         assert_eq!((first.direction, first.recv_symbol.as_str(), first.give_qty, first.recv_qty), ("across", "technetium", 72, 12));
-        assert!(on.trades.iter().all(|t| t.direction == "across"), "{:?}", on.trades.iter().map(|t| t.direction).collect::<Vec<_>>());
-        let yttrium: i64 = on.trades.iter().filter(|t| t.give_symbol == "yttrium").map(|t| t.give_qty).sum();
+        assert!(on.trades.iter().all(|t| t.direction == "across" && t.give_symbol == "yttrium"), "{:?}", on.trades.iter().map(|t| (t.direction, &t.give_symbol)).collect::<Vec<_>>());
+        let yttrium: i64 = on.trades.iter().map(|t| t.give_qty).sum();
         assert!(yttrium <= 75, "never below the floor of 75: gave {yttrium}");
         assert!(on.trades.iter().all(|t| t.recv_symbol != "yttrium" && t.recv_symbol != "niobium"), "a source never receives");
     }
@@ -355,10 +394,41 @@ mod tests {
     #[test]
     fn up_trades_fill_the_grade_above_from_a_full_low_grade() {
         let c = cat();
-        let p = plan(&c, &inv(&[("iron", 300), ("zinc", 200), ("tin", 100), ("selenium", 50)]), "raw", &Policy { cross: false, ..Policy::default() }, None);
+        let p = plan(&c, &inv(&[("iron", 300), ("zinc", 200), ("tin", 100), ("selenium", 50)]), "raw", &Policy { min_source_grade: 1, up: true, room_below: None, ..Policy::default() }, None);
         let t: Vec<(&str, &str, i64, i64)> = p.trades.iter().map(|t| (t.direction, t.recv_symbol.as_str(), t.give_qty, t.recv_qty)).collect();
         // 150 iron to spend, 6:1 up: 25 zinc fills half the gap and the iron is at its floor.
         assert_eq!(t, [("up", "zinc", 150, 25)]);
+    }
+
+    /// The boss's actual aim (2026-10-04): G1-3 full, then room in G4/G5
+    /// for mission rewards. With everything below full, a G5 at its cap
+    /// moves into G4/G5 that have room -- own group first, then across at
+    /// the same grade, then one down -- until it is under the ceiling, and
+    /// never pushes a receiver over it.
+    #[test]
+    fn the_room_pass_makes_space_in_the_crowded_grades() {
+        let c = cat();
+        let mut have = inv(&[("militarygradealloys", 100), ("thermicalloys", 150), ("precipitatedalloys", 200), ("heatresistantceramics", 250), ("temperedalloys", 300)]);
+        have.insert("protoheatradiators".into(), 40); // another group's G5, room for 45 under the 85 % ceiling
+        have.insert("heatvanes".into(), 120); // its G4: 127 is the ceiling, room for 7
+        let p = plan(&c, &have, "manufactured", &Policy::default(), None);
+        let t: Vec<(&str, &str, i64, i64)> = p.trades.iter().map(|t| (t.direction, t.recv_symbol.as_str(), t.give_qty, t.recv_qty)).collect();
+        // MGA: 100 -> ceiling 85, 15 to move. Own group is full (thermic is a
+        // source, over its own ceiling). Across at the same grade, 6:1: two
+        // whole trades (12) into the first G5 with room; 3 left, one down at
+        // 2:1: one trade into a G4 with room. MGA ends at 86, within one
+        // whole trade of the ceiling. Thermic alloys (150, ceiling 127) then
+        // moves across the same way; nothing ever goes into a G1-G3.
+        assert!(t.iter().all(|x| x.0 == "room"), "{t:?}");
+        assert_eq!((t[0].2, t[0].3, p.trades[0].recv_grade, p.trades[0].ratio.as_str()), (12, 2, 5, "6:1"), "{t:?}");
+        assert_eq!((t[1].2, t[1].3, p.trades[1].recv_grade, p.trades[1].ratio.as_str()), (2, 1, 4, "2:1"), "{t:?}");
+        assert!(p.trades.iter().all(|x| x.recv_grade >= 4), "room moves only into G4/G5: {t:?}");
+        assert!(p.trades.iter().all(|x| x.recv_after <= (cap(x.recv_grade) as f64 * 0.85).floor() as i64), "never over the receiver's ceiling: {t:?}");
+        let mga = p.trades.iter().filter(|x| x.give_symbol == "militarygradealloys").last().unwrap();
+        assert_eq!(mga.give_after, 86, "within one whole trade of the ceiling");
+        assert!(p.trades.iter().any(|x| x.give_symbol == "thermicalloys"), "the full G4 makes room too: {t:?}");
+        let quiet = plan(&c, &have, "manufactured", &Policy { room_below: None, ..Policy::default() }, None);
+        assert!(quiet.trades.is_empty(), "without the room pass there is nothing to fill");
     }
 
     /// The callout's question: one material just crossed the threshold —
@@ -367,11 +437,11 @@ mod tests {
     fn the_single_source_question_is_silent_when_everything_below_is_full() {
         let c = cat();
         let full = inv(&[("militarygradealloys", 95), ("thermicalloys", 150), ("precipitatedalloys", 200), ("heatresistantceramics", 250), ("temperedalloys", 300)]);
-        let p = plan(&c, &full, "manufactured", &Policy { cross: false, up: false, ..Policy::default() }, Some("militarygradealloys"));
+        let p = plan(&c, &full, "manufactured", &Policy { room_below: None, ..Policy::default() }, Some("militarygradealloys"));
         assert!(p.trades.is_empty());
         let mut gap = full.clone();
         gap.insert("precipitatedalloys".into(), 100);
-        let p = plan(&c, &gap, "manufactured", &Policy { cross: false, up: false, ..Policy::default() }, Some("militarygradealloys"));
+        let p = plan(&c, &gap, "manufactured", &Policy { room_below: None, ..Policy::default() }, Some("militarygradealloys"));
         assert_eq!(p.trades.len(), 1);
         assert_eq!((p.trades[0].recv_symbol.as_str(), p.trades[0].give_qty, p.trades[0].recv_qty), ("precipitatedalloys", 11, 99));
     }
