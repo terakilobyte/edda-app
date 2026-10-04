@@ -569,7 +569,22 @@ pub fn assess(
     facts: &TargetFacts,
     fuel_within: impl FnOnce(f32) -> Option<f32>,
 ) -> Option<(String, u8)> {
-    if (facts.has_scoop && facts.refuels_on_arrival) || facts.station {
+    if facts.has_scoop && facts.refuels_on_arrival {
+        return None;
+    }
+    if facts.station {
+        // A dock with fuel at the target. With a scoop that is nothing to
+        // say; without one, and with the tank low, it is the useful fact —
+        // the scoopless pilot cannot read a star class for fuel
+        // (maintainer, 2026-10-04: "say if there's fuel available if
+        // there's a station I could dock at … only if I need fuel or am
+        // getting low"). Low is the same 35 % the star cautions use.
+        if !facts.has_scoop && model.capacity > 0.0 && fuel_now / model.capacity < 0.35 {
+            return Some((
+                format!("Fuel at {:.0} percent and no scoop fitted. {} has a station you can dock at for fuel.", fuel_now / model.capacity * 100.0, facts.name),
+                1,
+            ));
+        }
         return None;
     }
     let fuel_after = fuel_after_jump(model, fuel_now, facts.distance_ly, facts.departure_boost)?;
@@ -739,6 +754,23 @@ mod tests {
         let mut f = facts(StarClass::T);
         f.station = true;
         assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None);
+    }
+
+    /// No scoop, tank low, a dock at the target: say so (maintainer,
+    /// 2026-10-04). With plenty of fuel, or with a scoop, the dock is
+    /// nothing to mention.
+    #[test]
+    fn a_scoopless_ship_running_low_hears_about_the_dock() {
+        let m = model(0.0); // 32 t tank
+        let mut f = facts(StarClass::T);
+        f.station = true;
+        f.has_scoop = false;
+        let (text, priority) = assess(&m, &BoostProfile::default(), 8.0, &f, |_| None).expect("low and scoopless: the dock is news");
+        assert!(text.contains("25 percent") && text.contains("no scoop fitted") && text.contains("station you can dock at"), "{text}");
+        assert_eq!(priority, 1);
+        assert_eq!(assess(&m, &BoostProfile::default(), 20.0, &f, |_| None), None, "62 percent: not low, nothing to say");
+        f.has_scoop = true;
+        assert_eq!(assess(&m, &BoostProfile::default(), 8.0, &f, |_| None), None, "with a scoop the dock is nothing to mention");
     }
 
     #[test]

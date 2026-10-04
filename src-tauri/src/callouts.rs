@@ -142,6 +142,13 @@ pub struct CalloutState {
     /// (maintainer, 2026-10-02: "only make shield callouts when a shield
     /// generator is equipped").
     pub has_shield_generator: Option<bool>,
+    /// Whether the current Loadout carries a fuel scoop; None until a
+    /// Loadout has been seen. Without one, whether a star is scoopable is
+    /// nobody's business (maintainer, 2026-10-04: "edda should only say a
+    /// star is scoopable if I have a fuel scoop installed"); the fuel-trap
+    /// guard (`trap.rs`) already answers the scoopless question — is
+    /// there a dock with fuel — when the tank is low.
+    pub has_fuel_scoop: Option<bool>,
     pub next_star_class: Option<String>,
     pub target_fuel_warned: bool,
     /// SystemAddress the fuel-trap guard already warned about, so
@@ -396,6 +403,7 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                 st.fuel_capacity = Some(cap);
             }
             if let Some(modules) = v.get("Modules").and_then(Value::as_array) {
+                st.has_fuel_scoop = Some(crate::routing::loadout_has_fuel_scoop(v));
                 st.has_shield_generator = Some(modules.iter().any(|m| {
                     m.get("Item").and_then(Value::as_str).is_some_and(|item| item.to_ascii_lowercase().contains("int_shieldgenerator"))
                 }));
@@ -432,6 +440,10 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
             st.target_fuel_warned = false;
             if let (Some(class), Some(jumps)) = (s(v, "StarClass"), i(v, "RemainingJumpsInRoute")) {
                 let scoopable = ed_galaxy::StarClass::from_journal(class).scoopable();
+                // No scoop fitted: a star's scoopability is irrelevant, and the
+                // fuel-trap guard says what matters (a dock with fuel) when the
+                // tank is low.
+                let scoop_matters = st.has_fuel_scoop != Some(false);
                 out.push(Callout::new(
                     "route",
                     ts,
@@ -440,11 +452,11 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     format!(
                         "Next: {} ({class}{}), {jumps} jump{} remaining",
                         s(v, "Name").unwrap_or("?"),
-                        if scoopable { "" } else { ", not scoopable" },
+                        if scoopable || !scoop_matters { "" } else { ", not scoopable" },
                         if jumps == 1 { "" } else { "s" }
                     ),
                 ));
-                if !scoopable {
+                if !scoopable && scoop_matters {
                     if let Some(frac) = match (st.fuel_main, st.fuel_capacity) {
                         (Some(main), Some(cap)) if cap > 0.0 => Some(main / cap),
                         _ => None,
@@ -474,7 +486,7 @@ pub fn from_event(v: &Value, st: &mut CalloutState) -> Vec<Callout> {
                     (Some(m), Some(c)) if c > 0.0 => Some(m / c),
                     _ => None,
                 };
-                if !st.target_fuel_warned && !star.scoopable() {
+                if !st.target_fuel_warned && !star.scoopable() && st.has_fuel_scoop != Some(false) {
                     if let Some(frac) = frac.filter(|x| *x < 0.35) {
                         out.push(Callout::new(
                             "fuel",
@@ -1074,6 +1086,33 @@ mod tests {
     fn ev(v: Value) -> Vec<Callout> {
         let mut st = CalloutState::default();
         from_event(&v, &mut st)
+    }
+
+    /// Without a fuel scoop (maintainer, 2026-10-04) a star's scoopability
+    /// is never mentioned and the low-fuel "not scoopable" cautions stay
+    /// quiet — the fuel-trap guard covers the dock-with-fuel question. With
+    /// a scoop, and before any Loadout, the old behaviour stands.
+    #[test]
+    fn scoop_talk_needs_a_fuel_scoop() {
+        let loadout = |items: &[&str]| json!({"timestamp": "t", "event": "Loadout", "Ship": "python_nx", "ShipID": 7, "FuelCapacity": {"Main": 32.0},
+            "Modules": items.iter().map(|i| json!({"Slot": "x", "Item": i})).collect::<Vec<_>>()});
+        let target = json!({"timestamp": "t", "event": "FSDTarget", "Name": "Dark Place", "StarClass": "T", "RemainingJumpsInRoute": 3});
+        let low = |st: &mut CalloutState| { st.fuel_main = Some(8.0); st.fuel_capacity = Some(32.0); };
+        let mut bare = CalloutState::default();
+        from_event(&loadout(&["int_powerplant_size5_class5"]), &mut bare);
+        low(&mut bare);
+        let out = from_event(&target, &mut bare);
+        assert_eq!(out.len(), 1, "{out:?}");
+        assert!(!out[0].text.contains("scoopable"), "no scoop: scoopability unmentioned: {}", out[0].text);
+        let mut scooped = CalloutState::default();
+        from_event(&loadout(&["int_powerplant_size5_class5", "Int_FuelScoop_Size5_Class5"]), &mut scooped);
+        low(&mut scooped);
+        let out = from_event(&target, &mut scooped);
+        assert_eq!(out.len(), 2, "with a scoop a brown dwarf at 25 percent is a caution: {out:?}");
+        assert!(out[0].text.contains("not scoopable"));
+        let mut unknown = CalloutState::default();
+        low(&mut unknown);
+        assert_eq!(from_event(&target, &mut unknown).len(), 2, "no Loadout yet: the old behaviour");
     }
 
     /// A shieldless hull (no int_shieldgenerator in the Loadout) says

@@ -516,6 +516,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Scoop talk needs a scoop** (2026-10-04, maintainer: "edda should only
+  say a star is scoopable if I have a fuel scoop installed. Otherwise it
+  should say if there's fuel available if there's a station I could dock
+  at — only if I need fuel or am getting low"). The Loadout sets
+  `has_fuel_scoop`; without one the FSDTarget line drops ", not
+  scoopable" and the two low-fuel star cautions stay quiet. The fuel-trap
+  guard already spoke scoopless wording for the trap case; it now also
+  speaks the positive case — tank under 35 %, no scoop, a dock that fits
+  at the target: "Fuel at N percent and no scoop fitted. X has a station
+  you can dock at for fuel." With a scoop, or with fuel, the dock is not
+  mentioned.
 - **The idle app read 25 MB/s and wrote 6 MB/s** (2026-10-03, boss: "why is
   EDDA using 1.9% cpu and 6.0 MB/s of disk when the game isn't running?").
   Measured (`docs/benches/2026-10-03-quiet-sync-io.csv`): a spike every
