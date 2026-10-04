@@ -9,6 +9,7 @@ mod capabilities;
 mod commands;
 mod contracts;
 mod control;
+mod mat_trader;
 mod subsystem;
 mod eval;
 mod events;
@@ -521,6 +522,7 @@ pub fn run() {
             commands::get_status,
             eval::ai_eval,
             commands::get_inventory,
+            mat_trader::material_trade_plan,
             commands::list_commodities,
             commands::list_module_types,
             commands::list_blueprint_names,

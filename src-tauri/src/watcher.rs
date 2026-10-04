@@ -172,6 +172,21 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     // The trade layer: arrival at a stop's pad speaks
                                                     // the briefing and re-targets the next system;
                                                     // departing replans at the true laden mass.
+                                                    // A pickup that takes a material over the
+                                                    // trader threshold, when a trade exists for it
+                                                    // (boss, 2026-10-04): one sentence, once.
+                                                    Some("MaterialCollected") => {
+                                                        if let (Some(symbol), Some(n)) = (v.get("Name").and_then(Value::as_str), v.get("Count").and_then(Value::as_i64)) {
+                                                            let have: Option<i64> = conn
+                                                                .query_row("SELECT count FROM materials WHERE symbol = ?1 COLLATE NOCASE", [symbol], |r| r.get(0))
+                                                                .ok();
+                                                            if let Some(have) = have {
+                                                                if let Some(text) = crate::mat_trader::suggestion(conn, symbol, have - n, have) {
+                                                                    out.push((Callout::new("trader", v.get("timestamp").and_then(Value::as_str).unwrap_or(""), 1, true, text), Some(v.clone())));
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                     Some("Docked") => {
                                                         crate::trade_follow::on_docked(&app, conn, &v, &mut out);
                                                     }

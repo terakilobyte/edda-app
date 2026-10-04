@@ -516,6 +516,39 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Material trader: give the near-full, take the gaps** (2026-10-04,
+  boss: "I need to go trade down materials maximally... it'd be awesome
+  if edda could do that"; then "or a dedicated material trading tab, and
+  maybe a callout that prompts commanders to trade down/across/up if
+  something is getting close to full — smart enough not to prompt if
+  there isn't a trade and toggleable in voice settings"). Measured first:
+  the ratio model replays all 114 `MaterialTrade` events in the boss's
+  journal exactly (`docs/benches/2026-10-04-material-trade-ratios.csv`,
+  knob `knobs/material_trade_ratios.py`) — same group d down 1:3^d, u up
+  6^u:1; across groups same grade 6:1, d down 2:3^(d-1), u up 6^(u+1):1;
+  Guardian/Thargoid rows do not trade. Planner
+  (`ed_journal::mat_trade::plan`): sources are materials at ≥ 90 % of cap
+  (knob), spent to a floor of 50 % (knob), highest grade first; targets
+  are the non-sources below cap, nearest grade first (one G5 is 1296
+  G1-equivalents: 3 G4 keep 648 of them, 81 G1 keep 81), own group
+  before across (off by a knob), down before up (knob); whole trades
+  only, never over a cap; a source never receives (that was churn: iron
+  up to zinc so zinc could go up to tin so tin could refill the selenium
+  that filled zinc). The Trader tab plans for the docked station's type
+  when a `MaterialTrade` was made there or its economy says (else the
+  type with most to spend), shows sources, the give/receive list with the
+  counts left, what stays short, and the nearest traders of that type;
+  it re-plans on every journal change, so the list shrinks at the
+  counter. Callout kind `trader` (voice settings): the pickup that takes
+  a material over the threshold speaks once — "X is nearly full, 90 of
+  100. A manufactured trader would trade the surplus down into Y and Z"
+  — and only when the single-source plan has a trade.
+- **HUD follows the selected tab** (2026-10-04, boss: "maybe dynamically
+  changing the hud depending on the edda tab selected"). OPEN, not
+  built: the overlay is its own window fed by status events; it would
+  need the main window's tab as an input and a per-tab card set (Trader →
+  the next trade and counts; Missions → the stacking board; Trade → the
+  leg; Route → the follower). Shape it after the trader has flown.
 - **"Target their engines" is a lap through the journal, not a blind
   press** (2026-10-04, boss, after the ship computer pressed Cycle Next
   Subsystem once and landed on the cargo hatch: "how do other apps target

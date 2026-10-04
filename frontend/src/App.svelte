@@ -15,6 +15,7 @@
   import GalaxyPanel from "./lib/GalaxyPanel.svelte";
   import PowerplayPanel from "./lib/PowerplayPanel.svelte";
   import InventoryPanel from "./lib/InventoryPanel.svelte";
+  import TraderPanel from "./lib/TraderPanel.svelte";
   import VoiceSettings from "./lib/VoiceSettings.svelte";
   import SystemSettings from "./lib/SystemSettings.svelte";
   import ReportPanel from "./lib/ReportPanel.svelte";
@@ -47,6 +48,7 @@
     ["mining", "Mining"],
     ["missions", "Missions"],
     ["inventory", "Inventory"],
+    ["trader", "Trader"],
     ["combat", "Combat"],
     ["powerplay", "Powerplay"],
     ["ships", "Ships"],
@@ -256,6 +258,7 @@
           {:else if k === "galaxy"}<GalaxyPanel />
           {:else if k === "powerplay"}<PowerplayPanel />
           {:else if k === "inventory"}<InventoryPanel />
+          {:else if k === "trader"}<TraderPanel />
           {:else if k === "ships"}<ShipsPanel />
           {:else if k === "planner"}<BuildPlannerPanel />
           {:else if k === "engineers"}<EngineersPanel />

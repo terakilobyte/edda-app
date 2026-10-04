@@ -2633,6 +2633,7 @@ pub const CALLOUT_KINDS: &[(&str, &str)] = &[
     ("arrival", "Arrivals"),
     ("scan", "Scans and discoveries"),
     ("material", "Material pickups"),
+    ("trader", "Material trader: a trade suggestion when a material nears full"),
     ("mission", "Missions: progress and targets"),
     ("mission_complete", "Mission completions"),
     ("mission_hand_in", "Missions ready to hand in where you dock"),

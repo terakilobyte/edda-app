@@ -1,5 +1,6 @@
 pub mod modules;
 pub mod cargo;
+pub mod mat_trade;
 pub mod catalog;
 pub mod ships;
 pub mod inventory;

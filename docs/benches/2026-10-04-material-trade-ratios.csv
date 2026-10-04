@@ -1,0 +1,116 @@
+# material trade ratios vs the commander's journal: {'ok': 114} — verdict: MODEL HOLDS
+ts,trader,paid,paid_grade,paid_cat,paid_qty,received,recv_grade,recv_cat,recv_qty,model_ratio,verdict
+2026-08-01T16:33:08Z,manufactured,militarygradealloys,5,Thermic,3,temperedalloys,1,Thermic,243,1:81,ok
+2026-08-01T16:33:29Z,manufactured,militarygradealloys,5,Thermic,9,heatresistantceramics,2,Thermic,243,1:27,ok
+2026-08-01T16:33:41Z,manufactured,militarygradealloys,5,Thermic,20,precipitatedalloys,3,Thermic,180,1:9,ok
+2026-08-01T16:33:51Z,manufactured,militarygradealloys,5,Thermic,49,thermicalloys,4,Thermic,147,1:3,ok
+2026-08-01T16:34:03Z,manufactured,precipitatedalloys,3,Thermic,6,temperedalloys,1,Thermic,54,1:9,ok
+2026-08-01T16:34:18Z,manufactured,heatresistantceramics,2,Thermic,1,temperedalloys,1,Thermic,3,1:3,ok
+2026-08-01T16:34:40Z,manufactured,precipitatedalloys,3,Thermic,2,heatresistantceramics,2,Thermic,6,1:3,ok
+2026-08-01T16:34:50Z,manufactured,thermicalloys,4,Thermic,4,precipitatedalloys,3,Thermic,12,1:3,ok
+2026-08-01T16:34:57Z,manufactured,militarygradealloys,5,Thermic,2,thermicalloys,4,Thermic,6,1:3,ok
+2026-08-01T16:35:43Z,manufactured,heatvanes,4,Heat,15,heatdispersionplate,2,Heat,135,1:9,ok
+2026-08-01T17:13:19Z,manufactured,protoheatradiators,5,Heat,3,heatconductionwiring,1,Heat,243,1:81,ok
+2026-08-01T17:18:49Z,manufactured,protoheatradiators,5,Heat,20,heatvanes,4,Heat,60,1:3,ok
+2026-08-01T17:18:58Z,manufactured,protoheatradiators,5,Heat,10,heatexchangers,3,Heat,90,1:9,ok
+2026-08-04T22:49:43Z,raw,yttrium,4,1,2,phosphorus,1,2,9,2:9,ok
+2026-08-04T22:50:15Z,raw,yttrium,4,1,6,technetium,4,2,1,6:1,ok
+2026-08-04T22:50:29Z,raw,yttrium,4,1,4,molybdenum,3,2,2,2:1,ok
+2026-08-04T22:52:05Z,raw,antimony,4,7,12,polonium,4,6,2,6:1,ok
+2026-08-04T22:52:20Z,raw,polonium,4,6,1,arsenic,2,6,9,1:9,ok
+2026-08-04T22:52:34Z,raw,antimony,4,7,6,arsenic,2,6,9,2:3,ok
+2026-08-04T22:53:03Z,raw,polonium,4,6,1,rhenium,1,6,27,1:27,ok
+2026-08-04T22:53:17Z,raw,antimony,4,7,6,polonium,4,6,1,6:1,ok
+2026-08-04T22:54:35Z,raw,yttrium,4,1,10,niobium,3,1,30,1:3,ok
+2026-08-04T22:54:43Z,raw,yttrium,4,1,7,vanadium,2,1,63,1:9,ok
+2026-08-04T22:55:09Z,raw,antimony,4,7,4,molybdenum,3,2,2,2:1,ok
+2026-08-04T22:55:34Z,raw,selenium,4,4,2,zinc,2,4,18,1:9,ok
+2026-08-04T22:55:41Z,raw,selenium,4,4,5,tin,3,4,15,1:3,ok
+2026-08-04T22:56:21Z,raw,ruthenium,4,3,4,cadmium,3,3,12,1:3,ok
+2026-08-04T22:57:42Z,raw,selenium,4,4,2,tin,3,4,6,1:3,ok
+2026-08-04T22:58:12Z,raw,antimony,4,7,8,tungsten,3,5,4,2:1,ok
+2026-08-04T22:58:27Z,raw,antimony,4,7,3,boron,3,7,9,1:3,ok
+2026-08-04T22:58:34Z,raw,antimony,4,7,1,lead,1,7,27,1:27,ok
+2026-08-05T14:57:22Z,encoded,compactemissionsdata,5,Emission Data,1,scrambledemissiondata,1,Emission Data,81,1:81,ok
+2026-08-05T14:57:32Z,encoded,compactemissionsdata,5,Emission Data,1,archivedemissiondata,2,Emission Data,27,1:27,ok
+2026-08-05T14:57:53Z,encoded,adaptiveencryptors,5,Encryption Files,24,dataminedwake,5,Wake Scans,4,6:1,ok
+2026-08-05T14:58:02Z,encoded,dataminedwake,5,Wake Scans,1,fsdtelemetry,2,Wake Scans,27,1:27,ok
+2026-08-05T14:58:09Z,encoded,dataminedwake,5,Wake Scans,1,disruptedwakeechoes,1,Wake Scans,81,1:81,ok
+2026-08-05T14:58:17Z,encoded,adaptiveencryptors,5,Encryption Files,1,encryptedfiles,1,Encryption Files,81,1:81,ok
+2026-08-05T14:58:23Z,encoded,adaptiveencryptors,5,Encryption Files,1,encryptioncodes,2,Encryption Files,27,1:27,ok
+2026-08-05T14:58:29Z,encoded,adaptiveencryptors,5,Encryption Files,1,symmetrickeys,3,Encryption Files,9,1:9,ok
+2026-08-05T14:58:39Z,encoded,adaptiveencryptors,5,Encryption Files,12,classifiedscandata,5,Data Archives,2,6:1,ok
+2026-08-05T14:59:11Z,encoded,embeddedfirmware,5,Encoded Firmware,1,legacyfirmware,1,Encoded Firmware,81,1:81,ok
+2026-08-05T15:25:21Z,manufactured,protoheatradiators,5,Heat,12,pharmaceuticalisolators,5,Chemical,2,6:1,ok
+2026-08-05T15:26:58Z,manufactured,protoheatradiators,5,Heat,12,fedcorecomposites,5,Composite,2,6:1,ok
+2026-08-05T15:27:11Z,manufactured,protoheatradiators,5,Heat,12,improvisedcomponents,5,Mechanical Components,2,6:1,ok
+2026-08-05T15:27:24Z,manufactured,militarysupercapacitors,5,Capacitors,6,imperialshielding,5,Shielding,1,6:1,ok
+2026-08-05T15:27:34Z,manufactured,compoundshielding,4,Shielding,1,wornshieldemitters,1,Shielding,27,1:27,ok
+2026-08-05T15:27:46Z,manufactured,exquisitefocuscrystals,5,Crystals,1,uncutfocuscrystals,2,Crystals,27,1:27,ok
+2026-08-05T15:32:00Z,manufactured,highdensitycomposites,3,Composite,2,filamentcomposites,2,Composite,6,1:3,ok
+2026-08-05T15:32:07Z,manufactured,highdensitycomposites,3,Composite,4,filamentcomposites,2,Composite,12,1:3,ok
+2026-08-05T15:32:14Z,manufactured,highdensitycomposites,3,Composite,3,compactcomposites,1,Composite,27,1:9,ok
+2026-08-05T15:32:36Z,manufactured,exquisitefocuscrystals,5,Crystals,1,crystalshards,1,Crystals,81,1:81,ok
+2026-08-05T15:43:57Z,encoded,compactemissionsdata,5,Emission Data,1,archivedemissiondata,2,Emission Data,27,1:27,ok
+2026-08-05T18:21:13Z,manufactured,chemicalmanipulators,4,Chemical,1,chemicalstorageunits,1,Chemical,27,1:27,ok
+2026-08-05T19:00:52Z,raw,ruthenium,4,3,10,molybdenum,3,2,5,2:1,ok
+2026-08-05T19:01:14Z,raw,ruthenium,4,3,12,technetium,4,2,2,6:1,ok
+2026-08-08T05:26:52Z,manufactured,biotechconductors,5,Conductive,1,conductivecomponents,2,Conductive,27,1:27,ok
+2026-08-08T05:27:04Z,manufactured,biotechconductors,5,Conductive,1,conductiveceramics,3,Conductive,9,1:9,ok
+2026-08-08T15:18:15Z,encoded,adaptiveencryptors,5,Encryption Files,30,dataminedwake,5,Wake Scans,5,6:1,ok
+2026-08-08T15:27:24Z,manufactured,militarysupercapacitors,5,Capacitors,10,chemicalmanipulators,4,Chemical,5,2:1,ok
+2026-08-21T03:57:15Z,raw,antimony,4,7,10,phosphorus,1,2,45,2:9,ok
+2026-08-21T04:25:55Z,manufactured,biotechconductors,5,Conductive,10,chemicalmanipulators,4,Chemical,5,2:1,ok
+2026-08-21T04:39:22Z,encoded,adaptiveencryptors,5,Encryption Files,24,dataminedwake,5,Wake Scans,4,6:1,ok
+2026-08-23T20:45:48Z,encoded,encryptionarchives,4,Encryption Files,144,dataminedwake,5,Wake Scans,4,36:1,ok
+2026-08-23T20:46:00Z,encoded,adaptiveencryptors,5,Encryption Files,24,dataminedwake,5,Wake Scans,4,6:1,ok
+2026-08-23T20:46:40Z,encoded,shieldpatternanalysis,4,Shield Data,72,dataminedwake,5,Wake Scans,2,36:1,ok
+2026-08-23T20:46:59Z,encoded,embeddedfirmware,5,Encoded Firmware,1,securityfirmware,4,Encoded Firmware,3,1:3,ok
+2026-08-23T20:48:09Z,encoded,adaptiveencryptors,5,Encryption Files,4,wakesolutions,3,Wake Scans,6,2:3,ok
+2026-08-23T20:48:32Z,encoded,adaptiveencryptors,5,Encryption Files,18,shieldfrequencydata,5,Shield Data,3,6:1,ok
+2026-08-23T20:48:50Z,encoded,encryptionarchives,4,Encryption Files,6,wakesolutions,3,Wake Scans,3,2:1,ok
+2026-08-23T20:49:04Z,encoded,symmetrickeys,3,Encryption Files,15,encryptedfiles,1,Encryption Files,135,1:9,ok
+2026-08-23T20:49:14Z,encoded,encryptioncodes,2,Encryption Files,26,encryptedfiles,1,Encryption Files,78,1:3,ok
+2026-08-23T21:23:34Z,encoded,adaptiveencryptors,5,Encryption Files,60,dataminedwake,5,Wake Scans,10,6:1,ok
+2026-08-23T21:23:47Z,encoded,encryptionarchives,4,Encryption Files,90,hyperspacetrajectories,4,Wake Scans,15,6:1,ok
+2026-08-23T21:23:56Z,encoded,adaptiveencryptors,5,Encryption Files,10,symmetrickeys,3,Encryption Files,90,1:9,ok
+2026-08-23T21:24:13Z,encoded,adaptiveencryptors,5,Encryption Files,4,encryptioncodes,2,Encryption Files,108,1:27,ok
+2026-08-26T21:57:11Z,manufactured,protoheatradiators,5,Heat,2,chemicalprocessors,2,Chemical,9,2:9,ok
+2026-08-26T21:58:06Z,manufactured,protoheatradiators,5,Heat,2,chemicalmanipulators,4,Chemical,1,2:1,ok
+2026-09-12T20:33:20Z,manufactured,militarysupercapacitors,5,Capacitors,1,hybridcapacitors,2,Capacitors,27,1:27,ok
+2026-09-12T20:36:40Z,manufactured,fedcorecomposites,5,Composite,10,chemicalmanipulators,4,Chemical,5,2:1,ok
+2026-09-12T20:37:09Z,manufactured,biotechconductors,5,Conductive,1,conductiveceramics,3,Conductive,9,1:9,ok
+2026-09-12T20:37:28Z,manufactured,militarysupercapacitors,5,Capacitors,1,gridresistors,1,Capacitors,81,1:81,ok
+2026-09-12T21:49:26Z,raw,tellurium,4,5,1,germanium,2,5,9,1:9,ok
+2026-09-29T03:12:26Z,raw,polonium,4,6,1,arsenic,2,6,9,1:9,ok
+2026-09-29T03:12:50Z,raw,ruthenium,4,3,2,cadmium,3,3,6,1:3,ok
+2026-09-29T03:13:05Z,raw,ruthenium,4,3,46,cadmium,3,3,138,1:3,ok
+2026-09-29T03:13:28Z,raw,selenium,4,4,31,tin,3,4,93,1:3,ok
+2026-09-29T03:13:46Z,raw,tellurium,4,5,30,tungsten,3,5,90,1:3,ok
+2026-09-29T03:14:00Z,raw,tellurium,4,5,20,germanium,2,5,180,1:9,ok
+2026-09-29T03:31:00Z,manufactured,biotechconductors,5,Conductive,1,conductiveceramics,3,Conductive,9,1:9,ok
+2026-09-29T03:31:08Z,manufactured,biotechconductors,5,Conductive,7,conductiveceramics,3,Conductive,63,1:9,ok
+2026-09-29T03:31:21Z,manufactured,biotechconductors,5,Conductive,9,conductivecomponents,2,Conductive,243,1:27,ok
+2026-09-29T03:31:28Z,manufactured,biotechconductors,5,Conductive,11,conductivepolymers,4,Conductive,33,1:3,ok
+2026-09-29T03:40:04Z,manufactured,improvisedcomponents,5,Mechanical Components,3,mechanicalcomponents,3,Mechanical Components,27,1:9,ok
+2026-09-29T03:40:10Z,manufactured,improvisedcomponents,5,Mechanical Components,3,mechanicalscrap,1,Mechanical Components,243,1:81,ok
+2026-09-29T03:40:15Z,manufactured,improvisedcomponents,5,Mechanical Components,4,mechanicalequipment,2,Mechanical Components,108,1:27,ok
+2026-09-29T03:40:21Z,manufactured,improvisedcomponents,5,Mechanical Components,10,mechanicalcomponents,3,Mechanical Components,90,1:9,ok
+2026-09-29T03:40:26Z,manufactured,improvisedcomponents,5,Mechanical Components,10,configurablecomponents,4,Mechanical Components,30,1:3,ok
+2026-09-29T03:41:03Z,manufactured,militarysupercapacitors,5,Capacitors,9,electrochemicalarrays,3,Capacitors,81,1:9,ok
+2026-09-29T03:41:08Z,manufactured,militarysupercapacitors,5,Capacitors,10,polymercapacitors,4,Capacitors,30,1:3,ok
+2026-09-29T03:41:19Z,manufactured,militarysupercapacitors,5,Capacitors,7,hybridcapacitors,2,Capacitors,189,1:27,ok
+2026-09-29T03:41:24Z,manufactured,militarysupercapacitors,5,Capacitors,2,gridresistors,1,Capacitors,162,1:81,ok
+2026-09-29T03:41:30Z,manufactured,militarysupercapacitors,5,Capacitors,1,polymercapacitors,4,Capacitors,3,1:3,ok
+2026-09-29T03:41:51Z,manufactured,protoradiolicalloys,5,Alloys,10,protolightalloys,4,Alloys,30,1:3,ok
+2026-09-29T03:41:57Z,manufactured,protoradiolicalloys,5,Alloys,5,phasealloys,3,Alloys,45,1:9,ok
+2026-09-29T03:42:05Z,manufactured,protoradiolicalloys,5,Alloys,2,salvagedalloys,1,Alloys,162,1:81,ok
+2026-09-29T03:42:09Z,manufactured,protoradiolicalloys,5,Alloys,2,galvanisingalloys,2,Alloys,54,1:27,ok
+2026-09-29T03:42:20Z,manufactured,exquisitefocuscrystals,5,Crystals,3,uncutfocuscrystals,2,Crystals,81,1:27,ok
+2026-09-29T03:42:28Z,manufactured,exquisitefocuscrystals,5,Crystals,10,focuscrystals,3,Crystals,90,1:9,ok
+2026-09-29T03:42:37Z,manufactured,exquisitefocuscrystals,5,Crystals,10,refinedfocuscrystals,4,Crystals,30,1:3,ok
+2026-09-29T03:42:53Z,manufactured,imperialshielding,5,Shielding,10,shieldingsensors,3,Shielding,90,1:9,ok
+2026-09-29T03:43:01Z,manufactured,imperialshielding,5,Shielding,15,compoundshielding,4,Shielding,45,1:3,ok
+2026-09-29T03:43:07Z,manufactured,imperialshielding,5,Shielding,5,shieldemitters,2,Shielding,135,1:27,ok
+2026-09-29T03:43:11Z,manufactured,imperialshielding,5,Shielding,3,wornshieldemitters,1,Shielding,243,1:81,ok
+2026-09-29T03:43:29Z,manufactured,imperialshielding,5,Shielding,2,compoundshielding,4,Shielding,6,1:3,ok
