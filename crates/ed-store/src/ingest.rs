@@ -237,6 +237,20 @@ pub fn ingest_companions(conn: &Connection, dir: &Path) -> Result<usize> {
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64);
+        // Unchanged since the stored copy: nothing to read, write or count.
+        // Until 2026-10-03 every quiet sync re-read and re-wrote all nine
+        // files and reported nine "updated" snapshots, which made the
+        // watcher announce a journal change every 5 s with the game idle —
+        // and every panel re-derived everything (153 MB read, 37 MB written
+        // per sync, measured on the maintainer's machine).
+        let stored: Option<Option<i64>> = tx
+            .query_row("SELECT mtime FROM snapshots WHERE name = ?1", [name], |r| r.get(0))
+            .optional()?;
+        if let (Some(Some(stored)), Some(now)) = (stored, mtime) {
+            if stored == now {
+                continue;
+            }
+        }
 
         let Ok(raw) = std::fs::read_to_string(&path) else {
             continue;

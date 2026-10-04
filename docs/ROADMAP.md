@@ -516,6 +516,22 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **The idle app read 25 MB/s and wrote 6 MB/s** (2026-10-03, boss: "why is
+  EDDA using 1.9% cpu and 6.0 MB/s of disk when the game isn't running?").
+  Measured (`docs/benches/2026-10-03-quiet-sync-io.csv`): a spike every
+  ~6 s of 153 MB read / 37 MB written. The quiet sync itself cost 17 ms;
+  the damage was downstream: `ingest_companions` re-read and re-wrote all
+  nine companion files every pass regardless of mtime and reported nine
+  "updated" snapshots, so the watcher emitted JOURNAL_CHANGED every 5 s
+  with nothing new, and the HUD plus the visible panel re-derived
+  everything — one `missions::active` on a fresh read connection was
+  19 MB read and 5 MB WRITTEN (its ORDER BY temp b-tree spilled to disk).
+  Fixed: unchanged companions are skipped, the signal fires only on a real
+  change, `temp_store = MEMORY` on every connection (writes per call 5.3 →
+  0 MB, reads 19 → 13 MB). Harnesses `sync_cost` and `conn_churn` under
+  `crates/ed-store/examples/`. Also: EDDA said the game was running
+  because EliteDangerous64.exe was still alive with no window after the
+  session ended — process detection told the truth.
 - **Engineer unlocks landed only at the next login** (2026-10-03, boss:
   "it says I don't have some engineers unlocked … are we confident in our
   knowledge of engineer abilities?"). The table was right (audited

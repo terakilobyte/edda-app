@@ -120,7 +120,7 @@ impl Store {
         conn.busy_timeout(BUSY_TIMEOUT)?;
         // The schema is already migrated; this connection only needs the
         // same pragmas and the galaxy attach.
-        conn.execute_batch("PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;")?;
+        conn.execute_batch("PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA temp_store = MEMORY; PRAGMA cache_size = -16000;")?;
         schema::attach_galaxy(&conn, Some(&schema::galaxy_path(db_path)))?;
         Ok(conn)
     }

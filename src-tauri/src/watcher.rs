@@ -96,9 +96,13 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                     };
                     match synced {
                         Ok(stats) => {
-                            // Emit even for a companion-only change (Status.json,
-                            // Cargo.json) so panels refresh fuel and cargo.
-                            let _ = app.emit(crate::events::JOURNAL_CHANGED, stats.ingest.events_inserted);
+                            // Emit for a companion-only change (Status.json,
+                            // Cargo.json) so panels refresh fuel and cargo — but
+                            // not for a quiet pass: every panel re-derives on this
+                            // signal (2026-10-03: 153 MB read per idle sync).
+                            if stats.ingest.events_inserted > 0 || stats.ingest.snapshots_updated > 0 {
+                                let _ = app.emit(crate::events::JOURNAL_CHANGED, stats.ingest.events_inserted);
+                            }
 
                             if last_prune.is_none_or(|t| t.elapsed() >= Duration::from_secs(3600)) {
                                 last_prune = Some(std::time::Instant::now());

@@ -300,6 +300,11 @@ impl AppState {
         .map_err(|e| e.to_string())?;
         conn.busy_timeout(std::time::Duration::from_secs(10))
             .map_err(|e| e.to_string())?;
+        // A derivation's ORDER BY over a few thousand JSON rows builds a
+        // temp b-tree; on disk that was 5 MB written per missions::active
+        // call (2026-10-03). In memory it is free.
+        conn.execute_batch("PRAGMA temp_store = MEMORY; PRAGMA cache_size = -16000;")
+            .map_err(|e| e.to_string())?;
         ed_store::schema::attach_galaxy(&conn, Some(&ed_store::schema::galaxy_path(&self.db_path)))
             .map_err(|e| e.to_string())?;
         Ok(conn)

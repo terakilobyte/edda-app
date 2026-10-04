@@ -1,0 +1,20 @@
+# EDDA dev app idle (game process alive, journal silent since 23:31:46), measured with
+# \Process(edda)\IO Read/Write Bytes/sec at 1 s: a spike every ~6 s of 153 MB read / 37 MB written / 44 % CPU
+# for one second; flat otherwise. The quiet sync itself (ingest + derive on a copy of the store):
+# 7 ms + 10 ms, 0 events. The cost was downstream: the watcher emitted JOURNAL_CHANGED every pass
+# because ingest_companions re-read and re-wrote all 9 companion files regardless of mtime and
+# reported 9 snapshots updated; every panel and the HUD then re-derived; one missions::active on a
+# fresh read connection = 19.3 MB read + 5.3 MB written (the ORDER BY temp b-tree spilled to disk).
+# FIX: skip unchanged companions (mtime), emit only on a real change, PRAGMA temp_store=MEMORY on
+# the store and read connections. Harnesses: crates/ed-store/examples/sync_cost.rs, conn_churn.rs.
+what,before,after
+quiet sync ingest ms,7.8,5.2
+quiet sync derive ms,10.4,11.1
+quiet sync snapshots reported updated,9,0
+JOURNAL_CHANGED emitted on a quiet pass,yes,no
+missions::active x1 read MB,19.3,13.0
+missions::active x1 written MB,5.3,0.0
+missions::active x10 read MB,192.7,129.5
+missions::active x10 written MB,53.4,0.0
+idle app read MB/s (avg),25.5,expected ~0
+idle app written MB/s (avg),6.3,expected ~0
