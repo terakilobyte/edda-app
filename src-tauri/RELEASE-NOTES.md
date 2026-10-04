@@ -7,6 +7,94 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.2
+
+A material trader in the Inventory tab, laid out like the game's own
+screen: one row per group, grade 1 to 5 across, your count in every
+cell. Switch on material trading mode and EDDA plans the visit the way
+experienced commanders do it by hand: fill the lower grades from what is
+near full, then make room in your G4 and G5 so the next mission's
+material reward fits. Say "target their power plant" and the ship
+computer now lands on it instead of stepping once. Shield and fuel scoop
+callouts know what your ship actually carries. And an idle EDDA is now
+quiet on your disk and CPU.
+
+**The Inventory tab is the trader's grid.** Raw, manufactured and
+encoded materials in rows by trader group, grade 1 to 5 left to right,
+count over cap in each cell with a fill bar. Near-full cells are
+outlined. Guardian and Thargoid materials, which no trader takes, sit
+in their own row.
+
+**Material trading mode.** One button on the Inventory tab. EDDA picks
+the trader type for where you are docked, or the type with most to
+spend, and draws the plan on the cells: amber for what you give, green
+for what you receive, with a list of every trade in order and the
+nearest traders of that type. Select a material and every other cell
+shows what you would pay of it for one of the selected, exactly as the
+game does. The plan re-reads the journal as you trade, so the list
+shrinks at the counter.
+
+**How it plans.** By default only your G4 and G5 are spent, bottom
+grade first because one unit goes furthest there (1:81 at the bottom,
+1:3 one grade down), never below a floor you set, and only in whole
+trades the game will accept. Then a room pass: anything still crowding
+its cap moves into a G4 or G5 that has room, own group first, so a
+mission reward is never refused for want of space. Across-group and
+up-grade trades are there as options, off by default: they cost six
+times as much. The exchange rates are the game's, checked against
+every trade in the maintainer's own journal.
+
+**A nudge when something nears full.** When a pickup takes a material
+over the near-full line and a trade exists for it, EDDA says so once:
+"Military Grade Alloys is nearly full, 97 of 100. A manufactured trader
+would trade the surplus down into Precipitated Alloys." It stays quiet
+when there is nothing to trade. Toggle it under Voice, "Material trader".
+
+**Target a subsystem by name.** "Target their power plant", "go for
+the drives", "lock onto their FSD": the game has no key for that, only
+cycle-next-subsystem, and the cycle order is the target's own module
+list. EDDA now presses the key and reads each change back from the
+journal until the one you asked for comes round, then stops. It tells
+you when the target is not scanned enough yet, or does not carry the
+module at all. Power plant, drives, FSD, shields, distributor, life
+support, sensors, cargo hatch, interdictor, cell bank, booster, or the
+first weapon or utility.
+
+**Callouts that know your ship.** Shield callouts only when a shield
+generator is fitted. Scoop talk only when a fuel scoop is fitted: no
+more "class M, scoopable" on a ship that cannot scoop, in the route
+briefing or the hop-by-hop line. A scoopless ship running low hears
+about the station it can dock at instead. Every spoken line now passes
+the same repeat gate as "under attack", so a burst of identical events
+is said once.
+
+**Missions: an optional kill estimate.** Off by default. When on, the
+Missions tab shows a floor for massacre kills from the bounties and
+bonds in your journal, credited the way the game does it: in turn
+within one faction's missions, together across factions. It is marked
+as an estimate, shown as "at least N", and never changes a mission's
+status; the game's own completion events still do that. When one
+mission completes, the others learn from it, so the floors tighten as
+you go.
+
+**Engineers unlock without a relog.** Unlocking an engineer used to
+wait for the next login's roll-call before EDDA believed it; the
+single-engineer event now lands at once, so a build import right after
+meeting Hera Tani knows you have her.
+
+**Plot right away.** Asking for a route from anywhere in the app plots
+it immediately and then arms the game's plotter, instead of opening the
+Route tab and waiting for a second click.
+
+**Every system is a place you can go.** Mining results, engineers,
+powerplay, the build planner, the shopping report: wherever a result
+names a system, the same route arrow and copy button sit beside it.
+
+**Quiet when idle.** Between journal events EDDA used to re-read the
+game's status files and rewrite its own tables every few seconds,
+which showed up as steady disk traffic even with the game closed. It
+now touches nothing unless something changed.
+
 ## 0.4.1
 
 Trade for reputation: every leg and loop now shows which faction runs
