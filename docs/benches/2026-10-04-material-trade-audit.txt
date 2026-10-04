@@ -1,0 +1,52 @@
+# 29 trades on 2026-10-04; knobs: near-full >= 90%, floor 50%
+
+== raw: 29 trades, gave 1081 units, received 3795 (3.5 per unit given); value kept 46.7% of the G1-equivalents spent; 0 across-group trades
+   Polonium                     G4 150 ->  50 (33% of cap left), spent 100
+   Technetium                   G4 147 ->  57 (38% of cap left), spent 90
+   Selenium                     G4  95 ->  53 (35% of cap left), spent 42
+   Tellurium                    G4 117 ->  68 (45% of cap left), spent 49
+   Yttrium                      G4 148 ->  55 (37% of cap left), spent 93
+   Antimony                     G4 145 ->  56 (37% of cap left), spent 89
+   Ruthenium                    G4 120 ->  85 (57% of cap left), spent 35
+   Boron                        G3  14 -> 200 (100% of cap left), spent 54
+   Niobium                      G3  10 -> 198 (99% of cap left), spent 76
+   Mercury                      G3   6 -> 198 (99% of cap left), spent 81
+   Molybdenum                   G3   1 -> 199 (100% of cap left), spent 72
+   Zinc                         G2  82 -> 245 (98% of cap left), spent 8
+   Chromium                     G2 100 -> 249 (100% of cap left), spent 67
+   Zirconium                    G2  87 -> 243 (97% of cap left), spent 87
+   Arsenic                      G2   5 -> 242 (97% of cap left), spent 87
+   Vanadium                     G2  20 -> 242 (97% of cap left), spent 51
+     17:37   63 Yttrium                      ->  189 Niobium                        1:3    down
+     17:38   66 Technetium                   ->  198 Molybdenum                     1:3    down
+     17:38   64 Polonium                     ->  192 Mercury                        1:3    down
+     17:39   62 Antimony                     ->  186 Boron                          1:3    down
+     17:40   76 Niobium                      ->  228 Vanadium                       1:3    down
+     17:40   50 Molybdenum                   ->  150 Chromium                       1:3    down
+     17:40   81 Mercury                      ->  243 Arsenic                        1:3    down
+     17:41   54 Boron                        ->  162 Zirconium                      1:3    down
+     17:41   51 Vanadium                     ->  153 Carbon                         1:3    down
+     17:41   67 Chromium                     ->  201 Phosphorus                     1:3    down
+     17:42   87 Arsenic                      ->  261 Rhenium                        1:3    down
+     17:42   87 Zirconium                    ->  261 Lead                           1:3    down
+     17:43    4 Ruthenium                    ->  108 Sulphur                        1:27   down
+     17:44    8 Ruthenium                    ->   72 Manganese                      1:9    down
+     17:44   23 Ruthenium                    ->   69 Cadmium                        1:3    down
+     17:44    8 Zinc                         ->   24 Iron                           1:3    down
+     17:44   19 Selenium                     ->  171 Zinc                           1:9    down
+     17:44   23 Selenium                     ->   69 Tin                            1:3    down
+     17:44    4 Tellurium                    ->  108 Nickel                         1:27   down
+     17:44   10 Tellurium                    ->   90 Germanium                      1:9    down
+     17:45   35 Tellurium                    ->  105 Tungsten                       1:3    down
+     17:45    9 Antimony                     ->   81 Zirconium                      1:9    down
+     17:45   18 Antimony                     ->   54 Boron                          1:3    down
+     17:45    9 Polonium                     ->   81 Arsenic                        1:9    down
+     17:45   27 Polonium                     ->   81 Mercury                        1:3    down
+     17:45   22 Molybdenum                   ->   66 Chromium                       1:3    down
+     17:46   24 Technetium                   ->   72 Molybdenum                     1:3    down
+     17:46    5 Yttrium                      ->   45 Vanadium                       1:9    down
+     17:46   25 Yttrium                      ->   75 Niobium                        1:3    down
+   planner (bottom first, tab default floor 50%): 14 trades, give 410, receive 2126 (5.2 per unit), value kept 38.7%, 2 across
+   planner (bottom first, the floor you actually went to 33%): 20 trades, give 563, receive 2407 (4.3 per unit), value kept 39.8%, 8 across
+
+chains (received, then paid the same day): Chromium, Zirconium, Arsenic, Boron, Niobium, Vanadium, Mercury, Molybdenum

@@ -9,7 +9,7 @@
 //! (boss, 2026-10-04: "smart enough not to prompt if there isn't a trade").
 
 use crate::state::AppState;
-use ed_journal::mat_trade::{self, Policy};
+use ed_journal::mat_trade::{self, FillOrder, Policy};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -105,8 +105,13 @@ pub async fn material_trade_plan(
     floor: Option<f64>,
     cross: Option<bool>,
     up: Option<bool>,
+    order: Option<String>,
 ) -> Result<TraderView, String> {
     let policy = Policy {
+        order: match order.as_deref().map(str::trim) {
+            Some("nearest_first") | Some("nearest") => FillOrder::NearestFirst,
+            _ => FillOrder::BottomFirst,
+        },
         source_min: source_min.unwrap_or(0.9).clamp(0.1, 1.0),
         floor: floor.unwrap_or(0.5).clamp(0.0, 1.0),
         cross: cross.unwrap_or(true),
@@ -224,7 +229,7 @@ mod tests {
         let c = conn_with(&[("militarygradealloys", 90), ("thermicalloys", 20)], None, &[]);
         assert_eq!(
             suggestion(&c, "militarygradealloys", 89, 90).as_deref(),
-            Some("Military Grade Alloys is nearly full, 90 of 100. A manufactured trader would trade the surplus down into Thermic Alloys.")
+            Some("Military Grade Alloys is nearly full, 90 of 100. A manufactured trader would trade the surplus down into Tempered Alloys and Heat Resistant Ceramics, among others.")
         );
         assert!(suggestion(&c, "militarygradealloys", 90, 91).is_none(), "already over: said once");
         assert!(suggestion(&c, "militarygradealloys", 80, 85).is_none(), "not there yet");

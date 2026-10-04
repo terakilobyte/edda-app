@@ -20,11 +20,13 @@
   let floor = $state(50);
   let cross = $state(true);
   let up = $state(true);
+  // bottom_first: most units per unit spent (1:81 at the bottom). nearest_first: keeps the most value.
+  let order = $state("bottom_first");
 
   async function load() {
     busy = true;
     try {
-      view = await materialTradePlan({ kind: kind || null, sourceMin: sourceMin / 100, floor: floor / 100, cross, up });
+      view = await materialTradePlan({ kind: kind || null, sourceMin: sourceMin / 100, floor: floor / 100, cross, up, order });
       error = "";
     } catch (e) {
       error = String(e);
@@ -47,7 +49,7 @@
 </script>
 
 <section class="panel">
-  <h2>Material trader <span class="sub">give the near-full, take the gaps · nearest grade first · own group before across · down before up</span></h2>
+  <h2>Material trader <span class="sub">give the near-full, take the gaps · every line a direct trade · own group before across · down before up</span></h2>
   <div class="row" style="margin:0.4rem 0; flex-wrap:wrap; gap:0.6rem">
     <label>Trader
       <select bind:value={kind} onchange={load}>
@@ -59,6 +61,12 @@
     </label>
     <label title="Sources are never spent below this share of their cap">Keep ≥
       <input type="range" min="0" max="100" step="5" bind:value={floor} onchange={load} /> <span class="num">{floor}%</span>
+    </label>
+    <label title="Bottom first: one unit goes furthest at the bottom (1:81). Nearest first: keeps the most value in the hold.">Fill
+      <select bind:value={order} onchange={load}>
+        <option value="bottom_first">bottom grade first (most units)</option>
+        <option value="nearest_first">nearest grade first (keeps value)</option>
+      </select>
     </label>
     <label><input type="checkbox" bind:checked={cross} onchange={load} /> across groups (6× dearer)</label>
     <label><input type="checkbox" bind:checked={up} onchange={load} /> up a grade (6:1)</label>
@@ -108,7 +116,7 @@
     {/if}
 
     {#if view.plan.still_short.length}
-      <h3>Still short after the plan <span class="muted">({view.plan.still_short.length})</span></h3>
+      <h3>Still short after the plan <span class="muted">({view.plan.still_short.length} below {Math.round(view.plan.policy_source_min * 100)}% of cap)</span></h3>
       <div class="groups">
         {#each byGroup as [group, list] (group)}
           <div class="group">

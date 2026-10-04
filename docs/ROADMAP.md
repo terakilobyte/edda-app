@@ -529,12 +529,31 @@ verdicts live in the CSV headers under `docs/benches/`.
   Guardian/Thargoid rows do not trade. Planner
   (`ed_journal::mat_trade::plan`): sources are materials at ≥ 90 % of cap
   (knob), spent to a floor of 50 % (knob), highest grade first; targets
-  are the non-sources below cap, nearest grade first (one G5 is 1296
-  G1-equivalents: 3 G4 keep 648 of them, 81 G1 keep 81), own group
-  before across (off by a knob), down before up (knob); whole trades
+  are the non-sources below cap, bottom grade first by default (the
+  boss, following the first plan: "why wouldn't I just trade a top mat
+  for a bottom mat instead of doing the intermediary?" -- one unit goes
+  furthest at the bottom, 1:81; his 49 spare Pharmaceutical Isolators
+  fill three Chemical grades and still make 48 Manipulators, where
+  nearest-first put all 49 into Manipulators at 1:3), nearest grade
+  first as the option that keeps value (one G5 is 1296 G1-equivalents:
+  3 G4 keep 648 of them, 81 G1 keep 81); every line is a direct trade
+  (a chain costs the same at the game's rates); own group before across
+  (off by a knob), down before up (knob); whole trades
   only, never over a cap; a source never receives (that was churn: iron
   up to zinc so zinc could go up to tin so tin could refill the selenium
-  that filled zinc). The Trader tab plans for the docked station's type
+  that filled zinc). "Still short" means below the near-full threshold,
+  not below cap: the first list showed Phosphorus 299/300 as short (boss
+  screenshot). Audit of the boss's 29 manual raw trades the same evening
+  (`knobs/material_trade_audit.py`, `2026-10-04-material-trade-audit.txt`):
+  all same-group, all down, no overflow — rate-perfect; he cascaded
+  G4→G3→G2→G1 in steps, which costs nothing at geometric rates (1:3 three
+  times is 1:27), and went to a 33 % floor; the planner from the same
+  start does it in 20 direct trades instead of 29. Not a knapsack: an
+  integer transportation problem — sources with budgets, targets with
+  capacities, geometric rates; within a group every routing is
+  equivalent, so greedy is exact there, and the only real decisions are
+  the floor, the order (units vs value) and whether to pay 6× to cross.
+  The Trader tab plans for the docked station's type
   when a `MaterialTrade` was made there or its economy says (else the
   type with most to spend), shows sources, the give/receive list with the
   counts left, what stays short, and the nearest traders of that type;
