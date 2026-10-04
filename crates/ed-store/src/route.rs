@@ -61,6 +61,28 @@ pub struct RouteBrief {
     pub first_unscoopable: Option<usize>,
     /// Longest run of consecutive unscoopable arrivals.
     pub longest_dry_run: usize,
+    /// Whether the current ship carries a fuel scoop. Without one a star's
+    /// scoopability is nobody's business (boss, 2026-10-04: "edda should only
+    /// say a star is scoopable if I have a fuel scoop installed"), so the
+    /// brief and the hop lines drop every scoop word. Unknown ship: `true`,
+    /// the wording of old.
+    pub scoop_fitted: bool,
+}
+
+/// Does the ship most recently seen in a `Loadout` carry a fuel scoop? `None`
+/// when no Loadout has been read yet.
+pub fn current_ship_has_scoop(conn: &Connection) -> Option<bool> {
+    let raw: String = conn
+        .query_row("SELECT raw FROM ships ORDER BY loadout_ts DESC LIMIT 1", [], |r| r.get(0))
+        .optional()
+        .ok()
+        .flatten()?;
+    let v: Value = serde_json::from_str(&raw).ok()?;
+    Some(
+        v.get("Modules")
+            .and_then(Value::as_array)
+            .is_some_and(|ms| ms.iter().any(|m| m.get("Item").and_then(Value::as_str).is_some_and(|i| i.to_ascii_lowercase().contains("fuelscoop")))),
+    )
 }
 
 /// How much the game-route layer should narrate.
@@ -265,6 +287,7 @@ pub fn current(conn: &Connection) -> Result<Option<RouteBrief>> {
         total_ly: total,
         first_unscoopable,
         longest_dry_run: longest,
+        scoop_fitted: current_ship_has_scoop(conn).unwrap_or(true),
     }))
 }
 
@@ -282,7 +305,7 @@ pub fn brief_text(b: &RouteBrief, mode: Narration) -> String {
 
     // Fuel: only worth a sentence when a star cannot be scooped -- and
     // only when fuel is ours to speak for at all.
-    if let Some(first) = b.first_unscoopable.filter(|_| mode == Narration::Full) {
+    if let Some(first) = b.first_unscoopable.filter(|_| mode == Narration::Full && b.scoop_fitted) {
         let h = &b.hops[first];
         let before = b.hops[1..first].iter().rev().find(|x| x.scoopable);
         let mut s = format!("Jump {first}, {}, is not scoopable", h.system);
@@ -346,7 +369,9 @@ pub fn next_hop_text(b: &RouteBrief, current: &str, mode: Narration) -> Option<S
         "Next: {}, class {}{}",
         next.system,
         next.star_class,
-        if next.scoopable {
+        if !b.scoop_fitted {
+            ""
+        } else if next.scoopable {
             ", scoopable"
         } else {
             ", not scoopable"
@@ -368,7 +393,7 @@ pub fn next_hop_text(b: &RouteBrief, current: &str, mode: Narration) -> Option<S
             ". Then {}, class {}{}",
             after.system,
             after.star_class,
-            if after.scoopable {
+            if after.scoopable || !b.scoop_fitted {
                 ""
             } else {
                 ", not scoopable"
@@ -444,7 +469,28 @@ mod tests {
             hops,
             first_unscoopable,
             longest_dry_run: longest,
+            scoop_fitted: true,
         }
+    }
+
+    /// Boss, 2026-10-04, flying a scoopless ship: "Next Antliae Sector ...,
+    /// class M, scoopable" — a star's scoopability means nothing to a ship
+    /// that cannot scoop, so the hop lines and the plot-time fuel sentence
+    /// drop every scoop word. The rest of the briefing stands.
+    #[test]
+    fn a_scoopless_ship_hears_no_scoop_words() {
+        let mut b = brief(vec![
+            hop(0, "Wongi", "K", Some("Aisling Duval"), true),
+            hop(1, "Deciat", "K", Some("Zemina Torval"), true),
+            hop(2, "LAWD 68", "DA", None, false),
+        ]);
+        b.scoop_fitted = false;
+        let t = next_hop_text(&b, "Wongi", Narration::Full).unwrap();
+        assert_eq!(t, "Next: Deciat, class K. Then LAWD 68, class DA. Zemina Torval space, stronghold. Docking at Deciat Port. 2 jumps remaining.");
+        let plot = brief_text(&b, Narration::Full);
+        assert!(!plot.contains("scoopable") && !plot.contains("top up"), "no scoop advice for a scoopless ship: {plot}");
+        b.scoop_fitted = true;
+        assert!(brief_text(&b, Narration::Full).contains("is not scoopable"), "with a scoop the fuel sentence is back");
     }
 
     /// Journal `StarClass` values that start with a scoopable letter but

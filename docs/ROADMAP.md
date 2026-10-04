@@ -526,7 +526,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   speaks the positive case — tank under 35 %, no scoop, a dock that fits
   at the target: "Fuel at N percent and no scoop fitted. X has a station
   you can dock at for fuel." With a scoop, or with fuel, the dock is not
-  mentioned.
+  mentioned. Second sighting the same morning ("Next Antliae Sector ...,
+  class M, scoopable"): that line is the *game-route* reader
+  (`ed_store::route::next_hop_text`), a different speaker from the
+  FSDTarget callout. The brief now carries `scoop_fitted` from the latest
+  Loadout; without a scoop the hop lines lose every scoop word and the
+  plot-time "jump N is not scoopable; top up at X first" sentence is
+  skipped. One flag, three speakers — the EDDA-plan follower already had
+  `ship_has_scoop` on the route.
 - **The idle app read 25 MB/s and wrote 6 MB/s** (2026-10-03, boss: "why is
   EDDA using 1.9% cpu and 6.0 MB/s of disk when the game isn't running?").
   Measured (`docs/benches/2026-10-03-quiet-sync-io.csv`): a spike every
