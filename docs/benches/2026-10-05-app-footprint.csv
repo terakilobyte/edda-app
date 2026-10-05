@@ -1,0 +1,20 @@
+# VERDICT: the headline "uses less memory than the 4 Chrome tabs you have open" is NOT supported as the boss's machine runs EDDA today (Kokoro neural voice + Parakeet speech model loaded in-process): idle, game closed, EDDA = 799 MB working set / 1846 MB private bytes across edda.exe + 7 WebView2 children, against ~665 MB working set for four average Chrome renderers on the same box (~1.1 GB with Chrome's browser + GPU processes). It may hold with Piper/SAPI voice and no speech model (boss-reported Task Manager figures this week: 154 MB before the neural voice loaded, 861 MB after) -- that configuration was not measured here because the boss was away and his settings were not changed. CPU idle is a genuine headline: 1.17 % of one core (0.05 % of a 24-thread machine). In-game state NOT measured (game closed, boss away). EDMC and EDDiscovery are installed but were not launched (side effects on the boss's box without him); EDCoPilot and Elite Observatory are not installed. Chrome's "4 tabs" row is an average of the 21 renderers that were open, not the four named tabs (not opening tabs in the boss's browser).
+# measured 2026-10-05 ~05:40 UTC on the boss's Windows 11 box (24 logical cores); EDDA 0.4.2 release build from C:\Program Files\EDDA (installed via in-app update 2026-10-04 21:14 UTC), 8 h uptime; persona sultry, voice_server kokoro af_heart, listen enabled (Parakeet, no wake word, joystick PTT), overlay on. Working set and private bytes from Get-Process (WorkingSet64, PrivateMemorySize64); CPU = delta TotalProcessorTime over 60 s. Launch-to-ready from the log: "starting" 21:14:03.727 -> overlay ready +0.84 s -> galaxy index +1.69 s -> "listening" +4.41 s.
+state,app,processes,working_set_mb,private_bytes_mb,cpu_pct_one_core,note
+idle_game_closed,EDDA 0.4.2,edda.exe,218.1,1471.2,,main process; private bytes carry the Kokoro TTS and Parakeet ASR models
+idle_game_closed,EDDA 0.4.2,msedgewebview2 browser,168.0,72.0,,
+idle_game_closed,EDDA 0.4.2,msedgewebview2 gpu,87.2,120.7,,
+idle_game_closed,EDDA 0.4.2,msedgewebview2 renderer x2,246.3,159.2,,main window + overlay
+idle_game_closed,EDDA 0.4.2,msedgewebview2 utility x2 + crashpad,79.0,22.9,,
+idle_game_closed,EDDA 0.4.2,TOTAL edda + 7 WebView2,798.6,1846.0,1.17,CPU averaged over 60 s; 0.05 % of the 24-thread machine
+idle_game_closed,EDDA 0.4.2,node sidecars x3,54.9,,,portable Node helpers; not counted in the total above
+in_game_10min_overlay,EDDA 0.4.2,,,,,NOT MEASURED: game closed and the boss away; needs his flight
+launch_to_ready_s,EDDA 0.4.2,,,,,4.4 s to "listening" (overlay 0.8 s; galaxy index 1.7 s)
+installer_mb,EDDA 0.4.2,EDDA_0.4.2_x64-setup.exe,,,,17.3 MB installer; 46 MB on disk
+idle,Chrome,browser + gpu + 4 utility + crashpad,523,1005,,shared processes; 28 Chrome processes in all
+idle,Chrome,renderer x21,3488,3669,,166 MB working set per renderer on average
+idle,Chrome,"4 tabs (estimate: 4 x average renderer)",665,699,,NOT the four named tabs; no tabs were opened in the boss's browser
+idle,EDMC,,,,,installed (C:\Program Files (x86)\EDMarketConnector) but not running; NOT LAUNCHED while the boss was away
+idle,EDDiscovery 19.1.9,,,,,installed (C:\Program Files\EDDiscovery) but not running; NOT LAUNCHED while the boss was away
+idle,EDCoPilot,,,,,not installed
+idle,Elite Observatory,,,,,not installed
