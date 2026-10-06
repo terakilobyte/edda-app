@@ -7,6 +7,35 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.3
+
+Mission material rewards now count. Every hand-in that paid materials
+was leaving the Inventory tab behind the game; the materials you hand to
+a technology broker or a research contact were not coming off either.
+All three land now, and EDDA recounts your store from the journal on
+first start. The Inventory tab also says when the game last verified
+your counts, because one thing is invisible to everyone: a reward
+collected from a mission a wingmate shared with you writes nothing to
+the journal until your next login. And the Missions tab shows what is
+already earned over what is in play.
+
+**Material rewards.** A mission completion's material reward, a
+technology broker's price in materials, and a hand-over to a research
+contact all update your counts the moment the journal records them.
+This release recounts the whole inventory from your journal once on
+start, so stores that fell behind catch up on their own.
+
+**Verified by the game.** The Inventory tab shows when the game last
+stated every count itself, which it does only at login. Pickups, trades,
+crafting and your own mission rewards are tracked live; a reward from a
+mission shared by a wingmate is not, because the game writes no line for
+it. The tab says so, and a trip to the main menu and back resyncs it.
+
+**Mission rewards, ready over in play.** The Missions tab's reward stat
+is now two figures: what is completed and waiting at a counter, over
+everything in play, in full. The HUD's missions line carries the same
+pair.
+
 ## 0.4.2
 
 A material trader in the Inventory tab, laid out like the game's own
