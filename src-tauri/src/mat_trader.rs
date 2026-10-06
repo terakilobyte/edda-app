@@ -166,11 +166,29 @@ pub struct MaterialCell {
     pub count: i64,
 }
 
-/// The whole material inventory, zeros included, laid out for the grid.
+/// When the game last stated every count itself: the `Materials` snapshot
+/// it writes at login. Everything after that is EDDA's arithmetic on the
+/// events the game chooses to write -- and a reward collected from a
+/// mission shared by a wingmate writes none (boss, 2026-10-06: three such
+/// turn-ins, each leaving only a ShipLocker line), so until the next login
+/// those are invisible.
+pub fn verified_at(conn: &rusqlite::Connection) -> Option<String> {
+    conn.query_row("SELECT ts FROM events WHERE event = 'Materials' ORDER BY ts DESC, file DESC, offset DESC LIMIT 1", [], |r| r.get(0)).ok()
+}
+
+#[derive(Debug, Serialize)]
+pub struct MaterialGrid {
+    pub cells: Vec<MaterialCell>,
+    /// Timestamp of the game's last `Materials` snapshot, if any.
+    pub verified_at: Option<String>,
+}
+
+/// The whole material inventory, zeros included, laid out for the grid,
+/// with when the game last vouched for the counts.
 #[tauri::command]
-pub async fn material_grid(state: State<'_, AppState>) -> Result<Vec<MaterialCell>, String> {
+pub async fn material_grid(state: State<'_, AppState>) -> Result<MaterialGrid, String> {
     let catalog = ed_journal::Catalog::load();
-    let inv = state.with_read(|s| inventory(s.conn()));
+    let (inv, verified_at) = state.with_read(|s| (inventory(s.conn()), verified_at(s.conn())));
     let mut out: Vec<MaterialCell> = catalog
         .materials()
         .map(|i| MaterialCell {
@@ -184,7 +202,7 @@ pub async fn material_grid(state: State<'_, AppState>) -> Result<Vec<MaterialCel
         })
         .collect();
     out.sort_by(|a, b| a.kind.cmp(&b.kind).then(a.group.cmp(&b.group)).then(a.grade.cmp(&b.grade)).then(a.name.cmp(&b.name)));
-    Ok(out)
+    Ok(MaterialGrid { cells: out, verified_at })
 }
 
 /// The callout's question after a pickup: did `symbol` just cross the
@@ -266,6 +284,16 @@ mod tests {
         let no_trader = docked.replace(r#","materialtrader""#, "");
         let c = conn_with(&[], Some(&no_trader), &[]);
         assert_eq!(docked_trader_kind(&c), None);
+    }
+
+    #[test]
+    fn verified_at_is_the_games_last_materials_snapshot() {
+        let c = conn_with(&[], None, &[]);
+        assert_eq!(verified_at(&c), None);
+        c.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('J', 50, '2026-10-06T00:17:33Z', 'Materials', '{}')", []).unwrap();
+        c.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('J', 51, '2026-10-06T03:47:47Z', 'Materials', '{}')", []).unwrap();
+        c.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES ('J', 52, '2026-10-06T04:53:32Z', 'ShipLocker', '{}')", []).unwrap();
+        assert_eq!(verified_at(&c).as_deref(), Some("2026-10-06T03:47:47Z"), "the latest login snapshot, not a later unrelated event");
     }
 
     /// The prompt fires once, on the pickup that crosses the threshold, and
