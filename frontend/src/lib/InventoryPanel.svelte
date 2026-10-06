@@ -16,6 +16,11 @@
 
   let cells = $state([]);
   let cargo = $state([]);
+  // When the game last stated every count itself (its login snapshot).
+  // Rewards collected from a wingmate's shared mission write nothing to
+  // the journal (boss, 2026-10-06), so after one of those the grid is
+  // behind until the next login.
+  let verifiedAt = $state(null);
   let error = $state("");
   let filter = $state("");
   let trading = $state(false);
@@ -36,7 +41,8 @@
   async function load() {
     try {
       const [g, inv] = await Promise.all([materialGrid(), getInventory()]);
-      cells = g;
+      cells = g.cells;
+      verifiedAt = g.verified_at;
       cargo = inv.filter((i) => i.category === "Cargo");
       error = "";
     } catch (e) {
@@ -115,6 +121,11 @@
   const given = $derived(view ? view.plan.trades.reduce((n, t) => n + t.give_qty, 0) : 0);
   const received = $derived(view ? view.plan.trades.reduce((n, t) => n + t.recv_qty, 0) : 0);
   const shownCargo = $derived(cargo.filter((i) => !f || i.name.toLowerCase().includes(f)));
+  const verifiedLabel = $derived.by(() => {
+    if (!verifiedAt) return "not yet verified by the game";
+    const mins = Math.max(0, Math.round((Date.now() - new Date(verifiedAt)) / 60000));
+    return `verified by the game ${mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : mins < 2880 ? `${Math.round(mins / 60)} h ago` : `${Math.round(mins / 1440)} d ago`}`;
+  });
 </script>
 
 <section class="panel">
@@ -122,6 +133,7 @@
   <div class="row" style="margin-bottom:0.5rem; flex-wrap:wrap; gap:0.6rem">
     <input placeholder="Filter…" bind:value={filter} />
     <button class="small {trading ? 'primary' : ''}" onclick={toggleTrading}>{trading ? "Leave trading mode" : "Material trading mode"}</button>
+    <span class="muted small" title="The game states every count only at login. Pickups, trades, crafting and your own mission rewards are tracked from the journal as they happen. A reward collected from a mission a wingmate shared with you writes nothing to the journal, so after one of those the counts are behind until you relog.">{verifiedLabel}{verifiedAt ? ` (${new Date(verifiedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : ""} · shared-mission rewards show after a relog</span>
     {#if trading && view}
       <span class="muted small">planning for a <strong>{view.kind}</strong> trader{view.kind_from !== "chosen" ? ` (${view.kind_from})` : ""} · {view.plan.trades.length} trades · give {given}, receive {received}</span>
     {/if}

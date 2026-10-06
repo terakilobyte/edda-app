@@ -516,6 +516,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **A wingmate's shared-mission reward writes nothing** (2026-10-06,
+  boss, turning in three shared missions with the journal watched live:
+  tellurium, polonium 20, exquisite focus crystals 18 — "I didn't see
+  either move"). Each turn-in left exactly one line, a `ShipLocker`
+  event, which fires on every docking anyway; no `MissionCompleted`, no
+  material line. His OWN wing missions (accepted, `Wing: true`) do write
+  completions — all seven this session did, and their polonium landed.
+  The companion API's `/profile` carries no materials, so there is no
+  second source; the game's login `Materials` snapshot is the only
+  resync. The Inventory tab now says when the game last verified the
+  counts and that shared-mission rewards show after a relog.
 - **Mission material rewards never reached the inventory** (2026-10-06,
   boss: "I don't know if our materials are updating in real time").
   Measured: a replay of the journal since the login snapshot against the
