@@ -44,6 +44,10 @@
   const rewardTotal = $derived(
     list.filter((m) => m.status === "active" || m.status === "ready_to_turn_in").reduce((a, m) => a + (m.reward ?? 0), 0)
   );
+  // What is already earned and waiting at a counter, over everything in
+  // play (boss, 2026-10-05: "i.e. 455,087,199/540,899,321").
+  const readyTotal = $derived(list.filter((m) => m.status === "ready_to_turn_in").reduce((a, m) => a + (m.reward ?? 0), 0));
+  const full = (n) => Math.round(n).toLocaleString("en-US");
 </script>
 
 <section class="panel">
@@ -58,7 +62,7 @@
     <div class="stat-grid" style="margin-bottom:0.7rem">
       <div class="stat"><div class="label">In play</div><div class="value">{list.length}</div></div>
       <div class="stat"><div class="label">Ready to turn in</div><div class="value ok">{list.filter((m) => m.status === "ready_to_turn_in").length}</div></div>
-      <div class="stat"><div class="label">Rewards pending</div><div class="value">{fmtCr(rewardTotal)}</div></div>
+      <div class="stat" title="Completed and waiting to be handed in, over every mission in play (stated rewards summed)"><div class="label">Rewards · ready / in play</div><div class="value"><span class="ok">{full(readyTotal)}</span> / {full(rewardTotal)} cr</div></div>
       {#if here}
         <div class="stat" title={here.missions.map((m) => m.title).join("\n")}><div class="label">Ready here · {here.station}</div><div class="value ok">{here.missions.length} · {fmtCr(here.credits)}</div></div>
       {/if}
