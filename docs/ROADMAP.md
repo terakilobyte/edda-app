@@ -516,6 +516,12 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Mission rewards: ready over in play** (2026-10-05, boss: "it'd be nice
+  to see the total currently completed missions rewards — i.e.
+  455,087,199/540,899,321"). The Missions tab's "Rewards pending" stat is
+  now "Rewards · ready / in play": the stated rewards of missions that
+  are completed and waiting at a counter, over every mission in play,
+  full figures. The HUD's missions line carries the same pair.
 - **Material trader: give the near-full, take the gaps** (2026-10-04,
   boss: "I need to go trade down materials maximally... it'd be awesome
   if edda could do that"; then "or a dedicated material trading tab, and

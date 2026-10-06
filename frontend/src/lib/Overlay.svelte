@@ -319,6 +319,9 @@
       {:else if activeMissions.length}
         <div class="line missions {compact(id)}">
           <span class="lbl">Missions</span>
+          {#if activeMissions.some((m) => m.reward)}
+            <span class="num small" title="Rewards: completed and waiting to be handed in / every mission in play">{Math.round(activeMissions.filter((m) => m.status === "ready_to_turn_in").reduce((a, m) => a + (m.reward ?? 0), 0)).toLocaleString("en-US")}/{Math.round(activeMissions.reduce((a, m) => a + (m.reward ?? 0), 0)).toLocaleString("en-US")}</span>
+          {/if}
           {#each activeMissions.slice(0, isCompact(layout, id) ? 2 : 3) as m}
             <span class="pill {m.status === 'ready_to_turn_in' ? 'ok' : ''}" title={m.title}>
               {m.wing ? "▲ " : ""}{m.kill_count ? `${m.kills_seen != null ? `${m.kills_exact ? "" : "≥"}${m.kills_seen}/` : ""}${m.kill_count} ${m.target_faction ?? ""}` : m.kind === "assassinate" ? `${m.target}${m.kills_seen ? " (seen)" : ""}` : m.title.slice(0, 28)}{m.status === "ready_to_turn_in" ? " ✓" : ""}
