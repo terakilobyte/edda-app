@@ -516,6 +516,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   ship" group in the ship dropdown, swaps in the saved plan, the figures,
   the report and the SLEF. Not vendored upstream: the Lynx Highliner's
   physics (Coriolis has no data yet; its slots are in the table).
+- **Mission material rewards never reached the inventory** (2026-10-06,
+  boss: "I don't know if our materials are updating in real time").
+  Measured: a replay of the journal since the login snapshot against the
+  store found 11 materials behind the game, all undercounts, all from
+  the 15 hand-ins with a `MaterialsReward` since that snapshot — the
+  materials replay (`ed_journal::inventory`) never read that field, nor
+  `TechnologyBroker` and `ScientificResearch` spends. All three now
+  apply; schema 11 re-derives existing stores. The same check cleared
+  his other report (Peculiar Shield Frequency Data 48/100 refused a
+  20-unit reward): the game's own snapshot says 48 and nothing since
+  touches it, so the refusal is not that cap. The frontend's copy of the
+  trade ratio moved into `materials.js` under a vitest pin of the same
+  nine journal trades (boss: "you are adding tests for everything we do,
+  right?" — the Rust side always was; the panels were only built).
 - **Mission rewards: ready over in play** (2026-10-05, boss: "it'd be nice
   to see the total currently completed missions rewards — i.e.
   455,087,199/540,899,321"). The Missions tab's "Rewards pending" stat is

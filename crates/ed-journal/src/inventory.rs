@@ -4,7 +4,14 @@
 //! load, sometimes on dock). Everything after that is deltas:
 //! `MaterialCollected`, `MaterialDiscarded`, `MaterialTrade`,
 //! `EngineerCraft` (consumes ingredients), `EngineerContribution` (donating
-//! materials to unlock an engineer), and `Synthesis` (consumes materials).
+//! materials to unlock an engineer), `Synthesis` (consumes materials),
+//! `MissionCompleted` (its `MaterialsReward` adds; missed until 2026-10-06,
+//! when the boss's store was 11 materials behind the game after fifteen
+//! hand-ins), `TechnologyBroker` (its `Materials` are spent) and
+//! `ScientificResearch` (spent).
+//!
+//! Spending never goes below zero; a later `Materials` snapshot is the
+//! game's word and resets everything.
 //! Reading only the last snapshot -- which is what a quick manual grep does
 //! -- silently misses everything collected or traded since. This module
 //! replays the whole sequence instead, in order, always keyed by the
@@ -92,7 +99,7 @@ pub fn apply_event(inventory: &mut Inventory, event: &Value) {
             }
         }
 
-        "Synthesis" => {
+        "Synthesis" | "TechnologyBroker" => {
             if let Some(materials) = event.get("Materials").and_then(Value::as_array) {
                 for mat in materials {
                     if let Some(name) = get_str(mat, "Name") {
@@ -100,6 +107,25 @@ pub fn apply_event(inventory: &mut Inventory, event: &Value) {
                         *entry = (*entry - get_i64(mat, "Count")).max(0);
                     }
                 }
+            }
+        }
+
+        // A mission's material reward: `MaterialsReward: [{Name, Count, Category}]`.
+        "MissionCompleted" => {
+            if let Some(rewards) = event.get("MaterialsReward").and_then(Value::as_array) {
+                for r in rewards {
+                    if let Some(name) = get_str(r, "Name") {
+                        *inventory.entry(name.to_lowercase()).or_insert(0) += get_i64(r, "Count");
+                    }
+                }
+            }
+        }
+
+        // Handing a material to a research contact: one material, one count.
+        "ScientificResearch" => {
+            if let Some(name) = get_str(event, "Name") {
+                let entry = inventory.entry(name.to_lowercase()).or_insert(0);
+                *entry = (*entry - get_i64(event, "Count")).max(0);
             }
         }
 
@@ -157,6 +183,28 @@ mod tests {
         let inv = replay_lines(lines.lines());
         // must be exactly 2 (from the second snapshot), not 15 (10+5 stale-accumulated)
         assert_eq!(inv.get("iron"), Some(&2));
+    }
+
+    /// The boss's 2026-10-06 session: fifteen hand-ins with material
+    /// rewards after the login snapshot, and the Inventory tab showed none
+    /// of them (Core Dynamics Composites 16 where the game had 60). The
+    /// shapes are the journal's own: a MissionCompleted MaterialsReward
+    /// (mixed-case Name, as the game writes it there), a TechnologyBroker
+    /// spend, a ScientificResearch hand-over.
+    #[test]
+    fn mission_rewards_add_and_brokers_and_research_spend() {
+        let lines = [
+            r#"{ "timestamp":"2026-10-06T03:47:47Z", "event":"Materials", "Raw":[ { "Name":"niobium", "Count":10 } ], "Manufactured":[ { "Name":"fedcorecomposites", "Count":16 }, { "Name":"mechanicalscrap", "Count":8 } ], "Encoded":[ { "Name":"shieldfrequencydata", "Count":48 } ] }"#,
+            r#"{ "timestamp":"2026-10-06T03:50:00Z", "event":"MissionCompleted", "Faction":"X", "Name":"Mission_Massacre_name", "MissionID":1, "Reward":1000, "MaterialsReward":[ { "Name":"FedCoreComposites", "Name_Localised":"Core Dynamics Composites", "Category":"$MICRORESOURCE_CATEGORY_Manufactured;", "Category_Localised":"Manufactured", "Count":20 } ] }"#,
+            r#"{ "timestamp":"2026-10-06T03:51:00Z", "event":"MissionCompleted", "Faction":"X", "Name":"Mission_Courier_name", "MissionID":2, "Reward":1000 }"#,
+            r#"{ "timestamp":"2026-10-06T03:52:00Z", "event":"TechnologyBroker", "BrokerType":"sirius", "MarketID":1, "ItemsUnlocked":[ { "Name":"Hpt_HeatSinkLauncher_Turret_Tiny" } ], "Commodities":[ ], "Materials":[ { "Name":"mechanicalscrap", "Count":8, "Category":"Manufactured" }, { "Name":"niobium", "Count":6, "Category":"Raw" } ] }"#,
+            r#"{ "timestamp":"2026-10-06T03:53:00Z", "event":"ScientificResearch", "MarketID":1, "Name":"shieldfrequencydata", "Category":"Encoded", "Count":3 }"#,
+        ];
+        let inv = replay_lines(lines.iter().copied());
+        assert_eq!(inv.get("fedcorecomposites"), Some(&36), "16 + the 20 the mission paid");
+        assert_eq!(inv.get("mechanicalscrap").copied().unwrap_or(0), 0, "the broker took all 8");
+        assert_eq!(inv.get("niobium"), Some(&4));
+        assert_eq!(inv.get("shieldfrequencydata"), Some(&45));
     }
 
     #[test]
