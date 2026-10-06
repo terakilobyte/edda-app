@@ -12,6 +12,7 @@
   import { getInventory, materialGrid, materialTradePlan } from "./api.js";
   import { journalResource } from "./lifecycle.svelte.js";
   import Place from "./Place.svelte";
+  import { ratio } from "./materials.js";
 
   let cells = $state([]);
   let cargo = $state([]);
@@ -71,15 +72,6 @@
   };
   const KIND_LABEL = { raw: "Raw", manufactured: "Manufactured", encoded: "Encoded" };
   const groupLabel = (k, g) => (k === "raw" ? `Raw ${g}` : g);
-
-  // What you pay of `a` to get `b`: the game's own ratios, measured
-  // (docs/benches/2026-10-04-material-trade-ratios.csv).
-  function ratio(a, b) {
-    if (!a || !b || a.symbol === b.symbol || a.kind !== b.kind || !a.group || !b.group) return null;
-    const d = a.grade - b.grade;
-    if (a.group === b.group) return d === 0 ? null : d > 0 ? [1, 3 ** d] : [6 ** -d, 1];
-    return d === 0 ? [6, 1] : d > 0 ? [2, 3 ** (d - 1)] : [6 ** (-d + 1), 1];
-  }
 
   const f = $derived(filter.trim().toLowerCase());
   const sections = $derived.by(() => {
