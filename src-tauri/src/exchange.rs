@@ -63,13 +63,17 @@ pub struct ApiProbe {
     pub healthy: bool,
     pub ms: u64,
     pub ready: Option<serde_json::Value>,
+    /// GET /v1/version: {version, git, built_at, migrations_known} (ed-api
+    /// since 2026-10-07; `version` is ed-api's own crate version, so lead
+    /// with the sha and built_at). None on an older server.
+    pub build: Option<serde_json::Value>,
     pub error: Option<String>,
 }
 
 #[tauri::command]
 pub async fn api_probe(state: State<'_, AppState>) -> Result<ApiProbe, String> {
     let Some(endpoint) = endpoint(&state) else {
-        return Ok(ApiProbe { endpoint: None, source: endpoint_source(), healthy: false, ms: 0, ready: None, error: Some("no API configured".into()) });
+        return Ok(ApiProbe { endpoint: None, source: endpoint_source(), healthy: false, ms: 0, ready: None, build: None, error: Some("no API configured".into()) });
     };
     let started = std::time::Instant::now();
     let health = state.http.get(format!("{endpoint}/healthz")).timeout(std::time::Duration::from_secs(5)).send().await;
@@ -87,7 +91,15 @@ pub async fn api_probe(state: State<'_, AppState>) -> Result<ApiProbe, String> {
     } else {
         None
     };
-    Ok(ApiProbe { endpoint: Some(endpoint), source: endpoint_source(), healthy, ms, ready, error })
+    let build = if healthy {
+        match state.http.get(format!("{endpoint}/v1/version")).timeout(std::time::Duration::from_secs(5)).send().await {
+            Ok(r) if r.status().is_success() => r.json::<serde_json::Value>().await.ok(),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    Ok(ApiProbe { endpoint: Some(endpoint), source: endpoint_source(), healthy, ms, ready, build, error })
 }
 
 

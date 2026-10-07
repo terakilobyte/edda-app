@@ -315,6 +315,7 @@
   <h2>Community API <span class="sub">which server this build talks to, and whether it answers</span></h2>
   <dl class="kv">
     <dt>Endpoint</dt><dd class="small">{probe?.endpoint ?? "not configured"}{#if probe}<span class="pill {probe.source === 'production' ? 'ok' : 'warn'}" style="margin-left:0.5rem" title={probe.source === "production" ? "the canonical server" : "set by EDDA_API_URL in the shell this build was launched from"}>{probe.source}</span>{/if}</dd>
+    <dt>Server build</dt><dd class="small">{#if probe?.build}<span class="num">{String(probe.build.git ?? "").slice(0, 7) || "?"}</span> · built {probe.build.built_at ?? "?"} · schema {probe.build.migrations_known ?? "?"}{:else if probe?.healthy}<span class="muted">older server, no /v1/version</span>{:else}<span class="muted">—</span>{/if}</dd>
     <dt>Health</dt><dd class="small">{#if probing && !probe}probing…{:else if probe?.healthy}<span class="ok">up</span> · <span class="num">{probe.ms} ms</span>{#if probe.ready?.checks} · {Object.entries(probe.ready.checks).map(([k, v]) => `${k} ${v === true ? "ok" : v === false ? "FAIL" : v}`).join(" · ")}{/if}{:else}<span class="warn">{probe?.error ?? "no answer"}</span>{/if}</dd>
   </dl>
   <div class="row" style="margin-top:0.6rem">
