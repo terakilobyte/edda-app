@@ -22,9 +22,22 @@ verdicts live in the CSV headers under `docs/benches/`.
   budget" is answered per plot from here: `edda_route_refined_total`
   and `edda_route_refined_improvement_jumps`; on the box the refinement
   bought 28 jumps on this crossing where the PC matrix said 0-3
-  (`docs/benches/2026-10-07-early-answer-prod.csv`). Open: the client's
-  "Try harder" button and showing the refined route when it lands
-  (Waldorf).
+  (`docs/benches/2026-10-07-early-answer-prod.csv`). Then #212: one
+  rayon pool per long slot, because two crossings sharing one pool
+  early-served at 45 s (the second plot's `install` queued behind the
+  first's 87 variant jobs) — after it 7.3 / 7.5 s for two at once and a
+  third queued 24.9 s for a slot. #217: `/v1/version`, the long budget
+  at 100 s so a dead end answers as the API's own refusal before the
+  120 s cut, and no-route/budget refusals cached 120 s. #219: slot-wait
+  histogram and waiting gauge per lane. Capacity as it stands: two long
+  slots held ~29 s each by a refinement, so about four early answers a
+  minute before a fifth queues; `edda_route_slot_wait_seconds` p95 on
+  the long lane is the signal, and the lever is more slots with fewer
+  threads each or a shorter refinement cap — a ruling when the signal
+  says so. Open: the client's "Try harder" button and showing the
+  refined route when it lands (Waldorf); the planner recognising an
+  unreachable target early (Spaidau AA-A d0: no route in any budget for
+  a 72 ly ship) instead of spending the budget.
 - **The weekly syncs were retired in the repo on 2026-09-09 but ran on
   the box until 2026-10-07** (measured). The box kept the pre-0.3.0
   `edda-weekly.sh`, so every Sunday still pulled Spansh's galaxy_7days
