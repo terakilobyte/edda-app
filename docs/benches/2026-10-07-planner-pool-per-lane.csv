@@ -16,3 +16,9 @@ lanes-3-3,b_short_during_long,Sol->Deciat,200,0.518243,505,5
 lanes-3-3,b_long_with_short,Wongi->Beagle Point,200,25.756888,25746,316
 lanes-3-3,c_two_at_once_1,HIP 90112->Beagle Point,200,45.177248,40728,315
 lanes-3-3,c_two_at_once_2,Sagittarius A*->Beagle Point,200,33.937055,33925,231
+# PRODUCTION after #196 deployed (deploy run 37631467185, 2026-10-07 ~13:55Z, api.edda-app.com, lanes 2/4): the short plot beside a crossing is 1.1 s wall / 507 ms planner (Statler measured 69.8 s and 105 s on the same scenario before the fix); crossings stay at the long lane's 30 s budget until #198's early answer lands.
+prod-after-196,a_alone,Sol->Beagle Point,200,31.891847,30789,317
+prod-after-196,b_short_during_long,Sol->Deciat,200,1.100872,507,5
+prod-after-196,b_long_with_short,Wongi->Beagle Point,200,30.905229,29746,316
+prod-after-196,c_two_at_once_1,HIP 90112->Beagle Point,200,33.689456,32578,341
+prod-after-196,c_two_at_once_2,Sagittarius A*->Beagle Point,200,33.505066,30436,231

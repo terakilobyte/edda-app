@@ -574,6 +574,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   reaches the app log (`main.js` -> `frontend_log`), so a blank tab is
   never silent again. Shipped broken in 0.4.2 and 0.4.3: those days the
   boss flew trade routes and the game-route follower, not the plotter tab.
+- **OPEN: suffix reuse for near-duplicate plots** (2026-10-07, boss,
+  replotting Sol -> Colonia right after HIP 90112 -> Colonia: "a bit
+  surprised it's using the full budget to calculate again. The route is
+  going to have 99% overlap"). The server cache keys on the exact
+  request (index version, from, to, range, fuel model, boost,
+  supercharge, dry-jump cap, weights; 1 h), so a new origin is a search
+  from scratch. Idea: from a cached route to the same destination, plot
+  the short leg to its nearest reachable hop and splice the suffix, as
+  an INSTANT first candidate for the early-answer lane (#198) with the
+  full search refining behind it. Valid only when the ship and the fuel
+  state at the join match the cached plan's; not guaranteed optimal
+  (the best corridor out of a different origin can differ early).
+  Measure before building: spliced vs fresh across the September matrix
+  for a second origin per destination — jumps and time. After the 0.4.4
+  deploy.
 - **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
   post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
   the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"
