@@ -2224,10 +2224,13 @@ pub async fn current_route(state: State<'_, AppState>) -> Result<RouteView, Stri
     // Item 39: fuel icons on the game route mean "you will need fuel by
     // here, and here has it" — computed by the burn model, never implied
     // by mere scoopability. Docks come from one /v1/stations?systems=
-    // call (B.4 gap 3); unanswered means no dock known.
-    let docks = match &dock_query {
-        Some((systems, pad)) if !systems.is_empty() => {
-            crate::remote_lookup::docks_by_systems(&state, systems, *pad).await.unwrap_or_default()
+    // call (B.4 gap 3), remembered until the route or the pad changes:
+    // this command runs on every journal tick from two windows, and the
+    // answer only moves when the route does. Unanswered means no dock known.
+    let docks = match (&route, &dock_query) {
+        (Some(r), Some((systems, pad))) if !systems.is_empty() => {
+            let api = crate::exchange::endpoint(&state);
+            crate::routing::game_route_docks(&state, api.as_deref(), r.plotted.as_deref(), systems, *pad).await
         }
         _ => Default::default(),
     };

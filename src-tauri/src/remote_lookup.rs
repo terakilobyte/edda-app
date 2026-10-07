@@ -26,6 +26,13 @@ pub fn api_down(what: &str) -> CapError {
 /// logged.
 async fn fetch(state: &AppState, what: &'static str, query: &[(&str, String)]) -> Option<Vec<serde_json::Value>> {
     let api = crate::exchange::endpoint(state)?;
+    fetch_from(state, &api, what, query).await
+}
+
+/// [`fetch`] against a given server: the memoised dock lookup names the
+/// endpoint itself so a test can count requests at a loopback stub
+/// without touching `EDDA_API_URL`, which another test already sets.
+async fn fetch_from(state: &AppState, api: &str, what: &'static str, query: &[(&str, String)]) -> Option<Vec<serde_json::Value>> {
     let started = std::time::Instant::now();
     let response = state
         .http
@@ -508,10 +515,17 @@ pub fn nearest_refuel_blocking(state: &AppState, system: &str, pad: ed_store::lo
 /// call. Lower-cased system names. `None` when any call went unanswered
 /// - callers treat that as "no dock known" and warn rather than guess.
 pub async fn docks_by_systems(state: &AppState, systems: &[String], pad: ed_store::lookup::PadSize) -> Option<std::collections::HashSet<String>> {
+    let api = crate::exchange::endpoint(state)?;
+    docks_by_systems_from(state, &api, systems, pad).await
+}
+
+/// [`docks_by_systems`] against a given server.
+pub async fn docks_by_systems_from(state: &AppState, api: &str, systems: &[String], pad: ed_store::lookup::PadSize) -> Option<std::collections::HashSet<String>> {
     let mut docks = std::collections::HashSet::new();
     for chunk in systems.chunks(200) {
-        let rows = fetch(
+        let rows = fetch_from(
             state,
+            api,
             "systems",
             &[
                 ("systems", chunk.join(",")),

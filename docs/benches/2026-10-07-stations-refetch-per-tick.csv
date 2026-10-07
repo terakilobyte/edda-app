@@ -1,0 +1,15 @@
+# VERDICT: one flying pilot with a 91-system game route made the API answer the same /v1/stations?systems= question about twice a second for 19 minutes — 526 "stations served" lines in the box log 18:17:48-18:36:41Z, 432 of them mode=systems hits=91 (one route), 74 mode=systems hits=37 (a second route), 261 inter-call gaps under 0.1 s (two windows asking at once), the rest ~1 s apart (the Status.json tick in flight). Cause: `current_route` (src-tauri/src/commands.rs) calls docks_by_systems on every invocation, and both the HUD overlay window (Overlay.svelte) and the Ship panel (StatusPanel.svelte) invoke it inside journalResource, which re-runs on every journal-changed — in flight that is every Status snapshot. Per call the server spent 4-5 ms (p95 10 ms over the hour), so the box did not notice; the cost is 2 req/s per flying pilot, growing with users, for an answer that only changes when the route or the pad does. Fix (this PR): memoise the dock set in AppState keyed by (plotted timestamp, ordered hops, pad); a miss fetches once, an unanswered fetch is not remembered. Pre-registered expectation: after the fix a pilot on one route costs one systems= call per plot (plus one per unanswered tick while the server is down), not one per tick per window; verified in the unit test (two reads, one request) and to be re-read from the box log once a client carrying the fix is flying — the two windows still each run the command per tick, but the second one hits the memo. Waldorf's further lever (gating the frontend refresh on NavRoute/FSDJump/Docked) is not taken: the fuel marks depend on the tank now, which moves every tick, and the per-tick command is local SQLite once the HTTP is gone.
+# box edda-api journal, 2026-10-07 18:17:48Z-18:36:41Z; grouped by (mode,hits); gaps between consecutive "stations served" lines
+mode,hits,calls,note
+systems,91,432,one game route; identical query every time
+systems,37,74,a second (shorter) route
+systems,1,16,
+system,100,1,a single-system lookup (Stations tab)
+system,67,1,
+system,38,1,
+system,1,1,
+gap_s,count,,
+0.0,261,,two windows asking within 100 ms of each other
+1.0,77,,the in-flight Status tick
+0.5-0.9,41,,
+2.0-3.0,22,,

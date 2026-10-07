@@ -493,6 +493,26 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **The game route's dock lookup is remembered until the route changes**
+  (2026-10-07, launch night). Measured from the box log while one Reddit
+  pilot flew: 526 `stations served` lines in 19 minutes, 432 of them the
+  same `systems=` question for the same 91-hop route, 261 pairs under
+  100 ms apart — the HUD window and the Ship panel each re-read
+  `current_route` on every Status.json tick in flight, and every read
+  asked the API for the docks again. 4-5 ms a call, so the box did not
+  notice; 2 req/s per flying pilot, for an answer that only moves when
+  the route or the pad does. Now: `DockMemo` in `AppState`, keyed by
+  (plotted timestamp, ordered hops, pad); a miss fetches once, an
+  unanswered fetch is not remembered; the key is the whole route so a
+  jump is not a miss. Test: two reads of one route reach a counting
+  loopback stub once (fails with 2 on the old path), a re-plot asks
+  again, a server that did not answer is asked again. Not taken: gating
+  the frontend refresh on NavRoute/FSDJump/Docked (Waldorf's suggestion)
+  — the fuel marks depend on the tank now, which moves every tick, and
+  the per-tick command is local once the HTTP is gone; and a shared
+  frontend store, since the two callers live in two webview windows.
+  `docs/benches/2026-10-07-stations-refetch-per-tick.csv`. To re-read
+  from the box log once a client carrying this is flying.
 - **The highway sub-index is built before a routing version is published**
   (2026-09-21, maintainer: "why the hell did a plot from the bubble to
   colonia in my explorer just recommend 310 jumps? replotting showed a
