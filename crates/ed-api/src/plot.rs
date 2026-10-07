@@ -372,11 +372,74 @@ impl Gate {
     }
 }
 
-/// The endpoint's shared state: one gate per lane, cache, and the plot
-/// itself.
+/// Planner threads per lane (default split of the box's cores − 2 = 6).
+/// Measured 2026-10-07 (docs/benches/2026-10-07-route-latency-prod.csv):
+/// with ONE pool, a crossing's 22 variants fill every worker and an
+/// interactive plot's own fan-out queues behind them — Sol → Alioth,
+/// 70 ms alone, took 70 s and 105 s beside a Beagle Point plot with two
+/// cores idle. The gates size admission; these size the work.
+pub const INTERACTIVE_THREADS: usize = 2;
+pub const LONG_THREADS: usize = 4;
+
+/// A rayon pool per lane. `install()` around the plot makes every
+/// `par_iter` inside the planner run on that lane's workers, so a
+/// crossing can only ever slow another crossing.
+pub struct Pools {
+    interactive: rayon::ThreadPool,
+    long: rayon::ThreadPool,
+}
+
+impl Pools {
+    pub fn new(interactive: usize, long: usize) -> anyhow::Result<Self> {
+        let build = |lane: &'static str, n: usize| {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(n.max(1))
+                .thread_name(move |i| format!("planner-{lane}-{i}"))
+                .start_handler(|_| planner_thread_start())
+                .build()
+        };
+        Ok(Pools { interactive: build("interactive", interactive)?, long: build("long", long)? })
+    }
+    pub fn threads(&self, lane: Lane) -> usize {
+        self.pool(lane).current_num_threads()
+    }
+    fn pool(&self, lane: Lane) -> &rayon::ThreadPool {
+        match lane {
+            Lane::Interactive => &self.interactive,
+            Lane::Long => &self.long,
+        }
+    }
+}
+
+/// Planner workers run at nice +10 so a two-minute plot never starves
+/// the ingest or a trade search (load bench 2026-09-07).
+fn planner_thread_start() {
+    #[cfg(target_os = "linux")]
+    // SAFETY: plain libc call on the calling thread's own id.
+    unsafe {
+        libc::setpriority(libc::PRIO_PROCESS, libc::gettid() as libc::id_t, 10);
+    }
+}
+
+/// Set when the request that asked for a plot is gone — the client
+/// closed the connection or Caddy gave up at 120 s — so the planner's
+/// cancel check stops the variants instead of running them to the
+/// budget for nobody (measured: a 504'd crossing kept six workers at
+/// 75 % for the remaining ~30 s of its budget).
+struct CancelOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// The endpoint's shared state: one gate per lane, a pool per lane, the
+/// cache, and the plot itself.
 pub struct RouteService {
     interactive: Gate,
     long: Gate,
+    pools: Pools,
     cache: Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>)>>,
 }
 
@@ -399,10 +462,13 @@ impl Default for RouteService {
         let interactive_queue = env("EDDA_API_PLOT_QUEUE", INTERACTIVE_QUEUE);
         let long = env("EDDA_API_PLOT_LONG_CONCURRENCY", LONG_CONCURRENCY);
         let long_queue = env("EDDA_API_PLOT_LONG_QUEUE", LONG_QUEUE);
-        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, "plot gates sized");
+        let threads_i = env("EDDA_API_PLANNER_THREADS_INTERACTIVE", INTERACTIVE_THREADS);
+        let threads_l = env("EDDA_API_PLANNER_THREADS_LONG", LONG_THREADS);
+        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, "plot gates and pools sized");
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
+            pools: Pools::new(threads_i, threads_l).expect("planner pools build"),
             cache: Mutex::new(HashMap::new()),
         }
     }
@@ -420,6 +486,11 @@ impl RouteService {
     /// left right now.
     pub fn room(&self, lane: Lane) -> usize {
         self.gate(lane).queue.available_permits()
+    }
+
+    /// For tests and the startup log: a lane's planner threads.
+    pub fn threads(&self, lane: Lane) -> usize {
+        self.pools.threads(lane)
     }
 }
 
@@ -482,8 +553,28 @@ impl RouteService {
         let galaxy = std::sync::Arc::clone(&handle.galaxy);
         let neutrons = handle.neutrons.clone();
         let wants_boost = req.supercharge;
+        let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Held across the await: if this future is dropped (the client
+        // went away), the flag is set and the planner stops.
+        let _guard = CancelOnDrop(std::sync::Arc::clone(&gone));
+        let lane_name = lane.as_str();
+        let pool: &'static rayon::ThreadPool = unsafe {
+            // SAFETY: `RouteService` lives in the `AppState` Arc for the
+            // process's whole life (http.rs); the blocking task below
+            // only borrows the pool for the plot's duration, and
+            // `spawn_blocking` needs 'static.
+            &*(self.pools.pool(lane) as *const rayon::ThreadPool)
+        };
         let outcome = tokio::task::spawn_blocking(move || {
-            ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &Control::none())
+            let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
+            let none = Control::none();
+            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, trace: none.trace };
+            let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            if matches!(r, Err(RouteError::Cancelled)) {
+                metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
+                tracing::info!(lane = lane_name, "route plot stopped: the client was gone");
+            }
+            r
         })
         .await
         .map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?;
@@ -819,6 +910,47 @@ mod endpoint_tests {
             max_dry_jumps: None, weight: None, stop_weight: None, thorough: None,
             from_coords: None, to_coords: None,
         }
+    }
+
+    /// Each lane has its own planner pool, sized from the constants (or
+    /// the env knobs), so a crossing's variants cannot occupy an
+    /// interactive plot's workers.
+    #[test]
+    fn each_lane_plans_on_its_own_pool() {
+        let service = RouteService::default();
+        assert_eq!(service.threads(Lane::Interactive), INTERACTIVE_THREADS);
+        assert_eq!(service.threads(Lane::Long), LONG_THREADS);
+        let pools = Pools::new(1, 3).unwrap();
+        assert_eq!((pools.threads(Lane::Interactive), pools.threads(Lane::Long)), (1, 3));
+        // The two pools are distinct: work installed on one runs on its
+        // own named threads.
+        let name = pools.pool(Lane::Long).install(|| std::thread::current().name().map(str::to_owned));
+        assert!(name.as_deref().is_some_and(|n| n.starts_with("planner-long-")), "{name:?}");
+        let name = pools.pool(Lane::Interactive).install(|| std::thread::current().name().map(str::to_owned));
+        assert!(name.as_deref().is_some_and(|n| n.starts_with("planner-interactive-")), "{name:?}");
+    }
+
+    /// Dropping the request's guard tells the planner to stop: the flag
+    /// flips, and a plot checking it comes back Cancelled instead of
+    /// running to its budget.
+    #[test]
+    fn a_dropped_request_cancels_its_plot() {
+        let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        {
+            let _guard = CancelOnDrop(std::sync::Arc::clone(&gone));
+            assert!(!gone.load(std::sync::atomic::Ordering::Relaxed));
+        }
+        assert!(gone.load(std::sync::atomic::Ordering::Relaxed), "the guard's drop sets the flag");
+        let (_d, g) = tiny_galaxy();
+        let (sol, far) = (g.find("Sol").unwrap(), g.find("Farther").unwrap());
+        let Resolved { mut req, .. } =
+            resolve_endpoints(&g, &api("Sol", "Farther", 35.0), Endpoint::Indexed(sol), Endpoint::Indexed(far)).unwrap();
+        req.time_budget_ms = 10_000;
+        let cancelled = || gone.load(std::sync::atomic::Ordering::Relaxed);
+        let none = Control::none();
+        let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, trace: none.trace };
+        let r = ed_galaxy::long_range::plan_best(&g, None, &req, &ctl);
+        assert!(matches!(r, Err(RouteError::Cancelled)), "a plot whose request is gone stops: {r:?}");
     }
 
     /// The maintainer's scenario: a system the index does not hold, known by

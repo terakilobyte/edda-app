@@ -134,9 +134,11 @@ async fn serve(config: ServiceConfig) -> Result<()> {
     // pool ran every core at normal priority, so two fanning plots read
     // 99.5 % CPU and a 253 ms trade search waited 15 s for a core (load
     // bench, API-only spec Phase A step 1).
+    // Since 2026-10-07 each lane plans on its own pool (plot.rs `Pools`);
+    // the global pool below is for anything that is not a plot.
     let planner_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).saturating_sub(2).max(1);
     ed_galaxy::init_thread_pool(planner_thread_start);
-    tracing::info!(threads = planner_threads, nice = 10, "planner pool sized");
+    tracing::info!(threads = planner_threads, nice = 10, "global planner pool sized");
     // The recorder goes in before anything can emit; every counter
     // fired earlier would vanish into the pre-recorder void.
     let metrics_handle = ed_api::metrics::install()?;

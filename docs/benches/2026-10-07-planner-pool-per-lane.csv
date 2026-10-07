@@ -1,0 +1,18 @@
+# VERDICT: the per-lane planner pool (PR #196) fixes the starvation. Pre-registered: (b) a short plot started 15 s into a crossing drops from tens of seconds to under 1 s on #196; (a) a crossing alone slows by the fan-out's share. Measured: (b) 12.8 s on main's shared 6-thread pool -> 0.50 s with lanes 2/4 and 0.51 s with 3/3 -- CONFIRMED. (a) Sol->Beagle Point alone 37.0 s on main -> 30.0 s (2/4) / 29.6 s (3/3): the crossing got FASTER, not slower (the shared pool was also fighting the runtime; the long lane's own 4 threads do the same work in less wall time), so the second pre-registration was wrong in the good direction. (c) two crossings at once: main 39.4 / 39.3 s; lanes 2/4 30.3 / 30.3 s; lanes 3/3 45.2 / 33.9 s (one queued 4.5 s behind the other and then overshot the budget to 40.7 s of planner time) -- 2/4 beats 3/3 for the long lane and is the setting to ship. Second finding, from the new per-plot log line #196 adds: a crossing on the server ALWAYS runs to the long lane's 30 s budget (BUDGET_MS) -- "variants 17/87", 16/87, 12/87: the portfolio has 87 variants here and fills whatever budget it is given, which is why every Beagle Point plot the boss made took 30-50 s whatever else was happening. The latency he calls unacceptable is a budget choice, not a defect: the lever is an interactive crossing answer (first good route early, refinement behind "Try harder"), which is the boss's open ruling. Deploy needs his go.
+# 2026-10-07 03:38-03:44Z, boss's PC (24 threads) running ed-api in WSL against elite-copilot/.data/api/artifacts (routing/51 + .highway/51), DB edda_mirror; arm = a fresh server process per arm on port 8790 (route cache empty; every crossing has its own origin). main-shared-6 = origin/main c973d20 built from the main tree with RAYON_NUM_THREADS=6 (the box's 6-thread pool); lanes-2-4 / lanes-3-3 = PR #196 (api/planner-pool-per-lane) with EDDA_API_PLANNER_THREADS_INTERACTIVE/_LONG. Requests: range_ly 72.2 (crossings, supercharge) or 30 (Sol->Deciat), no ship profile. client_wall_s from curl; elapsed_ms from the answer. Knobs: docs/benches/knobs/route_pool_ab.sh (scenarios) and route_pool_ab_arm.sh (one arm).
+arm,scenario,request,http,client_wall_s,elapsed_ms,jumps
+main-shared-6,a_alone,Sol->Beagle Point,200,37.002212,36981,317
+main-shared-6,b_short_during_long,Sol->Deciat,200,12.820448,12790,5
+main-shared-6,b_long_with_short,Wongi->Beagle Point,200,31.520695,31504,316
+main-shared-6,c_two_at_once_1,HIP 90112->Beagle Point,200,39.376921,39315,315
+main-shared-6,c_two_at_once_2,Sagittarius A*->Beagle Point,200,39.267199,39244,240
+lanes-2-4,a_alone,Sol->Beagle Point,200,30.050586,30035,317
+lanes-2-4,b_short_during_long,Sol->Deciat,200,0.515240,504,5
+lanes-2-4,b_long_with_short,Wongi->Beagle Point,200,25.991334,25977,316
+lanes-2-4,c_two_at_once_1,HIP 90112->Beagle Point,200,30.290217,25852,315
+lanes-2-4,c_two_at_once_2,Sagittarius A*->Beagle Point,200,30.294583,30283,249
+lanes-3-3,a_alone,Sol->Beagle Point,200,29.612317,29599,317
+lanes-3-3,b_short_during_long,Sol->Deciat,200,0.518243,505,5
+lanes-3-3,b_long_with_short,Wongi->Beagle Point,200,25.756888,25746,316
+lanes-3-3,c_two_at_once_1,HIP 90112->Beagle Point,200,45.177248,40728,315
+lanes-3-3,c_two_at_once_2,Sagittarius A*->Beagle Point,200,33.937055,33925,231
