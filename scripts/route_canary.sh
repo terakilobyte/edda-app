@@ -10,12 +10,13 @@
 #   scripts/route_canary.sh [api_base]
 #
 # Bounds are the measured baseline with headroom, not the target: Sol ->
-# Colonia answered in 0.96-2.0 s on 2026-10-06/07; Sol -> Beagle Point is
-# the long lane's full budget today (see docs/benches/2026-10-07-route-latency-prod.csv)
-# and its bound tightens when the interactive-lane ruling ships.
+# Colonia answered in 0.96-2.0 s on 2026-10-06/07; since the early answer
+# (#198) a crossing answers at first-found + 5 s grace, ~7-8 s on the box
+# for Sol -> Beagle Point at range 72 (a real explorer; at range 50 the
+# crossing never finished a variant in budget and was always red).
 set -uo pipefail
 API="${1:-https://api.edda-app.com}"
-range="50.$(date -u +%M)"
+range="72.$(date -u +%M)"
 red=0
 plot() { # name from to bound_s
     local name="$1" from="$2" to="$3" bound="$4" out t0 t1 secs code
@@ -37,6 +38,6 @@ PY
     rm -f "$out"
 }
 plot "Sol -> Alioth (interactive)"      "Sol" "Alioth"       5
-plot "Sol -> Colonia (long)"            "Sol" "Colonia"      15
-plot "Sol -> Beagle Point (long)"       "Sol" "Beagle Point" 150
+plot "Sol -> Colonia (long)"            "Sol" "Colonia"      10
+plot "Sol -> Beagle Point (long)"       "Sol" "Beagle Point" 30
 exit $red
