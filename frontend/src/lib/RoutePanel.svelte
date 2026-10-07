@@ -15,6 +15,7 @@
   import { carrierRoute, start as startCarrierRoute, stop as stopCarrierRoute, plotCarrier, followCarrier, nextCarrierJump, clearCarrier } from "./carrierRoute.svelte.js";
   import { CARRIER_ROUTING } from "./flags.js";
   import { routing, setRoute, runPlot, stopPlot, tryHarder, plotStatusLine, plotDetailLine, importSpansh } from "./route.svelte.js";
+  import Place from "./Place.svelte";
   import { follow, followShownRoute, stopFollowing, targetNext } from "./follow.svelte.js";
   import { ship } from "./ship.svelte.js";
 
