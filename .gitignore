@@ -49,3 +49,7 @@ docs/benches/flamegraphs/runs/**/*.svg
 
 # local flight builds (scripts/release-app.ps1 -ArtifactDir .flight); never committed
 .flight/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

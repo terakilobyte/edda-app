@@ -173,6 +173,12 @@ jobs:
           npm ci
           npx vitest run
 
+      - name: Frontend in a real browser (Playwright)
+        if: runner.os == 'Linux'
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
       - name: Rust tests
         run: cargo test --workspace
       # The launch harness release.yml relies on, proven on every PR with the

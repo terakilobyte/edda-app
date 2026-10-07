@@ -11,15 +11,17 @@ critique pass; use it after the project skill, never instead of it.
 
 Working rules, in order:
 
-1. Measure first. Render the page or panel as it is (headless Chrome via
-   `scripts/render.sh`, or the `run` skill for the dev app) and keep the
-   image. Read the roadmap entry or release note the change answers.
+1. Measure first. See the page or panel as it is: the Playwright MCP
+   browser against the dev server (`/?transport=fake`) or the site, or
+   `scripts/render.sh` for a static render, and keep the image. Read the
+   roadmap entry or release note the change answers.
 2. Change the smallest thing that fixes it. Tokens, not hex. Copy in the
    maintainer's voice; every number traced to `docs/benches/` or a
    release note and named in the PR.
 3. Render after. Crop the region that moved. The pair goes in the PR.
-4. Gates: `cd frontend && npx vitest run && npx vite build` for the app;
-   for the site, render every page you touched. A Svelte a11y warning
+4. Gates: `cd frontend && npx vitest run && npx vite build && npx
+   playwright test`; a new panel gets a Playwright test that renders it
+   with a fixture answer, the way `e2e/route-tab.spec.js` does. A Svelte a11y warning
    fails the build on purpose; fix the markup, do not silence it.
 5. Work in a git worktree with its own `CARGO_TARGET_DIR`; never edit the
    main tree (it restarts the maintainer's dev app). Open a PR; do not

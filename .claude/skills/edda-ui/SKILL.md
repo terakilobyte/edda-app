@@ -17,10 +17,12 @@ change ships with a picture. Full conventions: [REFERENCE.md](REFERENCE.md).
    value that is not a token.
 2. Make the change in a worktree with its own `CARGO_TARGET_DIR` (edits to
    the main tree restart the maintainer's dev app).
-3. Render before and after and keep both images:
-   `scripts/render.sh <url-or-html-file> <out.png>` (headless Chrome,
-   1232 px wide; it serves a local file itself, because the browser
-   extension cannot open file:// or localhost).
+3. See it in a real browser. `cd frontend && npx playwright test` runs
+   the app on the fake transport (`/?transport=fake`, fixtures in
+   `src/lib/browserTransport.js`) and the website, with screenshots in
+   `test-results/`; the Playwright MCP server (`.mcp.json`) gives an
+   agent the same browser to click through. `scripts/render.sh` is the
+   quick static render when a test is too much.
 4. Run the gates: `cd frontend && npx vitest run && npx vite build`. The
    contract test fails on any `api.js` command that is imported but not
    exported; the build fails on a Svelte a11y warning. Both are meant to.
