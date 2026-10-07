@@ -267,9 +267,22 @@ jobs:
           host_key: ${{ vars.DEPLOY_HOST_KEY }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: ed-api → box (restart, readyz, ANALYZE)
+      - name: ed-api → box (restart, readyz, ANALYZE) — unless main's server is newer
         run: |
           set -euo pipefail
+          # The release builds the server from the TAG. If main already
+          # carries server changes past the tag, that build is older than
+          # what is on the box, and installing it is a downgrade: v0.4.4
+          # (61454b0) put the pre-#207 early-answer server back on prod
+          # for several minutes until a redeploy from main (2026-10-07).
+          # Server paths ahead on main → skip; the app, site and
+          # dashboards still publish from the tag.
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet HEAD origin/main -- crates deploy Cargo.toml Cargo.lock; then
+            echo "::notice::main is ahead of this tag in server paths; the tag's ed-api is not deployed (prod keeps main's build)."
+            git diff --stat HEAD origin/main -- crates deploy Cargo.toml Cargo.lock | tail -5
+            exit 0
+          fi
           rsync -a artifacts/ed-api/ed-api box:ed-api
           ssh box apply api
 
