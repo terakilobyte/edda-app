@@ -606,6 +606,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   Measure before building: spliced vs fresh across the September matrix
   for a second origin per destination — jumps and time. After the 0.4.4
   deploy.
+- **Routing night, closed by measurement** (2026-10-07 15:48Z). Four
+  server changes landed and were measured on production in turn:
+  #196 pool per lane (a short plot beside a crossing 100 s -> 0.5 s),
+  #198 early answer (a crossing 31 s -> 7 s, refined route in the cache
+  behind it), #207 slot held through the refinement (which exposed the
+  one-pool serialisation: two crossings 45 s, a third 90 s), #212 pool
+  per long slot (two crossings 7.0 s and 17.2 s, a third 25.7 s queued
+  for a slot; refined replot 342 -> 316 jumps in 29 s). Client: Stop
+  cancels an API plot, the Route tab renders again (blank since 0.4.2),
+  no gateway retry on a plot. Rows: `2026-10-07-planner-pool-per-lane.csv`,
+  `2026-10-07-early-answer-prod.csv`. Still to land: a fast "no route"
+  for a dead-end target (Spaidau AA-A d0 has none within 300 s from Sol
+  either), the long planner budget under the gateway's 120 s, and
+  /v1/version so Settings can show which server build answers.
 - **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
   post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
   the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"

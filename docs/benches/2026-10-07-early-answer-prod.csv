@@ -26,3 +26,11 @@ after207,c_two_at_once_1,Orrere->Beagle Point,200,44.892548,1219,357,true,false
 after207,c_two_at_once_2,Leesti->Beagle Point,200,45.251106,3768,352,true,false
 after207,d_third_10s_in,Zaonce->Beagle Point,200,89.868093,1177,342,true,false
 after207,interactive_after,Sol->Deciat,200,1.079840,505,5,false,false
+# AFTER #212 (pool per long slot; deploy-api run 37645741421 green 15:42:06Z; measured 15:43-15:48Z from the boss's PC, fresh origins, range 72.2): a short plot beside a crossing 0.58 s; a lone crossing early-serves in 7.3 s; two crossings at once 7.0 s and 17.2 s (the second waited for the slot the earlier crossing's refinement still held); a third started 10 s in 25.7 s (queued for a slot, as designed) -- against 44.9 / 45.3 / 89.9 s after #207 and 39 s each on #196 alone. The refined route lands: the first crossing replotted ~100 s later is cached, refining:false, 316 jumps (early 342), planner 29.0 s. Interactive lane 1.07 s throughout. Concurrency now behaves as designed: two long slots each answer early when free; extras queue for a slot rather than slowing everyone. Columns as below.
+after212,b_short_during_long,Sol->Barnard's Star,200,0.578096,0,1,false,false
+after212,b_long_with_short,Reorte->Beagle Point,200,7.268958,1180,342,true,false
+after212,c_two_at_once_1,Riedquat->Beagle Point,200,7.018680,1294,357,true,false
+after212,c_two_at_once_2,Isinor->Beagle Point,200,17.174812,3697,351,true,false
+after212,d_third_10s_in,Tiliala->Beagle Point,200,25.705661,1668,343,true,false
+after212,b_long_refined_replot,Reorte->Beagle Point,200,1.110512,29046,316,false,true
+after212,interactive_after,Sol->Deciat,200,1.073649,504,5,false,false
