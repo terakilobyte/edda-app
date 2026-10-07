@@ -2626,6 +2626,20 @@ pub struct CalloutKind {
     pub on: bool,
 }
 
+/// A line from the webview into the app log (target `frontend`): what the
+/// Route tab saw when a plot rejected, which the Rust log alone could not
+/// say on 2026-10-07 ("route planned by API" was logged; the tab showed a
+/// failure). Levels: "warn" or "info"; anything else is info.
+#[tauri::command]
+pub async fn frontend_log(level: String, message: String) {
+    let message: String = message.chars().take(2000).collect();
+    if level.eq_ignore_ascii_case("warn") {
+        tracing::warn!(target: "frontend", %message, "frontend");
+    } else {
+        tracing::info!(target: "frontend", %message, "frontend");
+    }
+}
+
 pub const CALLOUT_KINDS: &[(&str, &str)] = &[
     ("greeting", "Greeting on start"),
     ("hazard", "Hazards: neutron star and white dwarf caution"),

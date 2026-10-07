@@ -522,6 +522,7 @@ pub fn run() {
             commands::get_status,
             eval::ai_eval,
             commands::get_inventory,
+            commands::frontend_log,
             mat_trader::material_trade_plan,
             mat_trader::material_grid,
             commands::list_commodities,

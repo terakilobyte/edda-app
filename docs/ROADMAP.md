@@ -527,6 +527,28 @@ verdicts live in the CSV headers under `docs/benches/`.
   second source; the game's login `Materials` snapshot is the only
   resync. The Inventory tab now says when the game last verified the
   counts and that shared-mission rewards show after a relog.
+- **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
+  post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
+  the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"
+  — the log says the API answered it in 2.0 s with 92 hops; "we can
+  NEVER have this happen again"; the post is held, Statler enlisted for
+  the server half). Measured: the API is healthy (/healthz 0.57 s,
+  Sol->Alioth 0.6 s); a galaxy crossing costs the planner itself ~14 s
+  on the boss's PC and 31-50 s on the box. The suspected cause — the
+  server's highway sub-index carries no graph250.bin / alt250.bin — was
+  pre-registered as a 3x win and measured NEGATIVE
+  (`docs/benches/2026-10-07-highway-sidecars-crossing.csv`): 14.5 s
+  without, 14.2 s with, the 2026-09 sidecar comment stands. The cost is
+  the portfolio (22 variants to completion). Client fixes landed: Stop
+  now cancels an API plot (the token raced against the request; until
+  tonight only the local planner read it); the in-game plotter arm no
+  longer writes its failure into the plot's error slot; every plot the
+  tab rejects is written to the app log (`frontend_log`, target
+  `frontend`) so the next "it just failed" has evidence. OPEN: why the
+  tab showed the Colonia plot as failed — unreproduced; the new log line
+  will say. OPEN (boss ruling needed): what crossing latency is
+  acceptable, and whether the interactive lane should answer with the
+  first good route in a few seconds and refine behind "Try harder".
 - **Mission material rewards never reached the inventory** (2026-10-06,
   boss: "I don't know if our materials are updating in real time").
   Measured: a replay of the journal since the login snapshot against the

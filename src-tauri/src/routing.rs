@@ -1124,6 +1124,9 @@ pub(crate) async fn plot_for_trade(app: AppHandle, dest: String, cargo_t: Option
 /// retrying? and why did it fail then succeed?").
 #[derive(Debug)]
 enum PlotFailure {
+    /// The commander pressed Stop while the route server was working.
+    /// Not a failure to recover from: no bubble-index fallback, no retry.
+    Stopped,
     Transport(String),
     Refused(String),
 }
@@ -1132,11 +1135,12 @@ impl PlotFailure {
     fn text(&self) -> &str {
         match self {
             PlotFailure::Transport(t) | PlotFailure::Refused(t) => t,
+            PlotFailure::Stopped => "Plot stopped.",
         }
     }
 }
 
-async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::router::Route, PlotFailure> {
+async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::sync::CancellationToken) -> Result<ed_galaxy::router::Route, PlotFailure> {
     let api = crate::exchange::endpoint(state)
         .ok_or_else(|| PlotFailure::Refused("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there".into()))?;
     let (here, ship) = state.with_read(|s| {
@@ -1189,7 +1193,7 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
     // the request did not already carry, plus three numbers.
     let mut retried_with_coords = false;
     loop {
-        let response = state
+        let request = state
             .http
             .post(format!("{api}/v1/route"))
             .json(&body)
@@ -1198,9 +1202,19 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery) -> Result<ed_galaxy::
             // transit. At 40 s the client gave up on plots the server
             // was still going to answer (the assistant session, 2026-09-09).
             .timeout(std::time::Duration::from_secs(130))
-            .send_api()
-            .await
-            .map_err(|error| PlotFailure::Transport(format!("route server unreachable: {error}")))?;
+            .send_api();
+        // Stop races the request: the commander's press wins at once, and
+        // the server's answer, if it still comes, is dropped with the future.
+        let response = tokio::select! {
+            // Stop wins whenever both are ready: a press is a decision,
+            // whatever the server was about to say.
+            biased;
+            _ = cancel.cancelled() => {
+                tracing::info!(to = %query.to, ms = started.elapsed().as_millis() as u64, "plot stopped while the route server was working");
+                return Err(PlotFailure::Stopped);
+            }
+            r = request => r.map_err(|error| PlotFailure::Transport(format!("route server unreachable: {error}")))?,
+        };
         let status = response.status();
         let ms = started.elapsed().as_millis() as u64;
         if status.as_u16() == 429 {
@@ -1297,8 +1311,14 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     // the server's full-galaxy index. When the server does not answer,
     // the bundled bubble index plots what it can (the inhabited galaxy)
     // and says why that is all it can do.
-    let remote = match plot_via_api(state, &query).await {
+    // One token for the whole plot: the Route tab's Stop cancels it, and
+    // until 2026-10-07 only the local planner looked at it -- an API plot
+    // ran on for its full 35-50 s (the boss, HIP 90112 -> Beagle Point:
+    // "stop button isn't working").
+    let cancel = state.jobs.begin(crate::jobs::ROUTE_PLOT);
+    let remote = match plot_via_api(state, &query, &cancel).await {
         Ok(route) => return Ok(route),
+        Err(PlotFailure::Stopped) => return Err(PlotFailure::Stopped.text().to_string()),
         Err(failure) => failure,
     };
     let transient = matches!(remote, PlotFailure::Transport(_));
@@ -2090,5 +2110,34 @@ mod scoop_rate_tests {
         }]});
         let rate = super::loadout_scoop_rate_t_per_s(&other_mod).unwrap();
         assert!((rate - 1.245).abs() < 1e-4, "stock fallback: {rate}");
+    }
+}
+
+#[cfg(test)]
+mod stop_tests {
+    /// Stop pressed before the server answers: the plot returns "Plot
+    /// stopped." at once, no 130 s wait, no bubble-index fallback. The
+    /// API address is a port nothing listens on, so without the token the
+    /// request would sit in connect until its timeout.
+    #[test]
+    fn a_stopped_api_plot_returns_at_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        // Under test the endpoint comes from EDDA_API_URL alone (exchange.rs):
+        // a port nothing listens on, so a request would fail or hang, never answer.
+        std::env::set_var("EDDA_API_URL", "http://127.0.0.1:9");
+        let stopped = tauri::async_runtime::block_on(async {
+            let cancel = state.jobs.begin(crate::jobs::ROUTE_PLOT);
+            cancel.cancel();
+            let query: super::PlotQuery = serde_json::from_value(serde_json::json!({ "from": "Sol", "to": "Colonia", "range_ly": 30.0, "supercharge": true, "fuel": false })).unwrap();
+            let started = std::time::Instant::now();
+            let result = super::plot_via_api(&state, &query, &cancel).await;
+            let text = result.as_ref().map(|_| "a route".to_string()).unwrap_or_else(|e| e.text().to_string());
+            (matches!(result, Err(super::PlotFailure::Stopped)), started.elapsed(), text)
+        });
+        std::env::remove_var("EDDA_API_URL");
+        let (stopped, elapsed, text) = (stopped.0, stopped.1, stopped.2);
+        assert!(stopped, "a cancelled token stops the plot before the request is waited on; got: {text}");
+        assert!(elapsed < std::time::Duration::from_secs(5), "returned at once, not after the request timeout");
     }
 }

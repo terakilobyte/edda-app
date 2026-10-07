@@ -3,7 +3,7 @@
 // plot_route tool, or requested from other tabs ("route me to this trader").
 //
 // Nothing here talks to the backend until `start()`; `stop()` undoes it.
-import { plotRoute, cancelRoute, onRouteProgress, onRouteCandidate, onRouteReplanned, personas, importSpanshRoute } from "./api.js";
+import { plotRoute, cancelRoute, onRouteProgress, onRouteCandidate, onRouteReplanned, personas, importSpanshRoute, frontendLog } from "./api.js";
 import { linePool } from "./loadingLines.js";
 
 export const routing = $state({
@@ -120,8 +120,12 @@ export async function runPlot(query) {
   try {
     const route = await plotRoute(query);
     setRoute(route, "tab", query.from ?? "", query.to ?? "");
+    frontendLog("info", `plot shown: ${route.jumps} jumps to ${query.to ?? ""} in ${Date.now() - routing.startedAt} ms`).catch(() => {});
   } catch (e) {
     routing.error = String(e);
+    // The app log must say what the tab saw (2026-10-07: "route planned by
+    // API" in the log, a failure on the tab, and nothing in between).
+    frontendLog("warn", `plot rejected after ${Date.now() - routing.startedAt} ms: ${String(e)}`).catch(() => {});
   } finally {
     routing.loading = false;
     routing.best = null; routing.candidates = [];
@@ -148,6 +152,7 @@ export async function tryHarder() {
     }
   } catch (e) {
     routing.error = String(e);
+    frontendLog("warn", `thorough plot rejected: ${String(e)}`).catch(() => {});
   } finally {
     routing.loading = false; routing.triedHarder = true;
     routing.best = null; routing.candidates = [];
