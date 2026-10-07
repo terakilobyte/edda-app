@@ -1,0 +1,15 @@
+# VERDICT: NEGATIVE -- the highway sub-index's graph250.bin + alt250.bin sidecars do NOT make a galaxy crossing faster. Pre-registered expectation (from the 2026-09-01 sweep2->sweep3 step, 53 s -> 18 s on Wongi->Beagle): a ~3x cut. Measured: Sol->Beagle Point 14,544 ms without them, 14,232 ms with them (196 vs 202 jumps; 6 fewer); Wongi->Beagle 14,468 -> 13,189 ms; Sol->Colonia 937 -> 1,060 ms. Switching ALT or the goal field off again moves nothing outside noise (13.1-16.6 s). The crossing's cost is the portfolio planner itself (22 variants run to completion, "variants 22/22"), ~14 s on the boss's PC; the production box answered the same crossing in 31-50 s, i.e. its slower core, not a missing file. The server's sub-index (agg250.bin only, as import::subset_cells_cancellable writes it) is therefore NOT the fault; the comment there ("ALT measured null on every canonical route") stands. Buried until a premise changes.
+# 2026-10-07 ~03:40Z, boss's PC (Win11, 24 threads), index elite-copilot/.data/api/artifacts/routing/51 (full galaxy, v3), highway sub-index built by examples/bench exactly as the server builds it (3,861,006 stars, 250 ly cells), then examples/sidecars (graph250.bin 35.4 s, 475,024 cells / 20.3M edges; alt250.bin 3.1 s, 16 landmarks). Ship: the bench's explorer profile (8A SCO Mk II x6, 128 t). --budget 60. Server reference: Sol->Beagle Point 72.2 ly supercharge, no ship profile: elapsed_ms 31,257, 317 jumps, 293,819 expansions; the boss's own HIP 90112->Beagle Point with his Caspian's fuel model: 35,003 and 50,255 ms, 192-193 hops; HIP 90112->Colonia 2,029 ms, 92 hops.
+state,from,to,jumps,boosted,refuel_stops,expansions,wall_ms,variants
+before_agg_only,Sol,Beagle Point,202,174,48,2533,14544,22/22
+before_agg_only,Wongi,Beagle Point,202,174,48,2533,14468,22/22
+before_agg_only,Sol,Colonia,58,55,6,338,937,9/11
+after_graph_alt,Sol,Beagle Point,196,167,44,5149,14232,22/22
+after_graph_alt_ED_NO_ALT,Sol,Beagle Point,196,167,44,5149,15496,22/22
+after_graph_alt_ED_NO_FIELD,Sol,Beagle Point,196,167,44,5149,13079,22/22
+after_graph_alt,Wongi,Beagle Point,196,167,44,6141,13189,22/22
+after_graph_alt_ED_NO_ALT,Wongi,Beagle Point,196,167,44,6141,14414,22/22
+after_graph_alt_ED_NO_FIELD,Wongi,Beagle Point,196,167,44,6141,16558,22/22
+after_graph_alt,Sol,Colonia,58,55,6,338,1060,9/11
+after_graph_alt_ED_NO_ALT,Sol,Colonia,58,55,6,338,1072,9/11
+after_graph_alt_ED_NO_FIELD,Sol,Colonia,58,55,6,338,1114,9/11

@@ -71,6 +71,10 @@
   let spanshLink = $state("");
   let reserve = $state(0);
   let gamePlotMessage = $state("");
+  // The in-game arm failing (game not running, map controls not taught)
+  // is not a plot failure: EDDA's route stands. Its own line, never the
+  // plot's error slot.
+  let gamePlotProblem = $state("");
 
   // The store is the truth: routes plotted here, by the ship computer, or
   // re-planned by the follower all land in routing.route.
@@ -108,6 +112,7 @@
     if (!to) return;
     routing.route = null;
     gamePlotMessage = "";
+    gamePlotProblem = "";
     const from = routing.from.trim();
     // EDDA's own route first, every time: the panel shows it at once and the
     // follower has something to follow. Until 2026-10-02 a destination inside
@@ -124,7 +129,7 @@
         const distance = origin?.coords && system?.coords ? Math.hypot(system.coords[0]-origin.coords[0], system.coords[1]-origin.coords[1], system.coords[2]-origin.coords[2]) : null;
         if (max > 0 && distance != null && distance <= max && points?.search && points?.result && points?.plot) {
           try { gamePlotMessage = await routePlotInGame(system.name ?? to); }
-          catch (e) { routing.error = String(e); }
+          catch (e) { gamePlotProblem = String(e); }
         }
       } catch { /* unavailable or not taught: EDDA's route stands on its own */ }
     }
@@ -193,6 +198,7 @@
     </p>
   {/if}
   {#if gamePlotMessage}<p class="notice good">{gamePlotMessage} EDDA will pick up Elite's route from the journal.</p>{/if}
+  {#if gamePlotProblem}<p class="muted small">Elite's own plotter was not armed ({gamePlotProblem}). EDDA's route above stands on its own.</p>{/if}
 
   <!-- One map for both the plot in progress and the result: remounting it
        resets the camera and blanks the view for a frame. -->
