@@ -637,8 +637,9 @@ verdicts live in the CSV headers under `docs/benches/`.
   (`docs/benches/2026-10-07-early-answer-budget.csv`, knob
   `knobs/sweep_first_found.py`). Companion finding from the planner-pool
   A/B (`2026-10-07-planner-pool-per-lane.csv`, PR #196): the box's long
-  lane runs 87 variants and always fills its 30 s budget, so the time
-  from first-found to final is the budget, not the search.
+  lane runs 87 variants and its portfolio ends at ~30 s by the grace
+  rule (the long lane's planner deadline is 120 s, plot.rs:594), so the
+  time from first-found to final is the portfolio, not a budget.
 - **Mission material rewards never reached the inventory** (2026-10-06,
   boss: "I don't know if our materials are updating in real time").
   Measured: a replay of the journal since the login snapshot against the
