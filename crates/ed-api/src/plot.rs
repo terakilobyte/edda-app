@@ -426,11 +426,56 @@ fn planner_thread_start() {
 /// cancel check stops the variants instead of running them to the
 /// budget for nobody (measured: a 504'd crossing kept six workers at
 /// 75 % for the remaining ~30 s of its budget).
-struct CancelOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+struct CancelOnDrop(Option<std::sync::Arc<std::sync::atomic::AtomicBool>>);
+
+impl CancelOnDrop {
+    /// The request has been answered early: its going away is no longer
+    /// a reason to stop the planner, which runs on to refine.
+    fn disarm(&mut self) {
+        self.0 = None;
+    }
+}
 
 impl Drop for CancelOnDrop {
     fn drop(&mut self) {
-        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(flag) = &self.0 {
+            flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// A crossing answers with the first good route and refines behind it
+/// (maintainer, 2026-10-07: "sounds fine", after the measurement that a
+/// crossing on the box runs its 87-variant portfolio to the budget every
+/// time while the first route lands at ~14 s and the rest only trims
+/// jumps — docs/benches/2026-10-07-planner-pool-per-lane.csv). After the
+/// first route the long lane waits this long for a better one, serves
+/// the best it has marked `refining`, and lets the portfolio run on to
+/// the budget; the finished route lands in the cache under the same
+/// key, so a replot or "Try harder" is a hit. 0 disables.
+/// Sized by the September matrix (docs/benches/2026-10-07-early-answer-budget.csv,
+/// 18 routes, full index): the first route exists at 118-1,146 ms, the
+/// best route known by 5 s is at least as short as the final on every
+/// route, and serving at first-found alone would cost 0-3 jumps. Five
+/// seconds costs nothing in jumps on all 18.
+pub const EARLY_GRACE_MS: u64 = 5_000;
+
+/// Pick the better of two candidates: fewer jumps, then fewer boosts.
+fn better<'a>(a: &'a Route, b: &'a Route) -> &'a Route {
+    if (b.jumps, b.boosted_jumps) < (a.jumps, a.boosted_jumps) { b } else { a }
+}
+
+/// What the rest of the budget bought after an early answer: the label
+/// for `edda_route_refined_total{result}`. Maintainer, 2026-10-07: "are
+/// we wasting time [running to full budget]?" — on the PC matrix the
+/// full budget beat the first route on 3 of 18 routes by 1-3 jumps and
+/// beat the 5 s best on 0 of 18; what the box's 87-variant / 30 s budget
+/// buys live is what this measures, per plot, for a week.
+fn refined(early_jumps: usize, final_jumps: usize) -> &'static str {
+    match final_jumps.cmp(&early_jumps) {
+        std::cmp::Ordering::Less => "better",
+        std::cmp::Ordering::Equal => "same",
+        std::cmp::Ordering::Greater => "worse",
     }
 }
 
@@ -440,11 +485,15 @@ pub struct RouteService {
     interactive: Gate,
     long: Gate,
     pools: Pools,
-    cache: Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>)>>,
+    /// `(when, route, refining)`: a refining entry is an early answer
+    /// the portfolio is still improving; the finished route replaces it.
+    cache: std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, bool)>>>,
+    early_grace: std::time::Duration,
 }
 
 pub enum PlotOutcome {
-    Route(std::sync::Arc<Route>, bool /* cached */),
+    /// `(route, cached, refining)`.
+    Route(std::sync::Arc<Route>, bool, bool),
     Refused(PlotRefusal),
     /// The lane's waiting room is full.
     Saturated,
@@ -464,12 +513,15 @@ impl Default for RouteService {
         let long_queue = env("EDDA_API_PLOT_LONG_QUEUE", LONG_QUEUE);
         let threads_i = env("EDDA_API_PLANNER_THREADS_INTERACTIVE", INTERACTIVE_THREADS);
         let threads_l = env("EDDA_API_PLANNER_THREADS_LONG", LONG_THREADS);
-        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, "plot gates and pools sized");
+        let early_grace_ms: u64 =
+            std::env::var("EDDA_API_EARLY_GRACE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(EARLY_GRACE_MS);
+        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, early_grace_ms, "plot gates and pools sized");
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
             pools: Pools::new(threads_i, threads_l).expect("planner pools build"),
-            cache: Mutex::new(HashMap::new()),
+            cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
+            early_grace: std::time::Duration::from_millis(early_grace_ms),
         }
     }
 }
@@ -538,8 +590,8 @@ impl RouteService {
         // share an answer, and a later index version (which has the
         // system) keys differently by construction.
         let key = cache_key_positions(&handle.version, &req, from_pos, to_pos);
-        if let Some(route) = self.cached(key) {
-            return Ok((lane, PlotOutcome::Route(route, true), bridges));
+        if let Some((route, refining)) = self.cached(key) {
+            return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
         }
         let gate = self.gate(lane);
         let Some(_queued) = gate.enter() else {
@@ -547,16 +599,18 @@ impl RouteService {
         };
         let _slot = gate.slot().await;
         // The wait may have outlived a twin's plot.
-        if let Some(route) = self.cached(key) {
-            return Ok((lane, PlotOutcome::Route(route, true), bridges));
+        if let Some((route, refining)) = self.cached(key) {
+            return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
         }
         let galaxy = std::sync::Arc::clone(&handle.galaxy);
         let neutrons = handle.neutrons.clone();
         let wants_boost = req.supercharge;
+        let highway_less = handle.neutrons.is_none() && wants_boost;
         let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         // Held across the await: if this future is dropped (the client
-        // went away), the flag is set and the planner stops.
-        let _guard = CancelOnDrop(std::sync::Arc::clone(&gone));
+        // went away), the flag is set and the planner stops — unless the
+        // request was already answered early, see `disarm`.
+        let mut guard = CancelOnDrop(Some(std::sync::Arc::clone(&gone)));
         let lane_name = lane.as_str();
         let pool: &'static rayon::ThreadPool = unsafe {
             // SAFETY: `RouteService` lives in the `AppState` Arc for the
@@ -565,19 +619,90 @@ impl RouteService {
             // `spawn_blocking` needs 'static.
             &*(self.pools.pool(lane) as *const rayon::ThreadPool)
         };
-        let outcome = tokio::task::spawn_blocking(move || {
+        // Every variant's route as it finishes, from the planner's own
+        // `found` callback (fired on the lane's workers).
+        let (found_tx, mut found_rx) = tokio::sync::mpsc::unbounded_channel::<Route>();
+        let cache = std::sync::Arc::clone(&self.cache);
+        let storable = !highway_less;
+        // Set by the handler when it answers early: the served route's
+        // jumps and the instant, so the finish can say what the rest of
+        // the budget bought.
+        let served_early: std::sync::Arc<Mutex<Option<(usize, Instant)>>> = std::sync::Arc::new(Mutex::new(None));
+        let served_early_task = std::sync::Arc::clone(&served_early);
+        let mut task = tokio::task::spawn_blocking(move || {
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
+            let found = move |r: &Route| {
+                let _ = found_tx.send(r.clone());
+            };
             let none = Control::none();
-            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, trace: none.trace };
+            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
-            if matches!(r, Err(RouteError::Cancelled)) {
-                metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
-                tracing::info!(lane = lane_name, "route plot stopped: the client was gone");
+            match &r {
+                Err(RouteError::Cancelled) => {
+                    metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, "route plot stopped: the client was gone");
+                }
+                Ok(route) if storable => {
+                    // The finished route replaces any early answer under
+                    // this key, whether or not anyone is still waiting.
+                    store_in(&cache, key, std::sync::Arc::new(route.clone()), false);
+                    if let Some((early_jumps, at)) = *served_early_task.lock().unwrap_or_else(|e| e.into_inner()) {
+                        let result = refined(early_jumps, route.jumps);
+                        let refine_ms = at.elapsed().as_millis() as u64;
+                        metrics::counter!("edda_route_refined_total", "lane" => lane_name, "result" => result).increment(1);
+                        metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
+                            .record(early_jumps as f64 - route.jumps as f64);
+                        tracing::info!(lane = lane_name, early_jumps, final_jumps = route.jumps, refine_ms, result, "route refined");
+                    }
+                }
+                _ => {}
             }
             r
-        })
-        .await
-        .map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?;
+        });
+        // A crossing answers early: the first route plus a grace for a
+        // better one, then the best so far marked refining while the
+        // portfolio runs on. Interactive plots and a zero grace wait for
+        // the whole answer as before.
+        let early = lane == Lane::Long && !self.early_grace.is_zero() && storable;
+        let outcome = if early {
+            let mut best: Option<Route> = None;
+            let finished = loop {
+                tokio::select! {
+                    joined = &mut task => break Some(joined),
+                    found = found_rx.recv() => match found {
+                        Some(r) => { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); }
+                        None => break None, // the planner finished; the join lands next
+                    },
+                }
+                if best.is_some() {
+                    // Grace for a better route, then serve what we have.
+                    let deadline = tokio::time::sleep(self.early_grace);
+                    tokio::pin!(deadline);
+                    let joined = loop {
+                        tokio::select! {
+                            joined = &mut task => break Some(joined),
+                            found = found_rx.recv() => { if let Some(r) = found { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); } }
+                            _ = &mut deadline => break None,
+                        }
+                    };
+                    break joined;
+                }
+            };
+            match finished {
+                Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
+                None => {
+                    let route = std::sync::Arc::new(best.expect("served early only once a route was found"));
+                    *served_early.lock().unwrap_or_else(|e| e.into_inner()) = Some((route.jumps, Instant::now()));
+                    guard.disarm();
+                    metrics::counter!("edda_route_early_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, jumps = route.jumps, "route served early; refining");
+                    self.store(key, std::sync::Arc::clone(&route), true);
+                    return Ok((lane, PlotOutcome::Route(route, false, true), bridges));
+                }
+            }
+        } else {
+            (&mut task).await.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?
+        };
         let outcome = match outcome {
             Ok(mut route) => {
                 // A plot made before this version's highway sub-index
@@ -586,16 +711,12 @@ impl RouteService {
                 // replots with the highway once the build lands. The
                 // publishers now build the highway before the manifest
                 // moves, so this is the belt, and it is counted.
-                let highway_less = handle.neutrons.is_none() && wants_boost;
                 if highway_less {
                     route.highway_pending = true;
                     metrics::counter!("edda_route_highway_pending_total").increment(1);
                 }
                 let route = std::sync::Arc::new(route);
-                if handle.neutrons.is_some() {
-                    self.store(key, std::sync::Arc::clone(&route));
-                }
-                PlotOutcome::Route(route, false)
+                PlotOutcome::Route(route, false, false)
             }
             Err(RouteError::NoRoute) => PlotOutcome::Refused(PlotRefusal::NoRoute),
             Err(RouteError::Budget) => PlotOutcome::Refused(PlotRefusal::Budget),
@@ -604,21 +725,29 @@ impl RouteService {
         Ok((lane, outcome, bridges))
     }
 
-    fn cached(&self, key: u64) -> Option<std::sync::Arc<Route>> {
+    fn cached(&self, key: u64) -> Option<(std::sync::Arc<Route>, bool)> {
         let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        cache.retain(|_, (at, _)| at.elapsed() < CACHE_TTL);
-        cache.get(&key).map(|(_, route)| std::sync::Arc::clone(route))
+        cache.retain(|_, (at, _, _)| at.elapsed() < CACHE_TTL);
+        cache.get(&key).map(|(_, route, refining)| (std::sync::Arc::clone(route), *refining))
     }
 
-    fn store(&self, key: u64, route: std::sync::Arc<Route>) {
-        let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+    fn store(&self, key: u64, route: std::sync::Arc<Route>, refining: bool) {
+        store_in(&self.cache, key, route, refining);
+    }
+}
+
+type Cache = std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, bool)>>>;
+
+fn store_in(cache: &Cache, key: u64, route: std::sync::Arc<Route>, refining: bool) {
+    {
+        let mut cache = cache.lock().unwrap_or_else(|e| e.into_inner());
         if cache.len() >= CACHE_CAP {
             // Oldest out; a full sweep is fine at this size.
-            if let Some(oldest) = cache.iter().min_by_key(|(_, (at, _))| *at).map(|(k, _)| *k) {
+            if let Some(oldest) = cache.iter().min_by_key(|(_, (at, _, _))| *at).map(|(k, _)| *k) {
                 cache.remove(&oldest);
             }
         }
-        cache.insert(key, (Instant::now(), route));
+        cache.insert(key, (Instant::now(), route, refining));
     }
 }
 
@@ -751,7 +880,7 @@ mod lane_tests {
         };
         for _ in 0..2 {
             let (_, outcome, _) = svc.plot(&pending, &api).await.unwrap();
-            let PlotOutcome::Route(route, cached) = outcome else { panic!("a route") };
+            let PlotOutcome::Route(route, cached, _) = outcome else { panic!("a route") };
             assert!(!cached, "no highway yet: every plot is live, none is stored");
             assert!(route.highway_pending, "and the answer says it was made without the highway");
         }
@@ -763,9 +892,9 @@ mod lane_tests {
         };
         let (_, first, _) = svc.plot(&ready, &api).await.unwrap();
         let (_, second, _) = svc.plot(&ready, &api).await.unwrap();
-        assert!(matches!(first, PlotOutcome::Route(_, false)), "the first plot with the highway is live");
-        assert!(matches!(second, PlotOutcome::Route(_, true)), "and the second is served from the cache");
-        let PlotOutcome::Route(route, _) = second else { panic!("a route") };
+        assert!(matches!(first, PlotOutcome::Route(_, false, _)), "the first plot with the highway is live");
+        assert!(matches!(second, PlotOutcome::Route(_, true, _)), "and the second is served from the cache");
+        let PlotOutcome::Route(route, _, _) = second else { panic!("a route") };
         assert!(!route.highway_pending, "a plot with the highway is the real answer");
     }
 
@@ -816,6 +945,9 @@ pub fn cache_key_positions(version: &str, req: &RouteRequest, from_pos: [f32; 3]
 pub struct Served {
     pub cached: bool,
     pub lane: Lane,
+    /// An early answer: the portfolio is still running and a replot
+    /// (or "Try harder") within the hour gets the finished route.
+    pub refining: bool,
 }
 
 pub fn augment(route: &Route, bridges: &Bridges, served: &Served) -> serde_json::Value {
@@ -824,6 +956,7 @@ pub fn augment(route: &Route, bridges: &Bridges, served: &Served) -> serde_json:
         obj.insert("cached".into(), serde_json::json!(served.cached));
         obj.insert("lane".into(), serde_json::json!(served.lane.as_str()));
         obj.insert("budget_ms".into(), serde_json::json!(served.lane.budget_ms()));
+        obj.insert("refining".into(), serde_json::json!(served.refining));
     }
     if bridges.from.is_none() && bridges.to.is_none() {
         return value;
@@ -930,6 +1063,54 @@ mod endpoint_tests {
         assert!(name.as_deref().is_some_and(|n| n.starts_with("planner-interactive-")), "{name:?}");
     }
 
+    /// The early answer is the best route found so far by jumps, then by
+    /// boosts — the first variant to finish can be the worst arm (the
+    /// matrix: Wongi → Beagle found 199 first, finished 196).
+    #[test]
+    fn the_early_answer_is_the_best_so_far_by_jumps_then_boosts() {
+        let mk = |jumps: usize, boosted: usize| Route { jumps, boosted_jumps: boosted, ..serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":0,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0})).unwrap() };
+        let (a, b, c) = (mk(233, 40), mk(199, 44), mk(199, 30));
+        assert_eq!(better(&a, &b).jumps, 199, "fewer jumps wins");
+        assert_eq!(better(&b, &c).boosted_jumps, 30, "equal jumps: fewer boosts wins");
+        assert_eq!(better(&c, &b).boosted_jumps, 30, "order does not matter");
+    }
+
+    /// What the budget bought, as the counter labels it.
+    #[test]
+    fn the_refinement_is_labelled_by_jumps() {
+        assert_eq!(refined(233, 196), "better");
+        assert_eq!(refined(196, 196), "same");
+        assert_eq!(refined(37, 38), "worse", "the judge can pick a longer final for fewer stops");
+    }
+
+    /// An early answer sits in the cache marked refining; the finished
+    /// route replaces it under the same key, unmarked — so a replot
+    /// during the grace gets the early route at once and one after the
+    /// portfolio gets the final.
+    #[test]
+    fn the_finished_route_replaces_the_early_one_in_the_cache() {
+        let service = RouteService::default();
+        let early = std::sync::Arc::new(serde_json::from_value::<Route>(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":233,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0})).unwrap());
+        service.store(7, std::sync::Arc::clone(&early), true);
+        assert!(matches!(service.cached(7), Some((r, true)) if r.jumps == 233));
+        let done = std::sync::Arc::new(Route { jumps: 196, ..(*early).clone() });
+        store_in(&service.cache, 7, done, false);
+        assert!(matches!(service.cached(7), Some((r, false)) if r.jumps == 196));
+    }
+
+    /// A disarmed guard no longer stops the planner when the request
+    /// goes away — the early answer has been sent and the portfolio
+    /// refines for the cache.
+    #[test]
+    fn a_disarmed_guard_leaves_the_planner_running() {
+        let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        {
+            let mut guard = CancelOnDrop(Some(std::sync::Arc::clone(&gone)));
+            guard.disarm();
+        }
+        assert!(!gone.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
     /// Dropping the request's guard tells the planner to stop: the flag
     /// flips, and a plot checking it comes back Cancelled instead of
     /// running to its budget.
@@ -937,7 +1118,7 @@ mod endpoint_tests {
     fn a_dropped_request_cancels_its_plot() {
         let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         {
-            let _guard = CancelOnDrop(std::sync::Arc::clone(&gone));
+            let _guard = CancelOnDrop(Some(std::sync::Arc::clone(&gone)));
             assert!(!gone.load(std::sync::atomic::Ordering::Relaxed));
         }
         assert!(gone.load(std::sync::atomic::Ordering::Relaxed), "the guard's drop sets the flag");
@@ -1017,7 +1198,7 @@ mod endpoint_tests {
             from: Some(Bridge { name: "Origin".into(), pos: [-5.0, 0.0, 0.0], via: 0, distance_ly: 5.0 }),
             to: Some(Bridge { name: "Newfound".into(), pos: [36.0, 0.0, 0.0], via: 1, distance_ly: 6.0 }),
         };
-        let v = augment(&route, &bridges, &Served { cached: false, lane: Lane::Long });
+        let v = augment(&route, &bridges, &Served { cached: false, lane: Lane::Long, refining: false });
         let hops = v["hops"].as_array().unwrap();
         assert_eq!(hops.len(), 4);
         assert_eq!(hops[0]["name"], "Origin");
@@ -1043,11 +1224,12 @@ mod endpoint_tests {
             "range_ly": 40.0, "jumps": 0, "total_ly": 0.0, "straight_ly": 0.0, "boosted_jumps": 0,
             "expansions": 1, "elapsed_ms": 1, "refuel_stops": 0, "hops": []
         })).unwrap();
-        let v = augment(&route, &Bridges::default(), &Served { cached: true, lane: Lane::Interactive });
+        let v = augment(&route, &Bridges::default(), &Served { cached: true, lane: Lane::Interactive, refining: true });
         let mut expected = serde_json::to_value(&route).unwrap();
         expected["cached"] = serde_json::json!(true);
         expected["lane"] = serde_json::json!("interactive");
         expected["budget_ms"] = serde_json::json!(BUDGET_MS);
+        expected["refining"] = serde_json::json!(true);
         assert_eq!(v, expected, "an unbridged route still says cached, lane and budget");
     }
 }
