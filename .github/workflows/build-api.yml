@@ -26,6 +26,8 @@ jobs:
           workspaces: ". -> target"
           key: ed-api
       - run: cargo build --release -p ed-api
+        env:
+          EDDA_GIT_SHA: ${{ github.sha }}
       - name: Fingerprint
         run: |
           file target/release/ed-api

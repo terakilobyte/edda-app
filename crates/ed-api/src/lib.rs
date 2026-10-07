@@ -66,6 +66,13 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("0025_factions.sql", include_str!("../migrations/0025_factions.sql")),
 ];
 
+/// How many migrations this build knows: `/v1/version` carries it so a
+/// server behind its schema is visible from the app.
+pub fn migrations_known() -> usize {
+    MIGRATIONS.len()
+}
+
+
 pub async fn database_pool(config: &ServiceConfig) -> Result<PgPool> {
     // 30 readers (maintainer, 2026-09-07, after the load bench: "set the reader
     // count to 30"). Postgres max_connections is 100 on the box; the EDDN
