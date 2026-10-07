@@ -716,8 +716,24 @@ pub fn cache_key_positions(version: &str, req: &RouteRequest, from_pos: [f32; 3]
 /// instead of briefing it like an indexed star. `jumps`, `total_ly` and
 /// the running `total_ly` on every hop are adjusted; `straight_ly` is
 /// recomputed between the true endpoints.
-pub fn augment(route: &Route, bridges: &Bridges) -> serde_json::Value {
+/// What the server knew about this answer that the route itself does
+/// not carry: whether it came from the cache, which lane planned it and
+/// the budget that lane gave it. The maintainer's HIP 90112 -> Beagle
+/// Point took 35 s and 50 s and then 0.2 s (2026-10-07); the client
+/// could not tell the third was a cache hit, and neither could anyone
+/// reading the wire.
+pub struct Served {
+    pub cached: bool,
+    pub lane: Lane,
+}
+
+pub fn augment(route: &Route, bridges: &Bridges, served: &Served) -> serde_json::Value {
     let mut value = serde_json::to_value(route).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("cached".into(), serde_json::json!(served.cached));
+        obj.insert("lane".into(), serde_json::json!(served.lane.as_str()));
+        obj.insert("budget_ms".into(), serde_json::json!(served.lane.budget_ms()));
+    }
     if bridges.from.is_none() && bridges.to.is_none() {
         return value;
     }
@@ -869,7 +885,7 @@ mod endpoint_tests {
             from: Some(Bridge { name: "Origin".into(), pos: [-5.0, 0.0, 0.0], via: 0, distance_ly: 5.0 }),
             to: Some(Bridge { name: "Newfound".into(), pos: [36.0, 0.0, 0.0], via: 1, distance_ly: 6.0 }),
         };
-        let v = augment(&route, &bridges);
+        let v = augment(&route, &bridges, &Served { cached: false, lane: Lane::Long });
         let hops = v["hops"].as_array().unwrap();
         assert_eq!(hops.len(), 4);
         assert_eq!(hops[0]["name"], "Origin");
@@ -895,6 +911,11 @@ mod endpoint_tests {
             "range_ly": 40.0, "jumps": 0, "total_ly": 0.0, "straight_ly": 0.0, "boosted_jumps": 0,
             "expansions": 1, "elapsed_ms": 1, "refuel_stops": 0, "hops": []
         })).unwrap();
-        assert_eq!(augment(&route, &Bridges::default()), serde_json::to_value(&route).unwrap());
+        let v = augment(&route, &Bridges::default(), &Served { cached: true, lane: Lane::Interactive });
+        let mut expected = serde_json::to_value(&route).unwrap();
+        expected["cached"] = serde_json::json!(true);
+        expected["lane"] = serde_json::json!("interactive");
+        expected["budget_ms"] = serde_json::json!(BUDGET_MS);
+        assert_eq!(v, expected, "an unbridged route still says cached, lane and budget");
     }
 }

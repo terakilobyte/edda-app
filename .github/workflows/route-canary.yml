@@ -1,0 +1,25 @@
+# Hourly route-latency canary against production (scripts/route_canary.sh).
+# A red run fails the workflow, which emails the maintainer: the galaxy
+# crossing that took 35-50 s on 2026-10-07 was found by him, not by us.
+name: Route canary
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: pinned routes within bounds
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: plot the pinned routes
+        run: |
+          set -o pipefail
+          scripts/route_canary.sh https://api.edda-app.com | tee canary.txt
+          { echo '### Route canary'; echo; sed 's/^/- /' canary.txt; } >> "$GITHUB_STEP_SUMMARY"
