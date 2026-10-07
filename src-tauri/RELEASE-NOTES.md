@@ -7,6 +7,44 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.4
+
+Routes answer fast again. A plot to the other side of the galaxy now
+comes back with a good route in a few seconds and keeps refining on the
+server; a short plot is never stuck behind someone else's crossing;
+Stop actually stops a plot; and a route the server delivered can no
+longer show up as a failed plot.
+
+**A crossing answers in seconds.** The route server used to run its
+whole portfolio of variants before replying, which on a Beagle Point
+plot meant thirty seconds or more. It now replies with the first good
+route as soon as it exists, plus a short grace in which a better one
+usually arrives, and says the route is still being refined. The
+refinement carries on in the background; replot the same journey a
+little later and you get the refined route. Measured across the
+September test routes, the route known within five seconds was never
+longer than the final one.
+
+**One plot never waits on another.** Every plot used to share one
+planner pool on the server, so a long crossing starved every short plot
+behind it: a five-jump hop took twelve seconds while someone else's
+crossing ran. Each lane now has its own pool. The same short plot
+answers in half a second beside a crossing, and the crossing itself got
+faster.
+
+**Stop stops.** Pressing Stop during a plot the server was working on
+used to do nothing until the server answered. It now cancels the plot
+at once and says so.
+
+**A good route is a good route.** When EDDA's own route had plotted but
+Elite's plotter could not be armed (the game not running, the map
+controls not taught), the tab showed the arming failure as if the plot
+had failed. The route now stands, with the arming problem on its own
+line.
+
+**Evidence for the next time.** If a plot is ever rejected, the app log
+now records what the Route tab saw, beside what the server answered.
+
 ## 0.4.3
 
 Mission material rewards now count. Every hand-in that paid materials
