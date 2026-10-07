@@ -1710,14 +1710,66 @@ pub fn mark_game_route_fuel(
     marks
 }
 
-/// The systems a game route still has ahead of the pilot, and the pad
-/// the ship needs there: what [`game_route_fuel_marks_for`] wants the
-/// API asked about (one `systems=` call, by the async caller).
+/// Every system on the game route, and the pad the ship needs there:
+/// what [`game_route_fuel_marks_for`] wants the API asked about (one
+/// `systems=` call, by the async caller). The whole route, not the hops
+/// still ahead: the answer is memoised per route (`DockMemo`), and a key
+/// that shrank with every jump would miss once per jump for nothing —
+/// the marks only look up the hops ahead in the set.
 pub fn game_route_dock_query(conn: &rusqlite::Connection, brief: &ed_store::route::RouteBrief) -> Option<(Vec<String>, ed_store::lookup::PadSize)> {
     let (ship_ident, _) = crate::trap::loadout_ship(conn)?;
     let pad = ed_store::lookup::PadSize::for_journal_ship(&ship_ident).unwrap_or(ed_store::lookup::PadSize::Large);
-    let start = game_route_start(conn, brief);
-    Some((brief.hops[start..].iter().map(|h| h.system.clone()).collect(), pad))
+    Some((brief.hops.iter().map(|h| h.system.clone()).collect(), pad))
+}
+
+/// What a dock answer was fetched for: the route as plotted (its
+/// timestamp and its hops, in order) and the pad the ship needs. A
+/// re-plot to the same systems carries a new timestamp and misses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DockKey {
+    pub plotted: Option<String>,
+    pub systems: Vec<String>,
+    pub pad: ed_store::lookup::PadSize,
+}
+
+/// The last dock answer and what it was for. One entry: the pilot flies
+/// one game route at a time, and the previous route's docks are of no use
+/// once a new one is plotted.
+#[derive(Debug, Default)]
+pub struct DockMemo {
+    entry: Option<(DockKey, std::collections::HashSet<String>)>,
+}
+
+impl DockMemo {
+    pub fn get(&self, key: &DockKey) -> Option<std::collections::HashSet<String>> {
+        self.entry.as_ref().filter(|(k, _)| k == key).map(|(_, docks)| docks.clone())
+    }
+
+    pub fn put(&mut self, key: DockKey, docks: std::collections::HashSet<String>) {
+        self.entry = Some((key, docks));
+    }
+}
+
+/// Which of the game route's systems hold a dock whose pads fit `pad`,
+/// from the memo when the route has not changed, else from one
+/// `/v1/stations?systems=` call at `api` (2026-10-07: `current_route`
+/// runs on every journal tick from the HUD window and the Ship panel,
+/// and every run asked the server the same question — 432 identical
+/// calls in 19 min from one flying pilot). An unanswered call is not
+/// remembered: the next tick asks again, as before.
+pub async fn game_route_docks(state: &crate::state::AppState, api: Option<&str>, plotted: Option<&str>, systems: &[String], pad: ed_store::lookup::PadSize) -> std::collections::HashSet<String> {
+    let key = DockKey { plotted: plotted.map(str::to_string), systems: systems.to_vec(), pad };
+    if let Some(docks) = state.dock_memo.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+        return docks;
+    }
+    let Some(api) = api else { return Default::default() };
+    match crate::remote_lookup::docks_by_systems_from(state, api, systems, pad).await {
+        Some(docks) => {
+            state.dock_memo.lock().unwrap_or_else(|e| e.into_inner()).put(key, docks.clone());
+            docks
+        }
+        None => Default::default(),
+    }
 }
 
 fn game_route_start(conn: &rusqlite::Connection, brief: &ed_store::route::RouteBrief) -> usize {
@@ -2148,5 +2200,90 @@ mod stop_tests {
         let (stopped, elapsed, text) = (stopped.0, stopped.1, stopped.2);
         assert!(stopped, "a cancelled token stops the plot before the request is waited on; got: {text}");
         assert!(elapsed < std::time::Duration::from_secs(5), "returned at once, not after the request timeout");
+    }
+}
+
+#[cfg(test)]
+mod dock_memo_tests {
+    use super::{DockKey, DockMemo};
+    use ed_store::lookup::PadSize;
+    use std::collections::HashSet;
+    use std::io::{Read, Write};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    fn key(plotted: &str, systems: &[&str], pad: PadSize) -> DockKey {
+        DockKey { plotted: Some(plotted.into()), systems: systems.iter().map(|s| s.to_string()).collect(), pad }
+    }
+
+    #[test]
+    fn the_memo_answers_the_same_route_and_misses_when_anything_moves() {
+        let mut memo = DockMemo::default();
+        let k = key("2026-10-07T18:00:00Z", &["Sol", "Alioth"], PadSize::Large);
+        assert!(memo.get(&k).is_none(), "empty memo misses");
+        memo.put(k.clone(), HashSet::from(["alioth".to_string()]));
+        assert_eq!(memo.get(&k), Some(HashSet::from(["alioth".to_string()])));
+        assert!(memo.get(&key("2026-10-07T18:00:00Z", &["Sol", "Alioth"], PadSize::Medium)).is_none(), "a smaller ship asks again");
+        assert!(memo.get(&key("2026-10-07T18:05:00Z", &["Sol", "Alioth"], PadSize::Large)).is_none(), "a re-plot asks again");
+        assert!(memo.get(&key("2026-10-07T18:00:00Z", &["Sol", "Alioth", "Colonia"], PadSize::Large)).is_none(), "a longer route asks again");
+    }
+
+    /// A loopback `/v1/stations` that answers `[]` and counts requests.
+    fn stub_api(answers: usize) -> (String, Arc<AtomicUsize>) {
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let hits = Arc::new(AtomicUsize::new(0));
+        let counter = hits.clone();
+        std::thread::spawn(move || {
+            for _ in 0..answers {
+                let Ok((mut sock, _)) = listener.accept() else { return };
+                let mut buf = [0u8; 4096];
+                let mut got = Vec::new();
+                while let Ok(n) = sock.read(&mut buf) {
+                    if n == 0 { break }
+                    got.extend_from_slice(&buf[..n]);
+                    if got.windows(4).any(|w| w == b"\r\n\r\n") { break }
+                }
+                counter.fetch_add(1, Ordering::SeqCst);
+                let _ = sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]");
+            }
+        });
+        (url, hits)
+    }
+
+    /// The bug as measured on the box (2026-10-07, 18:17-18:36Z): one
+    /// pilot's HUD and Ship panel re-read the route every journal tick and
+    /// the server saw 432 identical `systems=` calls. Two reads of one
+    /// route must cost one call; a re-plot costs one more; a server that
+    /// did not answer is asked again next time.
+    #[test]
+    fn two_route_reads_on_one_route_make_one_stations_call() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        let (api, hits) = stub_api(8);
+        let systems: Vec<String> = ["Sol", "Alioth", "Colonia"].iter().map(|s| s.to_string()).collect();
+        tauri::async_runtime::block_on(async {
+            let first = super::game_route_docks(&state, Some(&api), Some("t1"), &systems, PadSize::Large).await;
+            let second = super::game_route_docks(&state, Some(&api), Some("t1"), &systems, PadSize::Large).await;
+            assert_eq!(first, second);
+            assert_eq!(hits.load(Ordering::SeqCst), 1, "the second read of the same route is answered from the memo");
+
+            super::game_route_docks(&state, Some(&api), Some("t2"), &systems, PadSize::Large).await;
+            assert_eq!(hits.load(Ordering::SeqCst), 2, "a re-plot asks once more");
+            super::game_route_docks(&state, Some(&api), Some("t2"), &systems, PadSize::Large).await;
+            assert_eq!(hits.load(Ordering::SeqCst), 2);
+
+            // A server that does not answer (a port nothing listens on) is
+            // not remembered as "no docks": the next read asks again.
+            let down = "http://127.0.0.1:9";
+            let none = super::game_route_docks(&state, Some(down), Some("t3"), &systems, PadSize::Large).await;
+            assert!(none.is_empty());
+            super::game_route_docks(&state, Some(&api), Some("t3"), &systems, PadSize::Large).await;
+            assert_eq!(hits.load(Ordering::SeqCst), 3, "the unanswered route was asked again, not served from the memo");
+
+            // No endpoint at all: nothing asked, nothing remembered.
+            super::game_route_docks(&state, None, Some("t4"), &systems, PadSize::Large).await;
+            assert_eq!(hits.load(Ordering::SeqCst), 3);
+        });
     }
 }

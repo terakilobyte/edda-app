@@ -213,6 +213,11 @@ pub struct AppState {
     /// External runtimes launched by EDDA. Platform-specific process-tree
     /// ownership guarantees they cannot survive the app.
     pub helpers: crate::helpers::HelperManager,
+    /// The game route's dock answer, kept until the route or the pad
+    /// changes (2026-10-07: a flying pilot's HUD and Ship panel each
+    /// re-read the route on every Status.json tick, and every read asked
+    /// the API for the same 91 systems — 432 identical calls in 19 min).
+    pub dock_memo: Mutex<crate::routing::DockMemo>,
 }
 
 /// How the app introduces itself to every HTTP service.
@@ -252,6 +257,7 @@ impl AppState {
             readers: Mutex::new(Vec::new()),
             read_fallbacks: std::sync::atomic::AtomicU64::new(0),
             helpers: crate::helpers::HelperManager::new(),
+            dock_memo: Mutex::new(crate::routing::DockMemo::default()),
             store: Arc::new(Mutex::new(store)),
             engineering: EngineeringCatalog::load(),
             http: reqwest::Client::builder()
