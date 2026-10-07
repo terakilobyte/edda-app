@@ -1202,7 +1202,13 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             // transit. At 40 s the client gave up on plots the server
             // was still going to answer (the assistant session, 2026-09-09).
             .timeout(std::time::Duration::from_secs(130))
-            .send_api();
+            // Plain send, not send_api(): its gateway retry re-sends a plot
+            // the server is still working on and doubles the wait (the boss,
+            // 2026-10-07: 242 s for a far-rim plot, 504 at 120 s then the
+            // retry's own 120 s). A 504 here means "still planning": the
+            // server keeps going and caches the route, so the honest answer
+            // is to say so and let the next replot collect it.
+            .send();
         // Stop races the request: the commander's press wins at once, and
         // the server's answer, if it still comes, is dropped with the future.
         let response = tokio::select! {
@@ -1219,6 +1225,9 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
         let ms = started.elapsed().as_millis() as u64;
         if status.as_u16() == 429 {
             return Err(PlotFailure::Transport("the route server is busy — try again in a moment".into()));
+        }
+        if status.as_u16() == 504 {
+            return Err(PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into()));
         }
         if status.is_server_error() {
             return Err(PlotFailure::Transport(format!("route server error ({status})")));
