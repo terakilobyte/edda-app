@@ -465,6 +465,20 @@ fn better<'a>(a: &'a Route, b: &'a Route) -> &'a Route {
     if (b.jumps, b.boosted_jumps) < (a.jumps, a.boosted_jumps) { b } else { a }
 }
 
+/// What the rest of the budget bought after an early answer: the label
+/// for `edda_route_refined_total{result}`. Maintainer, 2026-10-07: "are
+/// we wasting time [running to full budget]?" — on the PC matrix the
+/// full budget beat the first route on 3 of 18 routes by 1-3 jumps and
+/// beat the 5 s best on 0 of 18; what the box's 87-variant / 30 s budget
+/// buys live is what this measures, per plot, for a week.
+fn refined(early_jumps: usize, final_jumps: usize) -> &'static str {
+    match final_jumps.cmp(&early_jumps) {
+        std::cmp::Ordering::Less => "better",
+        std::cmp::Ordering::Equal => "same",
+        std::cmp::Ordering::Greater => "worse",
+    }
+}
+
 /// The endpoint's shared state: one gate per lane, a pool per lane, the
 /// cache, and the plot itself.
 pub struct RouteService {
@@ -610,6 +624,11 @@ impl RouteService {
         let (found_tx, mut found_rx) = tokio::sync::mpsc::unbounded_channel::<Route>();
         let cache = std::sync::Arc::clone(&self.cache);
         let storable = !highway_less;
+        // Set by the handler when it answers early: the served route's
+        // jumps and the instant, so the finish can say what the rest of
+        // the budget bought.
+        let served_early: std::sync::Arc<Mutex<Option<(usize, Instant)>>> = std::sync::Arc::new(Mutex::new(None));
+        let served_early_task = std::sync::Arc::clone(&served_early);
         let mut task = tokio::task::spawn_blocking(move || {
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
             let found = move |r: &Route| {
@@ -627,6 +646,14 @@ impl RouteService {
                     // The finished route replaces any early answer under
                     // this key, whether or not anyone is still waiting.
                     store_in(&cache, key, std::sync::Arc::new(route.clone()), false);
+                    if let Some((early_jumps, at)) = *served_early_task.lock().unwrap_or_else(|e| e.into_inner()) {
+                        let result = refined(early_jumps, route.jumps);
+                        let refine_ms = at.elapsed().as_millis() as u64;
+                        metrics::counter!("edda_route_refined_total", "lane" => lane_name, "result" => result).increment(1);
+                        metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
+                            .record(early_jumps as f64 - route.jumps as f64);
+                        tracing::info!(lane = lane_name, early_jumps, final_jumps = route.jumps, refine_ms, result, "route refined");
+                    }
                 }
                 _ => {}
             }
@@ -665,6 +692,7 @@ impl RouteService {
                 Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
                 None => {
                     let route = std::sync::Arc::new(best.expect("served early only once a route was found"));
+                    *served_early.lock().unwrap_or_else(|e| e.into_inner()) = Some((route.jumps, Instant::now()));
                     guard.disarm();
                     metrics::counter!("edda_route_early_total", "lane" => lane_name).increment(1);
                     tracing::info!(lane = lane_name, jumps = route.jumps, "route served early; refining");
@@ -1045,6 +1073,14 @@ mod endpoint_tests {
         assert_eq!(better(&a, &b).jumps, 199, "fewer jumps wins");
         assert_eq!(better(&b, &c).boosted_jumps, 30, "equal jumps: fewer boosts wins");
         assert_eq!(better(&c, &b).boosted_jumps, 30, "order does not matter");
+    }
+
+    /// What the budget bought, as the counter labels it.
+    #[test]
+    fn the_refinement_is_labelled_by_jumps() {
+        assert_eq!(refined(233, 196), "better");
+        assert_eq!(refined(196, 196), "same");
+        assert_eq!(refined(37, 38), "worse", "the judge can pick a longer final for fewer stops");
     }
 
     /// An early answer sits in the cache marked refining; the finished
