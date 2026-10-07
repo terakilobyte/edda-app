@@ -1444,6 +1444,13 @@ fn wants_neutron_variant(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest) -> b
 /// both searches; once one has a route the other gets a short grace
 /// period (it may still win) and is then dropped.
 pub fn plan_best(g: &Galaxy, neutrons: Option<&Galaxy>, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
+    // A request already withdrawn (the server's client went away while
+    // the plot waited for a slot) never starts; the in-flight checks
+    // below (router.rs expansion loop, the coarse and refine phases)
+    // stop one that is withdrawn later.
+    if (ctl.cancelled)() {
+        return Err(RouteError::Cancelled);
+    }
     let mut route = plan_best_inner(g, neutrons, req, ctl)?;
     // Min-fuel is a rewrite over the winning route, not a different
     // search: the planners plan (and prove feasibility) topping up
