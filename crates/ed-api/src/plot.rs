@@ -66,7 +66,11 @@ pub const INTERACTIVE_QUEUE: usize = 8;
 /// Long lane: two fan-outs at a time, the client's full 120 s.
 pub const LONG_CONCURRENCY: usize = 2;
 pub const LONG_QUEUE: usize = 4;
-pub const LONG_BUDGET_MS: u64 = 120_000;
+/// 100 s, not the client's 120: a plot that finds no route at all
+/// (HIP 90112 → Spaidau AA-A d0, a dead end for a 72 ly ship, 2026-10-07)
+/// must answer "budget" from here before anything in front of the API
+/// cuts the connection at 120 s and turns the answer into a bare 504.
+pub const LONG_BUDGET_MS: u64 = 100_000;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -173,7 +177,7 @@ pub struct RouteApiRequest {
 }
 
 /// Why a plot did not produce a route — mapped to HTTP by the handler.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PlotRefusal {
     UnknownSystem(String),
     /// Known only by position (Postgres / EDSM, not yet in the routing
@@ -560,8 +564,16 @@ pub struct RouteService {
     /// `(when, route, refining)`: a refining entry is an early answer
     /// the portfolio is still improving; the finished route replaces it.
     cache: std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, bool)>>>,
+    /// A plot that ended without a route (no route, or the budget spent
+    /// with none found) is remembered for [`REFUSAL_TTL`]: the replot a
+    /// commander makes a moment later answers at once instead of
+    /// burning another long-lane budget on the same dead end.
+    refusals: Mutex<HashMap<u64, (Instant, PlotRefusal)>>,
     early_grace: std::time::Duration,
 }
+
+/// How long a no-route / budget answer is held for the same request.
+pub const REFUSAL_TTL: Duration = Duration::from_secs(120);
 
 pub enum PlotOutcome {
     /// `(route, cached, refining)`.
@@ -594,6 +606,7 @@ impl Default for RouteService {
             // One pool per long slot: the gate's concurrency IS the pool count.
             pools: Pools::new(threads_i, long, threads_l).expect("planner pools build"),
             cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
+            refusals: Mutex::new(HashMap::new()),
             early_grace: std::time::Duration::from_millis(early_grace_ms),
         }
     }
@@ -665,6 +678,10 @@ impl RouteService {
         let key = cache_key_positions(&handle.version, &req, from_pos, to_pos);
         if let Some((route, refining)) = self.cached(key) {
             return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
+        }
+        if let Some(refusal) = self.refused(key) {
+            metrics::counter!("edda_route_refusal_cache_total", "lane" => lane.as_str()).increment(1);
+            return Ok((lane, PlotOutcome::Refused(refusal), bridges));
         }
         let gate = self.gate(lane);
         let Some(queued) = gate.enter() else {
@@ -807,8 +824,14 @@ impl RouteService {
                 let route = std::sync::Arc::new(route);
                 PlotOutcome::Route(route, false, false)
             }
-            Err(RouteError::NoRoute) => PlotOutcome::Refused(PlotRefusal::NoRoute),
-            Err(RouteError::Budget) => PlotOutcome::Refused(PlotRefusal::Budget),
+            Err(RouteError::NoRoute) => {
+                self.refuse(key, PlotRefusal::NoRoute);
+                PlotOutcome::Refused(PlotRefusal::NoRoute)
+            }
+            Err(RouteError::Budget) => {
+                self.refuse(key, PlotRefusal::Budget);
+                PlotOutcome::Refused(PlotRefusal::Budget)
+            }
             Err(RouteError::Cancelled) => PlotOutcome::Refused(PlotRefusal::Budget),
         };
         Ok((lane, outcome, bridges))
@@ -822,6 +845,20 @@ impl RouteService {
 
     fn store(&self, key: u64, route: std::sync::Arc<Route>, refining: bool) {
         store_in(&self.cache, key, route, refining);
+    }
+
+    fn refused(&self, key: u64) -> Option<PlotRefusal> {
+        let mut refusals = self.refusals.lock().unwrap_or_else(|e| e.into_inner());
+        refusals.retain(|_, (at, _)| at.elapsed() < REFUSAL_TTL);
+        refusals.get(&key).map(|(_, r)| r.clone())
+    }
+
+    fn refuse(&self, key: u64, refusal: PlotRefusal) {
+        let mut refusals = self.refusals.lock().unwrap_or_else(|e| e.into_inner());
+        if refusals.len() >= CACHE_CAP {
+            refusals.clear();
+        }
+        refusals.insert(key, (Instant::now(), refusal));
     }
 }
 
@@ -1180,6 +1217,29 @@ mod endpoint_tests {
         assert_eq!(better(&a, &b).jumps, 199, "fewer jumps wins");
         assert_eq!(better(&b, &c).boosted_jumps, 30, "equal jumps: fewer boosts wins");
         assert_eq!(better(&c, &b).boosted_jumps, 30, "order does not matter");
+    }
+
+    /// A dead end answers at once the second time: the refusal is held
+    /// for REFUSAL_TTL under the request's key, then forgotten.
+    #[test]
+    fn a_no_route_answer_is_remembered_for_the_replot() {
+        let service = RouteService::default();
+        assert!(service.refused(9).is_none());
+        service.refuse(9, PlotRefusal::NoRoute);
+        assert_eq!(service.refused(9), Some(PlotRefusal::NoRoute));
+        service.refuse(10, PlotRefusal::Budget);
+        assert_eq!(service.refused(10), Some(PlotRefusal::Budget));
+        // Aged out: pretend the entry is older than the TTL.
+        service.refusals.lock().unwrap().get_mut(&9).unwrap().0 = Instant::now() - REFUSAL_TTL - Duration::from_secs(1);
+        assert!(service.refused(9).is_none(), "an old refusal is replotted");
+        assert_eq!(service.refused(10), Some(PlotRefusal::Budget));
+    }
+
+    /// The long lane's planner budget ends before anything in front of
+    /// the API would cut the connection at 120 s.
+    #[test]
+    fn the_long_budget_answers_before_the_gateway_would() {
+        assert!(LONG_BUDGET_MS <= 100_000 && LONG_BUDGET_MS > BUDGET_MS);
     }
 
     /// What the budget bought, as the counter labels it.

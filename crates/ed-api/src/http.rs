@@ -242,6 +242,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(health))
         .route("/readyz", get(readiness))
+        .route("/v1/version", get(version))
         .route(MANIFEST_ROUTE, get(manifest))
         .route("/v1/artifacts/{*path}", get(artifact))
         .route("/v1/app/{*path}", get(app_release))
@@ -1391,6 +1392,32 @@ fn requested_range(header: Option<&HeaderValue>, size: u64) -> Result<(u64, u64)
 
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse { status: "ok" })
+}
+
+/// What this server is: crate version, the git sha and the time it was
+/// built from (build.rs: CI's EDDA_GIT_SHA, or `git rev-parse` locally),
+/// and the migrations it knows. Settings shows it next to the API the
+/// app is on (2026-10-07: a dev server built from a stale tree looked
+/// exactly like prod from the app's side).
+#[derive(Serialize)]
+pub struct VersionResponse {
+    pub version: &'static str,
+    pub git: &'static str,
+    pub built_at: &'static str,
+    pub migrations_known: usize,
+}
+
+pub fn version_info() -> VersionResponse {
+    VersionResponse {
+        version: env!("CARGO_PKG_VERSION"),
+        git: env!("EDDA_GIT_SHA"),
+        built_at: env!("EDDA_BUILT_AT"),
+        migrations_known: crate::migrations_known(),
+    }
+}
+
+async fn version() -> Json<VersionResponse> {
+    Json(version_info())
 }
 
 async fn readiness(State(state): State<AppState>) -> impl IntoResponse {
