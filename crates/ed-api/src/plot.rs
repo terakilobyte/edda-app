@@ -388,32 +388,97 @@ impl Gate {
 pub const INTERACTIVE_THREADS: usize = 2;
 pub const LONG_THREADS: usize = 4;
 
-/// A rayon pool per lane. `install()` around the plot makes every
-/// `par_iter` inside the planner run on that lane's workers, so a
-/// crossing can only ever slow another crossing.
+/// A rayon pool per lane — and for the long lane, a pool PER SLOT.
+/// `install()` around the plot makes every `par_iter` inside the planner
+/// run on that pool's workers, so a crossing can only ever slow another
+/// crossing; and with one pool per long slot it cannot even do that:
+/// measured on prod after #207 (docs/benches/2026-10-07-early-answer-prod.csv),
+/// two crossings sharing one long pool early-served at 44.9 / 45.3 s
+/// although each planner had its first route within 1-4 s of planner
+/// time, because the second plot's `install` is one injected job that no
+/// worker picks up while the first plot's 87 variant jobs fill the
+/// deques. Each long slot now owns its workers (the lane's threads split
+/// across its slots), so two admitted crossings never share a queue.
 pub struct Pools {
-    interactive: rayon::ThreadPool,
-    long: rayon::ThreadPool,
+    interactive: std::sync::Arc<rayon::ThreadPool>,
+    long: Vec<std::sync::Arc<rayon::ThreadPool>>,
+    long_free: std::sync::Arc<Mutex<Vec<usize>>>,
+}
+
+/// A pool checked out for one plot; a long slot's pool goes back on
+/// drop. Travels into the planner task with the lane permits.
+pub struct PoolLease {
+    pool: std::sync::Arc<rayon::ThreadPool>,
+    slot: Option<usize>,
+    free: Option<std::sync::Arc<Mutex<Vec<usize>>>>,
+}
+
+impl PoolLease {
+    pub fn install<R: Send>(&self, op: impl FnOnce() -> R + Send) -> R {
+        self.pool.install(op)
+    }
+}
+
+impl Drop for PoolLease {
+    fn drop(&mut self) {
+        if let (Some(slot), Some(free)) = (self.slot, &self.free) {
+            free.lock().unwrap_or_else(|e| e.into_inner()).push(slot);
+        }
+    }
 }
 
 impl Pools {
-    pub fn new(interactive: usize, long: usize) -> anyhow::Result<Self> {
-        let build = |lane: &'static str, n: usize| {
+    /// `long_slots` pools share `long` threads between them (at least one
+    /// each); `interactive` threads form one pool for the short plots.
+    pub fn new(interactive: usize, long_slots: usize, long: usize) -> anyhow::Result<Self> {
+        let build = |name: String, n: usize| {
             rayon::ThreadPoolBuilder::new()
                 .num_threads(n.max(1))
-                .thread_name(move |i| format!("planner-{lane}-{i}"))
+                .thread_name(move |i| format!("planner-{name}-{i}"))
                 .start_handler(|_| planner_thread_start())
                 .build()
         };
-        Ok(Pools { interactive: build("interactive", interactive)?, long: build("long", long)? })
+        let long_slots = long_slots.max(1);
+        let per_slot = (long / long_slots).max(1);
+        let mut pools = Vec::with_capacity(long_slots);
+        for s in 0..long_slots {
+            pools.push(std::sync::Arc::new(build(format!("long{s}"), per_slot)?));
+        }
+        Ok(Pools {
+            interactive: std::sync::Arc::new(build("interactive".into(), interactive)?),
+            long_free: std::sync::Arc::new(Mutex::new((0..long_slots).rev().collect())),
+            long: pools,
+        })
     }
+    /// Threads per plot on a lane (a long slot's own pool).
     pub fn threads(&self, lane: Lane) -> usize {
-        self.pool(lane).current_num_threads()
-    }
-    fn pool(&self, lane: Lane) -> &rayon::ThreadPool {
         match lane {
-            Lane::Interactive => &self.interactive,
-            Lane::Long => &self.long,
+            Lane::Interactive => self.interactive.current_num_threads(),
+            Lane::Long => self.long[0].current_num_threads(),
+        }
+    }
+    pub fn long_slots(&self) -> usize {
+        self.long.len()
+    }
+    /// The pool for a plot that holds a lane slot. The gate admits at
+    /// most as many long plots as there are long pools, so a long
+    /// checkout always finds one free.
+    fn checkout(&self, lane: Lane) -> PoolLease {
+        match lane {
+            Lane::Interactive => PoolLease { pool: std::sync::Arc::clone(&self.interactive), slot: None, free: None },
+            Lane::Long => {
+                let slot = self
+                    .long_free
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .pop()
+                    .expect("a long slot's pool is free whenever the gate admitted the plot");
+                PoolLease {
+                    pool: std::sync::Arc::clone(&self.long[slot]),
+                    slot: Some(slot),
+                    free: Some(std::sync::Arc::clone(&self.long_free)),
+                }
+            }
         }
     }
 }
@@ -526,7 +591,8 @@ impl Default for RouteService {
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
-            pools: Pools::new(threads_i, threads_l).expect("planner pools build"),
+            // One pool per long slot: the gate's concurrency IS the pool count.
+            pools: Pools::new(threads_i, long, threads_l).expect("planner pools build"),
             cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
             early_grace: std::time::Duration::from_millis(early_grace_ms),
         }
@@ -619,13 +685,9 @@ impl RouteService {
         // request was already answered early, see `disarm`.
         let mut guard = CancelOnDrop(Some(std::sync::Arc::clone(&gone)));
         let lane_name = lane.as_str();
-        let pool: &'static rayon::ThreadPool = unsafe {
-            // SAFETY: `RouteService` lives in the `AppState` Arc for the
-            // process's whole life (http.rs); the blocking task below
-            // only borrows the pool for the plot's duration, and
-            // `spawn_blocking` needs 'static.
-            &*(self.pools.pool(lane) as *const rayon::ThreadPool)
-        };
+        // The slot's own pool, checked out for exactly as long as the
+        // permits are held (it rides in the task with them).
+        let pool = self.pools.checkout(lane);
         // Every variant's route as it finishes, from the planner's own
         // `found` callback (fired on the lane's workers).
         let (found_tx, mut found_rx) = tokio::sync::mpsc::unbounded_channel::<Route>();
@@ -641,6 +703,7 @@ impl RouteService {
             // The lane's permits live and die with the planner, whatever
             // the handler did with the answer.
             let _permits = (queued, slot);
+            let pool = pool;
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
             let found = move |r: &Route| {
                 let _ = found_tx.send(r.clone());
@@ -1078,15 +1141,33 @@ mod endpoint_tests {
     fn each_lane_plans_on_its_own_pool() {
         let service = RouteService::default();
         assert_eq!(service.threads(Lane::Interactive), INTERACTIVE_THREADS);
-        assert_eq!(service.threads(Lane::Long), LONG_THREADS);
-        let pools = Pools::new(1, 3).unwrap();
-        assert_eq!((pools.threads(Lane::Interactive), pools.threads(Lane::Long)), (1, 3));
-        // The two pools are distinct: work installed on one runs on its
-        // own named threads.
-        let name = pools.pool(Lane::Long).install(|| std::thread::current().name().map(str::to_owned));
-        assert!(name.as_deref().is_some_and(|n| n.starts_with("planner-long-")), "{name:?}");
-        let name = pools.pool(Lane::Interactive).install(|| std::thread::current().name().map(str::to_owned));
+        assert_eq!(service.pools.long_slots(), LONG_CONCURRENCY, "one pool per long slot");
+        assert_eq!(service.threads(Lane::Long), LONG_THREADS / LONG_CONCURRENCY, "the lane's threads split across its slots");
+        let pools = Pools::new(1, 2, 4).unwrap();
+        assert_eq!((pools.threads(Lane::Interactive), pools.long_slots(), pools.threads(Lane::Long)), (1, 2, 2));
+        // Every pool is distinct: work installed on one runs on its own
+        // named threads, and two long checkouts never share a pool.
+        let a = pools.checkout(Lane::Long);
+        let b = pools.checkout(Lane::Long);
+        let name_a = a.install(|| std::thread::current().name().map(str::to_owned)).unwrap();
+        let name_b = b.install(|| std::thread::current().name().map(str::to_owned)).unwrap();
+        assert!(name_a.starts_with("planner-long") && name_b.starts_with("planner-long"), "{name_a} {name_b}");
+        assert_ne!(name_a.split('-').nth(1), name_b.split('-').nth(1), "two admitted crossings get different pools: {name_a} vs {name_b}");
+        let name = pools.checkout(Lane::Interactive).install(|| std::thread::current().name().map(str::to_owned));
         assert!(name.as_deref().is_some_and(|n| n.starts_with("planner-interactive-")), "{name:?}");
+        // Returning a lease frees its pool for the next crossing.
+        assert_eq!(pools.long_free.lock().unwrap().len(), 0);
+        drop(a);
+        assert_eq!(pools.long_free.lock().unwrap().len(), 1);
+        let c = pools.checkout(Lane::Long);
+        assert_eq!(c.slot, a_slot_of(&name_a), "the freed pool is the one handed out again");
+        drop(b);
+        drop(c);
+        assert_eq!(pools.long_free.lock().unwrap().len(), 2);
+    }
+
+    fn a_slot_of(thread_name: &str) -> Option<usize> {
+        thread_name.strip_prefix("planner-long").and_then(|r| r.split('-').next()).and_then(|s| s.parse().ok())
     }
 
     /// The early answer is the best route found so far by jumps, then by
