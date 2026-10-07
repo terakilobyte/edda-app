@@ -8,6 +8,23 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Crossings answer early and refine behind the answer** (2026-10-07,
+  shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
+  answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
+  the finished route lands under the same cache key within the lane
+  budget: 346 → 318 jumps at 54 s on the box, so a replot or "Try
+  harder" gets it. Two bugs the first hour found and #207 fixed: the
+  early return released the lane slot, so refinements piled onto the
+  long pool (one ran 180 s, the next crossing waited 87 s); and a plot
+  with no finished variant panicked the handler (a 502). The slot is
+  now held until the planner finishes and the handler takes the
+  planner's own result. The boss's "are we wasting time running to full
+  budget" is answered per plot from here: `edda_route_refined_total`
+  and `edda_route_refined_improvement_jumps`; on the box the refinement
+  bought 28 jumps on this crossing where the PC matrix said 0-3
+  (`docs/benches/2026-10-07-early-answer-prod.csv`). Open: the client's
+  "Try harder" button and showing the refined route when it lands
+  (Waldorf).
 - **The weekly syncs were retired in the repo on 2026-09-09 but ran on
   the box until 2026-10-07** (measured). The box kept the pre-0.3.0
   `edda-weekly.sh`, so every Sunday still pulled Spansh's galaxy_7days

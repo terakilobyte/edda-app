@@ -1,0 +1,14 @@
+# VERDICT: on the box the early answer and its refinement both work as designed after #207, and the refinement is worth its budget on a Beagle crossing. One fixed-range (72.37) Sol -> Beagle Point plot: first answer 1,672 ms planner / ~7 s wall, 346 jumps, refining:true; +20 s replot cached:true still refining; +130 s replot cached:true refining:false, 318 jumps, variants 12/87 finished, planner 54,470 ms — the refinement landed under the same key within the 120 s lane budget and bought 28 jumps (8 %). Before #207 (slot released at the early answer) the same refinement ran 180,738 ms and queued the next crossing 87 s (Waldorf's readings 14:18-14:24Z); before #198 the crossing took 31-50 s with no early answer. The PC matrix (2026-10-07-early-answer-budget.csv) said the refinement buys 0-3 jumps; on the box it is 28 on this crossing because fewer variants are done at the 5 s grace, so the boss's question "are we wasting time running to full budget" is answered per plot by edda_route_refined_total / edda_route_refined_improvement_jumps from here on. Canary after #207: Sol -> Alioth 0.8 s, Sol -> Colonia 1.4 s (93 jumps, 23/29 variants, served complete), Sol -> Beagle Point 7.4 s (341 jumps, early).
+# prod, 2026-10-07 ~15:00-15:10Z, ed-api at db4bbdb (#207), client this Mac over TLS (~0.6 s floor); the canary's range moves with the minute so a canary replot is a new key — the fixed-range run is the instrument for "does the refinement land".
+plot,when,jumps,boosted,planner_ms,cached,refining,variants_finished_of_run
+Sol -> Beagle Point range 72.37,first,346,232,1672,false,true,0/0
+Sol -> Beagle Point range 72.37,+20 s,346,232,1672,true,true,0/0
+Sol -> Beagle Point range 72.37,+130 s,318,250,54470,true,false,12/87
+Sol -> Beagle Point (Waldorf; before #207),first,343,,1676,false,true,0/0
+Sol -> Beagle Point (Waldorf; before #207),+150 s,343,,1676,true,true,0/0
+Sol -> Beagle Point (Waldorf; before #207),later,317,,180738,true,false,
+Wongi -> Beagle Point (Waldorf; before #207),first (waited 87 s for a slot),,,1265,false,true,
+Wongi -> Beagle Point (Waldorf; before #207),+90 s,316,,28941,true,false,
+canary after #207: Sol -> Alioth,,2,0,177,false,false,0/0
+canary after #207: Sol -> Colonia,,93,85,598,false,false,23/29
+canary after #207: Sol -> Beagle Point,,341,228,1285,false,true,0/0
