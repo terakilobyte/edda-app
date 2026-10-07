@@ -9,11 +9,20 @@ notes" in the app and on the site alike.
 
 ## 0.4.4
 
-Routes answer fast again. A plot to the other side of the galaxy now
-comes back with a good route in a few seconds and keeps refining on the
-server; a short plot is never stuck behind someone else's crossing;
-Stop actually stops a plot; and a route the server delivered can no
-longer show up as a failed plot.
+The Route tab shows your route again. Since 0.4.2 the tab went blank the
+moment a plot came back, which looked like a plot that had failed; it was
+a one-line slip in the hop table, and it is fixed and pinned by a test
+that draws the tab with a real route. Routes also answer fast again: a
+plot to the other side of the galaxy comes back with a good route in a
+few seconds and keeps refining on the server; a short plot is never stuck
+behind someone else's crossing; Stop actually stops a plot.
+
+**The blank Route tab.** From 0.4.2 on, a plotted route reached the tab
+and the tab drew nothing, because the system-name renderer used in the
+hop table was not imported. The build could not catch it; only a route
+on screen could. The import is back, the tab is now rendered under test
+with a real plot to Colonia on every build, and any error inside the app
+window is written to the app log from now on.
 
 **A crossing answers in seconds.** The route server used to run its
 whole portfolio of variants before replying, which on a Beagle Point
