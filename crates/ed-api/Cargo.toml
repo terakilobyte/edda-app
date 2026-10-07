@@ -30,7 +30,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = { version = "0.24.6", default-features = false }
 metrics-exporter-prometheus = { version = "0.18.3", default-features = false }
-rayon = "1"
 
 [target.'cfg(unix)'.dependencies]
 # getrusage for publication CPU accounting; the server is Linux, the
