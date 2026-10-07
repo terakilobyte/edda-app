@@ -642,7 +642,7 @@ async fn plot_route(
         metrics::counter!("edda_route_requests_total", "outcome" => outcome, "lane" => lane_name).increment(1)
     };
     match outcome {
-        PlotOutcome::Route(route, cached) => {
+        PlotOutcome::Route(route, cached, refining) => {
             metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
             metrics::counter!("edda_route_cache_total", "result" => if cached { "hit" } else { "miss" })
                 .increment(1);
@@ -672,6 +672,7 @@ async fn plot_route(
             .increment(1);
             tracing::info!(
                 cached,
+                refining,
                 lane = lane_name,
                 bridged,
                 ms = started.elapsed().as_millis() as u64,
@@ -683,7 +684,7 @@ async fn plot_route(
                 cell_graph,
                 "route served"
             );
-            axum::Json(crate::plot::augment(&route, &bridges, &crate::plot::Served { cached, lane })).into_response()
+            axum::Json(crate::plot::augment(&route, &bridges, &crate::plot::Served { cached, lane, refining })).into_response()
         }
         PlotOutcome::Refused(PlotRefusal::UnknownSystem(name)) => {
             lane_counter("unknown_system");
