@@ -596,6 +596,17 @@ verdicts live in the CSV headers under `docs/benches/`.
   will say. OPEN (boss ruling needed): what crossing latency is
   acceptable, and whether the interactive lane should answer with the
   first good route in a few seconds and refine behind "Try harder".
+- **Early answer budget, measured** (2026-10-07, for the interactive
+  crossing lane the boss ruled "sounds fine" on, via Statler): across
+  the 18-route September matrix the first found route exists within
+  0.1-1.1 s on every route and the best route known by 5 s is at least
+  as short as the final on every route; serving at first-found costs
+  0-3 jumps, serving at first-found + 5 s grace costs none
+  (`docs/benches/2026-10-07-early-answer-budget.csv`, knob
+  `knobs/sweep_first_found.py`). Companion finding from the planner-pool
+  A/B (`2026-10-07-planner-pool-per-lane.csv`, PR #196): the box's long
+  lane runs 87 variants and always fills its 30 s budget, so the time
+  from first-found to final is the budget, not the search.
 - **Mission material rewards never reached the inventory** (2026-10-06,
   boss: "I don't know if our materials are updating in real time").
   Measured: a replay of the journal since the login snapshot against the

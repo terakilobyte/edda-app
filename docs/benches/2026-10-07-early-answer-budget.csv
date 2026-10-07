@@ -1,0 +1,21 @@
+# VERDICT: an early answer is nearly free. Across the 18-route September matrix (both directions of 9 pairs), the planner's FIRST found route exists within 118-1,146 ms on every route, and the best route known by 5 s is at least as short as the final one on every route (the final is sometimes a jump or three longer because the judge prefers fewer stops/boosts, not fewer jumps). Serving at first-found costs 0-3 jumps (Wongi->Beagle Point 199 vs 196; Colonia->Spase 91 vs 88; two routes 1-2); serving at first-found + a 5 s grace costs nothing on any row. Sizing for the interactive crossing lane (boss ruled 2026-10-07 "sounds fine"): grace 3-5 s after first-found; the long pool keeps refining to the budget for "Try harder" / the replot. Caveat: this PC's bench ran 11-22 variants per plot; the box's long lane runs 87 and fills its 30 s budget, so on the box the gap between first-found and final is wider in TIME but the matrix says not in JUMPS at the 5 s mark.
+# 2026-10-07 ~04:05Z, boss's PC (24 threads), examples/bench release on elite-copilot/.data/api/artifacts/routing/51 with its boost250 sub-index (graph250 + alt250 present, which the 2026-10-07 sidecar bench showed changes nothing); explorer profile; budgets as the September crossing matrix (30 s, 60 s for crossings). Parsed by docs/benches/knobs/sweep_first_found.py from the per-route stdout ("found J jumps at T ms" per variant). Raw outputs kept in the session scratchpad.
+from,to,budget_s,first_found_jumps,first_found_ms,best_at_5s,best_at_10s,best_at_15s,final_jumps,final_ms,variants,extra_jumps_if_served_at_5s,extra_jumps_if_served_at_10s
+Wongi,Spase AA-A a108-0,30,101,910,101,101,101,101,912,11/11,0,0
+Spase AA-A a108-0,Wongi,30,102,228,102,102,102,102,384,11/11,0,0
+Sol,Byoomao AA-A c1,30,67,573,64,64,64,66,705,11/11,-2,-2
+Byoomao AA-A c1,Sol,30,62,201,62,62,62,62,651,11/11,0,0
+Pheia Auscs AA-A d0,Spase AA-A a108-0,30,37,251,37,37,37,37,360,11/11,0,0
+Spase AA-A a108-0,Pheia Auscs AA-A d0,30,36,118,36,36,36,36,324,11/11,0,0
+Wongi,Plielou RN-R d5-27,30,37,246,37,37,37,37,300,11/11,0,0
+Plielou RN-R d5-27,Wongi,30,36,187,36,36,36,36,252,11/11,0,0
+Wongi,Colonia,30,58,638,58,58,58,58,1238,9/11,0,0
+Colonia,Wongi,30,57,436,54,54,54,54,980,10/11,0,0
+Sol,Sagittarius A*,30,67,385,67,67,67,67,903,9/11,0,0
+Sagittarius A*,Sol,30,72,1146,72,72,72,72,2224,9/11,0,0
+Wongi,Blaa Hypai AA-A a96-19,30,38,314,38,38,38,38,823,2/11,0,0
+Blaa Hypai AA-A a96-19,Wongi,30,37,219,36,36,36,38,233,11/11,-2,-2
+Wongi,Beagle Point,60,199,790,196,196,196,196,11941,22/22,0,0
+Beagle Point,Wongi,60,197,195,196,196,196,197,750,9/11,-1,-1
+Colonia,Spase AA-A a108-0,60,91,890,88,88,88,91,908,11/11,-3,-3
+Spase AA-A a108-0,Colonia,60,89,667,89,89,89,89,1261,2/11,0,0
