@@ -30,7 +30,7 @@
   import { planner } from "./lib/planner.svelte.js";
   import Onboarding from "./lib/Onboarding.svelte";
   import WhatsNew from "./lib/WhatsNew.svelte";
-  import { releaseNotesGet } from "./lib/api.js";
+  import { releaseNotesGet, setupCompleted } from "./lib/api.js";
   // The post-update splash: shown once per version, never over the
   // onboarding flow (a fresh install meets Setup first; the notes wait).
   let whatsNew = $state(null);
@@ -124,6 +124,8 @@
 
   function finishOnboarding() {
     writeKey(KEYS.onboardingComplete, true); removeKey(KEYS.onboardingStep);
+    // Remembered on the install and counted once (telemetry feature flag).
+    setupCompleted().catch(() => {});
     setupVisible = false;
     pick("market");
   }

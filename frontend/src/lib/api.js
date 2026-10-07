@@ -218,6 +218,7 @@ export const COMMANDS = {
   voiceInstallDefault: ["voice_install_default"],
   personas: ["personas"],
   setPersona: ["set_persona", ["id"]],
+  setupCompleted: ["setup_completed"],
   setVoice: ["set_voice", ["model"]],
   voiceServerGet: ["voice_server_get"],
   calloutsGet: ["callouts_get"],
@@ -298,7 +299,7 @@ export const {
   routePlotTest, mapSetupTest, mapSetupSay, mapSetupCancel, mapSetupTarget, routePlotInGame, targetKeyStatus, targetTriggerCapture, targetTriggerClear, mapPointCapture, mapPointsGet, mapDelaySet, mapPointsClear, macroRecordStart, macroRecordStop,
   galaxyNear, nameComplete, serviceOptions,
   powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions, missionStack, missionsHere,
-  voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setPersona, setVoice, voiceServerGet,
+  voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setupCompleted, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
   getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, materialTradesSince, setOverlayInteractive, overlayVisible, aiAsk, aiReset,
 } = wrapped;
