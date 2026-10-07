@@ -68,8 +68,6 @@ export const COMMANDS = {
   // Status & inventory
   getStatus: ["get_status"],
   getInventory: ["get_inventory"],
-  devApiGet: ["dev_api_get"],
-  devApiSet: ["dev_api_set", ["local"]],
   apiProbe: ["api_probe"],
   frontendLog: ["frontend_log", ["level", "message"]],
   materialTradePlan: ["material_trade_plan", "*"],
@@ -289,7 +287,7 @@ const listeners = Object.fromEntries(Object.entries(EVENTS).map(([k, ev]) => [k,
 
 // ── Named wrappers (generated) ─────────────────────────────────────
 export const {
-  getStatus, getInventory, devApiGet, devApiSet, apiProbe, frontendLog, materialTradePlan, materialGrid, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
+  getStatus, getInventory, apiProbe, frontendLog, materialTradePlan, materialGrid, listCommodities, syncNow, dbStats, dataLocationGet, dataLocationChoose, vacuum,
   listModuleTypes, listBlueprintNames, checkBlueprint, blueprintAccess, engineerDirectory, listEngineers, checkExperimental, shipModules, shipsList, hullsList, slotOptions, carrierStatus, capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, shipSlef, shipLinks, materialShopping, buildPlanReport, importBuild, buildPerformance,
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,

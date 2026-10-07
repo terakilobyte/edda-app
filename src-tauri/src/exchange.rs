@@ -17,26 +17,23 @@ use tauri::State;
 
 /// The community API every install uses out of the box. A fork or a
 /// self-hosted server changes this one constant (and the updater
-/// endpoint in tauri.conf.json); a development server goes in
-/// Settings → System data, or EDDA_API_URL, without a rebuild.
+/// endpoint in tauri.conf.json); a development server is EDDA_API_URL in
+/// the shell before launch, nothing else.
 pub const DEFAULT_COMMUNITY_API: &str = "https://api.edda-app.com";
 
-/// Where the dev toggle points: a local `ed-api serve` on its default
-/// bind.
-pub const DEV_LOCAL_API: &str = "http://127.0.0.1:8787";
-
-/// Precedence: EDDA_API_URL (a shell-level order beats a saved toggle) →
-/// the dev-build "use local API" switch → the commander's saved override
-/// (self-hosters) → the canonical server.
-pub(crate) fn pick_endpoint(env: Option<String>, dev_local: bool, saved: Option<String>) -> Option<String> {
-    env.or_else(|| dev_local.then(|| DEV_LOCAL_API.to_string()))
-        .or(saved)
-        .or_else(|| Some(DEFAULT_COMMUNITY_API.to_string()))
+/// ONE knob (boss, 2026-10-07: "fold it into one knob, just the env var"):
+/// `EDDA_API_URL` set in the shell before launch wins, else the canonical
+/// server. The saved override and the dev-build toggle that used to sit
+/// between them are gone -- two sessions spent an afternoon on plots that
+/// a saved toggle had sent to a stale local server while everyone read
+/// them as production's.
+pub(crate) fn pick_endpoint(env: Option<String>) -> Option<String> {
+    env.or_else(|| Some(DEFAULT_COMMUNITY_API.to_string()))
         .map(|url| url.trim().trim_end_matches('/').to_owned())
         .filter(|url| !url.is_empty())
 }
 
-pub(crate) fn endpoint(state: &AppState) -> Option<String> {
+pub(crate) fn endpoint(_state: &AppState) -> Option<String> {
     // Tests never reach the community server: without an explicit
     // EDDA_API_URL there is no endpoint, and every remote call fails fast
     // with `api_down` (B.4: the unit suite has no local data to fall back
@@ -44,49 +41,12 @@ pub(crate) fn endpoint(state: &AppState) -> Option<String> {
     if cfg!(test) {
         return std::env::var("EDDA_API_URL").ok().filter(|u| !u.trim().is_empty());
     }
-    let (dev_local, saved) = {
-        let config = state.config.lock().unwrap_or_else(|e| e.into_inner());
-        (
-            // Release builds ignore the toggle even if the config file
-            // carries it (shared data dirs must not strand a commander
-            // on a dead localhost).
-            cfg!(debug_assertions) && config.dev_api_local == Some(true),
-            config.community_api_url.clone(),
-        )
-    };
-    pick_endpoint(std::env::var("EDDA_API_URL").ok(), dev_local, saved)
+    pick_endpoint(std::env::var("EDDA_API_URL").ok())
 }
 
-/// The dev-build API switch: which base the app talks to right now,
-/// and whether the switch exists at all (release builds: it doesn't).
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct DevApiStatus {
-    pub available: bool,
-    pub local: bool,
-    pub local_url: String,
-    /// What endpoint() resolves to with the current settings.
-    pub effective: Option<String>,
-}
-
-pub(crate) fn dev_api_status(state: &AppState) -> DevApiStatus {
-    let local = cfg!(debug_assertions)
-        && state
-            .config
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .dev_api_local
-            == Some(true);
-    DevApiStatus {
-        available: cfg!(debug_assertions),
-        local,
-        local_url: DEV_LOCAL_API.to_owned(),
-        effective: endpoint(state),
-    }
-}
-
-#[tauri::command]
-pub async fn dev_api_get(state: State<'_, AppState>) -> Result<DevApiStatus, String> {
-    Ok(dev_api_status(&state))
+/// Where the endpoint came from, for the Settings line.
+pub fn endpoint_source() -> &'static str {
+    if std::env::var("EDDA_API_URL").ok().is_some_and(|u| !u.trim().is_empty()) { "EDDA_API_URL" } else { "production" }
 }
 
 /// What the API the app is on says about itself, for Settings: the
@@ -98,6 +58,8 @@ pub async fn dev_api_get(state: State<'_, AppState>) -> Result<DevApiStatus, Str
 #[derive(Debug, serde::Serialize)]
 pub struct ApiProbe {
     pub endpoint: Option<String>,
+    /// "EDDA_API_URL" when the shell set it, else "production".
+    pub source: &'static str,
     pub healthy: bool,
     pub ms: u64,
     pub ready: Option<serde_json::Value>,
@@ -107,7 +69,7 @@ pub struct ApiProbe {
 #[tauri::command]
 pub async fn api_probe(state: State<'_, AppState>) -> Result<ApiProbe, String> {
     let Some(endpoint) = endpoint(&state) else {
-        return Ok(ApiProbe { endpoint: None, healthy: false, ms: 0, ready: None, error: Some("no API configured".into()) });
+        return Ok(ApiProbe { endpoint: None, source: endpoint_source(), healthy: false, ms: 0, ready: None, error: Some("no API configured".into()) });
     };
     let started = std::time::Instant::now();
     let health = state.http.get(format!("{endpoint}/healthz")).timeout(std::time::Duration::from_secs(5)).send().await;
@@ -125,23 +87,9 @@ pub async fn api_probe(state: State<'_, AppState>) -> Result<ApiProbe, String> {
     } else {
         None
     };
-    Ok(ApiProbe { endpoint: Some(endpoint), healthy, ms, ready, error })
+    Ok(ApiProbe { endpoint: Some(endpoint), source: endpoint_source(), healthy, ms, ready, error })
 }
 
-#[tauri::command]
-pub async fn dev_api_set(state: State<'_, AppState>, local: bool) -> Result<DevApiStatus, String> {
-    if !cfg!(debug_assertions) {
-        return Err("the API switch is a dev-build control".into());
-    }
-    {
-        let mut config = state.config.lock().unwrap_or_else(|e| e.into_inner());
-        config.dev_api_local = Some(local);
-        config
-            .save(&state.data_dir)
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(dev_api_status(&state))
-}
 
 
 /// How long to wait before retrying a 429, honouring `Retry-After`
@@ -267,19 +215,13 @@ mod send_api_tests {
 mod endpoint_tests {
     use super::*;
 
-    /// Out of the box the canonical server is used; a saved override or
-    /// EDDA_API_URL wins over it; blank everywhere means not configured.
+    /// Out of the box the canonical server is used; EDDA_API_URL wins over
+    /// it; blank means not configured. There is no other knob.
     #[test]
-    fn endpoint_prefers_env_then_dev_toggle_then_override_then_canonical() {
-        assert_eq!(pick_endpoint(Some("http://dev:1/".into()), true, Some("http://mine:2".into())), Some("http://dev:1".into()), "a shell-level order beats the toggle");
-        assert_eq!(pick_endpoint(None, true, Some("http://mine:2".into())), Some(DEV_LOCAL_API.into()), "the dev toggle beats a saved override");
-        assert_eq!(pick_endpoint(None, false, Some("http://mine:2/".into())), Some("http://mine:2".into()));
-        let canonical = pick_endpoint(None, false, None);
-        if DEFAULT_COMMUNITY_API.is_empty() {
-            assert_eq!(canonical, None, "no canonical server is live yet");
-        } else {
-            assert_eq!(canonical.as_deref(), Some(DEFAULT_COMMUNITY_API));
-        }
-        assert_eq!(pick_endpoint(Some("  ".into()), false, None), None, "blank is not a server");
+    fn endpoint_is_the_env_var_or_the_canonical_server() {
+        assert_eq!(pick_endpoint(Some("http://dev:1/".into())), Some("http://dev:1".into()), "a shell-level order wins, trailing slash dropped");
+        assert_eq!(pick_endpoint(None).as_deref(), Some(DEFAULT_COMMUNITY_API));
+        assert_eq!(pick_endpoint(Some("  ".into())), None, "blank is not a server");
     }
 }
+

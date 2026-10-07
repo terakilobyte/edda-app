@@ -17,23 +17,16 @@
     ["setup", "Setup"],
   ];
   import { capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, onCapiState } from "./api.js";
-  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet, devApiGet, devApiSet, apiProbe } from "./api.js";
+  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet, apiProbe } from "./api.js";
   // Which community API this build is on, and what it says about itself.
-  // A dev build may be pointed at the local WSL server (the boss's rule
-  // since 2026-09-29); the probe shows that server is up and answering,
-  // and the switch flips to production without a config edit.
-  let devApi = $state(null);
+  // One knob (boss, 2026-10-07): EDDA_API_URL in the shell before launch,
+  // else production. The probe shows the server is up and answering.
   let probe = $state(null);
   let probing = $state(false);
   async function refreshApi() {
     probing = true;
-    try { devApi = await devApiGet(); } catch {}
-    try { probe = await apiProbe(); } catch (e) { probe = { endpoint: null, healthy: false, ms: 0, ready: null, error: String(e) }; }
+    try { probe = await apiProbe(); } catch (e) { probe = { endpoint: null, source: "?", healthy: false, ms: 0, ready: null, error: String(e) }; }
     probing = false;
-  }
-  async function setLocal(on) {
-    try { devApi = await devApiSet(on); } catch (e) { msg = String(e); }
-    await refreshApi();
   }
   onMount(refreshApi);
 
@@ -321,14 +314,12 @@
 <section class="panel">
   <h2>Community API <span class="sub">which server this build talks to, and whether it answers</span></h2>
   <dl class="kv">
-    <dt>Endpoint</dt><dd class="small">{probe?.endpoint ?? devApi?.effective ?? "not configured"}{#if devApi?.available}<span class="pill {devApi.local ? 'warn' : 'ok'}" style="margin-left:0.5rem">{devApi.local ? "local dev server" : "production"}</span>{/if}</dd>
+    <dt>Endpoint</dt><dd class="small">{probe?.endpoint ?? "not configured"}{#if probe}<span class="pill {probe.source === 'production' ? 'ok' : 'warn'}" style="margin-left:0.5rem" title={probe.source === "production" ? "the canonical server" : "set by EDDA_API_URL in the shell this build was launched from"}>{probe.source}</span>{/if}</dd>
     <dt>Health</dt><dd class="small">{#if probing && !probe}probing…{:else if probe?.healthy}<span class="ok">up</span> · <span class="num">{probe.ms} ms</span>{#if probe.ready?.checks} · {Object.entries(probe.ready.checks).map(([k, v]) => `${k} ${v === true ? "ok" : v === false ? "FAIL" : v}`).join(" · ")}{/if}{:else}<span class="warn">{probe?.error ?? "no answer"}</span>{/if}</dd>
   </dl>
   <div class="row" style="margin-top:0.6rem">
     <button class="quiet" onclick={refreshApi} disabled={probing}>Probe again</button>
-    {#if devApi?.available}
-      <label class="check small" title="Debug builds only: talk to the ed-api on 127.0.0.1:8787 instead of production. Start it with scripts/dev-api-restart.sh in WSL."><input type="checkbox" checked={devApi.local} onchange={(e) => setLocal(e.currentTarget.checked)} /> use the local dev server ({devApi.local_url})</label>
-    {/if}
+    <span class="muted small">To use another server, set <code>EDDA_API_URL</code> (e.g. <code>http://127.0.0.1:8787</code> for the local dev server) in the shell before launching. There is no saved setting.</span>
   </div>
 </section>
 {/if}

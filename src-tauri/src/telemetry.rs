@@ -188,13 +188,9 @@ pub async fn flush(http: &reqwest::Client, config: &ConfigHandle) {
         SEARCHES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()).clear();
         return;
     }
-    let (dev_local, saved) = {
-        let c = config.lock().unwrap_or_else(|e| e.into_inner());
-        // Same resolution as exchange::endpoint — dev-build batches go
-        // to the dev server, never into prod's histograms.
-        (cfg!(debug_assertions) && c.dev_api_local == Some(true), c.community_api_url.clone())
-    };
-    let Some(api) = crate::exchange::pick_endpoint(std::env::var("EDDA_API_URL").ok(), dev_local, saved) else {
+    // Same resolution as exchange::endpoint — a dev session's batches go
+    // wherever EDDA_API_URL points, never into prod's histograms.
+    let Some(api) = crate::exchange::pick_endpoint(std::env::var("EDDA_API_URL").ok()) else {
         return;
     };
     let Some(batch) = take_batch(feature_flags(config), router_gate_ly(config), chrono::Utc::now().to_rfc3339()) else {

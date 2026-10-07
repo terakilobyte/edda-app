@@ -652,6 +652,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   behind. Settings now shows the API the dev app is on and what that
   server reports, and `scripts/dev-api-restart.sh` rebuilds and restarts
   the local server from main in one command.
+- **One API knob** (2026-10-07, boss: "why do we have two knobs?" ...
+  "fold it into one knob, just the env var"). `EDDA_API_URL` in the shell
+  before launch, else the canonical server; the saved `community_api_url`
+  override (installer campaign, 2026-08-30) and the debug-only
+  `dev_api_local` toggle (2026-09-05) are removed from config, commands
+  and Settings. Settings → Community API shows the endpoint, where it
+  came from (EDDA_API_URL or production), /healthz latency and /readyz
+  checks. The updater's debug-build override and telemetry's batch
+  destination follow the same variable. Old config files still carrying
+  the removed keys are read without complaint (serde ignores them).
 - **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
   post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
   the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"

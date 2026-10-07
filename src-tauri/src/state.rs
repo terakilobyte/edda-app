@@ -83,15 +83,6 @@ pub struct AppConfig {
     /// the toggle only ever touched the window.
     #[serde(default)]
     pub overlay_hidden: bool,
-    /// Public EDDA community-data API. `EDDA_API_URL` overrides this for
-    /// development and self-hosted deployments.
-    #[serde(default)]
-    pub community_api_url: Option<String>,
-    /// Dev-build toggle (thin-client arc, maintainer 2026-09-05): route ALL
-    /// API traffic to the local WSL dev server instead of the community
-    /// server. Release builds ignore this entirely.
-    #[serde(default)]
-    pub dev_api_local: Option<bool>,
     /// This install's random id, sent as `X-EDDA-Install` so the API's
     /// budgets are per install rather than per address (API-only spec,
     /// "Per-install keys"; 2026-09-09: a c=4 ladder showed per-IP burst

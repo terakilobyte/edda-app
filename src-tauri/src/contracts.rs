@@ -140,12 +140,11 @@ fn reading_config_backed_status_never_deadlocks() {
     let state = crate::state::test_state(dir.path());
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let status = crate::exchange::dev_api_status(&state);
-        // Touch every field that needs the lock, so a future rewrite
-        // cannot pass by not reading config at all.
-        let _ = (status.available, status.local, status.effective);
-        // Twice: proves the guard was released, not merely survived once.
-        let _ = crate::exchange::dev_api_status(&state);
+        // A config-backed read, then the endpoint, then the read again:
+        // proves the guard was released, not merely survived once.
+        let n = state.config.lock().unwrap_or_else(|e| e.into_inner()).callouts_off.len();
+        let _ = crate::exchange::endpoint(&state);
+        let _ = (n, state.config.lock().unwrap_or_else(|e| e.into_inner()).callouts_off.len());
         let _ = tx.send(());
     });
     assert!(
@@ -154,6 +153,6 @@ fn reading_config_backed_status_never_deadlocks() {
             // also be compiling the dev app (2026-09-07: a 10 s budget tripped
             // under exactly that load while the test passed alone in 30 ms).
             std::time::Duration::from_secs(60)).is_ok(),
-        "dev_api_status did not return in time - it is holding the config mutex and          waiting for itself again (see the comment on that function)"
+        "the config-backed reads did not return in time - something is holding the config mutex and waiting for itself again"
     );
 }

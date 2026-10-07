@@ -47,16 +47,12 @@ pub struct UpdateCheck {
 /// user-editable in release builds, and this pins updates regardless —
 /// belt and braces, because the UI's absence is not a guarantee.
 ///
-/// Debug builds still honour the override so a dev server can serve
-/// test updates.
-fn endpoint(state: &AppState) -> String {
+/// Debug builds still honour EDDA_API_URL so a dev server can serve test
+/// updates (the only API knob since 2026-10-07).
+fn endpoint(_state: &AppState) -> String {
     let base = if cfg!(debug_assertions) {
-        state
-            .config
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .community_api_url
-            .clone()
+        std::env::var("EDDA_API_URL")
+            .ok()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| crate::exchange::DEFAULT_COMMUNITY_API.to_string())
     } else {
