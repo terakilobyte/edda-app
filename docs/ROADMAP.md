@@ -559,6 +559,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   second source; the game's login `Materials` snapshot is the only
   resync. The Inventory tab now says when the game last verified the
   counts and that shared-mission rewards show after a relog.
+- **The Route tab has shown no route since 0.4.2** (2026-10-07, boss,
+  dev app against prod: "in about 2 seconds it seemed like it found a
+  result, but it didn't show the actual route"; his console: `Uncaught
+  ReferenceError: Place is not defined at RoutePanel.svelte:252`). The
+  one-renderer change (0d749af, 0.4.2) put `<Place>` in the hop table
+  without importing it; Svelte compiles an unknown component as a
+  runtime reference, so the build was green and the tab blanked only
+  when it had a route to draw — which is also last night's "failed in
+  two seconds" and "nothing came back". Fixed by the import; pinned by
+  a server-side render of the tab with the real production Colonia
+  answer in the store (`routepanel-renders-route.test.js`, fixture
+  `colonia-route-2026-10-07.json`); and every uncaught webview error now
+  reaches the app log (`main.js` -> `frontend_log`), so a blank tab is
+  never silent again. Shipped broken in 0.4.2 and 0.4.3: those days the
+  boss flew trade routes and the game-route follower, not the plotter tab.
 - **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
   post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
   the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"
