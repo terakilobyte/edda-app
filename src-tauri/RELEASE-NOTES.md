@@ -54,6 +54,11 @@ line.
 **Evidence for the next time.** If a plot is ever rejected, the app log
 now records what the Route tab saw, beside what the server answered.
 
+**A finished setup is counted, anonymously.** EDDA now remembers on the
+install that setup was completed and counts it once, so the dashboards
+can say how many commanders got through it. No name, no location, no
+content: a single flag.
+
 ## 0.4.3
 
 Mission material rewards now count. Every hand-in that paid materials
