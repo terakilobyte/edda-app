@@ -620,6 +620,25 @@ verdicts live in the CSV headers under `docs/benches/`.
   for a dead-end target (Spaidau AA-A d0 has none within 300 s from Sol
   either), the long planner budget under the gateway's 120 s, and
   /v1/version so Settings can show which server build answers.
+- **Correction to the routing night: the boss's app was on the local
+  server** (2026-10-07 15:30Z, Statler from the box's counters, confirmed
+  here from his config: `dev_api_local = true`, which a DEBUG build
+  honours). Every plot from his dev app — last night's 35 s / 50 s
+  Beagle Point plots, the 13:04Z 503s, today's Spaidau 242 s — went to
+  the WSL ed-api on his PC at 127.0.0.1:8787, not to api.edda-app.com:
+  the 503s were the old 30 Sept dev serve with an empty artifact dir,
+  the rest a server rebuilt at 13:13Z from the tree of that moment (no
+  pool, no early answer), sharing his CPU. Every "prod" figure in the
+  benches came from curl against api.edda-app.com and stands; the
+  starvation and the early answer were measured on the box by Statler
+  and on prod by me. Same crossing side by side at 15:33Z: his app via
+  the local server 23.1 s / 192 hops; prod 7.0 s early route. The
+  setting is deliberate (boss, 2026-09-29: the dev app flies against the
+  WSL server to preview the full stack); what was missing is the local
+  server's BUILD beside the address, so a server behind main reads as
+  behind. Settings now shows the API the dev app is on and what that
+  server reports, and `scripts/dev-api-restart.sh` rebuilds and restarts
+  the local server from main in one command.
 - **Routing night, 2026-10-07** (boss, taking screenshots for the Reddit
   post: HIP 90112 -> Beagle Point took 35 s then 50 s, Stop did nothing,
   the tab showed nothing; HIP 90112 -> Colonia "failed in two seconds"
