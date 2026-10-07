@@ -6,6 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+rayon = "1"  # the planner pools: every platform, not only unix (2026-10-07: Windows CI could not find the crate)
 fastcdc = "3"
 flate2 = "1"
 sha2 = "0.10"
@@ -34,7 +35,6 @@ metrics-exporter-prometheus = { version = "0.18.3", default-features = false }
 # getrusage for publication CPU accounting; the server is Linux, the
 # Windows dev build just records NULL.
 libc = "0.2"
-rayon = "1"
 
 [dev-dependencies]
 serde_urlencoded = "0.7"
