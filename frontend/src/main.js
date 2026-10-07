@@ -11,6 +11,14 @@ const report = (kind, detail) => { try { frontendLog("warn", `${kind}: ${detail}
 window.addEventListener("error", (e) => report("js error", `${e.message} @ ${e.filename ?? "?"}:${e.lineno ?? "?"}:${e.colno ?? "?"}${e.error?.stack ? "\n" + e.error.stack : ""}`));
 window.addEventListener("unhandledrejection", (e) => report("unhandled rejection", e.reason?.stack ?? String(e.reason)));
 
+// A plain browser, no Tauri: `?transport=fake` answers from fixtures
+// (browserTransport.js) so Playwright and an agent's browser can see the
+// real tabs render. The chunk loads only when asked for.
+if (new URLSearchParams(location.search).get("transport") === "fake") {
+  const [{ browserTransport }, { setTransport }] = await Promise.all([import("./lib/browserTransport.js"), import("./lib/transport.js")]);
+  setTransport(browserTransport());
+}
+
 const app = mount(App, { target: document.getElementById("app") });
 
 export default app;
