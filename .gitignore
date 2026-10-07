@@ -23,7 +23,11 @@ voxels.csv
 /notes.json
 
 # Open-sourcing scrub (2026-09-09): local state, editor files, generated stores.
-/.claude/
+# Session scratch under .claude/ stays local; the project's own skills and
+# agent definitions are part of the repo.
+/.claude/*
+!/.claude/skills/
+!/.claude/agents/
 target/
 *.log
 logs/
