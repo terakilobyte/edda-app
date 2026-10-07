@@ -348,27 +348,34 @@ pub fn cache_key(version: &str, req: &RouteRequest) -> u64 {
 /// One lane's admission control: running slots and a waiting room.
 pub struct Gate {
     /// Running-plot slots.
-    slots: tokio::sync::Semaphore,
+    slots: std::sync::Arc<tokio::sync::Semaphore>,
     /// Waiting-room slots (acquired before, released after, a slot wait).
-    queue: tokio::sync::Semaphore,
+    queue: std::sync::Arc<tokio::sync::Semaphore>,
 }
 
 impl Gate {
     fn new(concurrency: usize, queue: usize) -> Self {
         Gate {
-            slots: tokio::sync::Semaphore::new(concurrency),
-            queue: tokio::sync::Semaphore::new(concurrency + queue),
+            slots: std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency)),
+            queue: std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency + queue)),
         }
     }
 
     /// A place in the waiting room, or `None` when it is full — the
-    /// honest 503. The permit is held until the plot finishes.
-    fn enter(&self) -> Option<tokio::sync::SemaphorePermit<'_>> {
-        self.queue.try_acquire().ok()
+    /// honest 503. The permit is owned so it can travel into the planner
+    /// task and be held until the PLANNER finishes, not until the
+    /// request is answered: an early answer (2026-10-07) released the
+    /// slot at 7 s while its refinement ran on, so a third and fourth
+    /// crossing joined the long pool, every variant slowed, the budget
+    /// (checked between variants) could not bind, and one refinement ran
+    /// 180 s of planner time while the next crossing waited 87 s for its
+    /// own early answer.
+    fn enter(&self) -> Option<tokio::sync::OwnedSemaphorePermit> {
+        std::sync::Arc::clone(&self.queue).try_acquire_owned().ok()
     }
 
-    async fn slot(&self) -> tokio::sync::SemaphorePermit<'_> {
-        self.slots.acquire().await.expect("semaphore never closed")
+    async fn slot(&self) -> tokio::sync::OwnedSemaphorePermit {
+        std::sync::Arc::clone(&self.slots).acquire_owned().await.expect("semaphore never closed")
     }
 }
 
@@ -594,10 +601,10 @@ impl RouteService {
             return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
         }
         let gate = self.gate(lane);
-        let Some(_queued) = gate.enter() else {
+        let Some(queued) = gate.enter() else {
             return Ok((lane, PlotOutcome::Saturated, bridges));
         };
-        let _slot = gate.slot().await;
+        let slot = gate.slot().await;
         // The wait may have outlived a twin's plot.
         if let Some((route, refining)) = self.cached(key) {
             return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
@@ -629,7 +636,11 @@ impl RouteService {
         // the budget bought.
         let served_early: std::sync::Arc<Mutex<Option<(usize, Instant)>>> = std::sync::Arc::new(Mutex::new(None));
         let served_early_task = std::sync::Arc::clone(&served_early);
+        let plot_started = Instant::now();
         let mut task = tokio::task::spawn_blocking(move || {
+            // The lane's permits live and die with the planner, whatever
+            // the handler did with the answer.
+            let _permits = (queued, slot);
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
             let found = move |r: &Route| {
                 let _ = found_tx.send(r.clone());
@@ -637,25 +648,32 @@ impl RouteService {
             let none = Control::none();
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
+            let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
                 Err(RouteError::Cancelled) => {
                     metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
-                    tracing::info!(lane = lane_name, "route plot stopped: the client was gone");
+                    tracing::info!(lane = lane_name, key, planner_ms, "route plot stopped: the client was gone");
                 }
-                Ok(route) if storable => {
-                    // The finished route replaces any early answer under
-                    // this key, whether or not anyone is still waiting.
-                    store_in(&cache, key, std::sync::Arc::new(route.clone()), false);
-                    if let Some((early_jumps, at)) = *served_early_task.lock().unwrap_or_else(|e| e.into_inner()) {
-                        let result = refined(early_jumps, route.jumps);
-                        let refine_ms = at.elapsed().as_millis() as u64;
-                        metrics::counter!("edda_route_refined_total", "lane" => lane_name, "result" => result).increment(1);
-                        metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
-                            .record(early_jumps as f64 - route.jumps as f64);
-                        tracing::info!(lane = lane_name, early_jumps, final_jumps = route.jumps, refine_ms, result, "route refined");
+                Ok(route) => {
+                    if storable {
+                        // The finished route replaces any early answer under
+                        // this key, whether or not anyone is still waiting.
+                        store_in(&cache, key, std::sync::Arc::new(route.clone()), false);
+                    }
+                    match early {
+                        Some((early_jumps, at)) => {
+                            let result = refined(early_jumps, route.jumps);
+                            let refine_ms = at.elapsed().as_millis() as u64;
+                            metrics::counter!("edda_route_refined_total", "lane" => lane_name, "result" => result).increment(1);
+                            metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
+                                .record(early_jumps as f64 - route.jumps as f64);
+                            tracing::info!(lane = lane_name, key, early_jumps, final_jumps = route.jumps, refine_ms, planner_ms, result, "route refined");
+                        }
+                        None => tracing::info!(lane = lane_name, key, jumps = route.jumps, planner_ms, storable, "route planned"),
                     }
                 }
-                _ => {}
+                Err(e) => tracing::info!(lane = lane_name, key, planner_ms, early = early.is_some(), error = ?e, "route plot ended without a route"),
             }
             r
         });
@@ -688,10 +706,18 @@ impl RouteService {
                     break joined;
                 }
             };
+            // The channel closing with nothing found means the planner
+            // ended without a route (a crossing that never finishes a
+            // variant in budget): its own result is the answer, not a
+            // panic — one 502 on 2026-10-07 was exactly that `expect`.
+            let finished = match (finished, &best) {
+                (None, None) => Some((&mut task).await),
+                (f, _) => f,
+            };
             match finished {
                 Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
                 None => {
-                    let route = std::sync::Arc::new(best.expect("served early only once a route was found"));
+                    let route = std::sync::Arc::new(best.expect("a best route exists when the grace, not the channel, ended the wait"));
                     *served_early.lock().unwrap_or_else(|e| e.into_inner()) = Some((route.jumps, Instant::now()));
                     guard.disarm();
                     metrics::counter!("edda_route_early_total", "lane" => lane_name).increment(1);
