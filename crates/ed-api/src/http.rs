@@ -1178,8 +1178,15 @@ fn download_via(headers: &HeaderMap) -> &'static str {
     }
 }
 
+/// A published package, as opposed to the manifest, the notes feed or
+/// anything else under /v1/app: only these count as downloads.
+fn is_package(path: &str) -> bool {
+    [".exe", ".msi", ".AppImage", ".deb", ".rpm", ".tar.gz", ".dmg"].iter().any(|ext| path.ends_with(ext))
+}
+
 async fn app_release(
     State(state): State<AppState>,
+    method: axum::http::Method,
     AxumPath(path): AxumPath<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
@@ -1187,17 +1194,36 @@ async fn app_release(
         return StatusCode::BAD_REQUEST.into_response();
     }
     let full = state.artifact_dir.join("app").join(&path);
+    let json = path.ends_with(".json");
+    // A HEAD is a probe, not a download: the website HEADs the .rpm on
+    // every page view to decide whether to offer the link, and the
+    // launch-night dashboard read 24 "RPM downloads" that were 24 page
+    // views (2026-10-07). Answer it from the file's size, read nothing,
+    // count nothing.
+    if method == axum::http::Method::HEAD {
+        let Ok(meta) = tokio::fs::metadata(&full).await else {
+            return StatusCode::NOT_FOUND.into_response();
+        };
+        let mut response = Response::new(Body::empty());
+        let h = response.headers_mut();
+        h.insert(header::CONTENT_LENGTH, HeaderValue::from(meta.len()));
+        h.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(if json { "application/json" } else { "application/octet-stream" }),
+        );
+        return response.into_response();
+    }
     let Ok(bytes) = tokio::fs::read(&full).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
     metrics::counter!("edda_app_release_bytes_total").increment(bytes.len() as u64);
-    // Fleet pulse: manifest polls are update CHECKS; package fetches are
+    // Fleet pulse: manifest polls are update CHECKS; package GETs are
     // downloads, split browser (site button ≈ fresh install) vs updater
     // (existing install updating). File names are a bounded set — one
-    // label value per published artifact.
+    // label value per published artifact. The notes feed is neither.
     if path.ends_with("latest.json") {
         metrics::counter!("edda_update_checks_total", "via" => download_via(&headers)).increment(1);
-    } else {
+    } else if is_package(&path) {
         let file = path.rsplit('/').next().unwrap_or(&path).to_string();
         metrics::counter!(
             "edda_app_downloads_total",
@@ -1208,7 +1234,6 @@ async fn app_release(
     }
     let mut response = Response::new(Body::from(bytes));
     let headers = response.headers_mut();
-    let json = path.ends_with(".json");
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static(if json { "application/json" } else { "application/octet-stream" }),
@@ -1474,6 +1499,16 @@ async fn valid_manifest(path: &PathBuf) -> bool {
 #[cfg(test)]
 mod tests {
     use axum::{body::Body, http::Request};
+
+    #[test]
+    fn only_packages_are_downloads() {
+        for p in ["EDDA_0.4.4_x64-setup.exe", "EDDA_0.4.4_amd64.AppImage", "EDDA_0.4.4_amd64.deb", "EDDA_0.4.4_x86_64.rpm", "EDDA_0.4.4_aarch64.app.tar.gz"] {
+            assert!(super::is_package(p), "{p}");
+        }
+        for p in ["latest.json", "notes.json", "EDDA_0.4.4_x64-setup.exe.sig", "README"] {
+            assert!(!super::is_package(p), "{p}");
+        }
+    }
     use http_body_util::BodyExt;
     use sqlx::postgres::PgPoolOptions;
     use tower::ServiceExt;
