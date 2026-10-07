@@ -8,6 +8,26 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **One long plot starves every other plot** (2026-10-07, measured on
+  the box). Not a regression: the planner is unchanged since #140 and
+  crossings got faster since September on the PC (14.5 s vs 43-54 s);
+  a Sol → Beagle Point crossing costs 31 s on the box because the
+  portfolio runs 22 variants on a slower core, and the sidecars move
+  nothing (Waldorf's CSV). The finding: all plots share ONE rayon pool
+  of 6 threads; the lanes gate admission, not work, so an interactive
+  plot's fan-out queues behind a crossing's 22 variants — Sol → Alioth,
+  70 ms alone, took 70 s and 105 s beside a Beagle plot with two cores
+  idle. The crossing itself came back 504 at the 120 s lane budget and
+  kept planning after the client was gone (`Control::none()`). Shipped:
+  the wire says `cached`/`lane`/`budget_ms`, the log carries planner
+  ms/jumps/expansions/variants and sidecar availability per plot, the
+  sub-index says what it carries when opened, and an hourly canary
+  (`scripts/route_canary.sh`) plots three pinned routes against bounds
+  and fails loudly — its first dry run caught the 70 s.
+  `docs/benches/2026-10-07-route-latency-prod.csv`. Next, measured
+  before deployed: a rayon pool per lane and a cancel flag dropped with
+  the request; then the product ruling on an interactive crossing lane
+  (first good route early, refine behind "Try harder").
 - **The database's growth was one index** (2026-10-02, measured on
   the box and the mirror). `market_commodity_fresh_idx` was 38 GB
   against 9.7 GB freshly built from the same data: the board writer

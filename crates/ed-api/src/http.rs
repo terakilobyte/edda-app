@@ -651,8 +651,39 @@ async fn plot_route(
             if bridged {
                 metrics::counter!("edda_route_bridged_total").increment(1);
             }
-            tracing::info!(cached, lane = lane_name, bridged, ms = started.elapsed().as_millis() as u64, "route served");
-            axum::Json(crate::plot::augment(&route, &bridges)).into_response()
+            // What the planner had to work with, per plot: the highway
+            // sub-index's sidecars. "Available" is what this counts —
+            // whether the planner engaged them is its own business
+            // (long_range.rs arms the goal field only on a non-uniform
+            // ALT line). Measured 2026-10-07 on the full index: the
+            // sidecars move a Sol -> Beagle crossing by nothing outside
+            // noise (docs/benches/2026-10-07-highway-sidecars-crossing.csv),
+            // so this is observability, not a lever.
+            let (alt, cell_graph) = match handle.neutrons.as_deref() {
+                Some(n) => (n.alt().is_some(), n.cell_graph().is_some()),
+                None => (false, false),
+            };
+            metrics::counter!(
+                "edda_route_heuristics_total",
+                "lane" => lane_name,
+                "alt" => if alt { "yes" } else { "no" },
+                "cell_graph" => if cell_graph { "yes" } else { "no" }
+            )
+            .increment(1);
+            tracing::info!(
+                cached,
+                lane = lane_name,
+                bridged,
+                ms = started.elapsed().as_millis() as u64,
+                planner_ms = route.elapsed_ms,
+                jumps = route.jumps,
+                expansions = route.expansions,
+                variants = format_args!("{}/{}", route.variants_finished, route.variants_run),
+                alt,
+                cell_graph,
+                "route served"
+            );
+            axum::Json(crate::plot::augment(&route, &bridges, &crate::plot::Served { cached, lane })).into_response()
         }
         PlotOutcome::Refused(PlotRefusal::UnknownSystem(name)) => {
             lane_counter("unknown_system");

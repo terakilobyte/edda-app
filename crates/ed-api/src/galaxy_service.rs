@@ -85,7 +85,10 @@ impl GalaxyService {
             let dir = self.neutron_dir(&version);
             if Galaxy::exists(&dir) {
                 match Galaxy::open(&dir) {
-                    Ok(n) => loaded.neutrons = Some(Arc::new(n)),
+                    Ok(n) => {
+                        highway_opened(&version, &n);
+                        loaded.neutrons = Some(Arc::new(n));
+                    }
                     Err(error) => {
                         tracing::warn!(%error, "serve: highway sub-index unreadable; rebuilding");
                         let _ = std::fs::remove_dir_all(&dir);
@@ -130,6 +133,7 @@ impl GalaxyService {
                     Ok(n) => {
                         metrics::histogram!("edda_highway_build_seconds").record(started.elapsed().as_secs_f64());
                         tracing::info!(%version, secs = started.elapsed().as_secs(), "serve: highway sub-index built");
+                        highway_opened(&version, &n);
                         loaded.neutrons = Some(Arc::new(n));
                     }
                     Err(error) => {
@@ -162,6 +166,19 @@ pub fn highway_dir(artifact_dir: &Path, version: &str) -> PathBuf {
 /// over the full galaxy). Shared by the serving process (lazy, as the
 /// belt) and by the publishers, which call it BEFORE the manifest points
 /// at the version, so a plot never meets a version without its highway.
+/// One line and two gauges whenever a highway sub-index comes into
+/// service: which sidecars it carries. The server's sub-index has
+/// carried only agg250.bin since the sidecars measured null on every
+/// canonical route (ROUTING-NEXT 5.2) and again on 2026-10-07
+/// (docs/benches/2026-10-07-highway-sidecars-crossing.csv); this makes
+/// that a fact in the journal rather than a thing to go and check.
+fn highway_opened(version: &str, n: &Galaxy) {
+    let (alt, cell_graph) = (n.alt().is_some(), n.cell_graph().is_some());
+    metrics::gauge!("edda_highway_sidecar", "kind" => "alt").set(if alt { 1.0 } else { 0.0 });
+    metrics::gauge!("edda_highway_sidecar", "kind" => "cell_graph").set(if cell_graph { 1.0 } else { 0.0 });
+    tracing::info!(%version, systems = n.count, alt, cell_graph, "serve: highway sub-index opened");
+}
+
 pub fn build_highway_blocking(galaxy: &Galaxy, artifact_dir: &Path, version: &str) -> Result<PathBuf> {
     let dir = highway_dir(artifact_dir, version);
     if Galaxy::exists(&dir) {
