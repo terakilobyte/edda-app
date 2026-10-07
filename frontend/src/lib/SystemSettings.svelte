@@ -17,7 +17,25 @@
     ["setup", "Setup"],
   ];
   import { capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, onCapiState } from "./api.js";
-  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet } from "./api.js";
+  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet, devApiGet, devApiSet, apiProbe } from "./api.js";
+  // Which community API this build is on, and what it says about itself.
+  // A dev build may be pointed at the local WSL server (the boss's rule
+  // since 2026-09-29); the probe shows that server is up and answering,
+  // and the switch flips to production without a config edit.
+  let devApi = $state(null);
+  let probe = $state(null);
+  let probing = $state(false);
+  async function refreshApi() {
+    probing = true;
+    try { devApi = await devApiGet(); } catch {}
+    try { probe = await apiProbe(); } catch (e) { probe = { endpoint: null, healthy: false, ms: 0, ready: null, error: String(e) }; }
+    probing = false;
+  }
+  async function setLocal(on) {
+    try { devApi = await devApiSet(on); } catch (e) { msg = String(e); }
+    await refreshApi();
+  }
+  onMount(refreshApi);
 
   // Anonymous usage data — the maintainer's opt-out consent (2026-09-05).
   let telemetry = $state(true);
@@ -298,6 +316,20 @@
     {/if}
   </div>
   {#if msg}<p class="muted small" style="margin:0.5rem 0 0">{msg}</p>{/if}
+</section>
+
+<section class="panel">
+  <h2>Community API <span class="sub">which server this build talks to, and whether it answers</span></h2>
+  <dl class="kv">
+    <dt>Endpoint</dt><dd class="small">{probe?.endpoint ?? devApi?.effective ?? "not configured"}{#if devApi?.available}<span class="pill {devApi.local ? 'warn' : 'ok'}" style="margin-left:0.5rem">{devApi.local ? "local dev server" : "production"}</span>{/if}</dd>
+    <dt>Health</dt><dd class="small">{#if probing && !probe}probing…{:else if probe?.healthy}<span class="ok">up</span> · <span class="num">{probe.ms} ms</span>{#if probe.ready?.checks} · {Object.entries(probe.ready.checks).map(([k, v]) => `${k} ${v === true ? "ok" : v === false ? "FAIL" : v}`).join(" · ")}{/if}{:else}<span class="warn">{probe?.error ?? "no answer"}</span>{/if}</dd>
+  </dl>
+  <div class="row" style="margin-top:0.6rem">
+    <button class="quiet" onclick={refreshApi} disabled={probing}>Probe again</button>
+    {#if devApi?.available}
+      <label class="check small" title="Debug builds only: talk to the ed-api on 127.0.0.1:8787 instead of production. Start it with scripts/dev-api-restart.sh in WSL."><input type="checkbox" checked={devApi.local} onchange={(e) => setLocal(e.currentTarget.checked)} /> use the local dev server ({devApi.local_url})</label>
+    {/if}
+  </div>
 </section>
 {/if}
 

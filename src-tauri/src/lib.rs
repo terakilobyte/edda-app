@@ -618,6 +618,7 @@ pub fn run() {
             commands::capi_unlink,
             commands::capi_refresh_carrier,
         exchange::dev_api_get,
+        exchange::api_probe,
         exchange::dev_api_set,
         hold_sale::sell_hold_search,
         routing::galaxy_status,

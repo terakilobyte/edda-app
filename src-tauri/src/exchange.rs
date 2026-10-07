@@ -89,6 +89,45 @@ pub async fn dev_api_get(state: State<'_, AppState>) -> Result<DevApiStatus, Str
     Ok(dev_api_status(&state))
 }
 
+/// What the API the app is on says about itself, for Settings: the
+/// endpoint, whether /healthz answered and how fast, and /readyz's checks.
+/// 2026-10-07: the boss's dev app was on the WSL server by his own rule,
+/// but that server had been built from a stale tree and every slow plot
+/// was read as production's; the address alone did not say which server
+/// it was, or whether it was even the one he thought.
+#[derive(Debug, serde::Serialize)]
+pub struct ApiProbe {
+    pub endpoint: Option<String>,
+    pub healthy: bool,
+    pub ms: u64,
+    pub ready: Option<serde_json::Value>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn api_probe(state: State<'_, AppState>) -> Result<ApiProbe, String> {
+    let Some(endpoint) = endpoint(&state) else {
+        return Ok(ApiProbe { endpoint: None, healthy: false, ms: 0, ready: None, error: Some("no API configured".into()) });
+    };
+    let started = std::time::Instant::now();
+    let health = state.http.get(format!("{endpoint}/healthz")).timeout(std::time::Duration::from_secs(5)).send().await;
+    let ms = started.elapsed().as_millis() as u64;
+    let (healthy, error) = match health {
+        Ok(r) if r.status().is_success() => (true, None),
+        Ok(r) => (false, Some(format!("healthz {}", r.status()))),
+        Err(e) => (false, Some(e.to_string())),
+    };
+    let ready = if healthy {
+        match state.http.get(format!("{endpoint}/readyz")).timeout(std::time::Duration::from_secs(5)).send().await {
+            Ok(r) => r.json::<serde_json::Value>().await.ok(),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+    Ok(ApiProbe { endpoint: Some(endpoint), healthy, ms, ready, error })
+}
+
 #[tauri::command]
 pub async fn dev_api_set(state: State<'_, AppState>, local: bool) -> Result<DevApiStatus, String> {
     if !cfg!(debug_assertions) {
