@@ -355,6 +355,8 @@ pub struct Gate {
     slots: std::sync::Arc<tokio::sync::Semaphore>,
     /// Waiting-room slots (acquired before, released after, a slot wait).
     queue: std::sync::Arc<tokio::sync::Semaphore>,
+    slots_total: usize,
+    queue_total: usize,
 }
 
 impl Gate {
@@ -362,6 +364,8 @@ impl Gate {
         Gate {
             slots: std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency)),
             queue: std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency + queue)),
+            slots_total: concurrency,
+            queue_total: concurrency + queue,
         }
     }
 
@@ -380,6 +384,13 @@ impl Gate {
 
     async fn slot(&self) -> tokio::sync::OwnedSemaphorePermit {
         std::sync::Arc::clone(&self.slots).acquire_owned().await.expect("semaphore never closed")
+    }
+
+    /// Plots admitted to the waiting room and not yet running (the
+    /// gauge the dashboard reads beside the slot-wait histogram).
+    fn waiting(&self) -> usize {
+        let taken = self.queue_total - self.queue.available_permits();
+        taken.saturating_sub(self.slots_total - self.slots.available_permits())
     }
 }
 
@@ -687,7 +698,19 @@ impl RouteService {
         let Some(queued) = gate.enter() else {
             return Ok((lane, PlotOutcome::Saturated, bridges));
         };
+        // How long a plot waits for a slot: with two long slots each held
+        // ~29 s by a crossing's refinement, the lane early-serves about
+        // four crossings a minute before queueing (prod, 2026-10-07:
+        // a third crossing 10 s in waited 25 s). When real traffic
+        // exceeds that, this histogram is where it shows first.
+        let waited = Instant::now();
         let slot = gate.slot().await;
+        let wait = waited.elapsed();
+        metrics::histogram!("edda_route_slot_wait_seconds", "lane" => lane.as_str()).record(wait.as_secs_f64());
+        metrics::gauge!("edda_route_queue_waiting", "lane" => lane.as_str()).set(gate.waiting() as f64);
+        if wait > Duration::from_secs(2) {
+            tracing::info!(lane = lane.as_str(), wait_ms = wait.as_millis() as u64, "route: waited for a lane slot");
+        }
         // The wait may have outlived a twin's plot.
         if let Some((route, refining)) = self.cached(key) {
             return Ok((lane, PlotOutcome::Route(route, true, refining), bridges));
@@ -1217,6 +1240,21 @@ mod endpoint_tests {
         assert_eq!(better(&a, &b).jumps, 199, "fewer jumps wins");
         assert_eq!(better(&b, &c).boosted_jumps, 30, "equal jumps: fewer boosts wins");
         assert_eq!(better(&c, &b).boosted_jumps, 30, "order does not matter");
+    }
+
+    /// The waiting count is plots admitted but not yet running.
+    #[tokio::test]
+    async fn the_gate_counts_who_is_waiting() {
+        let gate = Gate::new(1, 2);
+        assert_eq!(gate.waiting(), 0);
+        let _q1 = gate.enter().unwrap();
+        let _s1 = gate.slot().await;
+        assert_eq!(gate.waiting(), 0, "one running, none waiting");
+        let _q2 = gate.enter().unwrap();
+        assert_eq!(gate.waiting(), 1, "admitted, no slot yet");
+        let _q3 = gate.enter().unwrap();
+        assert_eq!(gate.waiting(), 2);
+        assert!(gate.enter().is_none(), "the waiting room is full: the honest 503");
     }
 
     /// A dead end answers at once the second time: the refusal is held
