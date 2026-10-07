@@ -19,3 +19,10 @@ after #212 (pool per long slot; deploy 37645741421 at 15:42:06Z; this Mac; range
 after #212: Wongi -> Beagle Point B,at once with A,337,,1267,false,true,
 after #212: Diso -> Beagle Point C,started +10 s while A and B refine,338,,886,false,true,
 after #212 wall times: A 7.3 s / B 7.5 s / C 24.9 s (C queued on the gate until a refinement freed a slot; before #212 the same three were 44.9 / 45.3 / 89.9 s; before #207 10.6 / 13.5 / 37.6 s with the refinements unbounded),,,,,,,
+# AFTER #207 (main redeployed 15:03:10Z; measured 15:04-15:09Z from the boss's PC, fresh origins, range 72.2, supercharge): a lone crossing early-serves in ~8 s, but two crossings at once do not get their early answer for ~45 s (each planner had its first route within 1-4 s) and a third started 10 s in waits ~90 s -- worse than #196-only (33.7/33.5 s) and than the pre-#207 build (10.6/13.5/37.6 s). The held slot and the early serve are fighting: the second crossing's handler cannot serve until the first's refinement releases. Interactive lane unaffected (1.08 s). Columns as the rows below: scenario,request,http,wall_s,elapsed_ms,jumps,refining,cached.
+after207,b_short_during_long,Sol->LHS 20,200,0.590544,10,2,false,false
+after207,b_long_with_short,Diso->Beagle Point,200,7.864425,1740,357,true,false
+after207,c_two_at_once_1,Orrere->Beagle Point,200,44.892548,1219,357,true,false
+after207,c_two_at_once_2,Leesti->Beagle Point,200,45.251106,3768,352,true,false
+after207,d_third_10s_in,Zaonce->Beagle Point,200,89.868093,1177,342,true,false
+after207,interactive_after,Sol->Deciat,200,1.079840,505,5,false,false
