@@ -8,6 +8,18 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **The weekly syncs were retired in the repo on 2026-09-09 but ran on
+  the box until 2026-10-07** (measured). The box kept the pre-0.3.0
+  `edda-weekly.sh`, so every Sunday still pulled Spansh's galaxy_7days
+  (39 min, 1.45M body rows, 0 systems — all already taught) and EDSM's
+  bodies7days (11 s). What the EDSM weekly uniquely taught, from
+  `stars.source` over the last 8 days: feed 230,623 star rows, daily
+  dump 28,361, EDSM weekly 5,455 — about 2 % of the feed's, in systems
+  nobody on the feed has scanned. The repo's script (no syncs, plus the
+  market index reindex) was installed on 2026-10-07, so 2026-10-11 is
+  the first Sunday the ruling actually holds. If those ~5k star classes
+  a week are wanted back, it is one line in the weekly script; the
+  maintainer decides.
 - **One long plot starves every other plot** (2026-10-07, measured on
   the box). Not a regression: the planner is unchanged since #140 and
   crossings got faster since September on the PC (14.5 s vs 43-54 s);
