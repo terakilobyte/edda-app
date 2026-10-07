@@ -110,6 +110,13 @@ pub struct AppConfig {
     /// opt-OUT — `None` means enabled; `Some(false)` is the unchecked box.
     #[serde(default)]
     pub send_telemetry: Option<bool>,
+    /// Setup (the onboarding wizard) has been completed on this install
+    /// at least once. Reported as the `setup_complete` feature flag so the
+    /// dashboards can count installs past setup (maintainer, 2026-10-07:
+    /// "how many times setup has been completed"); the completion itself
+    /// is reported once as `setup_completed_now`.
+    #[serde(default)]
+    pub setup_completed: Option<bool>,
     /// Opt-in: estimate massacre/assassination progress from the kill
     /// events the journal saw (a floor; see `ed_store::missions`). Off by
     /// default (boss, 2026-10-03: "let's make it a checkbox").

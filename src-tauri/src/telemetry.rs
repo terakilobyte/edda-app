@@ -150,12 +150,25 @@ pub fn router_gate_ly(config: &ConfigHandle) -> u32 {
     config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly
 }
 
+/// Set by `commands::setup_completed`, taken by the next batch: one
+/// `setup_completed_now` per completion, so the server's counter is a
+/// count of setups completed (an install that quits before its next
+/// batch is not counted — the undercount is small and never a double
+/// count). The persisted `setup_complete` flag below rides every batch.
+pub static SETUP_JUST_COMPLETED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// The feature-toggle snapshot the contract carries.
 pub fn feature_flags(config: &ConfigHandle) -> Vec<&'static str> {
     let config = config.lock().unwrap_or_else(|e| e.into_inner());
     let mut on = Vec::new();
     if config.auto_update.unwrap_or(true) {
         on.push("auto_update");
+    }
+    if config.setup_completed == Some(true) {
+        on.push("setup_complete");
+    }
+    if SETUP_JUST_COMPLETED.swap(false, std::sync::atomic::Ordering::Relaxed) {
+        on.push("setup_completed_now");
     }
     on.push(*VOICE_ENGINE.lock().unwrap_or_else(|e| e.into_inner()));
     // The Frontier link exists (a flag, never who): the keychain slot is the truth.
@@ -261,5 +274,29 @@ mod tests {
         // Emptied by the take: a quiet interval sends nothing (the gate
         // snapshot only rides a batch that already has something to say).
         assert!(take_batch(vec![], 1000, "t".into()).is_none());
+    }
+}
+
+#[cfg(test)]
+mod setup_flag_tests {
+    use super::*;
+
+    fn handle(setup_completed: Option<bool>) -> ConfigHandle {
+        std::sync::Arc::new(Mutex::new(crate::state::AppConfig { setup_completed, ..Default::default() }))
+    }
+
+    /// An install past the wizard says so on every batch; a completion is
+    /// said once, by the batch after it, and never again.
+    #[test]
+    fn setup_is_a_standing_flag_and_a_completion_is_counted_once() {
+        SETUP_JUST_COMPLETED.store(false, std::sync::atomic::Ordering::Relaxed);
+        let fresh = feature_flags(&handle(None));
+        assert!(!fresh.contains(&"setup_complete") && !fresh.contains(&"setup_completed_now"), "{fresh:?}");
+        SETUP_JUST_COMPLETED.store(true, std::sync::atomic::Ordering::Relaxed);
+        let first = feature_flags(&handle(Some(true)));
+        assert!(first.contains(&"setup_complete") && first.contains(&"setup_completed_now"), "{first:?}");
+        let next = feature_flags(&handle(Some(true)));
+        assert!(next.contains(&"setup_complete"), "{next:?}");
+        assert!(!next.contains(&"setup_completed_now"), "counted once: {next:?}");
     }
 }

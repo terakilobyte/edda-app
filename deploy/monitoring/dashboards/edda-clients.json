@@ -111,7 +111,8 @@
           "expr": "sum by (name) (increase(edda_client_feature_total[24h]))",
           "legendFormat": "{{name}}"
         }
-      ]
+      ],
+      "description": "setup_complete = installs past the wizard; setup_completed_now = one per completion (counted once, by the batch after the wizard finished)."
     },
     {
       "id": 6,
@@ -401,6 +402,56 @@
       },
       "collapsed": false,
       "panels": []
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Setups completed (24h / 7d)",
+      "datasource": {
+        "uid": "edda-vm"
+      },
+      "description": "Count of onboarding wizards finished: the setup_completed_now feature flag, sent once by the batch after the wizard finished. Right: installs that reported setup_complete in the last 24h.",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "edda-vm"
+          },
+          "expr": "sum(increase(edda_client_feature_total{name=\"setup_completed_now\",enabled=\"true\"}[24h]))",
+          "legendFormat": "completed, 24h"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "uid": "edda-vm"
+          },
+          "expr": "sum(increase(edda_client_feature_total{name=\"setup_completed_now\",enabled=\"true\"}[7d]))",
+          "legendFormat": "completed, 7d"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "uid": "edda-vm"
+          },
+          "expr": "sum(increase(edda_client_feature_total{name=\"setup_complete\",enabled=\"true\"}[24h]))",
+          "legendFormat": "installs past setup, 24h"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      }
     }
   ]
 }

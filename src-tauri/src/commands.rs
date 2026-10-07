@@ -2363,6 +2363,21 @@ pub async fn set_persona(state: State<'_, AppState>, id: String) -> Result<Perso
     personas(state).await
 }
 
+/// The onboarding wizard finished: remembered on the install and
+/// reported once (telemetry, allowlisted feature flags; nothing else).
+#[tauri::command]
+pub async fn setup_completed(state: State<'_, AppState>) -> Result<(), String> {
+    {
+        let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+        let first = cfg.setup_completed != Some(true);
+        cfg.setup_completed = Some(true);
+        cfg.save(&state.data_dir).map_err(err)?;
+        tracing::info!(first, "setup completed");
+    }
+    crate::telemetry::SETUP_JUST_COMPLETED.store(true, std::sync::atomic::Ordering::Relaxed);
+    Ok(())
+}
+
 /// Model files present under `.data/voices/`.
 #[tauri::command]
 pub async fn voice_models(state: State<'_, AppState>) -> Result<Vec<String>, String> {

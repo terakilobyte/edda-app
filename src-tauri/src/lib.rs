@@ -607,6 +607,7 @@ pub fn run() {
             commands::set_ai_config,
             commands::personas,
             commands::set_persona,
+            commands::setup_completed,
             commands::cancel_search,
             commands::ranks,
             commands::current_route,
