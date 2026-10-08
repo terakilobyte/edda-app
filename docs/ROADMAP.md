@@ -493,6 +493,28 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Code-sign the Windows binary** (2026-10-07, launch night; open).
+  One of the first downloaders put `edda.exe` on VirusTotal at
+  18:47Z: 1 of 48 engines flagged it, Trapmine's "Malicious.moderate.
+  ml.score" — a machine-learning confidence with no family, the verdict
+  that engine gives any large unsigned executable it has not seen;
+  Microsoft, CrowdStrike, Kaspersky, ESET, Sophos and Malwarebytes read
+  it clean. Checked, not assumed: the sample (sha256 `eed3a186…`) is
+  byte-identical to the `edda.exe` inside the 0.4.4 installer we ship
+  (installer `7965f3b8…`, extracted with 7-Zip on the Mac; the 0.4.3
+  install on the PC hashes differently, as it should). The behaviour
+  sandboxes show the app doing what it does — WebView2 loading, a TLS
+  connection to Microsoft's CDN, DNS, our own hostnames in memory —
+  with the generic tags a Rust GUI binary earns (user-input checks,
+  debugger checks, child processes). VirusTotal's "File is not signed"
+  is accurate: the release workflow's "signed" is the updater's minisign
+  signature on the artifacts, not Authenticode on the executable, which
+  is also why SmartScreen warns at install (`docs/BUILDING-LINUX.md`).
+  The lasting answer is an Authenticode signature in CI — Azure Trusted
+  Signing (about $10/month, signtool in Actions) or SignPath Foundation
+  (free for open source, application required) — plus a false-positive
+  report to Trapmine and the release hashes published beside the
+  download links. Waiting on the boss's choice of signer.
 - **The game route's dock lookup is remembered until the route changes**
   (2026-10-07, launch night). Measured from the box log while one Reddit
   pilot flew: 526 `stations served` lines in 19 minutes, 432 of them the
