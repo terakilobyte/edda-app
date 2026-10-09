@@ -104,8 +104,13 @@ impl Default for RouteRequest {
 }
 
 /// Extra cost of an injected jump, in jumps: materials are finite and a
-/// route should only spend them where nothing else crosses.
-const INJECTION_PENALTY: u32 = 3;
+/// route should only spend them where nothing else crosses. Thirty, not
+/// three (2026-10-09): at three the single search took an injection as a
+/// shortcut on Sol -> Beagle Point (199 jumps with one, 196 without) and
+/// HD 236233 -> Beagle Point; the boss's rule is "only when required",
+/// and no plain detour of thirty jumps exists on a route that has a
+/// plain alternative at all.
+pub const INJECTION_PENALTY: u32 = 30;
 
 /// FSD injection synthesis, best grade first: (range multiplier, grade,
 /// one unit of each material). Per Inara; an injection does not stack
@@ -253,6 +258,13 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
     }
     let floor = m.reserve.max(m.max_fuel_per_jump);
     let mut scoop_at = vec![false; n];
+    // The one-jump-in-hand floor cannot always be met: a run of
+    // unscoopable arrivals the tank can fly but only just (2026-10-09,
+    // Jongou AA-A d0 -> Byoi Fraae AT-U d2-1: 21 neutron hops in a row,
+    // arriving with 4.6 t). The jump itself is funded, so the thin margin
+    // is accepted; before this the rewrite kept adding stops at every
+    // EARLIER scoopable star -- none of which change the tank at the run
+    // -- and served 116 "scoop stops" on 396 jumps.
     let tank = loop {
         // One no-scoop simulation over the current stop set.
         let mut tank = vec![start_fuel.min(m.capacity)];
@@ -277,8 +289,14 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
                 }
             };
             if left < floor && !skipped.is_empty() {
-                short_at = Some(i);
-                break;
+                // A stop at the latest skipped scoopable only helps when no
+                // stop already sits between it and here; otherwise the
+                // margin cannot be met and the funded jump stands.
+                let latest = *skipped.last().unwrap();
+                if !scoop_at[latest + 1..i].iter().any(|&s| s) {
+                    short_at = Some(i);
+                    break;
+                }
             }
             if scoop_at[i] {
                 tank.push(m.capacity);
@@ -905,5 +923,87 @@ mod tests {
         let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
         // Tiny graph: may finish before the first cancel check; either way it must not panic.
         let _ = plan(&g, &req, &ctl);
+    }
+
+    /// An island whose only exit lies AWAY from the goal, in reach only
+    /// with an injection (2026-10-09, the rim plots). Pins that the quick
+    /// search still takes it: Start at the origin; Goal 200 ly up; Exit
+    /// 70 ly DOWN, beyond remaining + one plain jump (260 ly), which the
+    /// goal-ward cell prune must not drop; a chain from Exit curls to Goal
+    /// outside Start's reach even when injected (every other star is more
+    /// than 75 ly from Start). Range 60, basic injection 1.25 -> 75.
+    #[test]
+    fn an_island_exit_away_from_the_goal_is_taken_with_an_injection() {
+        let stars = [
+            ("Start", 0.0, 0.0),
+            ("Goal", 0.0, 200.0),
+            ("Exit", 0.0, -70.0),
+            ("Q1", 55.0, -60.0),
+            ("Q2", 100.0, -30.0),
+            ("Q3", 100.0, 25.0),
+            ("Q4", 100.0, 80.0),
+            ("Q5", 65.0, 125.0),
+            ("Q6", 30.0, 170.0),
+        ];
+        let mut lines = vec!["[".to_string()];
+        for (i, (name, x, y)) in stars.iter().enumerate() {
+            lines.push(format!(
+                r#"{{"id64":{},"name":"{name}","coords":{{"x":{x},"y":{y},"z":0}},"bodies":[{{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}}]}}{}"#,
+                i + 1,
+                if i + 1 < stars.len() { "," } else { "" }
+            ));
+        }
+        lines.push("]".into());
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let base = RouteRequest { from: g.find("Start").unwrap(), to: g.find("Goal").unwrap(), range_ly: 60.0, supercharge: false, thorough: false, ..Default::default() };
+        assert!(matches!(plan(&g, &base, &Control::none()), Err(RouteError::NoRoute)), "70 ly off an island at 60 ly: no route without an injection");
+        let injected = RouteRequest { injection: Some((1.25, "basic", 2)), ..base.clone() };
+        let route = plan(&g, &injected, &Control::none()).expect("the quick search takes the injected exit even though it points away from the goal");
+        assert_eq!(route.hops[1].name, "Exit");
+        assert_eq!(route.hops[1].injection.as_deref(), Some("basic"));
+        assert_eq!(route.injections, 1, "one injection: off the island, then the chain");
+        assert_eq!(route.hops.last().unwrap().name, "Goal");
+    }
+
+    /// The lean rewrite on a run the tank can only just fly: Start, two
+    /// scoopable stars A and B, then twenty neutron-boosted 430 ly hops with
+    /// nowhere to scoop, then End. A Caspian (128 t, 6.8 t a jump) arrives
+    /// at the end of the run with a few tonnes, below the one-jump-in-hand
+    /// floor. The only stop that matters is B; before 2026-10-09 the rewrite
+    /// went on to add A as well, then gave up and left every scoopable
+    /// arrival marked (the boss's 116 "scoop stops" on 396 jumps).
+    #[test]
+    fn a_thin_margin_on_an_unscoopable_run_is_accepted_not_padded_with_useless_stops() {
+        let m = crate::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let boost = BoostProfile { neutron: 6.0, white_dwarf: 1.0 };
+        let hop = |i: u32, name: &str, class: StarClass, scoopable: bool, d: f32, boosted: bool| Hop {
+            idx: i, id64: i as u64, name: name.into(), pos: [0.0; 3], class, scoopable, distance_ly: d, boosted,
+            total_ly: 0.0, fuel_after: None, refuel: scoopable, synthesized: false, fuel_optional: false, injection: None, via_secondary: None,
+        };
+        let mut hops = vec![
+            hop(0, "Start", StarClass::K, true, 0.0, false),
+            hop(1, "A", StarClass::K, true, 60.0, false),
+            hop(2, "B", StarClass::K, true, 60.0, false),
+            hop(3, "N0", StarClass::Neutron, false, 70.0, false),
+        ];
+        for k in 1..=20 {
+            hops.push(hop(3 + k, &format!("N{k}"), StarClass::Neutron, false, 430.0, true));
+        }
+        hops.push(hop(24, "End", StarClass::K, true, 60.0, true));
+        let n = hops.len();
+        let mut route = Route {
+            range_ly: 72.0, hops, jumps: n - 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 21, expansions: 0, elapsed_ms: 0,
+            refuel_stops: 4, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0,
+            ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None, highway_pending: false,
+        };
+        let ok = minimize_refuels(&m, &boost, None, &mut route, 128.0);
+        assert!(ok, "the run is funded: the rewrite must not give up");
+        let stops: Vec<&str> = route.hops.iter().filter(|h| h.refuel).map(|h| h.name.as_str()).collect();
+        assert_eq!(stops, vec!["B"], "one stop, at the last scoopable star before the run");
+        assert_eq!(route.refuel_stops, 1);
+        let last_tank = route.hops[n - 2].fuel_after.unwrap();
+        assert!(last_tank > 0.0 && last_tank < m.max_fuel_per_jump, "the run ends thin, not dry: {last_tank:.1} t");
     }
 }

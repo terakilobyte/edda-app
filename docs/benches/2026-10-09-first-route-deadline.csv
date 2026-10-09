@@ -1,0 +1,19 @@
+# First-route deadline (2026-10-09). VERDICT: as pre-registered. A long plot
+# with no first route by FIRST_ROUTE_MS = 45 s answers "budget" then; a plot
+# with a first route is untouched. Side server 8789 (worktree build, prod
+# index copy), requests range_ly 72.19, Mk II SCO boosts, supercharge on,
+# thorough false; "injected" = premium x87 on the wire.
+# Evidence for the number: every route that ever succeeded found its first
+# within 1.1 s (September matrix, 18 routes, PC:
+# 2026-10-07-early-answer-budget.csv), 1.7 s planner on the box
+# (2026-10-07-early-answer-prod.csv), 2.1 s planner on today's rim pairs,
+# 13.7 s offline on the hardest (Jongou AB-F d11-0 -> Byoi Fraae AE-T d3-0,
+# 409 jumps); every failure today (plain AA-A, reverse AB-F, the Panther)
+# found nothing in 100 s. 45 s = three times the hardest, for the box's
+# slower cores. Knob: EDDA_API_FIRST_ROUTE_MS. Metric:
+# edda_route_no_first_route_total{lane}.
+label,expected,http,wall_s,jumps,injections,refining,error
+Jongou AA-A d0->Byoi Fraae AT-U d2-1 plain,budget at ~45 s,504,45.02,,,,budget
+Jongou AA-A d0->Byoi Fraae AT-U d2-1 injected,~6 s,200,5.22,388,4,false,
+Sol->Beagle Point plain (control),unchanged,200,5.14,195,0,true,
+Byoi Fraae AE-T d3-0->Jongou AB-F d11-0 injected (the OPEN reverse stall),budget at ~45 s,504,45.04,,,,budget

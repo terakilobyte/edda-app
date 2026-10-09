@@ -27,6 +27,11 @@ pub const KNOWLEDGE_PROGRESS: &str = "knowledge-progress";
 pub const ROUTE_PROGRESS: &str = "route-progress";
 pub const ROUTE_CANDIDATE: &str = "route-candidate";
 pub const ROUTE_REPLANNED: &str = "route-replanned";
+/// The server answered a plot early and is refining it (#198); the app
+/// polls the key and relays the best route so far, then the finished one:
+/// `{ early_jumps, done, route }` -- `route` null at the start (watching)
+/// and at the end when nothing better came.
+pub const ROUTE_REFINING: &str = "route-refining";
 pub const ROUTE_FOLLOW: &str = "route-follow";
 pub const LISTEN_STATE: &str = "listen-state";
 pub const LISTEN_HEARD: &str = "listen-heard";

@@ -25,6 +25,9 @@ pub struct RoutingState {
     /// off until a plot asks); a re-plan of the followed route keeps the
     /// commander's choice.
     white_dwarfs: std::sync::atomic::AtomicBool,
+    /// Bumped by every plot: a refinement watcher from an earlier plot
+    /// sees the number move and stops polling.
+    plot_generation: std::sync::atomic::AtomicU64,
     /// Whether the last plot minimised fuel stops (opt-in); a re-plan of
     /// the followed route keeps the commander's choice, or a min-fuel
     /// route would silently revert to eager scooping mid-flight.
@@ -232,6 +235,7 @@ impl RoutingState {
             galaxy: Mutex::new(None),
             neutrons: Mutex::new(None),
             white_dwarfs: std::sync::atomic::AtomicBool::new(false),
+            plot_generation: std::sync::atomic::AtomicU64::new(0),
             min_fuel: std::sync::atomic::AtomicBool::new(true),
             safe_margins: std::sync::atomic::AtomicBool::new(false),
             jobs: Mutex::new(None),
@@ -1140,7 +1144,7 @@ impl PlotFailure {
     }
 }
 
-async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::sync::CancellationToken) -> Result<ed_galaxy::router::Route, PlotFailure> {
+async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::sync::CancellationToken) -> Result<(ed_galaxy::router::Route, ServerAnswer), PlotFailure> {
     let api = crate::exchange::endpoint(state)
         .ok_or_else(|| PlotFailure::Refused("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there".into()))?;
     let (here, ship) = state.with_read(|s| {
@@ -1183,6 +1187,11 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
         "weight": query.weight,
         "stop_weight": query.stop_weight,
         "thorough": query.thorough,
+        // Last resort only, server-side as well (2026-10-09): the planner
+        // never spends one on a route that works without it, and the
+        // answer flags every hop that needs one so the Route tab can hold
+        // it against the materials aboard.
+        "injection": injection_wire(injection_available(state), query.injections != Some(false)),
     });
     let started = std::time::Instant::now();
     let mut body = body;
@@ -1227,7 +1236,8 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             return Err(PlotFailure::Transport("the route server is busy — try again in a moment".into()));
         }
         if status.as_u16() == 504 {
-            return Err(PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into()));
+            let detail = response.text().await.unwrap_or_default();
+            return Err(budget_failure(&detail));
         }
         if status.is_server_error() {
             return Err(PlotFailure::Transport(format!("route server error ({status})")));
@@ -1257,6 +1267,7 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             return Err(PlotFailure::Refused(match code.as_deref() {
                 // Said with the inputs that decided it: the tank at
                 // departure is the one a commander can change.
+                Some("no_route") if detail.contains("\"island\"") => island_text(detail, &from, &query.to),
                 Some("no_route") => {
                     let tank = match (start_fuel, &ship) {
                         (Some(f), Some((m, _, _, label))) => format!(
@@ -1274,16 +1285,194 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
                 None => format!("the route server refused the plot: {detail}"),
             }));
         }
-        let route: ed_galaxy::router::Route = response
+        let answer: serde_json::Value = response
             .json()
             .await
             .map_err(|error| PlotFailure::Transport(format!("route server answer unreadable: {error}")))?;
+        let served = ServerAnswer::of(&answer);
+        let route: ed_galaxy::router::Route = serde_json::from_value(answer)
+            .map_err(|error| PlotFailure::Transport(format!("route server answer unreadable: {error}")))?;
         let boosted = route.hops.iter().filter(|h| h.boosted).count();
-        tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, "route planned by API");
+        tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, refining = served.refining, "route planned by API");
         if route.highway_pending {
             tracing::warn!(hops = route.hops.len(), to = %query.to, "route planned by API without the neutron highway (server rebuilding it): a bare-range route; replot in a minute");
         }
-        return Ok(route);
+        return Ok((route, served));
+    }
+}
+
+/// What the server said about its answer beside the route (ed-api
+/// `augment`): an early answer still being refined, and the lane budget
+/// that bounds how long the refinement can take.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ServerAnswer {
+    pub refining: bool,
+    pub budget_ms: u64,
+}
+
+impl ServerAnswer {
+    pub fn of(answer: &serde_json::Value) -> Self {
+        ServerAnswer {
+            refining: answer.get("refining").and_then(|v| v.as_bool()).unwrap_or(false),
+            budget_ms: answer.get("budget_ms").and_then(|v| v.as_u64()).unwrap_or(0),
+        }
+    }
+}
+
+/// How often the refinement watcher asks the server for the key, and how
+/// long past the lane budget it keeps asking before giving up.
+pub const REFINE_POLL: std::time::Duration = std::time::Duration::from_secs(5);
+pub const REFINE_GRACE_MS: u64 = 15_000;
+
+/// The server answered early and is refining under the same key (#198).
+/// Poll the key: a better route so far is relayed to the Route tab as a
+/// candidate (the numbers in the boxes, the line on the map), the
+/// finished one as `done`. Stops on the plot's own cancel token (Stop),
+/// when a newer plot starts, after three misses, or past the budget plus
+/// a grace -- then says the first answer stands. (The boss, 2026-10-09,
+/// after the 478-jump early answer hid a 373-jump refinement: "why was
+/// it not shown initially?")
+fn spawn_refine_watch(app: AppHandle, routing: Arc<RoutingState>, query: PlotQuery, cancel: tokio_util::sync::CancellationToken, generation: u64, early_jumps: usize, budget_ms: u64) {
+    let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": false, "route": null }));
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(budget_ms.max(10_000) + REFINE_GRACE_MS);
+        let mut shown = early_jumps;
+        let mut misses = 0u32;
+        loop {
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return,
+                _ = tokio::time::sleep(REFINE_POLL) => {}
+            }
+            if routing.plot_generation.load(std::sync::atomic::Ordering::Relaxed) != generation {
+                return;
+            }
+            match plot_via_api(state.inner(), &query, &cancel).await {
+                Ok((route, served)) if !served.refining => {
+                    tracing::info!(early_jumps, final_jumps = route.jumps, to = %query.to, "route refinement finished on the server");
+                    let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": true, "route": route }));
+                    return;
+                }
+                Ok((route, _)) => {
+                    if route.jumps < shown {
+                        shown = route.jumps;
+                        tracing::info!(early_jumps, jumps = route.jumps, boosted = route.boosted_jumps, to = %query.to, "route refining: a better route so far");
+                        let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": false, "route": route }));
+                    }
+                }
+                Err(PlotFailure::Stopped) => return,
+                Err(failure) => {
+                    misses += 1;
+                    tracing::warn!(misses, error = %failure.text(), "route refinement poll failed");
+                    if misses >= 3 {
+                        break;
+                    }
+                }
+            }
+            if tokio::time::Instant::now() >= deadline {
+                tracing::info!(early_jumps, budget_ms, "route refinement: nothing more from the server within the budget");
+                break;
+            }
+        }
+        let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": true, "route": null }));
+    });
+}
+
+/// The injection the plot may fall back on, as the server takes it:
+/// the best grade the commander can synthesise and how many. With no
+/// materials for any grade the request still names premium, capped, so
+/// the answer can say "this needs injections you cannot make" instead
+/// of a bare no-route (the boss, 2026-10-09). Off, nothing is sent.
+pub fn injection_wire(available: Option<(f32, &'static str, u32)>, allow: bool) -> Option<serde_json::Value> {
+    if !allow {
+        return None;
+    }
+    let (grade, max) = match available {
+        Some((_, grade, n)) if n > 0 => (grade, n),
+        _ => ("premium", HYPOTHETICAL_INJECTIONS),
+    };
+    Some(serde_json::json!({ "grade": grade, "max": max }))
+}
+
+/// How many injections a plot may assume when the commander can make
+/// none: enough to cross a rim's gaps, so the answer can name the bill.
+pub const HYPOTHETICAL_INJECTIONS: u32 = 10;
+
+/// An island refusal from the server (`why: "island"`), said with the
+/// numbers that decided it: which end, the reach the plot was made with,
+/// the nearest known star, and what a lighter tank or the injection would
+/// have bought. Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0 on a 72 ly
+/// Caspian: both ends have their nearest known star 74-77 ly out.
+pub fn island_text(detail: &str, from: &str, to: &str) -> String {
+    let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
+    let f = |k: &str| v.get(k).and_then(|x| x.as_f64());
+    let end = v.get("end").and_then(|x| x.as_str()).unwrap_or("destination");
+    let system = v.get("system").and_then(|x| x.as_str()).unwrap_or(if end == "origin" { from } else { to });
+    let reach = f("reach_ly").unwrap_or(0.0);
+    let mut text = match f("nearest_ly") {
+        Some(nearest) => format!(
+            "no known star within {reach:.1} ly of {system} ({}): the nearest is {nearest:.1} ly away",
+            if end == "origin" { "the origin" } else { "the destination" }
+        ),
+        None => format!("no known star anywhere near {system} ({}) at {reach:.1} ly", if end == "origin" { "the origin" } else { "the destination" }),
+    };
+    let nearest = f("nearest_ly");
+    if let (Some(light), Some(n)) = (f("light_reach_ly"), nearest) {
+        if light >= n && light > reach + 0.05 {
+            text.push_str(&format!("; with one jump's fuel aboard the ship reaches {light:.1} ly, which would cross it"));
+        }
+    }
+    match (f("injected_reach_ly"), nearest) {
+        (Some(inj), Some(n)) if inj < n => text.push_str(&format!("; an FSD injection reaches {inj:.1} ly, still short")),
+        // No injected reach in the answer means the request carried no
+        // injection: the commander has them off (on, the request always
+        // names a grade, hypothetically when none can be made). The boss,
+        // 2026-10-09, reading "you can synthesise none" with 87 premium
+        // aboard and the box unticked.
+        (None, _) => text.push_str(REPLOT_WITH_INJECTIONS),
+        _ => {}
+    }
+    text
+}
+
+/// A 504 from the route server: its own "budget" answer means the planner
+/// ran its whole lane budget and found nothing in time (a refusal the
+/// server remembers for two minutes, so a replot gets it back at once);
+/// anything else in front of the server cutting the connection means the
+/// planner may still be working and a replot collects the route.
+fn budget_failure(detail: &str) -> PlotFailure {
+    let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
+    if v.get("error").and_then(|e| e.as_str()) == Some("budget") {
+        let secs = v.get("budget_ms").and_then(|b| b.as_u64()).map(|ms| ms / 1000).unwrap_or(100);
+        // Nothing to recommend (the boss, 2026-10-09): the game's own
+        // plotter stops at 20 kly, and a shorter leg would have been found
+        // inside the long one.
+        return PlotFailure::Refused(format!("Unable to plot a route in your current ship (the route server ran out of its {secs} s budget)."));
+    }
+    PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into())
+}
+
+/// Whether the bundled bubble index should have a go after the server
+/// did not deliver: yes when the server could not be reached or errored,
+/// no when it answered with a refusal -- its index holds everything the
+/// bubble index holds.
+fn bubble_worth_trying(remote: &PlotFailure) -> bool {
+    matches!(remote, PlotFailure::Transport(_))
+}
+
+/// The tail of an island refusal when the plot was made without
+/// injections; the Route tab offers the replot on this exact phrase.
+pub const REPLOT_WITH_INJECTIONS: &str = "; a route may be possible with FSD injections -- turn on \"injections if required\" and replot";
+
+/// What the bundled bubble index can say about a system it does not
+/// hold: it is outside the bubble, not unknown to EDDA (the boss,
+/// 2026-10-09: "I'm not sure why this is an unknown system to us, it's a
+/// well known system" -- the server knew it; the fallback did not).
+pub fn bubble_text(local: &str) -> String {
+    match local.strip_prefix("unknown system ") {
+        Some(name) => format!("{name} is outside the bundled bubble index"),
+        None => local.to_string(),
     }
 }
 
@@ -1325,11 +1514,25 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     // ran on for its full 35-50 s (the boss, HIP 90112 -> Beagle Point:
     // "stop button isn't working").
     let cancel = state.jobs.begin(crate::jobs::ROUTE_PLOT);
+    let generation = routing.plot_generation.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     let remote = match plot_via_api(state, &query, &cancel).await {
-        Ok(route) => return Ok(route),
+        Ok((route, served)) => {
+            if served.refining {
+                spawn_refine_watch(app.clone(), routing.clone(), query.clone(), cancel.clone(), generation, route.jumps, served.budget_ms);
+            }
+            return Ok(route);
+        }
         Err(PlotFailure::Stopped) => return Err(PlotFailure::Stopped.text().to_string()),
         Err(failure) => failure,
     };
+    if !bubble_worth_trying(&remote) {
+        // The server answered: it knows every system the bubble index
+        // knows and more, so a refusal with its numbers is the answer,
+        // not a reason to append "the bubble index cannot plot it either"
+        // (the boss, 2026-10-09, reading exactly that).
+        tracing::info!(error = %remote.text(), "remote plot refused; the server's answer stands");
+        return Err(remote.text().to_string());
+    }
     let transient = matches!(remote, PlotFailure::Transport(_));
     let remote = remote.text().to_string();
     tracing::warn!(error = %remote, transient, "remote plot failed; trying the bundled bubble index");
@@ -1338,6 +1541,7 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     }
     plot_local(app, state, routing, &query).await.map_err(|local| {
         if local.starts_with("unknown system") || local.contains("no route") {
+            let local = bubble_text(&local);
             if transient {
                 format!("the community API did not answer ({remote}) and the bundled bubble index cannot plot this on its own ({local}); try again in a moment")
             } else {
@@ -2286,4 +2490,88 @@ mod dock_memo_tests {
             assert_eq!(hits.load(Ordering::SeqCst), 3);
         });
     }
+}
+
+
+#[cfg(test)]
+mod injection_wire_tests {
+        use super::{bubble_text, injection_wire, island_text, HYPOTHETICAL_INJECTIONS};
+
+        #[test]
+        fn the_wire_names_the_best_grade_the_commander_can_make() {
+            let v = injection_wire(Some((1.5, "standard", 3)), true).unwrap();
+            assert_eq!(v, serde_json::json!({ "grade": "standard", "max": 3 }));
+        }
+
+        #[test]
+        fn no_materials_still_asks_so_the_answer_can_name_the_bill() {
+            let v = injection_wire(None, true).unwrap();
+            assert_eq!(v, serde_json::json!({ "grade": "premium", "max": HYPOTHETICAL_INJECTIONS }));
+            let v = injection_wire(Some((2.0, "premium", 0)), true).unwrap();
+            assert_eq!(v["grade"], "premium");
+            assert_eq!(v["max"], HYPOTHETICAL_INJECTIONS);
+        }
+
+        #[test]
+        fn injections_off_sends_nothing() {
+            assert_eq!(injection_wire(Some((2.0, "premium", 4)), false), None);
+        }
+
+        #[test]
+        fn an_island_is_said_with_its_numbers() {
+            let detail = r#"{"error":"no_route","why":"island","end":"destination","system":"Byoi Fraae CQ-G d10-0","reach_ly":72.2,"nearest_ly":74.1,"light_reach_ly":77.5,"injected_reach_ly":null}"#;
+            let text = island_text(detail, "Jongou XM-W d1-0", "Byoi Fraae CQ-G d10-0");
+            assert_eq!(
+                text,
+                "no known star within 72.2 ly of Byoi Fraae CQ-G d10-0 (the destination): the nearest is 74.1 ly away; with one jump's fuel aboard the ship reaches 77.5 ly, which would cross it; a route may be possible with FSD injections -- turn on \"injections if required\" and replot"
+            );
+            assert!(text.ends_with(super::REPLOT_WITH_INJECTIONS), "the tab keys its button on this phrase");
+        }
+
+        #[test]
+        fn a_short_injection_is_reported_and_a_lighter_tank_only_when_it_helps() {
+            let detail = r#"{"error":"no_route","why":"island","end":"origin","system":"Lone","reach_ly":50.0,"nearest_ly":70.0,"light_reach_ly":50.0,"injected_reach_ly":62.5}"#;
+            let text = island_text(detail, "Lone", "Home");
+            assert_eq!(text, "no known star within 50.0 ly of Lone (the origin): the nearest is 70.0 ly away; an FSD injection reaches 62.5 ly, still short");
+        }
+
+        #[test]
+        fn a_lost_star_has_no_nearest() {
+            let detail = r#"{"error":"no_route","why":"island","end":"origin","system":"Rock","reach_ly":50.0,"nearest_ly":null,"light_reach_ly":50.0,"injected_reach_ly":100.0}"#;
+            assert_eq!(island_text(detail, "Rock", "Home"), "no known star anywhere near Rock (the origin) at 50.0 ly");
+        }
+
+        #[test]
+        fn the_server_answer_flags_are_read_beside_the_route() {
+            use super::ServerAnswer;
+            let early = serde_json::json!({ "jumps": 478, "refining": true, "budget_ms": 100000, "lane": "long" });
+            assert_eq!(ServerAnswer::of(&early), ServerAnswer { refining: true, budget_ms: 100_000 });
+            let plain = serde_json::json!({ "jumps": 5 });
+            assert_eq!(ServerAnswer::of(&plain), ServerAnswer::default(), "an answer without the flags is a finished one");
+        }
+
+        #[test]
+        fn a_budget_504_is_said_as_the_server_giving_up_not_still_working() {
+            use super::{budget_failure, PlotFailure};
+            match budget_failure(r#"{"error":"budget","budget_ms":100000,"lane":"long"}"#) {
+                PlotFailure::Refused(text) => assert_eq!(text, "Unable to plot a route in your current ship (the route server ran out of its 100 s budget)."),
+                other => panic!("a refusal, got {other:?}"),
+            }
+            assert!(matches!(budget_failure(""), PlotFailure::Transport(_)), "a bare gateway 504: the planner may still be working");
+            assert!(matches!(budget_failure("<html>Gateway Timeout</html>"), PlotFailure::Transport(_)));
+        }
+
+        #[test]
+        fn the_bubble_index_only_follows_a_server_that_did_not_answer() {
+            use super::{bubble_worth_trying, PlotFailure};
+            assert!(bubble_worth_trying(&PlotFailure::Transport("route server unreachable".into())));
+            assert!(!bubble_worth_trying(&PlotFailure::Refused("no known star within 37.1 ly".into())), "a refusal with its numbers is the answer");
+            assert!(!bubble_worth_trying(&PlotFailure::Stopped));
+        }
+
+        #[test]
+        fn the_bubble_index_says_outside_not_unknown() {
+            assert_eq!(bubble_text("unknown system \"Jongou XM-W d1-0\""), "\"Jongou XM-W d1-0\" is outside the bundled bubble index");
+            assert_eq!(bubble_text("no route"), "no route");
+        }
 }

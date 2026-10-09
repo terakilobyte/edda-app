@@ -71,6 +71,16 @@ pub const LONG_QUEUE: usize = 4;
 /// must answer "budget" from here before anything in front of the API
 /// cuts the connection at 120 s and turns the answer into a bare 504.
 pub const LONG_BUDGET_MS: u64 = 100_000;
+/// A long plot with no first route by now will not find one: every route
+/// that ever succeeded found its first within 1.1 s on the September
+/// matrix (18 routes, PC), 1.7 s on the box (Sol / Wongi -> Beagle),
+/// 2.1 s planner on today's rim pairs, and 13.7 s offline on the hardest
+/// (Jongou AB-F d11-0 -> Byoi Fraae AE-T d3-0, 409 jumps); every failure
+/// (three today) found nothing in 100 s. Three times the hardest, for
+/// the box's slower cores. The budget after a first route is untouched:
+/// that is refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it from the box's
+/// own data (the boss, 2026-10-09: "it feels like a long time to wait").
+pub const FIRST_ROUTE_MS: u64 = 45_000;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -174,6 +184,38 @@ pub struct RouteApiRequest {
     /// like any other, and the name given is the synthesized hop's label.
     pub from_coords: Option<[f32; 3]>,
     pub to_coords: Option<[f32; 3]>,
+    /// The FSD injection the commander can synthesise, as a last resort
+    /// (2026-10-09, the boss at the rim: Jongou XM-W d1-0 -> Byoi Fraae
+    /// CQ-G d10-0 has no known star inside a 72 ly reach of either end;
+    /// Spansh refuses it at once without injections and plots it with
+    /// them). `grade` names the recipe (basic / standard / premium), `max`
+    /// is how many the commander can make. A route that works without
+    /// them never gets one: the planner charges an injected jump three
+    /// jumps' worth and only reaches for it where nothing else crosses.
+    pub injection: Option<InjectionApi>,
+}
+
+/// An FSD injection on the wire: the grade by name, never a bare
+/// multiplier, so a caller cannot invent a drive the game does not have.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InjectionApi {
+    pub grade: String,
+    pub max: u32,
+}
+
+impl InjectionApi {
+    /// The planner's tuple for this grade, or the unknown grade.
+    pub fn resolve(&self) -> Result<Option<(f32, &'static str, u32)>, String> {
+        if self.max == 0 {
+            return Ok(None);
+        }
+        ed_galaxy::router::INJECTION_RECIPES
+            .iter()
+            .find(|(_, grade, _)| grade.eq_ignore_ascii_case(self.grade.trim()))
+            .map(|(mult, grade, _)| Some((*mult, *grade, self.max)))
+            .ok_or_else(|| self.grade.clone())
+    }
 }
 
 /// Why a plot did not produce a route — mapped to HTTP by the handler.
@@ -186,6 +228,124 @@ pub enum PlotRefusal {
     NoRange,
     NoRoute,
     Budget,
+    /// A long plot with no first route by the first-route deadline (ms):
+    /// a budget answer, said with the deadline, not the lane budget.
+    NoFirstRoute(u64),
+    /// An endpoint no known star can reach at this ship's reach: the
+    /// planner would spend its whole budget to say so (the boss,
+    /// 2026-10-09: 100 s and a 504 for a plot Spansh refused at once).
+    Island(Island),
+    /// An injection grade the game does not have.
+    BadInjection(String),
+}
+
+/// Which end of a plot is cut off, and by how much.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Island {
+    /// "origin" or "destination".
+    pub end: &'static str,
+    pub system: String,
+    /// What the ship can jump from / into this system as asked: the
+    /// departure tank and the system's own boost for the origin; the
+    /// lightest tank, unboosted, for the destination (its neighbours are
+    /// each judged at their own boost).
+    pub reach_ly: f32,
+    /// The nearest known star, when there is one in sight at all.
+    pub nearest_ly: Option<f32>,
+    /// The same reach with one jump's fuel aboard: a commander can
+    /// change the tank, so the answer says what a lighter one buys.
+    pub light_reach_ly: f32,
+    /// With the injection asked for, when one was.
+    pub injected_reach_ly: Option<f32>,
+}
+
+/// An end of a plot, for the island check.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum End {
+    Origin,
+    Destination,
+}
+
+fn reach_of(req: &RouteRequest, fuel: f32, boost: f32) -> f32 {
+    match &req.fuel {
+        Some(m) => m.reach(fuel, boost),
+        None => req.range_ly * boost.max(1.0),
+    }
+}
+
+/// The lightest tank the planner will ever jump on: one max-effort jump
+/// of fuel, or the departure tank when there is no fuel model.
+fn light_fuel(req: &RouteRequest) -> f32 {
+    match &req.fuel {
+        Some(m) => m.max_fuel_per_jump.min(req.start_fuel.max(0.0)).max(0.0),
+        None => req.start_fuel,
+    }
+}
+
+/// Is this end of the plot cut off from every known star? Milliseconds
+/// against the cell index, where the planner takes its whole budget
+/// (measured 2026-10-09: Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0, a
+/// 72.2 ly Caspian, 100 s to "budget" on prod and "no route" offline
+/// with 400 s; EDSM's nearest stars 76.8 and 74.1 ly). The check is an
+/// upper bound on what the planner could do -- the destination is judged
+/// at the lightest tank and every neighbour's own boost -- so a refusal
+/// here is one the planner would have reached too, only later.
+pub fn island(galaxy: &ed_galaxy::Galaxy, req: &RouteRequest, idx: u32, end: End) -> Option<Island> {
+    let pos = galaxy.pos_of(idx);
+    let record = galaxy.record(idx);
+    let name = galaxy.name(&record).to_string();
+    let inj_mult = req.injection.map(|(m, _, _)| m);
+    let boost_at = |class: ed_galaxy::StarClass| if req.supercharge { req.boost.for_class(class) } else { 1.0 };
+    // What a jump may span with `fuel` aboard and `boost` at the departure
+    // star: the better of the boost and an injection (they do not stack).
+    let span = |fuel: f32, boost: f32| -> (f32, Option<f32>) {
+        let plain = reach_of(req, fuel, boost);
+        let injected = inj_mult.map(|m| reach_of(req, fuel, 1.0) * m);
+        (plain.max(injected.unwrap_or(0.0)), injected)
+    };
+    let light = light_fuel(req);
+    let (reached, reach_ly, injected_reach_ly, light_reach_ly) = match end {
+        End::Origin => {
+            let boost = boost_at(galaxy.class(&record));
+            let (limit, injected) = span(req.start_fuel, boost);
+            let reached = galaxy.within(pos, limit).into_iter().any(|(n, _)| n != idx);
+            (reached, reach_of(req, req.start_fuel, boost), injected, reach_of(req, light, boost))
+        }
+        End::Destination => {
+            // The widest sphere any neighbour could jump from, then each
+            // candidate at its own star's boost.
+            let best = if req.supercharge { req.boost.neutron.max(req.boost.white_dwarf).max(1.0) } else { 1.0 };
+            let (limit, injected) = span(light, best);
+            let reached = galaxy.within(pos, limit).into_iter().any(|(n, d)| {
+                n != idx && {
+                    let class = galaxy.class(&galaxy.record(n));
+                    d <= span(light, boost_at(class)).0
+                }
+            });
+            (reached, reach_of(req, light, 1.0), injected, reach_of(req, light, 1.0))
+        }
+    };
+    if reached {
+        return None;
+    }
+    let limit = reach_ly.max(injected_reach_ly.unwrap_or(0.0)).max(light_reach_ly);
+    let nearest_ly = galaxy
+        .within(pos, (limit * 3.0).max(limit + 150.0))
+        .into_iter()
+        .filter(|(n, _)| *n != idx)
+        .map(|(_, d)| d)
+        .fold(None, |best: Option<f32>, d| Some(best.map_or(d, |b| b.min(d))));
+    Some(Island {
+        end: match end {
+            End::Origin => "origin",
+            End::Destination => "destination",
+        },
+        system: name,
+        reach_ly,
+        nearest_ly,
+        light_reach_ly,
+        injected_reach_ly,
+    })
 }
 
 /// Where a plot starts or ends, after the handler resolved the name
@@ -293,7 +453,10 @@ pub fn resolve_endpoints(
         weight: api.weight.unwrap_or(1.3).max(1.0),
         max_expansions: 50_000_000,
         thorough: api.thorough.unwrap_or(true),
-        injection: None,
+        injection: match &api.injection {
+            Some(inj) => inj.resolve().map_err(PlotRefusal::BadInjection)?,
+            None => None,
+        },
         boost,
         fuel: api.fuel_model,
         start_fuel,
@@ -325,6 +488,7 @@ pub fn cache_key(version: &str, req: &RouteRequest) -> u64 {
     req.to.hash(&mut h);
     q(req.range_ly).hash(&mut h);
     req.supercharge.hash(&mut h);
+    req.injection.map(|(m, _, n)| (q(m), n)).hash(&mut h);
     req.max_dry_jumps.hash(&mut h);
     q(req.weight).hash(&mut h);
     req.thorough.hash(&mut h);
@@ -581,11 +745,15 @@ pub struct RouteService {
     /// burning another long-lane budget on the same dead end.
     refusals: Mutex<HashMap<u64, (Instant, PlotRefusal)>>,
     early_grace: std::time::Duration,
+    /// How long a long plot may run without a first route before it is
+    /// a "budget" answer (FIRST_ROUTE_MS).
+    first_route: std::time::Duration,
 }
 
 /// How long a no-route / budget answer is held for the same request.
 pub const REFUSAL_TTL: Duration = Duration::from_secs(120);
 
+#[derive(Debug)]
 pub enum PlotOutcome {
     /// `(route, cached, refining)`.
     Route(std::sync::Arc<Route>, bool, bool),
@@ -610,7 +778,8 @@ impl Default for RouteService {
         let threads_l = env("EDDA_API_PLANNER_THREADS_LONG", LONG_THREADS);
         let early_grace_ms: u64 =
             std::env::var("EDDA_API_EARLY_GRACE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(EARLY_GRACE_MS);
-        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, early_grace_ms, "plot gates and pools sized");
+        let first_route_ms: u64 = std::env::var("EDDA_API_FIRST_ROUTE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(FIRST_ROUTE_MS);
+        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, early_grace_ms, first_route_ms, "plot gates and pools sized");
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
@@ -619,6 +788,7 @@ impl Default for RouteService {
             cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
             refusals: Mutex::new(HashMap::new()),
             early_grace: std::time::Duration::from_millis(early_grace_ms),
+            first_route: std::time::Duration::from_millis(first_route_ms),
         }
     }
 }
@@ -694,6 +864,34 @@ impl RouteService {
             metrics::counter!("edda_route_refusal_cache_total", "lane" => lane.as_str()).increment(1);
             return Ok((lane, PlotOutcome::Refused(refusal), bridges));
         }
+        // Islands first (2026-10-09): an end no known star reaches is
+        // refused in milliseconds, with the numbers, instead of after the
+        // whole budget. When only an injection crosses the first or last
+        // hop, the planner starts injected and skips the plain pass.
+        let plain = RouteRequest { injection: None, ..req.clone() };
+        let (from_idx, to_idx) = (req.from, req.to);
+        let plain_isle = island(&handle.galaxy, &plain, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &plain, to_idx, End::Destination));
+        match plain_isle {
+            None => {}
+            Some(plain_isle) => {
+                let injected_isle = match req.injection {
+                    Some(_) => island(&handle.galaxy, &req, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &req, to_idx, End::Destination)),
+                    None => Some(plain_isle.clone()),
+                };
+                match injected_isle {
+                    Some(isle) => {
+                        metrics::counter!("edda_route_island_total", "lane" => lane.as_str(), "end" => isle.end, "crossed" => "no").increment(1);
+                        tracing::info!(lane = lane.as_str(), end = isle.end, reach_ly = isle.reach_ly, nearest_ly = isle.nearest_ly, light_reach_ly = isle.light_reach_ly, injected_reach_ly = isle.injected_reach_ly, "route refused: an island");
+                        self.refuse(key, PlotRefusal::Island(isle.clone()));
+                        return Ok((lane, PlotOutcome::Refused(PlotRefusal::Island(isle)), bridges));
+                    }
+                    None => {
+                        metrics::counter!("edda_route_island_total", "lane" => lane.as_str(), "end" => plain_isle.end, "crossed" => "injection").increment(1);
+                        tracing::info!(lane = lane.as_str(), end = plain_isle.end, reach_ly = plain_isle.reach_ly, nearest_ly = plain_isle.nearest_ly, "route: only an injection crosses an end");
+                    }
+                }
+            }
+        }
         let gate = self.gate(lane);
         let Some(queued) = gate.enter() else {
             return Ok((lane, PlotOutcome::Saturated, bridges));
@@ -720,6 +918,11 @@ impl RouteService {
         let wants_boost = req.supercharge;
         let highway_less = handle.neutrons.is_none() && wants_boost;
         let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Set by the handler when the first-route deadline passes: the
+        // planner is stopped through `gone` and the answer is "budget".
+        let no_first = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let no_first_task = std::sync::Arc::clone(&no_first);
+        let gone_at_deadline = std::sync::Arc::clone(&gone);
         // Held across the await: if this future is dropped (the client
         // went away), the flag is set and the planner stops — unless the
         // request was already answered early, see `disarm`.
@@ -739,21 +942,82 @@ impl RouteService {
         let served_early: std::sync::Arc<Mutex<Option<(usize, Instant)>>> = std::sync::Arc::new(Mutex::new(None));
         let served_early_task = std::sync::Arc::clone(&served_early);
         let plot_started = Instant::now();
+        let cache_found = std::sync::Arc::clone(&cache);
+        let served_early_found = std::sync::Arc::clone(&served_early_task);
         let mut task = tokio::task::spawn_blocking(move || {
             // The lane's permits live and die with the planner, whatever
             // the handler did with the answer.
             let _permits = (queued, slot);
             let pool = pool;
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
+            let (span_from, span_to) = (req.from, req.to);
+            let lean = LeanStops::of(&req);
             let found = move |r: &Route| {
+                // The refine-legs stage reports each leg's route through
+                // the same callback (seen 2026-10-09: 37- and 11-jump
+                // "routes" for an 87 kly crossing); only a route spanning
+                // both endpoints is a candidate.
+                if !spans(r, span_from, span_to) {
+                    return;
+                }
+                // The planner's variants top up at every scoopable star;
+                // the lean rewrite otherwise runs only on the final route.
+                // An early answer or a best-so-far must not carry 197
+                // "scoop stops" and an hour of scooping the real route
+                // never needs (the boss, 2026-10-09).
+                let mut r = r.clone();
+                lean.apply(&mut r);
+                let r = &r;
                 let _ = found_tx.send(r.clone());
+                // After the early answer went out, every variant that
+                // beats the cached best becomes the best-so-far under the
+                // same key, still marked refining: a client polling the
+                // key sees the numbers move (the boss, 2026-10-09:
+                // "stream just the numbers we show in the boxes").
+                let early = served_early_found.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+                if early && keep_best_so_far(&cache_found, key, r) {
+                    metrics::counter!("edda_route_best_so_far_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, jumps = r.jumps, boosted = r.boosted_jumps, "route refining: a better route so far");
+                }
             };
             let none = Control::none();
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
+            // One search (the boss, 2026-10-09: "can we fold it into one?").
+            // The planner already prices an injected jump at three plain
+            // ones (INJECTION_PENALTY, and the wave's twin), so a route
+            // that works without them never pays for one, and the search
+            // never dead-ends where only an injection crosses. A plain
+            // pass in front of it measured as the failure: proving "no
+            // plain route" on Jongou AA-A d0 -> Byoi Fraae AT-U d2-1 took
+            // the whole 100 s and starved the injected pass, which plots
+            // the pair in 48 s on its own (371 jumps).
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            // A final route the tank cannot fly is no answer (see
+            // LeanStops::feasible): an early answer stands as the finished
+            // one, otherwise the plot has no route. OPEN in the ledger: the
+            // planner's leg stitching should never produce it.
+            let r = match r {
+                Ok(route) if !lean.feasible(&route) => {
+                    metrics::counter!("edda_route_infeasible_total", "lane" => lane_name).increment(1);
+                    tracing::warn!(lane = lane_name, key, jumps = route.jumps, injections = route.injections, "planner's final route cannot be flown on the tank; dropped");
+                    let early_now = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
+                    if early_now.is_some() {
+                        let held = cache.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(|(_, r, _)| std::sync::Arc::clone(r));
+                        if let Some(held) = held {
+                            store_in(&cache, key, held, false);
+                        }
+                    }
+                    Err(RouteError::NoRoute)
+                }
+                other => other,
+            };
             let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
             let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
+                Err(RouteError::Cancelled) if no_first_task.load(std::sync::atomic::Ordering::Relaxed) => {
+                    metrics::counter!("edda_route_no_first_route_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, planner_ms, "route plot stopped: no first route within the first-route deadline");
+                }
                 Err(RouteError::Cancelled) => {
                     metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
                     tracing::info!(lane = lane_name, key, planner_ms, "route plot stopped: the client was gone");
@@ -772,6 +1036,12 @@ impl RouteService {
                             metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
                                 .record(early_jumps as f64 - route.jumps as f64);
                             tracing::info!(lane = lane_name, key, early_jumps, final_jumps = route.jumps, refine_ms, planner_ms, result, "route refined");
+                            // An early-served plot never reaches the handler's
+                            // finished arm: count its injections here.
+                            if route.injections > 0 {
+                                metrics::counter!("edda_route_injected_total", "lane" => lane_name).increment(1);
+                                tracing::info!(lane = lane_name, key, injections = route.injections, jumps = route.jumps, "route needs FSD injections");
+                            }
                         }
                         None => tracing::info!(lane = lane_name, key, jumps = route.jumps, planner_ms, storable, "route planned"),
                     }
@@ -787,6 +1057,8 @@ impl RouteService {
         let early = lane == Lane::Long && !self.early_grace.is_zero() && storable;
         let outcome = if early {
             let mut best: Option<Route> = None;
+            let first_deadline = tokio::time::sleep(self.first_route);
+            tokio::pin!(first_deadline);
             let finished = loop {
                 tokio::select! {
                     joined = &mut task => break Some(joined),
@@ -794,6 +1066,12 @@ impl RouteService {
                         Some(r) => { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); }
                         None => break None, // the planner finished; the join lands next
                     },
+                    _ = &mut first_deadline, if best.is_none() => {
+                        // Nothing found by the deadline: nothing will be.
+                        no_first.store(true, std::sync::atomic::Ordering::Relaxed);
+                        gone_at_deadline.store(true, std::sync::atomic::Ordering::Relaxed);
+                        break None;
+                    }
                 }
                 if best.is_some() {
                     // Grace for a better route, then serve what we have.
@@ -817,6 +1095,13 @@ impl RouteService {
                 (None, None) => Some((&mut task).await),
                 (f, _) => f,
             };
+            if no_first.load(std::sync::atomic::Ordering::Relaxed) {
+                guard.disarm();
+                let ms = self.first_route.as_millis() as u64;
+                self.refuse(key, PlotRefusal::NoFirstRoute(ms));
+                tracing::info!(lane = lane_name, key, first_route_ms = ms, "route refused: no first route within the first-route deadline");
+                return Ok((lane, PlotOutcome::Refused(PlotRefusal::NoFirstRoute(ms)), bridges));
+            }
             match finished {
                 Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
                 None => {
@@ -843,6 +1128,10 @@ impl RouteService {
                 if highway_less {
                     route.highway_pending = true;
                     metrics::counter!("edda_route_highway_pending_total").increment(1);
+                }
+                if route.injections > 0 {
+                    metrics::counter!("edda_route_injected_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, injections = route.injections, jumps = route.jumps, "route needs FSD injections");
                 }
                 let route = std::sync::Arc::new(route);
                 PlotOutcome::Route(route, false, false)
@@ -887,6 +1176,72 @@ impl RouteService {
 
 type Cache = std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, bool)>>>;
 
+/// A variant finished after the early answer: if it beats what the cache
+/// holds for this plot, it becomes the best-so-far, still refining. A
+/// finished entry (refining = false) or a missing one is never touched --
+/// the final store is the planner's own business.
+/// The min-fuel rewrite as the planner applies it to its final route
+/// (`long_range::plan_best`): the stops the remaining legs never need are
+/// dropped, or, when the commander wants eager scooping, the comfort
+/// top-ups are labelled optional. Applied to every route that leaves the
+/// server early, so the first answer and the best-so-far are judged and
+/// shown in the same currency as the finished one.
+#[derive(Clone, Copy)]
+pub struct LeanStops {
+    min_fuel: bool,
+    fuel: Option<ed_galaxy::fuel::FuelModel>,
+    boost: ed_galaxy::fuel::BoostProfile,
+    injection_mult: Option<f32>,
+    start_fuel: f32,
+}
+
+impl LeanStops {
+    pub fn of(req: &RouteRequest) -> Self {
+        LeanStops { min_fuel: req.min_fuel, fuel: req.fuel, boost: req.boost, injection_mult: req.injection.map(|(m, _, _)| m), start_fuel: req.start_fuel }
+    }
+
+    /// Whether the route can be flown on the tank at all: the lean rewrite
+    /// says no when a run of unscoopable arrivals outlasts the capacity
+    /// (2026-10-09, Jongou AA-A d0 -> Byoi Fraae AT-U d2-1: the planner's
+    /// final route had 21 neutron hops in a row, ~137 t on a 128 t tank,
+    /// and was served with every scoopable star marked as a stop).
+    pub fn feasible(&self, route: &Route) -> bool {
+        match &self.fuel {
+            Some(m) => ed_galaxy::router::minimize_refuels(m, &self.boost, self.injection_mult, &mut route.clone(), self.start_fuel),
+            None => true,
+        }
+    }
+
+    pub fn apply(&self, route: &mut Route) {
+        let Some(m) = &self.fuel else { return };
+        if self.min_fuel {
+            ed_galaxy::router::minimize_refuels(m, &self.boost, self.injection_mult, route, self.start_fuel);
+        } else {
+            ed_galaxy::router::mark_optional_stops(m, &self.boost, self.injection_mult, route, self.start_fuel);
+        }
+    }
+}
+
+/// A complete answer: the route starts at the plot's origin and ends at
+/// its destination. The planner's `found` callback also reports legs.
+pub fn spans(route: &Route, from: u32, to: u32) -> bool {
+    matches!((route.hops.first(), route.hops.last()), (Some(a), Some(b)) if a.idx == from && b.idx == to)
+}
+
+fn keep_best_so_far(cache: &Cache, key: u64, candidate: &Route) -> bool {
+    let held = {
+        let cache = cache.lock().unwrap_or_else(|e| e.into_inner());
+        cache.get(&key).map(|(_, route, refining)| (std::sync::Arc::clone(route), *refining))
+    };
+    match held {
+        Some((held, true)) if std::ptr::eq(better(&held, candidate), candidate) => {
+            store_in(cache, key, std::sync::Arc::new(candidate.clone()), true);
+            true
+        }
+        _ => false,
+    }
+}
+
 fn store_in(cache: &Cache, key: u64, route: std::sync::Arc<Route>, refining: bool) {
     {
         let mut cache = cache.lock().unwrap_or_else(|e| e.into_inner());
@@ -921,6 +1276,7 @@ mod tests {
             thorough: None,
             from_coords: None,
             to_coords: None,
+            injection: None,
         }
     }
 
@@ -1190,7 +1546,7 @@ mod endpoint_tests {
             from: from.into(), to: to.into(), range_ly: Some(range), fuel_model: None, boost: None,
             start_fuel: None, supercharge: None, white_dwarfs: None, min_fuel: None,
             max_dry_jumps: None, weight: None, stop_weight: None, thorough: None,
-            from_coords: None, to_coords: None,
+            from_coords: None, to_coords: None, injection: None,
         }
     }
 
@@ -1436,5 +1792,340 @@ mod endpoint_tests {
         expected["budget_ms"] = serde_json::json!(BUDGET_MS);
         expected["refining"] = serde_json::json!(true);
         assert_eq!(v, expected, "an unbridged route still says cached, lane and budget");
+    }
+
+    // ---- islands and injections (2026-10-09) ---------------------------
+
+    /// A line of stars with one neutron and two strays, for the island
+    /// check. Distances in ly along x unless said:
+    ///   Home (G) --40-- Step (K) --40-- Pulse (neutron) --150-- Far (G)
+    ///   Lone (G): 70 from Home, 80.6 from Step, nothing nearer.
+    ///   Rock (G): 300 from everything.
+    ///   Gap line for the mid-route retry: A --40-- B --60-- C --40-- D.
+    fn island_galaxy() -> (tempfile::TempDir, ed_galaxy::Galaxy) {
+        let dir = tempfile::tempdir().unwrap();
+        let source = r#"[
+{"id64":1,"name":"Home","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Step","coords":{"x":40,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":3,"name":"Pulse","coords":{"x":80,"y":0,"z":0},"bodies":[{"type":"Star","subType":"Neutron Star","mainStar":true}]},
+{"id64":4,"name":"Far","coords":{"x":230,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":5,"name":"Lone","coords":{"x":0,"y":70,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":6,"name":"Rock","coords":{"x":0,"y":0,"z":-300},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":7,"name":"A","coords":{"x":5000,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":8,"name":"B","coords":{"x":5040,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":9,"name":"C","coords":{"x":5100,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":10,"name":"D","coords":{"x":5140,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]}
+]"#;
+        let path = dir.path().join("galaxy");
+        ed_galaxy::import::import_reader(Box::new(source.as_bytes()), &path, &mut |_| {}).unwrap();
+        (dir, ed_galaxy::Galaxy::open(&path).unwrap())
+    }
+
+    fn range_req(g: &ed_galaxy::Galaxy, from: &str, to: &str, range_ly: f32, supercharge: bool) -> RouteRequest {
+        resolve(
+            g,
+            &RouteApiRequest { from: from.into(), to: to.into(), range_ly: Some(range_ly), supercharge: Some(supercharge), ..Default::default() },
+        )
+        .unwrap()
+    }
+
+    fn handle(g: ed_galaxy::Galaxy) -> crate::galaxy_service::GalaxyHandle {
+        crate::galaxy_service::GalaxyHandle { version: "v".into(), galaxy: std::sync::Arc::new(g), neutrons: None }
+    }
+
+    #[test]
+    fn an_origin_with_a_neighbour_in_reach_is_no_island() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Home", "Far", 50.0, true);
+        assert_eq!(island(&g, &req, req.from, End::Origin), None, "Step is 40 ly from Home");
+    }
+
+    #[test]
+    fn an_island_origin_reports_its_reach_and_the_nearest_star() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Lone", "Home", 60.0, true);
+        let isle = island(&g, &req, req.from, End::Origin).expect("Lone's nearest star is 70 ly out");
+        assert_eq!(isle.end, "origin");
+        assert_eq!(isle.system, "Lone");
+        assert!((isle.reach_ly - 60.0).abs() < 0.01, "range-only: the reach is the range ({})", isle.reach_ly);
+        assert!((isle.nearest_ly.unwrap() - 70.0).abs() < 0.01, "nearest {:?}", isle.nearest_ly);
+        assert_eq!(isle.injected_reach_ly, None, "no injection was offered");
+        assert!((isle.light_reach_ly - 60.0).abs() < 0.01, "without a fuel model a lighter tank changes nothing");
+    }
+
+    #[test]
+    fn a_truly_lost_star_has_no_nearest_to_report() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Rock", "Home", 50.0, true);
+        let isle = island(&g, &req, req.from, End::Origin).unwrap();
+        assert_eq!(isle.nearest_ly, None, "nothing within three reaches of Rock");
+    }
+
+    /// The destination is judged by what its neighbours can jump INTO it:
+    /// a neutron 150 ly out reaches a 50 ly ship's x4 boost, and does not
+    /// when the commander turned supercharging off.
+    #[test]
+    fn a_destination_counts_each_neighbour_at_its_own_boost() {
+        let (_d, g) = island_galaxy();
+        let boosted = range_req(&g, "Home", "Far", 50.0, true);
+        assert_eq!(island(&g, &boosted, boosted.to, End::Destination), None, "Pulse (neutron, 150 ly) reaches Far at x4");
+        let plain = range_req(&g, "Home", "Far", 50.0, false);
+        let isle = island(&g, &plain, plain.to, End::Destination).expect("unboosted, nothing reaches Far");
+        assert_eq!(isle.end, "destination");
+        assert_eq!(isle.system, "Far");
+        assert!((isle.nearest_ly.unwrap() - 150.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn an_injection_is_the_crossing_when_the_drive_falls_short() {
+        let (_d, g) = island_galaxy();
+        let mut req = range_req(&g, "Lone", "Home", 60.0, true);
+        req.injection = Some((1.25, "basic", 1));
+        assert_eq!(island(&g, &req, req.from, End::Origin), None, "basic lifts 60 to 75, past Lone's 70 ly gap");
+        let mut short = range_req(&g, "Lone", "Home", 50.0, true);
+        short.injection = Some((1.25, "basic", 1));
+        let isle = island(&g, &short, short.from, End::Origin).expect("62.5 ly is still short of 70");
+        assert!((isle.injected_reach_ly.unwrap() - 62.5).abs() < 0.01, "the refusal says what the injection bought: {:?}", isle.injected_reach_ly);
+        let mut premium = range_req(&g, "Lone", "Home", 50.0, true);
+        premium.injection = Some((2.0, "premium", 1));
+        assert_eq!(island(&g, &premium, premium.from, End::Origin), None, "premium doubles 50 to 100");
+    }
+
+    /// The boss's case in miniature: a Caspian leaving on a full 128 t
+    /// tank reaches 72 ly; with one jump's fuel aboard it reaches 77. A
+    /// star 75 ly out is an island on the full tank, and the refusal says
+    /// what a lighter tank buys.
+    #[test]
+    fn a_lighter_tank_is_offered_when_it_would_reach() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = r#"[
+{"id64":1,"name":"Jongou","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Next","coords":{"x":75,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}
+]"#;
+        let path = dir.path().join("galaxy");
+        ed_galaxy::import::import_reader(Box::new(source.as_bytes()), &path, &mut |_| {}).unwrap();
+        let g = ed_galaxy::Galaxy::open(&path).unwrap();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Jongou".into(), to: "Next".into(), fuel_model: Some(caspian), supercharge: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let isle = island(&g, &req, req.from, End::Origin).expect("72 ly on a full tank does not reach 75");
+        assert!(isle.reach_ly > 71.0 && isle.reach_ly < 73.0, "full-tank reach {}", isle.reach_ly);
+        assert!(isle.light_reach_ly > 75.0 && isle.light_reach_ly < 78.0, "light-tank reach {}", isle.light_reach_ly);
+        assert!((isle.nearest_ly.unwrap() - 75.0).abs() < 0.01);
+        // Leaving with one jump's fuel: no island at all.
+        let light = RouteRequest { start_fuel: 6.8, ..req.clone() };
+        assert_eq!(island(&g, &light, light.from, End::Origin), None);
+    }
+
+    #[tokio::test]
+    async fn an_island_is_refused_at_once_and_remembered() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "Lone".into(), to: "Home".into(), range_ly: Some(60.0), supercharge: Some(false), ..Default::default() };
+        let started = Instant::now();
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2), "no planning happened: {:?}", started.elapsed());
+        let PlotOutcome::Refused(PlotRefusal::Island(isle)) = outcome else { panic!("an island refusal, got {outcome:?}") };
+        assert_eq!((isle.end, isle.system.as_str()), ("origin", "Lone"));
+        let (_, again, _) = svc.plot(&h, &api).await.unwrap();
+        assert!(matches!(again, PlotOutcome::Refused(PlotRefusal::Island(_))), "the replot gets the same answer from the refusal cache");
+    }
+
+    #[tokio::test]
+    async fn an_injection_on_the_wire_crosses_an_island_end() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest {
+            from: "Lone".into(),
+            to: "Home".into(),
+            range_ly: Some(60.0),
+            supercharge: Some(false),
+            injection: Some(InjectionApi { grade: "Basic".into(), max: 2 }),
+            ..Default::default()
+        };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route with the injection, got {outcome:?}") };
+        assert_eq!(route.injections, 1, "one injected jump, Lone -> Home");
+        assert_eq!(route.hops.iter().filter_map(|hop| hop.injection.as_deref()).collect::<Vec<_>>(), vec!["basic"]);
+    }
+
+    #[tokio::test]
+    async fn a_route_that_works_without_injections_never_gets_one() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest {
+            from: "Home".into(),
+            to: "Step".into(),
+            range_ly: Some(50.0),
+            supercharge: Some(false),
+            injection: Some(InjectionApi { grade: "premium".into(), max: 5 }),
+            ..Default::default()
+        };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route, got {outcome:?}") };
+        assert_eq!(route.injections, 0);
+        assert_eq!(route.jumps, 1);
+    }
+
+    /// Neither end is an island -- A has B, D has C -- but the 60 ly gap
+    /// in the middle beats a 50 ly drive: without an injection on the
+    /// wire the answer is no route; with one, the single search crosses
+    /// the gap with exactly one injection and no other.
+    #[tokio::test]
+    async fn a_mid_route_gap_is_crossed_with_the_injection_in_one_search() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let plain = RouteApiRequest { from: "A".into(), to: "D".into(), range_ly: Some(50.0), supercharge: Some(false), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &plain).await.unwrap();
+        assert!(matches!(outcome, PlotOutcome::Refused(PlotRefusal::NoRoute)), "the gap is mid-route, not an island: {outcome:?}");
+        let injected = RouteApiRequest { injection: Some(InjectionApi { grade: "basic".into(), max: 3 }), ..plain.clone() };
+        let (_, outcome, _) = svc.plot(&h, &injected).await.unwrap();
+        let PlotOutcome::Route(route, cached, _) = outcome else { panic!("a route with the injection, got {outcome:?}") };
+        assert!(!cached, "the injected request keys differently from the refused plain one");
+        assert_eq!(route.injections, 1, "one injection, B -> C");
+        assert_eq!(route.jumps, 3);
+        let injected_hop = route.hops.iter().find(|hop| hop.injection.is_some()).unwrap();
+        assert_eq!(injected_hop.name, "C", "the injection is synthesised before the jump into C");
+    }
+
+    #[test]
+    fn an_unknown_injection_grade_is_refused_and_zero_means_none() {
+        let (_d, g) = island_galaxy();
+        let bad = RouteApiRequest { from: "Home".into(), to: "Step".into(), range_ly: Some(50.0), injection: Some(InjectionApi { grade: "mega".into(), max: 1 }), ..Default::default() };
+        assert_eq!(resolve(&g, &bad).unwrap_err(), PlotRefusal::BadInjection("mega".into()));
+        let none = RouteApiRequest { injection: Some(InjectionApi { grade: "premium".into(), max: 0 }), ..bad.clone() };
+        assert_eq!(resolve(&g, &none).unwrap().injection, None, "nothing to synthesise is no injection");
+        let ok = RouteApiRequest { injection: Some(InjectionApi { grade: " Standard ".into(), max: 4 }), ..bad.clone() };
+        assert_eq!(resolve(&g, &ok).unwrap().injection, Some((1.5, "standard", 4)), "case and whitespace are forgiven");
+    }
+
+    #[test]
+    fn the_cache_key_tells_an_injected_plot_from_a_plain_one() {
+        let (_d, g) = island_galaxy();
+        let plain = range_req(&g, "A", "D", 50.0, false);
+        let basic = RouteRequest { injection: Some((1.25, "basic", 3)), ..plain.clone() };
+        let more = RouteRequest { injection: Some((1.25, "basic", 4)), ..plain.clone() };
+        let premium = RouteRequest { injection: Some((2.0, "premium", 3)), ..plain.clone() };
+        let keys = [&plain, &basic, &more, &premium].map(|r| cache_key("v", r));
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                assert_ne!(keys[i], keys[j], "requests {i} and {j} must not share an answer");
+            }
+        }
+    }
+
+    /// A leg reported by the refine stage is not a route: the planner's
+    /// callback hands both through, and only the one spanning the plot's
+    /// endpoints may become an answer (2026-10-09: 11 jumps for 87 kly).
+    #[tokio::test]
+    async fn a_leg_is_not_a_candidate_only_a_route_spanning_both_ends_is() {
+        let (_d, g) = island_galaxy();
+        let (a, d) = (g.find("A").unwrap(), g.find("D").unwrap());
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "A".into(), to: "D".into(), range_ly: Some(50.0), supercharge: Some(false), injection: Some(InjectionApi { grade: "basic".into(), max: 3 }), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route") };
+        assert!(spans(&route, a, d));
+        let mut leg = (*route).clone();
+        leg.hops.pop();
+        leg.jumps = 1;
+        assert!(!spans(&leg, a, d), "a leg ending short of the destination");
+        let mut other = (*route).clone();
+        other.hops.remove(0);
+        assert!(!spans(&other, a, d), "a leg starting past the origin");
+        assert!(!spans(&Route { hops: vec![], ..(*route).clone() }, a, d));
+    }
+
+    /// The best-so-far rule: only a refining entry moves, only forward.
+    #[tokio::test]
+    async fn a_better_variant_becomes_the_best_so_far_while_refining_and_never_after() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "Home".into(), to: "Step".into(), range_ly: Some(50.0), supercharge: Some(false), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route") };
+        let mut shorter = (*route).clone();
+        shorter.jumps = route.jumps.saturating_sub(1);
+        let mut longer = (*route).clone();
+        longer.jumps = route.jumps + 5;
+        let key = 42;
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "nothing cached under the key: nothing to improve");
+        store_in(&svc.cache, key, std::sync::Arc::clone(&route), true);
+        assert!(!keep_best_so_far(&svc.cache, key, &longer), "a worse variant does not move the entry");
+        assert!(keep_best_so_far(&svc.cache, key, &shorter), "a better one does");
+        let (held, refining) = svc.cached(key).unwrap();
+        assert_eq!((held.jumps, refining), (shorter.jumps, true), "still refining: the client keeps polling");
+        store_in(&svc.cache, key, std::sync::Arc::new(longer.clone()), false);
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "a finished entry is never touched");
+        assert_eq!(svc.cached(key).unwrap().0.jumps, longer.jumps);
+    }
+
+    /// The first-route deadline sits between the hardest measured first
+    /// route (13.7 s offline, three times that for the box) and the lane
+    /// budget it shortens.
+    #[test]
+    fn the_first_route_deadline_is_inside_the_long_budget_and_past_the_hardest_measured_first_route() {
+        assert!(FIRST_ROUTE_MS >= 3 * 13_700, "three times the hardest first route we have seen");
+        assert!(FIRST_ROUTE_MS < LONG_BUDGET_MS, "it must shorten the budget, not extend it");
+        assert!(FIRST_ROUTE_MS > BUDGET_MS, "an interactive plot is never cut by it");
+    }
+
+    /// An eager variant tops up at every scoopable arrival; the same
+    /// route through the lean rewrite keeps only the stops the tank needs.
+    /// Home -> Step -> Pulse -> Far on a 128 t Caspian burns a few tonnes:
+    /// no stop is load-bearing.
+    #[test]
+    fn a_found_route_leaves_the_server_lean() {
+        let (_d, g) = island_galaxy();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Home".into(), to: "Far".into(), fuel_model: Some(caspian), supercharge: Some(true), min_fuel: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let eager = ed_galaxy::router::plan(&g, &RouteRequest { min_fuel: false, ..req.clone() }, &ed_galaxy::router::Control::none()).unwrap();
+        assert!(eager.refuel_stops >= 1, "the exact planner tops up on the way: {:?}", eager.hops.iter().map(|h| (h.name.as_str(), h.refuel)).collect::<Vec<_>>());
+        let mut lean = eager.clone();
+        LeanStops::of(&req).apply(&mut lean);
+        assert_eq!(lean.refuel_stops, 0, "a full tank flies three hops without a stop");
+        assert_eq!(lean.jumps, eager.jumps, "the rewrite changes stops, never hops");
+        // Eager scooping asked for: the stops stay, labelled optional.
+        let mut labelled = eager.clone();
+        LeanStops::of(&RouteRequest { min_fuel: false, ..req.clone() }).apply(&mut labelled);
+        assert_eq!(labelled.refuel_stops, eager.refuel_stops);
+        assert!(labelled.hops.iter().filter(|h| h.refuel).all(|h| h.fuel_optional), "every top-up is a comfort one");
+    }
+
+    /// A route whose unscoopable run outlasts the tank is not flyable,
+    /// and the guard says so; the same route with the run broken by a
+    /// scoopable star is.
+    #[test]
+    fn an_unflyable_final_route_is_caught_by_the_guard() {
+        let (_d, g) = island_galaxy();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Home".into(), to: "Far".into(), fuel_model: Some(caspian), supercharge: Some(true), min_fuel: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let route = ed_galaxy::router::plan(&g, &req, &ed_galaxy::router::Control::none()).unwrap();
+        let lean = LeanStops::of(&req);
+        assert!(lean.feasible(&route), "three hops on a full tank");
+        // Forge the failure: the same hops, but the tank starts with one
+        // jump's fuel and every arrival is unscoopable.
+        let mut dry = route.clone();
+        for h in dry.hops.iter_mut() {
+            h.scoopable = false;
+        }
+        let starved = LeanStops { start_fuel: 1.0, ..lean };
+        assert!(!starved.feasible(&dry), "1 t cannot fly the first 40 ly jump, and there is nowhere to scoop");
+    }
+
+    #[test]
+    fn the_wire_rejects_an_injection_with_extra_fields() {
+        let bad: Result<RouteApiRequest, _> = serde_json::from_str(r#"{"from":"a","to":"b","range_ly":50,"injection":{"grade":"basic","max":1,"mult":9.0}}"#);
+        assert!(bad.is_err(), "a caller cannot hand us a multiplier");
+        let ok: RouteApiRequest = serde_json::from_str(r#"{"from":"a","to":"b","range_ly":50,"injection":{"grade":"basic","max":1}}"#).unwrap();
+        assert_eq!(ok.injection, Some(InjectionApi { grade: "basic".into(), max: 1 }));
     }
 }

@@ -8,6 +8,129 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Rim islands refuse in milliseconds; FSD injections ride the API**
+  (2026-10-09, measured, `docs/benches/2026-10-09-rim-islands.csv`). The
+  boss plotted Jongou XM-W d1-0 → Byoi Fraae CQ-G d10-0 (87 kly, the
+  galaxy's far corners) on his Caspian at its 72.2 ly full-tank reach:
+  prod spent the whole 100 s long-lane budget twice and answered 504;
+  the client then showed `unknown system` from the bubble-index
+  fallback. Three findings. (1) Both ends are islands for that ship:
+  EDSM's nearest known stars are 76.8 ly (origin) and 74.1 ly
+  (destination), both plain G stars, no neutron to boost from; the
+  offline planner with 400 s and no injections says "no route
+  possible"; Spansh refuses at once without injections and plots it
+  with them. (2) A dump-based planner cannot route into unvisited
+  deserts; the in-game map can. (3) The journal's 77.8 ly MaxJumpRange
+  is the light-tank figure; the plot leaves on a full 128 t tank at
+  72.2 ly, so a lighter departure would cross the first hop. Shipped:
+  `plot::island` checks each endpoint against the cell index before
+  any planning (origin at the departure tank and its own star's boost;
+  destination at the lightest tank with every neighbour judged at its
+  own boost -- an upper bound, so a refusal here is one the planner
+  would have reached), refused as `no_route` + `why: "island"` with
+  reach, nearest star, light-tank reach and injected reach, cached like
+  any refusal; `injection: {grade, max}` on the wire (grades by name
+  from `INJECTION_RECIPES`, never a bare multiplier), ONE search with
+  the injection priced in (a plain pass first measured as the failure,
+  `docs/benches/2026-10-09-injection-one-search.csv`: proving "no plain
+  route" on Jongou AA-A d0 → Byoi Fraae AT-U d2-1 took the whole 100 s
+  and starved the injected pass; the injected search alone plots it in
+  6 s on the server, Spansh needs 9 injections there). The penalty is
+  what keeps injections to "required" (boss rule): at three jumps the
+  single search spent one as a shortcut on Sol → Beagle Point, at
+  thirty the controls take none and the rim pairs take 10 and 4 --
+  thirty shipped (`INJECTION_PENALTY`, wave twin). **A first-route
+  deadline** (same day, the boss: "it feels like a long time to wait.
+  Do we have any data on 'if it takes longer than this for any route,
+  it will never find something'?"): yes -- every route that ever
+  succeeded found its first within 1.1 s (September matrix, 18 routes,
+  PC), 1.7 s (box, Sol / Wongi → Beagle), 2.1 s planner (today's rim
+  pairs), 13.7 s offline on the hardest (Jongou AB-F → Byoi, 409
+  jumps); every failure found nothing in 100 s. A long plot with no
+  first route by `FIRST_ROUTE_MS` = 45 s (three times the hardest, for
+  the box) is answered "budget" then; the budget after a first route
+  stays 100 s for refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it;
+  `edda_route_no_first_route_total` counts it. **Lean stops on every
+  route that leaves the server** (the boss: "why the heck are we
+  recommending to scoop at every star we can?"): the min-fuel rewrite
+  ran only on the planner's final route, so the early answer and every
+  best-so-far carried the eager variant's top-ups (478 jumps with 197
+  "scoop stops" and 1 h 17 m of scooping the lean 373-jump route never
+  needed); `LeanStops` now applies the rewrite to each found route
+  before it is served or cached. **OPEN -- the planner can stitch an
+  unflyable route** (found the same evening, the boss reading "jump,
+  scoop to full, jump, scoop to full" from hop 1): the final route for
+  Jongou AA-A d0 → Byoi Fraae AT-U d2-1 (396 jumps, 5 injections) had
+  21 neutron-boosted hops in a row (hops 202-223, ~137 t on a 128 t
+  tank); the lean rewrite cannot fix that by adding earlier stops,
+  returns false, and `plan_best` ignored the return and served the
+  route with the eager variant's flags on every scoopable arrival (116
+  "stops"). The early answer was a different variant without the chain.
+  Server guard shipped (`LeanStops::feasible`,
+  `edda_route_infeasible_total`): an unflyable final is dropped, the
+  early answer stands as the finished one. The planner fix belongs in
+  the leg stitching / fuel rounds for injected routes (the redo's
+  `Err(_) => {}` keeps a leg whose fuel the real tank cannot pay).
+  **Resolved the same night, and it was the rewrite, not the stitching:**
+  the 21-hop run IS flyable (arrives with 4.6 t), it only breaks the
+  one-jump-in-hand floor, and `minimize_refuels` answered an unmeetable
+  floor by adding a stop at every earlier scoopable star, then giving up
+  and leaving the eager flags. Fixed: a stop is added only where it
+  changes the tank, a funded jump with a thin margin stands (pinned by a
+  hand-built 20-neutron run). **Fuzzed** (`examples/plot_fuzz.rs`,
+  `docs/benches/2026-10-09-plot-fuzz.csv`): 16 random pairs from easy
+  and hard pools, every answer replayed with the exact model, no fake
+  route in either pass, and the fix shows as plot 1's final going from
+  17 stops to 6. Spansh's 484-jump route replayed through our model:
+  every hop we refuse is within 0.3 ly of our reach (REACH_SLACK_LY),
+  so the two physics agree to the slack. The server guard stays as the
+  belt (`edda_route_infeasible_total` should now read zero);
+  per-hop `injection` and the route's
+  `injections` count already on the wire. Measured on the worktree
+  server against the prod index: plain 0.04 s island refusal (was
+  102 s + 504), premium 6.1 s / 386 jumps / 17 injections, basic
+  (90 ly) no route in 29.8 s. Client: the request carries the best
+  grade the commander can synthesise and how many (premium ×10 when
+  none, so the answer can name the bill); the Route tab says "FSD
+  injections required: N × grade — you can make M / short K / you
+  cannot synthesise any (no X aboard)" from the materials aboard
+  (nothing but the grade and a count leaves the machine); island
+  refusals are said with their numbers; the fallback says "outside the
+  bundled bubble index", not "unknown system". Metrics:
+  `edda_route_island_total{end,crossed}`,
+  `edda_route_injection_retry_total`, `edda_route_injected_total`.
+  Knob: `knobs/rim_islands.sh`. Closes the OPEN "fast no route for a
+  dead-end target" item below. **Same PR, the client half of the early
+  answer** (the boss flew the plot: 478 jumps at 7 s, 373 refined at
+  27 s, and "why was it not shown initially?"; then: "stream just the
+  numbers we show in the boxes… and let the user hit stop if they want
+  to materialize that route", "show the route in the galaxy map in real
+  time"): the server now keeps the best variant so far in the cache
+  under the key while refining (`keep_best_so_far`, counted by
+  `edda_route_best_so_far_total`); the app polls the key every 5 s until
+  the server says done (or budget + 15 s, three misses, Stop, or a newer
+  plot) and relays `route-refining` events; the Route tab shows a strip
+  with the best-so-far's jumps / boosted / scoop stops / injections and
+  the candidate line on the map, "Use it" materialises it, and the
+  finished route replaces the early one with "Refined: 478 → 373 jumps"
+  -- unless the route is being followed, then it waits for "Use it".
+  "Try harder" stays a different search (thorough, stops priced at zero,
+  its own key): on this corridor it found 377 against the quick
+  search's refined 373, so "no better route" was honest.
+  **OPEN -- direction asymmetry on the rim** (measured the same day,
+  `docs/benches/2026-10-09-rim-reverse-stall.csv`): Byoi Fraae AE-T
+  d3-0 → Jongou AB-F d11-0 runs the 100 s budget to "budget" while the
+  mirror plot takes 4.7 s on the server (28 s offline, 409 jumps). The
+  coarse wave from the Byoi side stalls at its 30k-expansion allowance
+  31 kly short and hands the remainder to the exact planner as one leg.
+  The island's own 1,006 ly first leg plans in 4 ms. Three fixes measured
+  as no effect and reverted: the exact router's goal-ward prune bound
+  at the injected reach, the wave's goal run widened to the start side's
+  60 bridges, and the coarse cap / stall allowance at 4x and 8x. Next is
+  a trace of the stalled frontier, not another guess. OPEN: the departure-tank hint is a
+  sentence, not a planner option -- a "leave light" plan would need the
+  planner to pick the departure fuel, measure before building.
+
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

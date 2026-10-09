@@ -74,7 +74,8 @@ const COARSE_FANOUT: usize = usize::MAX;
 const GREEDY_SCAN_FLOOR: u64 = 512;
 
 /// Coarse price of an injected bridging jump, on top of the jump itself.
-const INJECTION_COARSE_PENALTY: f32 = 3.0;
+/// The wave's twin of the exact router's penalty (see INJECTION_PENALTY).
+const INJECTION_COARSE_PENALTY: f32 = crate::router::INJECTION_PENALTY as f32;
 
 /// Where the highway sub-index lives under the galaxy index directory:
 /// `boost<cell>/`, neutrons and white dwarfs together. The grid size is in

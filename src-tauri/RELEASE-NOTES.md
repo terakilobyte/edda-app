@@ -7,6 +7,56 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.5
+
+Plots to the galaxy's rim answer in milliseconds instead of two minutes,
+and the plotter now uses FSD injections where nothing else crosses a gap,
+telling you how many you need and whether you carry the materials. A
+system no known star can reach at your ship's range used to run the
+route server to its full budget and come back as a timeout; it now comes
+back at once with the numbers: how far you can jump, how far the nearest
+known star is, and what a lighter tank or an injection would buy.
+
+Full notes:
+
+- **Islands refuse at once.** The Jongou XM-W d1-0 → Byoi Fraae CQ-G
+  d10-0 plot that took 100 s and a timeout now answers in 0.04 s: "no
+  known star within 72.2 ly of Jongou XM-W d1-0 (the origin): the nearest
+  is 76.8 ly away; with one jump's fuel aboard the ship reaches 77.5 ly,
+  which would cross it". The route server knows every system it
+  autocompletes; the deserts at the rim are simply unvisited, and the
+  in-game map can finish a leg no dump can.
+- **FSD injections, when required.** The plotter plans without them and
+  reaches for them only across a gap nothing else crosses, exactly like
+  the local planner always did, in one search that prices an injection
+  at thirty plain jumps so it is taken only where nothing else crosses.
+  The route says "FSD injections required:
+  17 × premium — you can make 3, short 14" above the hops, each injected
+  hop carries a pill, and when you cannot synthesise the grade it names
+  the materials you lack. "Injections if required" is on by default; off
+  sends nothing to the server. Only the grade and a count ever leave your
+  machine.
+- **A plot that will never find a route says so sooner.** Every route
+  that has ever succeeded found its first route within seconds; one that
+  finds nothing in 45 s never does, so the server answers then instead
+  of at 100 s. Scoop stops on the first answer are now the stops the
+  route actually needs, not a top-up at every scoopable star, so the
+  ETA on the first answer is honest.
+- **The refinement reaches the tab.** On a long plot the server answers
+  with its first route in seconds and keeps refining; the Route tab now
+  shows "Refining on the server… best so far N jumps · boosted · scoop
+  stops" as better routes land, draws the candidate on the map, and
+  offers "Use it". When the server finishes, the better route replaces
+  the first one ("Refined: 478 → 373 jumps"), unless you are already
+  following it, in which case it waits for you. "Try harder" remains the
+  thorough search, a different answer, not this one.
+- **Honest fallback wording.** When the route server cannot answer and
+  the bundled bubble index cannot plot a far system, the message now says
+  the system is outside the bundled bubble index, not that it is unknown.
+  A plot the server could not finish in its budget says "Unable to plot
+  a route in your current ship", and a refusal made without injections
+  offers "Try with injections".
+
 ## 0.4.4
 
 The Route tab shows your route again. Since 0.4.2 the tab went blank the
