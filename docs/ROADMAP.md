@@ -39,7 +39,25 @@ verdicts live in the CSV headers under `docs/benches/`.
   what keeps injections to "required" (boss rule): at three jumps the
   single search spent one as a shortcut on Sol → Beagle Point, at
   thirty the controls take none and the rim pairs take 10 and 4 --
-  thirty shipped (`INJECTION_PENALTY`, wave twin); per-hop `injection` and the route's
+  thirty shipped (`INJECTION_PENALTY`, wave twin). **A first-route
+  deadline** (same day, the boss: "it feels like a long time to wait.
+  Do we have any data on 'if it takes longer than this for any route,
+  it will never find something'?"): yes -- every route that ever
+  succeeded found its first within 1.1 s (September matrix, 18 routes,
+  PC), 1.7 s (box, Sol / Wongi → Beagle), 2.1 s planner (today's rim
+  pairs), 13.7 s offline on the hardest (Jongou AB-F → Byoi, 409
+  jumps); every failure found nothing in 100 s. A long plot with no
+  first route by `FIRST_ROUTE_MS` = 45 s (three times the hardest, for
+  the box) is answered "budget" then; the budget after a first route
+  stays 100 s for refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it;
+  `edda_route_no_first_route_total` counts it. **Lean stops on every
+  route that leaves the server** (the boss: "why the heck are we
+  recommending to scoop at every star we can?"): the min-fuel rewrite
+  ran only on the planner's final route, so the early answer and every
+  best-so-far carried the eager variant's top-ups (478 jumps with 197
+  "scoop stops" and 1 h 17 m of scooping the lean 373-jump route never
+  needed); `LeanStops` now applies the rewrite to each found route
+  before it is served or cached; per-hop `injection` and the route's
   `injections` count already on the wire. Measured on the worktree
   server against the prod index: plain 0.04 s island refusal (was
   102 s + 504), premium 6.1 s / 386 jumps / 17 injections, basic
