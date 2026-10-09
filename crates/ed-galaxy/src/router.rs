@@ -258,6 +258,13 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
     }
     let floor = m.reserve.max(m.max_fuel_per_jump);
     let mut scoop_at = vec![false; n];
+    // The one-jump-in-hand floor cannot always be met: a run of
+    // unscoopable arrivals the tank can fly but only just (2026-10-09,
+    // Jongou AA-A d0 -> Byoi Fraae AT-U d2-1: 21 neutron hops in a row,
+    // arriving with 4.6 t). The jump itself is funded, so the thin margin
+    // is accepted; before this the rewrite kept adding stops at every
+    // EARLIER scoopable star -- none of which change the tank at the run
+    // -- and served 116 "scoop stops" on 396 jumps.
     let tank = loop {
         // One no-scoop simulation over the current stop set.
         let mut tank = vec![start_fuel.min(m.capacity)];
@@ -282,8 +289,14 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
                 }
             };
             if left < floor && !skipped.is_empty() {
-                short_at = Some(i);
-                break;
+                // A stop at the latest skipped scoopable only helps when no
+                // stop already sits between it and here; otherwise the
+                // margin cannot be met and the funded jump stands.
+                let latest = *skipped.last().unwrap();
+                if !scoop_at[latest + 1..i].iter().any(|&s| s) {
+                    short_at = Some(i);
+                    break;
+                }
             }
             if scoop_at[i] {
                 tank.push(m.capacity);
@@ -952,5 +965,45 @@ mod tests {
         assert_eq!(route.hops[1].injection.as_deref(), Some("basic"));
         assert_eq!(route.injections, 1, "one injection: off the island, then the chain");
         assert_eq!(route.hops.last().unwrap().name, "Goal");
+    }
+
+    /// The lean rewrite on a run the tank can only just fly: Start, two
+    /// scoopable stars A and B, then twenty neutron-boosted 430 ly hops with
+    /// nowhere to scoop, then End. A Caspian (128 t, 6.8 t a jump) arrives
+    /// at the end of the run with a few tonnes, below the one-jump-in-hand
+    /// floor. The only stop that matters is B; before 2026-10-09 the rewrite
+    /// went on to add A as well, then gave up and left every scoopable
+    /// arrival marked (the boss's 116 "scoop stops" on 396 jumps).
+    #[test]
+    fn a_thin_margin_on_an_unscoopable_run_is_accepted_not_padded_with_useless_stops() {
+        let m = crate::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let boost = BoostProfile { neutron: 6.0, white_dwarf: 1.0 };
+        let hop = |i: u32, name: &str, class: StarClass, scoopable: bool, d: f32, boosted: bool| Hop {
+            idx: i, id64: i as u64, name: name.into(), pos: [0.0; 3], class, scoopable, distance_ly: d, boosted,
+            total_ly: 0.0, fuel_after: None, refuel: scoopable, synthesized: false, fuel_optional: false, injection: None, via_secondary: None,
+        };
+        let mut hops = vec![
+            hop(0, "Start", StarClass::K, true, 0.0, false),
+            hop(1, "A", StarClass::K, true, 60.0, false),
+            hop(2, "B", StarClass::K, true, 60.0, false),
+            hop(3, "N0", StarClass::Neutron, false, 70.0, false),
+        ];
+        for k in 1..=20 {
+            hops.push(hop(3 + k, &format!("N{k}"), StarClass::Neutron, false, 430.0, true));
+        }
+        hops.push(hop(24, "End", StarClass::K, true, 60.0, true));
+        let n = hops.len();
+        let mut route = Route {
+            range_ly: 72.0, hops, jumps: n - 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 21, expansions: 0, elapsed_ms: 0,
+            refuel_stops: 4, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0,
+            ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None, highway_pending: false,
+        };
+        let ok = minimize_refuels(&m, &boost, None, &mut route, 128.0);
+        assert!(ok, "the run is funded: the rewrite must not give up");
+        let stops: Vec<&str> = route.hops.iter().filter(|h| h.refuel).map(|h| h.name.as_str()).collect();
+        assert_eq!(stops, vec!["B"], "one stop, at the last scoopable star before the run");
+        assert_eq!(route.refuel_stops, 1);
+        let last_tank = route.hops[n - 2].fuel_after.unwrap();
+        assert!(last_tank > 0.0 && last_tank < m.max_fuel_per_jump, "the run ends thin, not dry: {last_tank:.1} t");
     }
 }
