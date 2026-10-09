@@ -28,7 +28,9 @@ Full notes:
   in-game map can finish a leg no dump can.
 - **FSD injections, when required.** The plotter plans without them and
   reaches for them only across a gap nothing else crosses, exactly like
-  the local planner always did. The route says "FSD injections required:
+  the local planner always did, in one search that prices an injection
+  at thirty plain jumps so it is taken only where nothing else crosses.
+  The route says "FSD injections required:
   17 × premium — you can make 3, short 14" above the hops, each injected
   hop carries a pill, and when you cannot synthesise the grade it names
   the materials you lack. "Injections if required" is on by default; off
@@ -45,6 +47,9 @@ Full notes:
 - **Honest fallback wording.** When the route server cannot answer and
   the bundled bubble index cannot plot a far system, the message now says
   the system is outside the bundled bubble index, not that it is unknown.
+  A plot the server could not finish in its budget says "Unable to plot
+  a route in your current ship", and a refusal made without injections
+  offers "Try with injections".
 
 ## 0.4.4
 

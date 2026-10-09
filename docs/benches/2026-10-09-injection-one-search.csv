@@ -1,0 +1,31 @@
+# Injections: one search, and the penalty that keeps them to "required"
+# (2026-10-09, side server 8789 on the worktree build, prod index copy;
+# requests range_ly 72.19, Mk II SCO boosts, supercharge on, thorough
+# false, injection premium x87 on the wire; jumps/injections are the early
+# answer where `refining` is true).
+# VERDICT: the plain-pass-first design was the failure -- proving "no plain
+# route" on Jongou AA-A d0 -> Byoi Fraae AT-U d2-1 took the whole 100 s
+# (offline: "no route possible" at 101 s) and starved the injected pass
+# (10 s floor, "budget"); the injected search alone plots the pair in 48 s
+# offline and 6.2 s on the server. One search, injections priced in, is
+# the design (the boss: "can we fold it into one?"). At the old penalty of
+# three jumps the single search spent one injection as a shortcut on both
+# controls (Sol -> Beagle 199 with one vs 196 without); at thirty the
+# controls take none and the rim pairs take fewer (10 and 4) for a few
+# more jumps. Thirty is the shipped constant (router INJECTION_PENALTY,
+# wave twin). Spansh's exact plotter on the AA-A pair: 484 jumps, 9
+# premium injections.
+design,plot,http,wall_s,jumps,injections,note
+plain-first (penalty 3),Jongou AA-A d0->Byoi Fraae AT-U d2-1,504,100.1,,,budget: the plain pass ate the budget (app 19:55-19:57Z)
+offline plain only,Jongou AA-A d0->Byoi Fraae AT-U d2-1,,101.5,,,"no route possible" -- the proof takes the whole budget
+offline injected only,Jongou AA-A d0->Byoi Fraae AT-U d2-1,,47.7,371,,one wave stalled at 10 kly; the portfolio delivered (20/33 variants)
+offline injected mirror,Byoi Fraae AT-U d2-1->Jongou AA-A d0,,17.5,397,,
+one search (penalty 3),Sol->Beagle Point,200,5.9,199,1,early answer; plain control was 196 / 0
+one search (penalty 3),HD 236233->Beagle Point,200,6.5,214,1,early answer; plain control was 223 early / 206 refined / 0
+one search (penalty 3),Jongou XM-W d1-0->Byoi Fraae CB-A c0,200,6.7,376,13,early answer
+one search (penalty 3),Jongou AA-A d0->Byoi Fraae AT-U d2-1,200,6.1,370,8,finished (not refining)
+one search (penalty 30),Sol->Beagle Point,200,5.2,203,0,early answer
+one search (penalty 30),HD 236233->Beagle Point,200,5.6,218,0,early answer
+one search (penalty 30),Jongou XM-W d1-0->Byoi Fraae CB-A c0,200,6.1,391,10,early answer
+one search (penalty 30),Jongou AA-A d0->Byoi Fraae AT-U d2-1,200,6.2,388,4,finished (not refining)
+spansh exact plotter,Jongou AA-A d0->Byoi Fraae AT-U d2-1,,~95 queued,484,9,20 refuels; 110549 ly

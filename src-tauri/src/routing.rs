@@ -1445,9 +1445,10 @@ fn budget_failure(detail: &str) -> PlotFailure {
     let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
     if v.get("error").and_then(|e| e.as_str()) == Some("budget") {
         let secs = v.get("budget_ms").and_then(|b| b.as_u64()).map(|ms| ms / 1000).unwrap_or(100);
-        return PlotFailure::Refused(format!(
-            "the route server ran out of its {secs} s budget without finding a route; a shorter leg, a different target, or the galaxy map's own plotter may get there"
-        ));
+        // Nothing to recommend (the boss, 2026-10-09): the game's own
+        // plotter stops at 20 kly, and a shorter leg would have been found
+        // inside the long one.
+        return PlotFailure::Refused(format!("Unable to plot a route in your current ship (the route server ran out of its {secs} s budget)."));
     }
     PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into())
 }
@@ -2553,7 +2554,7 @@ mod injection_wire_tests {
         fn a_budget_504_is_said_as_the_server_giving_up_not_still_working() {
             use super::{budget_failure, PlotFailure};
             match budget_failure(r#"{"error":"budget","budget_ms":100000,"lane":"long"}"#) {
-                PlotFailure::Refused(text) => assert_eq!(text, "the route server ran out of its 100 s budget without finding a route; a shorter leg, a different target, or the galaxy map's own plotter may get there"),
+                PlotFailure::Refused(text) => assert_eq!(text, "Unable to plot a route in your current ship (the route server ran out of its 100 s budget)."),
                 other => panic!("a refusal, got {other:?}"),
             }
             assert!(matches!(budget_failure(""), PlotFailure::Transport(_)), "a bare gateway 504: the planner may still be working");

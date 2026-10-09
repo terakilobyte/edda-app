@@ -30,9 +30,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   would have reached), refused as `no_route` + `why: "island"` with
   reach, nearest star, light-tank reach and injected reach, cached like
   any refusal; `injection: {grade, max}` on the wire (grades by name
-  from `INJECTION_RECIPES`, never a bare multiplier), plain pass first,
-  injected retry on the remaining budget, straight to injected when
-  only an injection crosses an end; per-hop `injection` and the route's
+  from `INJECTION_RECIPES`, never a bare multiplier), ONE search with
+  the injection priced in (a plain pass first measured as the failure,
+  `docs/benches/2026-10-09-injection-one-search.csv`: proving "no plain
+  route" on Jongou AA-A d0 → Byoi Fraae AT-U d2-1 took the whole 100 s
+  and starved the injected pass; the injected search alone plots it in
+  6 s on the server, Spansh needs 9 injections there). The penalty is
+  what keeps injections to "required" (boss rule): at three jumps the
+  single search spent one as a shortcut on Sol → Beagle Point, at
+  thirty the controls take none and the rim pairs take 10 and 4 --
+  thirty shipped (`INJECTION_PENALTY`, wave twin); per-hop `injection` and the route's
   `injections` count already on the wire. Measured on the worktree
   server against the prod index: plain 0.04 s island refusal (was
   102 s + 504), premium 6.1 s / 386 jumps / 17 injections, basic
