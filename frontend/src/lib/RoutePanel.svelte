@@ -33,6 +33,10 @@
   // An island refusal made without injections offers the replot with
   // them on (the boss, 2026-10-09: "either they check the box or a
   // button 'try with synthesis'").
+  // Offered on an island refusal made without injections, and on any
+  // no-route or budget answer while the box is off: the plain search
+  // proving "no route" is exactly the case an injection may cross.
+  const offerInjections = $derived(!!error && (error.includes("injections if required") || (!injections.value && (error.startsWith("Unable to plot a route") || error.includes("found no route")))));
   async function tryWithInjections() {
     injections.value = true;
     await plot();
@@ -196,7 +200,7 @@
     <p class="small"><span class="pill accent">plotting</span> {plotStatusLine()} <span class="muted">{plotDetailLine()}</span></p>
   {/if}
   {#if error}
-    <p class="warn small bounded plot-refusal" role="alert">{error}{#if error.includes("injections if required")} <button class="quiet tiny" onclick={tryWithInjections} disabled={loading}>Try with injections</button>{/if}</p>
+    <p class="warn small bounded plot-refusal" role="alert">{error}{#if offerInjections} <button class="quiet tiny" onclick={tryWithInjections} disabled={loading}>Try with injections</button>{/if}</p>
 
   {/if}
   {#if route?.highway_pending}
