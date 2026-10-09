@@ -1441,7 +1441,7 @@ pub fn island_text(detail: &str, from: &str, to: &str) -> String {
 /// server remembers for two minutes, so a replot gets it back at once);
 /// anything else in front of the server cutting the connection means the
 /// planner may still be working and a replot collects the route.
-pub(crate) fn budget_failure(detail: &str) -> PlotFailure {
+fn budget_failure(detail: &str) -> PlotFailure {
     let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
     if v.get("error").and_then(|e| e.as_str()) == Some("budget") {
         let secs = v.get("budget_ms").and_then(|b| b.as_u64()).map(|ms| ms / 1000).unwrap_or(100);
@@ -1456,7 +1456,7 @@ pub(crate) fn budget_failure(detail: &str) -> PlotFailure {
 /// did not deliver: yes when the server could not be reached or errored,
 /// no when it answered with a refusal -- its index holds everything the
 /// bubble index holds.
-pub(crate) fn bubble_worth_trying(remote: &PlotFailure) -> bool {
+fn bubble_worth_trying(remote: &PlotFailure) -> bool {
     matches!(remote, PlotFailure::Transport(_))
 }
 
