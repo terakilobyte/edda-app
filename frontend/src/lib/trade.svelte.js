@@ -55,9 +55,9 @@ export const trade = $state({
 /** Lifecycle hooks kept for App.svelte's symmetry; the search runs on the server and reports no phases. */
 export function start() {}
 
-export function stop() {
-  off = null;
-}
+// Nothing to unsubscribe. (Until 2026-10-09 this assigned to an undeclared
+// `off`: a ReferenceError on every App teardown, seen on a dev reload.)
+export function stop() {}
 
 export async function stopSearch() {
   try {

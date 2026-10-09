@@ -923,6 +923,8 @@ impl RouteService {
         let served_early: std::sync::Arc<Mutex<Option<(usize, Instant)>>> = std::sync::Arc::new(Mutex::new(None));
         let served_early_task = std::sync::Arc::clone(&served_early);
         let plot_started = Instant::now();
+        let cache_found = std::sync::Arc::clone(&cache);
+        let served_early_found = std::sync::Arc::clone(&served_early_task);
         let mut task = tokio::task::spawn_blocking(move || {
             // The lane's permits live and die with the planner, whatever
             // the handler did with the answer.
@@ -931,6 +933,16 @@ impl RouteService {
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
             let found = move |r: &Route| {
                 let _ = found_tx.send(r.clone());
+                // After the early answer went out, every variant that
+                // beats the cached best becomes the best-so-far under the
+                // same key, still marked refining: a client polling the
+                // key sees the numbers move (the boss, 2026-10-09:
+                // "stream just the numbers we show in the boxes").
+                let early = served_early_found.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+                if early && keep_best_so_far(&cache_found, key, r) {
+                    metrics::counter!("edda_route_best_so_far_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, jumps = r.jumps, boosted = r.boosted_jumps, "route refining: a better route so far");
+                }
             };
             let none = Control::none();
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
@@ -1096,6 +1108,24 @@ impl RouteService {
 }
 
 type Cache = std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, bool)>>>;
+
+/// A variant finished after the early answer: if it beats what the cache
+/// holds for this plot, it becomes the best-so-far, still refining. A
+/// finished entry (refining = false) or a missing one is never touched --
+/// the final store is the planner's own business.
+fn keep_best_so_far(cache: &Cache, key: u64, candidate: &Route) -> bool {
+    let held = {
+        let cache = cache.lock().unwrap_or_else(|e| e.into_inner());
+        cache.get(&key).map(|(_, route, refining)| (std::sync::Arc::clone(route), *refining))
+    };
+    match held {
+        Some((held, true)) if std::ptr::eq(better(&held, candidate), candidate) => {
+            store_in(cache, key, std::sync::Arc::new(candidate.clone()), true);
+            true
+        }
+        _ => false,
+    }
+}
 
 fn store_in(cache: &Cache, key: u64, route: std::sync::Arc<Route>, refining: bool) {
     {
@@ -1870,6 +1900,31 @@ mod endpoint_tests {
                 assert_ne!(keys[i], keys[j], "requests {i} and {j} must not share an answer");
             }
         }
+    }
+
+    /// The best-so-far rule: only a refining entry moves, only forward.
+    #[tokio::test]
+    async fn a_better_variant_becomes_the_best_so_far_while_refining_and_never_after() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "Home".into(), to: "Step".into(), range_ly: Some(50.0), supercharge: Some(false), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route") };
+        let mut shorter = (*route).clone();
+        shorter.jumps = route.jumps.saturating_sub(1);
+        let mut longer = (*route).clone();
+        longer.jumps = route.jumps + 5;
+        let key = 42;
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "nothing cached under the key: nothing to improve");
+        store_in(&svc.cache, key, std::sync::Arc::clone(&route), true);
+        assert!(!keep_best_so_far(&svc.cache, key, &longer), "a worse variant does not move the entry");
+        assert!(keep_best_so_far(&svc.cache, key, &shorter), "a better one does");
+        let (held, refining) = svc.cached(key).unwrap();
+        assert_eq!((held.jumps, refining), (shorter.jumps, true), "still refining: the client keeps polling");
+        store_in(&svc.cache, key, std::sync::Arc::new(longer.clone()), false);
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "a finished entry is never touched");
+        assert_eq!(svc.cached(key).unwrap().0.jumps, longer.jumps);
     }
 
     #[test]

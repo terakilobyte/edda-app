@@ -25,6 +25,9 @@ pub struct RoutingState {
     /// off until a plot asks); a re-plan of the followed route keeps the
     /// commander's choice.
     white_dwarfs: std::sync::atomic::AtomicBool,
+    /// Bumped by every plot: a refinement watcher from an earlier plot
+    /// sees the number move and stops polling.
+    plot_generation: std::sync::atomic::AtomicU64,
     /// Whether the last plot minimised fuel stops (opt-in); a re-plan of
     /// the followed route keeps the commander's choice, or a min-fuel
     /// route would silently revert to eager scooping mid-flight.
@@ -232,6 +235,7 @@ impl RoutingState {
             galaxy: Mutex::new(None),
             neutrons: Mutex::new(None),
             white_dwarfs: std::sync::atomic::AtomicBool::new(false),
+            plot_generation: std::sync::atomic::AtomicU64::new(0),
             min_fuel: std::sync::atomic::AtomicBool::new(true),
             safe_margins: std::sync::atomic::AtomicBool::new(false),
             jobs: Mutex::new(None),
@@ -1140,7 +1144,7 @@ impl PlotFailure {
     }
 }
 
-async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::sync::CancellationToken) -> Result<ed_galaxy::router::Route, PlotFailure> {
+async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::sync::CancellationToken) -> Result<(ed_galaxy::router::Route, ServerAnswer), PlotFailure> {
     let api = crate::exchange::endpoint(state)
         .ok_or_else(|| PlotFailure::Refused("no galaxy index and no community API configured: install the index from Settings → System data, or set the API address there".into()))?;
     let (here, ship) = state.with_read(|s| {
@@ -1280,17 +1284,98 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
                 None => format!("the route server refused the plot: {detail}"),
             }));
         }
-        let route: ed_galaxy::router::Route = response
+        let answer: serde_json::Value = response
             .json()
             .await
             .map_err(|error| PlotFailure::Transport(format!("route server answer unreadable: {error}")))?;
+        let served = ServerAnswer::of(&answer);
+        let route: ed_galaxy::router::Route = serde_json::from_value(answer)
+            .map_err(|error| PlotFailure::Transport(format!("route server answer unreadable: {error}")))?;
         let boosted = route.hops.iter().filter(|h| h.boosted).count();
-        tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, "route planned by API");
+        tracing::info!(hops = route.hops.len(), boosted, to = %query.to, ms, retried_with_coords, refining = served.refining, "route planned by API");
         if route.highway_pending {
             tracing::warn!(hops = route.hops.len(), to = %query.to, "route planned by API without the neutron highway (server rebuilding it): a bare-range route; replot in a minute");
         }
-        return Ok(route);
+        return Ok((route, served));
     }
+}
+
+/// What the server said about its answer beside the route (ed-api
+/// `augment`): an early answer still being refined, and the lane budget
+/// that bounds how long the refinement can take.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ServerAnswer {
+    pub refining: bool,
+    pub budget_ms: u64,
+}
+
+impl ServerAnswer {
+    pub fn of(answer: &serde_json::Value) -> Self {
+        ServerAnswer {
+            refining: answer.get("refining").and_then(|v| v.as_bool()).unwrap_or(false),
+            budget_ms: answer.get("budget_ms").and_then(|v| v.as_u64()).unwrap_or(0),
+        }
+    }
+}
+
+/// How often the refinement watcher asks the server for the key, and how
+/// long past the lane budget it keeps asking before giving up.
+pub const REFINE_POLL: std::time::Duration = std::time::Duration::from_secs(5);
+pub const REFINE_GRACE_MS: u64 = 15_000;
+
+/// The server answered early and is refining under the same key (#198).
+/// Poll the key: a better route so far is relayed to the Route tab as a
+/// candidate (the numbers in the boxes, the line on the map), the
+/// finished one as `done`. Stops on the plot's own cancel token (Stop),
+/// when a newer plot starts, after three misses, or past the budget plus
+/// a grace -- then says the first answer stands. (The boss, 2026-10-09,
+/// after the 478-jump early answer hid a 373-jump refinement: "why was
+/// it not shown initially?")
+fn spawn_refine_watch(app: AppHandle, routing: Arc<RoutingState>, query: PlotQuery, cancel: tokio_util::sync::CancellationToken, generation: u64, early_jumps: usize, budget_ms: u64) {
+    let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": false, "route": null }));
+    tauri::async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(budget_ms.max(10_000) + REFINE_GRACE_MS);
+        let mut shown = early_jumps;
+        let mut misses = 0u32;
+        loop {
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return,
+                _ = tokio::time::sleep(REFINE_POLL) => {}
+            }
+            if routing.plot_generation.load(std::sync::atomic::Ordering::Relaxed) != generation {
+                return;
+            }
+            match plot_via_api(state.inner(), &query, &cancel).await {
+                Ok((route, served)) if !served.refining => {
+                    tracing::info!(early_jumps, final_jumps = route.jumps, to = %query.to, "route refinement finished on the server");
+                    let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": true, "route": route }));
+                    return;
+                }
+                Ok((route, _)) => {
+                    if route.jumps < shown {
+                        shown = route.jumps;
+                        tracing::info!(early_jumps, jumps = route.jumps, boosted = route.boosted_jumps, to = %query.to, "route refining: a better route so far");
+                        let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": false, "route": route }));
+                    }
+                }
+                Err(PlotFailure::Stopped) => return,
+                Err(failure) => {
+                    misses += 1;
+                    tracing::warn!(misses, error = %failure.text(), "route refinement poll failed");
+                    if misses >= 3 {
+                        break;
+                    }
+                }
+            }
+            if tokio::time::Instant::now() >= deadline {
+                tracing::info!(early_jumps, budget_ms, "route refinement: nothing more from the server within the budget");
+                break;
+            }
+        }
+        let _ = app.emit(crate::events::ROUTE_REFINING, serde_json::json!({ "early_jumps": early_jumps, "done": true, "route": null }));
+    });
 }
 
 /// The injection the plot may fall back on, as the server takes it:
@@ -1394,8 +1479,14 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     // ran on for its full 35-50 s (the boss, HIP 90112 -> Beagle Point:
     // "stop button isn't working").
     let cancel = state.jobs.begin(crate::jobs::ROUTE_PLOT);
+    let generation = routing.plot_generation.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     let remote = match plot_via_api(state, &query, &cancel).await {
-        Ok(route) => return Ok(route),
+        Ok((route, served)) => {
+            if served.refining {
+                spawn_refine_watch(app.clone(), routing.clone(), query.clone(), cancel.clone(), generation, route.jumps, served.budget_ms);
+            }
+            return Ok(route);
+        }
         Err(PlotFailure::Stopped) => return Err(PlotFailure::Stopped.text().to_string()),
         Err(failure) => failure,
     };
@@ -2404,6 +2495,15 @@ mod injection_wire_tests {
         fn a_lost_star_has_no_nearest() {
             let detail = r#"{"error":"no_route","why":"island","end":"origin","system":"Rock","reach_ly":50.0,"nearest_ly":null,"light_reach_ly":50.0,"injected_reach_ly":100.0}"#;
             assert_eq!(island_text(detail, "Rock", "Home"), "no known star anywhere near Rock (the origin) at 50.0 ly");
+        }
+
+        #[test]
+        fn the_server_answer_flags_are_read_beside_the_route() {
+            use super::ServerAnswer;
+            let early = serde_json::json!({ "jumps": 478, "refining": true, "budget_ms": 100000, "lane": "long" });
+            assert_eq!(ServerAnswer::of(&early), ServerAnswer { refining: true, budget_ms: 100_000 });
+            let plain = serde_json::json!({ "jumps": 5 });
+            assert_eq!(ServerAnswer::of(&plain), ServerAnswer::default(), "an answer without the flags is a finished one");
         }
 
         #[test]
