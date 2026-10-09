@@ -754,6 +754,18 @@ async fn plot_route(
             )
                 .into_response()
         }
+        // The deadline's own number, so the client says "45 s", not the
+        // lane's 100 (the boss, 2026-10-09: "I don't think it ran 100s but
+        // it says I hit the 100s budget").
+        PlotOutcome::Refused(PlotRefusal::NoFirstRoute(ms)) => {
+            metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
+            lane_counter("budget");
+            (
+                StatusCode::GATEWAY_TIMEOUT,
+                axum::Json(serde_json::json!({ "error": "budget", "why": "no_first_route", "budget_ms": ms, "lane": lane_name })),
+            )
+                .into_response()
+        }
         PlotOutcome::Refused(PlotRefusal::Budget) => {
             metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
             lane_counter("budget");
