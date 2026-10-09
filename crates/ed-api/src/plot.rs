@@ -228,6 +228,9 @@ pub enum PlotRefusal {
     NoRange,
     NoRoute,
     Budget,
+    /// A long plot with no first route by the first-route deadline (ms):
+    /// a budget answer, said with the deadline, not the lane budget.
+    NoFirstRoute(u64),
     /// An endpoint no known star can reach at this ship's reach: the
     /// planner would spend its whole budget to say so (the boss,
     /// 2026-10-09: 100 s and a 504 for a plot Spansh refused at once).
@@ -1075,9 +1078,10 @@ impl RouteService {
             };
             if no_first.load(std::sync::atomic::Ordering::Relaxed) {
                 guard.disarm();
-                self.refuse(key, PlotRefusal::Budget);
-                tracing::info!(lane = lane_name, key, first_route_ms = self.first_route.as_millis() as u64, "route refused: no first route within the first-route deadline");
-                return Ok((lane, PlotOutcome::Refused(PlotRefusal::Budget), bridges));
+                let ms = self.first_route.as_millis() as u64;
+                self.refuse(key, PlotRefusal::NoFirstRoute(ms));
+                tracing::info!(lane = lane_name, key, first_route_ms = ms, "route refused: no first route within the first-route deadline");
+                return Ok((lane, PlotOutcome::Refused(PlotRefusal::NoFirstRoute(ms)), bridges));
             }
             match finished {
                 Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
