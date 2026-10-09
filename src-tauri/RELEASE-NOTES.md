@@ -34,6 +34,14 @@ Full notes:
   the materials you lack. "Injections if required" is on by default; off
   sends nothing to the server. Only the grade and a count ever leave your
   machine.
+- **The refinement reaches the tab.** On a long plot the server answers
+  with its first route in seconds and keeps refining; the Route tab now
+  shows "Refining on the server… best so far N jumps · boosted · scoop
+  stops" as better routes land, draws the candidate on the map, and
+  offers "Use it". When the server finishes, the better route replaces
+  the first one ("Refined: 478 → 373 jumps"), unless you are already
+  following it, in which case it waits for you. "Try harder" remains the
+  thorough search, a different answer, not this one.
 - **Honest fallback wording.** When the route server cannot answer and
   the bundled bubble index cannot plot a far system, the message now says
   the system is outside the bundled bubble index, not that it is unknown.

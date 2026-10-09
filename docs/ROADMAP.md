@@ -47,7 +47,23 @@ verdicts live in the CSV headers under `docs/benches/`.
   `edda_route_island_total{end,crossed}`,
   `edda_route_injection_retry_total`, `edda_route_injected_total`.
   Knob: `knobs/rim_islands.sh`. Closes the OPEN "fast no route for a
-  dead-end target" item below. OPEN: the departure-tank hint is a
+  dead-end target" item below. **Same PR, the client half of the early
+  answer** (the boss flew the plot: 478 jumps at 7 s, 373 refined at
+  27 s, and "why was it not shown initially?"; then: "stream just the
+  numbers we show in the boxes… and let the user hit stop if they want
+  to materialize that route", "show the route in the galaxy map in real
+  time"): the server now keeps the best variant so far in the cache
+  under the key while refining (`keep_best_so_far`, counted by
+  `edda_route_best_so_far_total`); the app polls the key every 5 s until
+  the server says done (or budget + 15 s, three misses, Stop, or a newer
+  plot) and relays `route-refining` events; the Route tab shows a strip
+  with the best-so-far's jumps / boosted / scoop stops / injections and
+  the candidate line on the map, "Use it" materialises it, and the
+  finished route replaces the early one with "Refined: 478 → 373 jumps"
+  -- unless the route is being followed, then it waits for "Use it".
+  "Try harder" stays a different search (thorough, stops priced at zero,
+  its own key): on this corridor it found 377 against the quick
+  search's refined 373, so "no better route" was honest. OPEN: the departure-tank hint is a
   sentence, not a planner option -- a "leave light" plan would need the
   planner to pick the departure fuel, measure before building.
 

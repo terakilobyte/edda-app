@@ -15,7 +15,7 @@
   import GalaxyView from "./GalaxyView.svelte";
   import { carrierRoute, start as startCarrierRoute, stop as stopCarrierRoute, plotCarrier, followCarrier, nextCarrierJump, clearCarrier } from "./carrierRoute.svelte.js";
   import { CARRIER_ROUTING } from "./flags.js";
-  import { routing, setRoute, runPlot, stopPlot, tryHarder, plotStatusLine, plotDetailLine, importSpansh } from "./route.svelte.js";
+  import { routing, setRoute, runPlot, stopPlot, tryHarder, plotStatusLine, plotDetailLine, importSpansh, useRefined } from "./route.svelte.js";
   import Place from "./Place.svelte";
   import { follow, followShownRoute, stopFollowing, targetNext } from "./follow.svelte.js";
   import { ship } from "./ship.svelte.js";
@@ -209,11 +209,21 @@
 
   <!-- One map for both the plot in progress and the result: remounting it
        resets the camera and blanks the view for a frame. -->
-  {#if showMap.value}<GalaxyView route={route ?? routing.best} candidates={loading ? routing.candidates : []} nextIndex={route && follow.active && follow.source !== null ? follow.next_index : 0} height={440} />{/if}
+  {#if showMap.value}<GalaxyView route={route ?? routing.best} candidates={loading || routing.refining ? routing.candidates : []} nextIndex={route && follow.active && follow.source !== null ? follow.next_index : 0} height={440} />{/if}
 
   {#if route}
     {#if injBanner}
       <div class="pill {injShort && injShort.short > 0 ? 'warn' : 'ok'} injection-banner" role="status" title="Synthesise the injection before each marked jump: Synthesis, FSD Injection, in the ship's Inventory panel.">{injBanner}</div>
+    {/if}
+    {#if routing.refining}
+      <div class="pill warn refining-strip" role="status" title="The route server answered with its first route and is still refining; the better route so far shows here and on the map. Use it to switch now, or wait: the finished route replaces this one unless you are following it.">
+        {#if routing.refining.best}
+          {routing.refining.done ? "Refined on the server" : "Refining on the server…"} best so far {routing.refining.best.jumps} jumps · {routing.refining.best.boosted_jumps} boosted · {routing.refining.best.refuel_stops} scoop stops{#if routing.refining.best.injections > 0} · {routing.refining.best.injections} injections{/if}
+          <button class="quiet tiny" onclick={useRefined}>Use it</button>
+        {:else}
+          Refining on the server… the first route is shown while the planner works
+        {/if}
+      </div>
     {/if}
     <div class="stat-grid" style="margin-bottom:0.6rem">
       <div class="stat"><div class="label">Jumps</div><div class="value">{route.jumps}<span class="muted small"> at {route.range_ly.toFixed(1)} ly{#if route.ship} · {route.ship}{/if}</span></div></div>

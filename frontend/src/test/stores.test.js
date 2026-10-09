@@ -82,6 +82,11 @@ describe("follow store", () => {
 });
 
 describe("trade store", () => {
+  it("stop() is a no-op that does not throw (2026-10-09: an undeclared `off` threw on every App teardown)", async () => {
+    const trade = await import("../lib/trade.svelte.js");
+    expect(() => trade.stop()).not.toThrow();
+  });
+
   it("sortedLegs honours LEG_SORTS direction and sortBy toggles it", async () => {
     const { trade, LEG_SORTS, sortBy, sortedLegs } = await import("../lib/trade.svelte.js");
     const legs = [

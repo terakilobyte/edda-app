@@ -261,6 +261,7 @@ export const EVENTS = {
   onRouteProgress: "route-progress",
   onRouteCandidate: "route-candidate",
   onRouteReplanned: "route-replanned",
+  onRouteRefining: "route-refining",
   onRouteFollow: "route-follow",
   onTradeFollow: "trade-follow",
   onCarrierRoute: "carrier-route",
@@ -312,6 +313,6 @@ export const setAiConfig = (apiKey, model, research = null, extra = {}) =>
 export const {
   onJournalChanged, onSyncProgress, onSyncComplete, onCallout, onSupercharge, onOverlayInteractive, onGameState, onCapiState,
   onKnowledgeProgress,
-  onRouteProgress, onRouteCandidate, onRouteReplanned, onRouteFollow, onTradeFollow, onCarrierRoute,
+  onRouteProgress, onRouteCandidate, onRouteReplanned, onRouteRefining, onRouteFollow, onTradeFollow, onCarrierRoute,
   onListenState, onListenHeard, onListenPartial, onListenReply, onListenSetup, onSpeechEngineProgress, onAppUpdate,
 } = listeners;

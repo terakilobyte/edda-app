@@ -3,7 +3,7 @@
 // plot_route tool, or requested from other tabs ("route me to this trader").
 //
 // Nothing here talks to the backend until `start()`; `stop()` undoes it.
-import { plotRoute, cancelRoute, onRouteProgress, onRouteCandidate, onRouteReplanned, personas, importSpanshRoute, frontendLog } from "./api.js";
+import { plotRoute, cancelRoute, onRouteProgress, onRouteCandidate, onRouteReplanned, onRouteRefining, personas, importSpanshRoute, frontendLog } from "./api.js";
 import { linePool } from "./loadingLines.js";
 
 export const routing = $state({
@@ -25,6 +25,10 @@ export const routing = $state({
   notice: "",
   startedAt: null,
   elapsedMs: 0,
+  // The server answered early and is refining (#198): { earlyJumps, best, done }
+  // while the backend polls the key; `best` is the better route so far,
+  // shown in the boxes and on the map until "Use it" or the finish.
+  refining: null,
   best: null,         // best complete candidate so far (a long plot runs several variants)
   candidates: [],     // other candidates shown on the map, newest last
   persona: "standard",
@@ -54,6 +58,11 @@ export function start() {
     }),
     // The follower re-planned after a detour: show the new route.
     onRouteReplanned((e) => setRoute(e.payload, "tab")),
+    onRouteRefining(async (e) => {
+      let following = false;
+      try { const m = await import("./follow.svelte.js"); following = !!m.follow?.active; } catch {}
+      applyRefining(e.payload, following);
+    }),
   ];
   personas().then((v) => { if (v?.selected) routing.persona = v.selected; }).catch(() => {});
   ticker = setInterval(() => { if (routing.loading && routing.startedAt) routing.elapsedMs = Date.now() - routing.startedAt; }, 500);
@@ -115,7 +124,7 @@ export async function runPlot(query) {
   routing.loading = true; routing.error = ""; routing.route = null; routing.progress = null;
   routing.notice = ""; routing.lastQuery = query; routing.triedHarder = false;
   routing.startedAt = Date.now(); routing.elapsedMs = 0;
-  routing.best = null; routing.candidates = [];
+  routing.best = null; routing.candidates = []; routing.refining = null;
   routing.from = query.from ?? ""; routing.to = query.to ?? "";
   try {
     const route = await plotRoute(query);
@@ -130,6 +139,61 @@ export async function runPlot(query) {
     routing.loading = false;
     routing.best = null; routing.candidates = [];
   }
+}
+
+/** The server is refining the plot behind its early answer and the
+ * backend relays what it finds (`route-refining`, see routing.rs):
+ * `{ early_jumps, done, route }`. A better route so far becomes the
+ * candidate in the boxes and on the map; the finished one replaces the
+ * route on screen unless it is being followed, in which case it waits
+ * for "Use it". Stale events (an older plot's watcher) are ignored by
+ * the early jump count. Returns what it did, for the tests. */
+export function applyRefining(payload, following = false) {
+  if (!payload) return "stale";
+  if (!routing.refining) {
+    // The watcher's first word, before or after the route landed: it
+    // belongs to the plot in flight or just shown, never to an old one.
+    if (payload.done || payload.route || !(routing.loading || routing.route)) return "stale";
+    routing.refining = { earlyJumps: payload.early_jumps, best: null, done: false };
+    return "watching";
+  }
+  const r = routing.refining;
+  if (payload.early_jumps !== r.earlyJumps) return "stale";
+  if (!payload.done) {
+    if (!payload.route) return "watching";
+    r.best = payload.route;
+    routing.candidates = [payload.route];
+    return "better-so-far";
+  }
+  const final = payload.route;
+  routing.candidates = [];
+  if (final && betterRoute(final, routing.route)) {
+    if (following) {
+      r.best = final; r.done = true;
+      routing.notice = `Refined on the server: ${final.jumps} jumps (${routing.route.jumps} shown and being followed). Use it to switch.`;
+      return "final-waiting";
+    }
+    const before = routing.route?.jumps;
+    setRoute(final, "tab");
+    routing.refining = null;
+    routing.notice = `Refined: ${before} → ${final.jumps} jumps.`;
+    return "final-applied";
+  }
+  routing.refining = null;
+  routing.notice = final ? "Refined: the first answer stands." : "Refinement did not finish in time; the first answer stands.";
+  return "final-same";
+}
+
+/** Materialise the best route the refinement has found so far. */
+export function useRefined() {
+  const r = routing.refining;
+  if (!r?.best) return false;
+  const before = routing.route?.jumps;
+  setRoute(r.best, "tab");
+  routing.candidates = [];
+  routing.notice = `Using the refined route: ${before} → ${r.best.jumps} jumps.`;
+  if (r.done) routing.refining = null; else r.best = null;
+  return true;
 }
 
 /** The thorough portfolio from the same inputs as the last plot. The

@@ -42,6 +42,20 @@ describe("RoutePanel with a plotted route in the store", () => {
     expect(body).toContain("premium injection");
   });
 
+  // The server is refining behind the early answer: the strip shows the
+  // best so far with its numbers and a way to take it now.
+  it("shows the refinement strip with the best route so far", () => {
+    routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
+    setRoute(route, "tab", "HIP 90112", "Colonia");
+    routing.refining = { earlyJumps: route.jumps, best: { ...route, jumps: 51, boosted_jumps: 40, refuel_stops: 2, injections: 0 }, done: false };
+    const { body } = render(RoutePanel);
+    routing.refining = null;
+    expect(body).toContain("Refining on the server");
+    expect(body).toContain("best so far 51 jumps");
+    expect(body).toContain("40 boosted");
+    expect(body).toContain("Use it");
+  });
+
   it("says nothing about injections on a route that needs none", () => {
     routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
     setRoute(route, "tab", "HIP 90112", "Colonia");
