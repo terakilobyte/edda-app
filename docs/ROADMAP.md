@@ -8,6 +8,49 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## Server
 
+- **Rim islands refuse in milliseconds; FSD injections ride the API**
+  (2026-10-09, measured, `docs/benches/2026-10-09-rim-islands.csv`). The
+  boss plotted Jongou XM-W d1-0 → Byoi Fraae CQ-G d10-0 (87 kly, the
+  galaxy's far corners) on his Caspian at its 72.2 ly full-tank reach:
+  prod spent the whole 100 s long-lane budget twice and answered 504;
+  the client then showed `unknown system` from the bubble-index
+  fallback. Three findings. (1) Both ends are islands for that ship:
+  EDSM's nearest known stars are 76.8 ly (origin) and 74.1 ly
+  (destination), both plain G stars, no neutron to boost from; the
+  offline planner with 400 s and no injections says "no route
+  possible"; Spansh refuses at once without injections and plots it
+  with them. (2) A dump-based planner cannot route into unvisited
+  deserts; the in-game map can. (3) The journal's 77.8 ly MaxJumpRange
+  is the light-tank figure; the plot leaves on a full 128 t tank at
+  72.2 ly, so a lighter departure would cross the first hop. Shipped:
+  `plot::island` checks each endpoint against the cell index before
+  any planning (origin at the departure tank and its own star's boost;
+  destination at the lightest tank with every neighbour judged at its
+  own boost -- an upper bound, so a refusal here is one the planner
+  would have reached), refused as `no_route` + `why: "island"` with
+  reach, nearest star, light-tank reach and injected reach, cached like
+  any refusal; `injection: {grade, max}` on the wire (grades by name
+  from `INJECTION_RECIPES`, never a bare multiplier), plain pass first,
+  injected retry on the remaining budget, straight to injected when
+  only an injection crosses an end; per-hop `injection` and the route's
+  `injections` count already on the wire. Measured on the worktree
+  server against the prod index: plain 0.04 s island refusal (was
+  102 s + 504), premium 6.1 s / 386 jumps / 17 injections, basic
+  (90 ly) no route in 29.8 s. Client: the request carries the best
+  grade the commander can synthesise and how many (premium ×10 when
+  none, so the answer can name the bill); the Route tab says "FSD
+  injections required: N × grade — you can make M / short K / you
+  cannot synthesise any (no X aboard)" from the materials aboard
+  (nothing but the grade and a count leaves the machine); island
+  refusals are said with their numbers; the fallback says "outside the
+  bundled bubble index", not "unknown system". Metrics:
+  `edda_route_island_total{end,crossed}`,
+  `edda_route_injection_retry_total`, `edda_route_injected_total`.
+  Knob: `knobs/rim_islands.sh`. Closes the OPEN "fast no route for a
+  dead-end target" item below. OPEN: the departure-tank hint is a
+  sentence, not a planner option -- a "leave light" plan would need the
+  planner to pick the departure fuel, measure before building.
+
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

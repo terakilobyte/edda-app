@@ -7,6 +7,37 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.5
+
+Plots to the galaxy's rim answer in milliseconds instead of two minutes,
+and the plotter now uses FSD injections where nothing else crosses a gap,
+telling you how many you need and whether you carry the materials. A
+system no known star can reach at your ship's range used to run the
+route server to its full budget and come back as a timeout; it now comes
+back at once with the numbers: how far you can jump, how far the nearest
+known star is, and what a lighter tank or an injection would buy.
+
+Full notes:
+
+- **Islands refuse at once.** The Jongou XM-W d1-0 → Byoi Fraae CQ-G
+  d10-0 plot that took 100 s and a timeout now answers in 0.04 s: "no
+  known star within 72.2 ly of Jongou XM-W d1-0 (the origin): the nearest
+  is 76.8 ly away; with one jump's fuel aboard the ship reaches 77.5 ly,
+  which would cross it". The route server knows every system it
+  autocompletes; the deserts at the rim are simply unvisited, and the
+  in-game map can finish a leg no dump can.
+- **FSD injections, when required.** The plotter plans without them and
+  reaches for them only across a gap nothing else crosses, exactly like
+  the local planner always did. The route says "FSD injections required:
+  17 × premium — you can make 3, short 14" above the hops, each injected
+  hop carries a pill, and when you cannot synthesise the grade it names
+  the materials you lack. "Injections if required" is on by default; off
+  sends nothing to the server. Only the grade and a count ever leave your
+  machine.
+- **Honest fallback wording.** When the route server cannot answer and
+  the bundled bubble index cannot plot a far system, the message now says
+  the system is outside the bundled bubble index, not that it is unknown.
+
 ## 0.4.4
 
 The Route tab shows your route again. Since 0.4.2 the tab went blank the

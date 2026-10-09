@@ -23,4 +23,30 @@ describe("RoutePanel with a plotted route in the store", () => {
     expect(body).toContain("Colonia");
     expect(body).toContain("Try harder");
   });
+
+  // 2026-10-09: a rim plot that needs FSD injections (Jongou XM-W d1-0 ->
+  // Byoi Fraae CQ-G d10-0 on a 72 ly Caspian) must say so above the route
+  // and mark the hop. The server marks hops with `injection: "<grade>"`
+  // and counts them in `injections`; here the production answer is given
+  // two premium hops.
+  it("flags a route that needs FSD injections and marks the hops", () => {
+    const injected = structuredClone(route);
+    injected.injections = 2;
+    injected.hops[3].injection = "premium";
+    injected.hops[9].injection = "premium";
+    routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
+    setRoute(injected, "tab", "HIP 90112", "Colonia");
+    const { body } = render(RoutePanel);
+    expect(body).toContain("FSD injections required: 2 × premium");
+    expect(body).toContain("you cannot synthesise any");
+    expect(body).toContain("premium injection");
+  });
+
+  it("says nothing about injections on a route that needs none", () => {
+    routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
+    setRoute(route, "tab", "HIP 90112", "Colonia");
+    const { body } = render(RoutePanel);
+    expect(body).not.toContain("injections required");
+    expect(body).not.toContain("injection required");
+  });
 });

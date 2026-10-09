@@ -5,6 +5,7 @@
   // this component is a view of that store plus the form.
   import { onMount } from "svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { injectionBanner, injectionShortfall } from "./injections.js";
   import { galaxyStatus, nameComplete, getStatus, injectionsAvailable, findSystem, gameRouteMaxGet, mapPointsGet, routePlotInGame, routeClearInGame, routeActiveGet, shipScoopInfo } from "./api.js";
   import { fmtInt } from "./format.js";
   import { KEYS, persisted } from "./storage.svelte.js";
@@ -38,8 +39,11 @@
   let status = $state(null);
   let currentSystem = $state("");
   let supercharge = $state(true);
-  // FSD injections: used only when nothing else crosses a gap. Opt-in.
-  const injections = persisted(KEYS.plotInjections, false);
+  // FSD injections: planned only where nothing else crosses a gap, on by
+  // default since 2026-10-09 (the boss: "auto calculate if fsd injections
+  // would be required and flag it") -- the route says loudly when it
+  // needs them, and whether the materials aboard cover it.
+  const injections = persisted(KEYS.plotInjections, true);
   // White dwarfs boost too but take about twice as long to line up as a
   // neutron, so they are opt-in; off plots them as plain stars.
   const whiteDwarfs = persisted(KEYS.plotWhiteDwarfs, false);
@@ -59,6 +63,8 @@
   });
   onMount(async () => { try { injGrades = await injectionsAvailable(); } catch {} });
   const injSummary = $derived(injGrades.filter((g) => g.can_make > 0).map((g) => `${g.can_make} ${g.grade}`).join(", ") || "none");
+  const injBanner = $derived(injectionBanner(route, injGrades));
+  const injShort = $derived(injectionShortfall(route, injGrades));
   // How long the plotter may keep looking for a better route.
   // Swap origin and destination: the way back once you are there. A blank
   // origin means "here", so the swap puts the current system in the target.
@@ -161,7 +167,7 @@
     <div class="row">
       <label title="Supercharge the drive at neutron stars on the way."><input type="checkbox" bind:checked={supercharge} /> neutrons</label>
       <label title="Supercharge at white dwarfs too (×1.5, ×3 on an SCO Mk II). Off by default: a white-dwarf boost takes about twice as long to line up as a neutron's." style="opacity:{supercharge ? 1 : 0.5}"><input type="checkbox" bind:checked={whiteDwarfs.value} disabled={!supercharge} /> white dwarfs</label>
-      <label title="Use the FSD injections you can synthesise (now: {injSummary}) when nothing else crosses a gap. A route that works without them never gets one."><input type="checkbox" bind:checked={injections.value} /> injections</label>
+      <label title="Allow FSD injections where nothing else crosses a gap (you can make: {injSummary}). A route that works without them never gets one; one that needs them says so above the route."><input type="checkbox" bind:checked={injections.value} /> injections if required</label>
       <label title="Plan every jump with 2 tonnes of fuel in hand instead of flying the drive's true reach. A jump or two longer on big trips; turn on if you'd rather not manage the tank closely. Off, the flight monitor coaches the margins live."><input type="checkbox" bind:checked={safeMargins.value} /> safe margins</label>
     </div>
     <div class="row">
@@ -206,6 +212,9 @@
   {#if showMap.value}<GalaxyView route={route ?? routing.best} candidates={loading ? routing.candidates : []} nextIndex={route && follow.active && follow.source !== null ? follow.next_index : 0} height={440} />{/if}
 
   {#if route}
+    {#if injBanner}
+      <div class="pill {injShort && injShort.short > 0 ? 'warn' : 'ok'} injection-banner" role="status" title="Synthesise the injection before each marked jump: Synthesis, FSD Injection, in the ship's Inventory panel.">{injBanner}</div>
+    {/if}
     <div class="stat-grid" style="margin-bottom:0.6rem">
       <div class="stat"><div class="label">Jumps</div><div class="value">{route.jumps}<span class="muted small"> at {route.range_ly.toFixed(1)} ly{#if route.ship} · {route.ship}{/if}</span></div></div>
       <div class="stat"><div class="label">Flown</div><div class="value">{route.total_ly.toFixed(0)} ly</div></div>
