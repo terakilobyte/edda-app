@@ -4,6 +4,7 @@
 //
 // Nothing here talks to the backend until `start()`; `stop()` undoes it.
 import { plotRoute, cancelRoute, onRouteProgress, onRouteCandidate, onRouteReplanned, onRouteRefining, personas, importSpanshRoute, frontendLog } from "./api.js";
+import { toast } from "./toast.svelte.js";
 import { linePool } from "./loadingLines.js";
 
 export const routing = $state({
@@ -132,6 +133,10 @@ export async function runPlot(query) {
     frontendLog("info", `plot shown: ${route.jumps} jumps to ${query.to ?? ""} in ${Date.now() - routing.startedAt} ms`).catch(() => {});
   } catch (e) {
     routing.error = String(e);
+    // A refused plot is a toast as well as the panel's line (the boss,
+    // 2026-10-09): the nudge wherever the commander is looking, the
+    // record where the plot was asked for.
+    toast(String(e), "warn");
     // The app log must say what the tab saw (2026-10-07: "route planned by
     // API" in the log, a failure on the tab, and nothing in between).
     frontendLog("warn", `plot rejected after ${Date.now() - routing.startedAt} ms: ${String(e)}`).catch(() => {});

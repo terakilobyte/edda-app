@@ -1430,6 +1430,14 @@ pub fn island_text(detail: &str, from: &str, to: &str) -> String {
     text
 }
 
+/// Whether the bundled bubble index should have a go after the server
+/// did not deliver: yes when the server could not be reached or errored,
+/// no when it answered with a refusal -- its index holds everything the
+/// bubble index holds.
+pub fn bubble_worth_trying(remote: &PlotFailure) -> bool {
+    matches!(remote, PlotFailure::Transport(_))
+}
+
 /// What the bundled bubble index can say about a system it does not
 /// hold: it is outside the bubble, not unknown to EDDA (the boss,
 /// 2026-10-09: "I'm not sure why this is an unknown system to us, it's a
@@ -1490,6 +1498,14 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
         Err(PlotFailure::Stopped) => return Err(PlotFailure::Stopped.text().to_string()),
         Err(failure) => failure,
     };
+    if !bubble_worth_trying(&remote) {
+        // The server answered: it knows every system the bubble index
+        // knows and more, so a refusal with its numbers is the answer,
+        // not a reason to append "the bubble index cannot plot it either"
+        // (the boss, 2026-10-09, reading exactly that).
+        tracing::info!(error = %remote.text(), "remote plot refused; the server's answer stands");
+        return Err(remote.text().to_string());
+    }
     let transient = matches!(remote, PlotFailure::Transport(_));
     let remote = remote.text().to_string();
     tracing::warn!(error = %remote, transient, "remote plot failed; trying the bundled bubble index");
@@ -2504,6 +2520,14 @@ mod injection_wire_tests {
             assert_eq!(ServerAnswer::of(&early), ServerAnswer { refining: true, budget_ms: 100_000 });
             let plain = serde_json::json!({ "jumps": 5 });
             assert_eq!(ServerAnswer::of(&plain), ServerAnswer::default(), "an answer without the flags is a finished one");
+        }
+
+        #[test]
+        fn the_bubble_index_only_follows_a_server_that_did_not_answer() {
+            use super::{bubble_worth_trying, PlotFailure};
+            assert!(bubble_worth_trying(&PlotFailure::Transport("route server unreachable".into())));
+            assert!(!bubble_worth_trying(&PlotFailure::Refused("no known star within 37.1 ly".into())), "a refusal with its numbers is the answer");
+            assert!(!bubble_worth_trying(&PlotFailure::Stopped));
         }
 
         #[test]
