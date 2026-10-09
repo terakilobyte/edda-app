@@ -56,6 +56,22 @@ describe("RoutePanel with a plotted route in the store", () => {
     expect(body).toContain("Use it");
   });
 
+  it("offers the replot with injections on an island refusal made without them", () => {
+    routing.route = null;
+    routing.error = 'no known star within 37.1 ly of Byoi Fraae AE-T d3-0 (the origin): the nearest is 74.8 ly away; a route may be possible with FSD injections -- turn on "injections if required" and replot';
+    const { body } = render(RoutePanel);
+    routing.error = "";
+    expect(body).toContain("Try with injections");
+  });
+
+  it("does not offer it on a refusal that already had injections", () => {
+    routing.route = null;
+    routing.error = "no known star within 37.1 ly of Byoi Fraae AE-T d3-0 (the origin): the nearest is 74.8 ly away; an FSD injection reaches 74.1 ly, still short";
+    const { body } = render(RoutePanel);
+    routing.error = "";
+    expect(body).not.toContain("Try with injections");
+  });
+
   it("says nothing about injections on a route that needs none", () => {
     routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
     setRoute(route, "tab", "HIP 90112", "Colonia");
