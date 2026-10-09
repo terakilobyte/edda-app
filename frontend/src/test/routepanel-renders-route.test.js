@@ -9,6 +9,7 @@ import { render } from "svelte/server";
 import RoutePanel from "../lib/RoutePanel.svelte";
 import { routing, setRoute } from "../lib/route.svelte.js";
 import route from "./fixtures/colonia-route-2026-10-07.json";
+import { KEYS, writeKey } from "../lib/storage.svelte.js";
 
 globalThis.cancelAnimationFrame ??= () => {};
 
@@ -62,6 +63,24 @@ describe("RoutePanel with a plotted route in the store", () => {
     const { body } = render(RoutePanel);
     routing.error = "";
     expect(body).toContain("Try with injections");
+  });
+
+  it("offers it on a budget answer made with the box off, not with it on", () => {
+    // The box is a persisted setting read at render; a Map-backed
+    // localStorage stands in for the browser's.
+    const store = new Map();
+    globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+    try {
+      routing.route = null;
+      routing.error = "Unable to plot a route in your current ship (the route server ran out of its 100 s budget).";
+      writeKey(KEYS.plotInjections, false);
+      expect(render(RoutePanel).body).toContain("Try with injections");
+      writeKey(KEYS.plotInjections, true);
+      expect(render(RoutePanel).body).not.toContain("Try with injections");
+    } finally {
+      routing.error = "";
+      delete globalThis.localStorage;
+    }
   });
 
   it("does not offer it on a refusal that already had injections", () => {
