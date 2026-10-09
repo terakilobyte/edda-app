@@ -157,23 +157,24 @@ fn spansh(path: &str) -> anyhow::Result<()> {
     for i in 1..jumps.len() {
         let (prev, j) = (&jumps[i - 1], &jumps[i]);
         let d = j["distance"].as_f64().unwrap_or(0.0) as f32;
-        // Spansh flags the arrival: `has_neutron` on a system boosts the
-        // jump OUT of it, `must_inject` on a system is synthesised for the
-        // jump INTO it.
-        let b = if prev["has_neutron"].as_bool().unwrap_or(false) { 6.0 } else if j["must_inject"].as_bool().unwrap_or(false) { 2.0 } else { 1.0 };
+        let flag = |v: &Value| v.as_bool().unwrap_or(false) || v.as_i64().unwrap_or(0) != 0;
+        // Spansh flags the departure: `has_neutron` and `must_inject` on a
+        // system apply to the jump OUT of it (`must_inject` is 0/1).
+        let b = if flag(&prev["has_neutron"]) { 6.0 } else if flag(&prev["must_inject"]) { 2.0 } else { 1.0 };
         match m.jump(d, tank, b) {
             Some(left) => {
                 tank = left;
             }
             None => {
                 unflyable += 1;
-                if unflyable <= 5 {
-                    println!("  spansh hop {i} {}: {d:.1} ly at x{b} with {tank:.1} t: our model says no (reach {:.1})", j["name"].as_str().unwrap_or("?"), m.reach(tank, b));
+                if unflyable <= 8 {
+                    println!("  spansh hop {i} {}: {d:.1} ly at x{b} with {tank:.1} t: our model says no (reach {:.1}); prev neutron={} inject={}", j["name"].as_str().unwrap_or("?"), m.reach(tank, b), flag(&prev["has_neutron"]), flag(&prev["must_inject"]));
                 }
-                tank = 0.0;
+                // Resync to their tank so one disagreement does not cascade.
+                tank = j["fuel_in_tank"].as_f64().map(|t| t as f32).unwrap_or(m.capacity);
             }
         }
-        if j["must_refuel"].as_bool().unwrap_or(false) {
+        if flag(&j["must_refuel"]) {
             tank = m.capacity;
         }
         if let Some(theirs) = j["fuel_in_tank"].as_f64() {
