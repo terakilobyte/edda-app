@@ -57,7 +57,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   best-so-far carried the eager variant's top-ups (478 jumps with 197
   "scoop stops" and 1 h 17 m of scooping the lean 373-jump route never
   needed); `LeanStops` now applies the rewrite to each found route
-  before it is served or cached; per-hop `injection` and the route's
+  before it is served or cached. **OPEN -- the planner can stitch an
+  unflyable route** (found the same evening, the boss reading "jump,
+  scoop to full, jump, scoop to full" from hop 1): the final route for
+  Jongou AA-A d0 → Byoi Fraae AT-U d2-1 (396 jumps, 5 injections) had
+  21 neutron-boosted hops in a row (hops 202-223, ~137 t on a 128 t
+  tank); the lean rewrite cannot fix that by adding earlier stops,
+  returns false, and `plan_best` ignored the return and served the
+  route with the eager variant's flags on every scoopable arrival (116
+  "stops"). The early answer was a different variant without the chain.
+  Server guard shipped (`LeanStops::feasible`,
+  `edda_route_infeasible_total`): an unflyable final is dropped, the
+  early answer stands as the finished one. The planner fix belongs in
+  the leg stitching / fuel rounds for injected routes (the redo's
+  `Err(_) => {}` keeps a leg whose fuel the real tank cannot pay);
+  per-hop `injection` and the route's
   `injections` count already on the wire. Measured on the worktree
   server against the prod index: plain 0.04 s island refusal (was
   102 s + 504), premium 6.1 s / 386 jumps / 17 injections, basic

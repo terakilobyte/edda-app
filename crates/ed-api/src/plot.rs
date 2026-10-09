@@ -992,6 +992,25 @@ impl RouteService {
             // the whole 100 s and starved the injected pass, which plots
             // the pair in 48 s on its own (371 jumps).
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            // A final route the tank cannot fly is no answer (see
+            // LeanStops::feasible): an early answer stands as the finished
+            // one, otherwise the plot has no route. OPEN in the ledger: the
+            // planner's leg stitching should never produce it.
+            let r = match r {
+                Ok(route) if !lean.feasible(&route) => {
+                    metrics::counter!("edda_route_infeasible_total", "lane" => lane_name).increment(1);
+                    tracing::warn!(lane = lane_name, key, jumps = route.jumps, injections = route.injections, "planner's final route cannot be flown on the tank; dropped");
+                    let early_now = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
+                    if early_now.is_some() {
+                        let held = cache.lock().unwrap_or_else(|e| e.into_inner()).get(&key).map(|(_, r, _)| std::sync::Arc::clone(r));
+                        if let Some(held) = held {
+                            store_in(&cache, key, held, false);
+                        }
+                    }
+                    Err(RouteError::NoRoute)
+                }
+                other => other,
+            };
             let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
             let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
@@ -1179,6 +1198,18 @@ pub struct LeanStops {
 impl LeanStops {
     pub fn of(req: &RouteRequest) -> Self {
         LeanStops { min_fuel: req.min_fuel, fuel: req.fuel, boost: req.boost, injection_mult: req.injection.map(|(m, _, _)| m), start_fuel: req.start_fuel }
+    }
+
+    /// Whether the route can be flown on the tank at all: the lean rewrite
+    /// says no when a run of unscoopable arrivals outlasts the capacity
+    /// (2026-10-09, Jongou AA-A d0 -> Byoi Fraae AT-U d2-1: the planner's
+    /// final route had 21 neutron hops in a row, ~137 t on a 128 t tank,
+    /// and was served with every scoopable star marked as a stop).
+    pub fn feasible(&self, route: &Route) -> bool {
+        match &self.fuel {
+            Some(m) => ed_galaxy::router::minimize_refuels(m, &self.boost, self.injection_mult, &mut route.clone(), self.start_fuel),
+            None => true,
+        }
     }
 
     pub fn apply(&self, route: &mut Route) {
@@ -2066,6 +2097,28 @@ mod endpoint_tests {
         LeanStops::of(&RouteRequest { min_fuel: false, ..req.clone() }).apply(&mut labelled);
         assert_eq!(labelled.refuel_stops, eager.refuel_stops);
         assert!(labelled.hops.iter().filter(|h| h.refuel).all(|h| h.fuel_optional), "every top-up is a comfort one");
+    }
+
+    /// A route whose unscoopable run outlasts the tank is not flyable,
+    /// and the guard says so; the same route with the run broken by a
+    /// scoopable star is.
+    #[test]
+    fn an_unflyable_final_route_is_caught_by_the_guard() {
+        let (_d, g) = island_galaxy();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Home".into(), to: "Far".into(), fuel_model: Some(caspian), supercharge: Some(true), min_fuel: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let route = ed_galaxy::router::plan(&g, &req, &ed_galaxy::router::Control::none()).unwrap();
+        let lean = LeanStops::of(&req);
+        assert!(lean.feasible(&route), "three hops on a full tank");
+        // Forge the failure: the same hops, but the tank starts with one
+        // jump's fuel and every arrival is unscoopable.
+        let mut dry = route.clone();
+        for h in dry.hops.iter_mut() {
+            h.scoopable = false;
+        }
+        let starved = LeanStops { start_fuel: 1.0, ..lean };
+        assert!(!starved.feasible(&dry), "1 t cannot fly the first 40 ly jump, and there is nowhere to scoop");
     }
 
     #[test]
