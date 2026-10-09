@@ -727,6 +727,33 @@ async fn plot_route(
             )
                 .into_response()
         }
+        // Still `no_route` on the wire -- a client that only reads the
+        // code behaves as before -- with the numbers that decided it.
+        PlotOutcome::Refused(PlotRefusal::Island(isle)) => {
+            lane_counter("no_route");
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(serde_json::json!({
+                    "error": "no_route",
+                    "why": "island",
+                    "end": isle.end,
+                    "system": isle.system,
+                    "reach_ly": isle.reach_ly,
+                    "nearest_ly": isle.nearest_ly,
+                    "light_reach_ly": isle.light_reach_ly,
+                    "injected_reach_ly": isle.injected_reach_ly,
+                })),
+            )
+                .into_response()
+        }
+        PlotOutcome::Refused(PlotRefusal::BadInjection(grade)) => {
+            lane_counter("bad_injection");
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(serde_json::json!({ "error": "bad_injection", "grade": grade, "detail": "grades are basic, standard and premium" })),
+            )
+                .into_response()
+        }
         PlotOutcome::Refused(PlotRefusal::Budget) => {
             metrics::histogram!("edda_route_wall_seconds", "lane" => lane_name).record(started.elapsed().as_secs_f64());
             lane_counter("budget");

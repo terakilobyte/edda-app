@@ -71,6 +71,9 @@ pub const LONG_QUEUE: usize = 4;
 /// must answer "budget" from here before anything in front of the API
 /// cuts the connection at 120 s and turns the answer into a bare 504.
 pub const LONG_BUDGET_MS: u64 = 100_000;
+/// The least an injected retry gets when the plain pass ate the budget:
+/// enough for a short gap, not a second budget.
+pub const INJECTION_RETRY_FLOOR_MS: u64 = 10_000;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -174,6 +177,38 @@ pub struct RouteApiRequest {
     /// like any other, and the name given is the synthesized hop's label.
     pub from_coords: Option<[f32; 3]>,
     pub to_coords: Option<[f32; 3]>,
+    /// The FSD injection the commander can synthesise, as a last resort
+    /// (2026-10-09, the boss at the rim: Jongou XM-W d1-0 -> Byoi Fraae
+    /// CQ-G d10-0 has no known star inside a 72 ly reach of either end;
+    /// Spansh refuses it at once without injections and plots it with
+    /// them). `grade` names the recipe (basic / standard / premium), `max`
+    /// is how many the commander can make. A route that works without
+    /// them never gets one: the planner charges an injected jump three
+    /// jumps' worth and only reaches for it where nothing else crosses.
+    pub injection: Option<InjectionApi>,
+}
+
+/// An FSD injection on the wire: the grade by name, never a bare
+/// multiplier, so a caller cannot invent a drive the game does not have.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InjectionApi {
+    pub grade: String,
+    pub max: u32,
+}
+
+impl InjectionApi {
+    /// The planner's tuple for this grade, or the unknown grade.
+    pub fn resolve(&self) -> Result<Option<(f32, &'static str, u32)>, String> {
+        if self.max == 0 {
+            return Ok(None);
+        }
+        ed_galaxy::router::INJECTION_RECIPES
+            .iter()
+            .find(|(_, grade, _)| grade.eq_ignore_ascii_case(self.grade.trim()))
+            .map(|(mult, grade, _)| Some((*mult, *grade, self.max)))
+            .ok_or_else(|| self.grade.clone())
+    }
 }
 
 /// Why a plot did not produce a route — mapped to HTTP by the handler.
@@ -186,6 +221,121 @@ pub enum PlotRefusal {
     NoRange,
     NoRoute,
     Budget,
+    /// An endpoint no known star can reach at this ship's reach: the
+    /// planner would spend its whole budget to say so (the boss,
+    /// 2026-10-09: 100 s and a 504 for a plot Spansh refused at once).
+    Island(Island),
+    /// An injection grade the game does not have.
+    BadInjection(String),
+}
+
+/// Which end of a plot is cut off, and by how much.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Island {
+    /// "origin" or "destination".
+    pub end: &'static str,
+    pub system: String,
+    /// What the ship can jump from / into this system as asked: the
+    /// departure tank and the system's own boost for the origin; the
+    /// lightest tank, unboosted, for the destination (its neighbours are
+    /// each judged at their own boost).
+    pub reach_ly: f32,
+    /// The nearest known star, when there is one in sight at all.
+    pub nearest_ly: Option<f32>,
+    /// The same reach with one jump's fuel aboard: a commander can
+    /// change the tank, so the answer says what a lighter one buys.
+    pub light_reach_ly: f32,
+    /// With the injection asked for, when one was.
+    pub injected_reach_ly: Option<f32>,
+}
+
+/// An end of a plot, for the island check.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum End {
+    Origin,
+    Destination,
+}
+
+fn reach_of(req: &RouteRequest, fuel: f32, boost: f32) -> f32 {
+    match &req.fuel {
+        Some(m) => m.reach(fuel, boost),
+        None => req.range_ly * boost.max(1.0),
+    }
+}
+
+/// The lightest tank the planner will ever jump on: one max-effort jump
+/// of fuel, or the departure tank when there is no fuel model.
+fn light_fuel(req: &RouteRequest) -> f32 {
+    match &req.fuel {
+        Some(m) => m.max_fuel_per_jump.min(req.start_fuel.max(0.0)).max(0.0),
+        None => req.start_fuel,
+    }
+}
+
+/// Is this end of the plot cut off from every known star? Milliseconds
+/// against the cell index, where the planner takes its whole budget
+/// (measured 2026-10-09: Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0, a
+/// 72.2 ly Caspian, 100 s to "budget" on prod and "no route" offline
+/// with 400 s; EDSM's nearest stars 76.8 and 74.1 ly). The check is an
+/// upper bound on what the planner could do -- the destination is judged
+/// at the lightest tank and every neighbour's own boost -- so a refusal
+/// here is one the planner would have reached too, only later.
+pub fn island(galaxy: &ed_galaxy::Galaxy, req: &RouteRequest, idx: u32, end: End) -> Option<Island> {
+    let pos = galaxy.pos_of(idx);
+    let record = galaxy.record(idx);
+    let name = galaxy.name(&record).to_string();
+    let inj_mult = req.injection.map(|(m, _, _)| m);
+    let boost_at = |class: ed_galaxy::StarClass| if req.supercharge { req.boost.for_class(class) } else { 1.0 };
+    // What a jump may span with `fuel` aboard and `boost` at the departure
+    // star: the better of the boost and an injection (they do not stack).
+    let span = |fuel: f32, boost: f32| -> (f32, Option<f32>) {
+        let plain = reach_of(req, fuel, boost);
+        let injected = inj_mult.map(|m| reach_of(req, fuel, 1.0) * m);
+        (plain.max(injected.unwrap_or(0.0)), injected)
+    };
+    let light = light_fuel(req);
+    let (reached, reach_ly, injected_reach_ly, light_reach_ly) = match end {
+        End::Origin => {
+            let boost = boost_at(galaxy.class(&record));
+            let (limit, injected) = span(req.start_fuel, boost);
+            let reached = galaxy.within(pos, limit).into_iter().any(|(n, _)| n != idx);
+            (reached, reach_of(req, req.start_fuel, boost), injected, reach_of(req, light, boost))
+        }
+        End::Destination => {
+            // The widest sphere any neighbour could jump from, then each
+            // candidate at its own star's boost.
+            let best = if req.supercharge { req.boost.neutron.max(req.boost.white_dwarf).max(1.0) } else { 1.0 };
+            let (limit, injected) = span(light, best);
+            let reached = galaxy.within(pos, limit).into_iter().any(|(n, d)| {
+                n != idx && {
+                    let class = galaxy.class(&galaxy.record(n));
+                    d <= span(light, boost_at(class)).0
+                }
+            });
+            (reached, reach_of(req, light, 1.0), injected, reach_of(req, light, 1.0))
+        }
+    };
+    if reached {
+        return None;
+    }
+    let limit = reach_ly.max(injected_reach_ly.unwrap_or(0.0)).max(light_reach_ly);
+    let nearest_ly = galaxy
+        .within(pos, (limit * 3.0).max(limit + 150.0))
+        .into_iter()
+        .filter(|(n, _)| *n != idx)
+        .map(|(_, d)| d)
+        .fold(None, |best: Option<f32>, d| Some(best.map_or(d, |b| b.min(d))));
+    Some(Island {
+        end: match end {
+            End::Origin => "origin",
+            End::Destination => "destination",
+        },
+        system: name,
+        reach_ly,
+        nearest_ly,
+        light_reach_ly,
+        injected_reach_ly,
+    })
 }
 
 /// Where a plot starts or ends, after the handler resolved the name
@@ -293,7 +443,10 @@ pub fn resolve_endpoints(
         weight: api.weight.unwrap_or(1.3).max(1.0),
         max_expansions: 50_000_000,
         thorough: api.thorough.unwrap_or(true),
-        injection: None,
+        injection: match &api.injection {
+            Some(inj) => inj.resolve().map_err(PlotRefusal::BadInjection)?,
+            None => None,
+        },
         boost,
         fuel: api.fuel_model,
         start_fuel,
@@ -325,6 +478,7 @@ pub fn cache_key(version: &str, req: &RouteRequest) -> u64 {
     req.to.hash(&mut h);
     q(req.range_ly).hash(&mut h);
     req.supercharge.hash(&mut h);
+    req.injection.map(|(m, _, n)| (q(m), n)).hash(&mut h);
     req.max_dry_jumps.hash(&mut h);
     q(req.weight).hash(&mut h);
     req.thorough.hash(&mut h);
@@ -586,6 +740,7 @@ pub struct RouteService {
 /// How long a no-route / budget answer is held for the same request.
 pub const REFUSAL_TTL: Duration = Duration::from_secs(120);
 
+#[derive(Debug)]
 pub enum PlotOutcome {
     /// `(route, cached, refining)`.
     Route(std::sync::Arc<Route>, bool, bool),
@@ -694,6 +849,35 @@ impl RouteService {
             metrics::counter!("edda_route_refusal_cache_total", "lane" => lane.as_str()).increment(1);
             return Ok((lane, PlotOutcome::Refused(refusal), bridges));
         }
+        // Islands first (2026-10-09): an end no known star reaches is
+        // refused in milliseconds, with the numbers, instead of after the
+        // whole budget. When only an injection crosses the first or last
+        // hop, the planner starts injected and skips the plain pass.
+        let plain = RouteRequest { injection: None, ..req.clone() };
+        let (from_idx, to_idx) = (req.from, req.to);
+        let plain_isle = island(&handle.galaxy, &plain, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &plain, to_idx, End::Destination));
+        let start_injected = match plain_isle {
+            None => false,
+            Some(plain_isle) => {
+                let injected_isle = match req.injection {
+                    Some(_) => island(&handle.galaxy, &req, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &req, to_idx, End::Destination)),
+                    None => Some(plain_isle.clone()),
+                };
+                match injected_isle {
+                    Some(isle) => {
+                        metrics::counter!("edda_route_island_total", "lane" => lane.as_str(), "end" => isle.end, "crossed" => "no").increment(1);
+                        tracing::info!(lane = lane.as_str(), end = isle.end, reach_ly = isle.reach_ly, nearest_ly = isle.nearest_ly, light_reach_ly = isle.light_reach_ly, injected_reach_ly = isle.injected_reach_ly, "route refused: an island");
+                        self.refuse(key, PlotRefusal::Island(isle.clone()));
+                        return Ok((lane, PlotOutcome::Refused(PlotRefusal::Island(isle)), bridges));
+                    }
+                    None => {
+                        metrics::counter!("edda_route_island_total", "lane" => lane.as_str(), "end" => plain_isle.end, "crossed" => "injection").increment(1);
+                        tracing::info!(lane = lane.as_str(), end = plain_isle.end, reach_ly = plain_isle.reach_ly, nearest_ly = plain_isle.nearest_ly, "route: only an injection crosses an end; planning injected");
+                        true
+                    }
+                }
+            }
+        };
         let gate = self.gate(lane);
         let Some(queued) = gate.enter() else {
             return Ok((lane, PlotOutcome::Saturated, bridges));
@@ -750,7 +934,23 @@ impl RouteService {
             };
             let none = Control::none();
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
-            let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            let plan = |r: &RouteRequest| pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), r, &ctl));
+            // Plain first, injected only when nothing else crosses: the
+            // same rule as the client's own planner. The retry gets what
+            // is left of the budget, never a second one.
+            let r = match (&req.injection, start_injected) {
+                (None, _) | (Some(_), true) => plan(&req),
+                (Some(_), false) => match plan(&RouteRequest { injection: None, ..req.clone() }) {
+                    Err(RouteError::NoRoute) => {
+                        let spent = plot_started.elapsed().as_millis() as u64;
+                        let again = RouteRequest { time_budget_ms: req.time_budget_ms.saturating_sub(spent).max(INJECTION_RETRY_FLOOR_MS), ..req.clone() };
+                        metrics::counter!("edda_route_injection_retry_total", "lane" => lane_name).increment(1);
+                        tracing::info!(lane = lane_name, key, spent_ms = spent, budget_ms = again.time_budget_ms, "no plain route; retrying with FSD injections");
+                        plan(&again)
+                    }
+                    other => other,
+                },
+            };
             let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
             let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
@@ -844,6 +1044,10 @@ impl RouteService {
                     route.highway_pending = true;
                     metrics::counter!("edda_route_highway_pending_total").increment(1);
                 }
+                if route.injections > 0 {
+                    metrics::counter!("edda_route_injected_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, injections = route.injections, jumps = route.jumps, "route needs FSD injections");
+                }
                 let route = std::sync::Arc::new(route);
                 PlotOutcome::Route(route, false, false)
             }
@@ -921,6 +1125,7 @@ mod tests {
             thorough: None,
             from_coords: None,
             to_coords: None,
+            injection: None,
         }
     }
 
@@ -1190,7 +1395,7 @@ mod endpoint_tests {
             from: from.into(), to: to.into(), range_ly: Some(range), fuel_model: None, boost: None,
             start_fuel: None, supercharge: None, white_dwarfs: None, min_fuel: None,
             max_dry_jumps: None, weight: None, stop_weight: None, thorough: None,
-            from_coords: None, to_coords: None,
+            from_coords: None, to_coords: None, injection: None,
         }
     }
 
@@ -1436,5 +1641,236 @@ mod endpoint_tests {
         expected["budget_ms"] = serde_json::json!(BUDGET_MS);
         expected["refining"] = serde_json::json!(true);
         assert_eq!(v, expected, "an unbridged route still says cached, lane and budget");
+    }
+
+    // ---- islands and injections (2026-10-09) ---------------------------
+
+    /// A line of stars with one neutron and two strays, for the island
+    /// check. Distances in ly along x unless said:
+    ///   Home (G) --40-- Step (K) --40-- Pulse (neutron) --150-- Far (G)
+    ///   Lone (G): 70 from Home, 80.6 from Step, nothing nearer.
+    ///   Rock (G): 300 from everything.
+    ///   Gap line for the mid-route retry: A --40-- B --60-- C --40-- D.
+    fn island_galaxy() -> (tempfile::TempDir, ed_galaxy::Galaxy) {
+        let dir = tempfile::tempdir().unwrap();
+        let source = r#"[
+{"id64":1,"name":"Home","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Step","coords":{"x":40,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":3,"name":"Pulse","coords":{"x":80,"y":0,"z":0},"bodies":[{"type":"Star","subType":"Neutron Star","mainStar":true}]},
+{"id64":4,"name":"Far","coords":{"x":230,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":5,"name":"Lone","coords":{"x":0,"y":70,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":6,"name":"Rock","coords":{"x":0,"y":0,"z":-300},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":7,"name":"A","coords":{"x":5000,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":8,"name":"B","coords":{"x":5040,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":9,"name":"C","coords":{"x":5100,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]},
+{"id64":10,"name":"D","coords":{"x":5140,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]}
+]"#;
+        let path = dir.path().join("galaxy");
+        ed_galaxy::import::import_reader(Box::new(source.as_bytes()), &path, &mut |_| {}).unwrap();
+        (dir, ed_galaxy::Galaxy::open(&path).unwrap())
+    }
+
+    fn range_req(g: &ed_galaxy::Galaxy, from: &str, to: &str, range_ly: f32, supercharge: bool) -> RouteRequest {
+        resolve(
+            g,
+            &RouteApiRequest { from: from.into(), to: to.into(), range_ly: Some(range_ly), supercharge: Some(supercharge), ..Default::default() },
+        )
+        .unwrap()
+    }
+
+    fn handle(g: ed_galaxy::Galaxy) -> crate::galaxy_service::GalaxyHandle {
+        crate::galaxy_service::GalaxyHandle { version: "v".into(), galaxy: std::sync::Arc::new(g), neutrons: None }
+    }
+
+    #[test]
+    fn an_origin_with_a_neighbour_in_reach_is_no_island() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Home", "Far", 50.0, true);
+        assert_eq!(island(&g, &req, req.from, End::Origin), None, "Step is 40 ly from Home");
+    }
+
+    #[test]
+    fn an_island_origin_reports_its_reach_and_the_nearest_star() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Lone", "Home", 60.0, true);
+        let isle = island(&g, &req, req.from, End::Origin).expect("Lone's nearest star is 70 ly out");
+        assert_eq!(isle.end, "origin");
+        assert_eq!(isle.system, "Lone");
+        assert!((isle.reach_ly - 60.0).abs() < 0.01, "range-only: the reach is the range ({})", isle.reach_ly);
+        assert!((isle.nearest_ly.unwrap() - 70.0).abs() < 0.01, "nearest {:?}", isle.nearest_ly);
+        assert_eq!(isle.injected_reach_ly, None, "no injection was offered");
+        assert!((isle.light_reach_ly - 60.0).abs() < 0.01, "without a fuel model a lighter tank changes nothing");
+    }
+
+    #[test]
+    fn a_truly_lost_star_has_no_nearest_to_report() {
+        let (_d, g) = island_galaxy();
+        let req = range_req(&g, "Rock", "Home", 50.0, true);
+        let isle = island(&g, &req, req.from, End::Origin).unwrap();
+        assert_eq!(isle.nearest_ly, None, "nothing within three reaches of Rock");
+    }
+
+    /// The destination is judged by what its neighbours can jump INTO it:
+    /// a neutron 150 ly out reaches a 50 ly ship's x4 boost, and does not
+    /// when the commander turned supercharging off.
+    #[test]
+    fn a_destination_counts_each_neighbour_at_its_own_boost() {
+        let (_d, g) = island_galaxy();
+        let boosted = range_req(&g, "Home", "Far", 50.0, true);
+        assert_eq!(island(&g, &boosted, boosted.to, End::Destination), None, "Pulse (neutron, 150 ly) reaches Far at x4");
+        let plain = range_req(&g, "Home", "Far", 50.0, false);
+        let isle = island(&g, &plain, plain.to, End::Destination).expect("unboosted, nothing reaches Far");
+        assert_eq!(isle.end, "destination");
+        assert_eq!(isle.system, "Far");
+        assert!((isle.nearest_ly.unwrap() - 150.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn an_injection_is_the_crossing_when_the_drive_falls_short() {
+        let (_d, g) = island_galaxy();
+        let mut req = range_req(&g, "Lone", "Home", 60.0, true);
+        req.injection = Some((1.25, "basic", 1));
+        assert_eq!(island(&g, &req, req.from, End::Origin), None, "basic lifts 60 to 75, past Lone's 70 ly gap");
+        let mut short = range_req(&g, "Lone", "Home", 50.0, true);
+        short.injection = Some((1.25, "basic", 1));
+        let isle = island(&g, &short, short.from, End::Origin).expect("62.5 ly is still short of 70");
+        assert!((isle.injected_reach_ly.unwrap() - 62.5).abs() < 0.01, "the refusal says what the injection bought: {:?}", isle.injected_reach_ly);
+        let mut premium = range_req(&g, "Lone", "Home", 50.0, true);
+        premium.injection = Some((2.0, "premium", 1));
+        assert_eq!(island(&g, &premium, premium.from, End::Origin), None, "premium doubles 50 to 100");
+    }
+
+    /// The boss's case in miniature: a Caspian leaving on a full 128 t
+    /// tank reaches 72 ly; with one jump's fuel aboard it reaches 77. A
+    /// star 75 ly out is an island on the full tank, and the refusal says
+    /// what a lighter tank buys.
+    #[test]
+    fn a_lighter_tank_is_offered_when_it_would_reach() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = r#"[
+{"id64":1,"name":"Jongou","coords":{"x":0,"y":0,"z":0},"bodies":[{"type":"Star","subType":"G (White-Yellow) Star","mainStar":true}]},
+{"id64":2,"name":"Next","coords":{"x":75,"y":0,"z":0},"bodies":[{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}]}
+]"#;
+        let path = dir.path().join("galaxy");
+        ed_galaxy::import::import_reader(Box::new(source.as_bytes()), &path, &mut |_| {}).unwrap();
+        let g = ed_galaxy::Galaxy::open(&path).unwrap();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Jongou".into(), to: "Next".into(), fuel_model: Some(caspian), supercharge: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let isle = island(&g, &req, req.from, End::Origin).expect("72 ly on a full tank does not reach 75");
+        assert!(isle.reach_ly > 71.0 && isle.reach_ly < 73.0, "full-tank reach {}", isle.reach_ly);
+        assert!(isle.light_reach_ly > 75.0 && isle.light_reach_ly < 78.0, "light-tank reach {}", isle.light_reach_ly);
+        assert!((isle.nearest_ly.unwrap() - 75.0).abs() < 0.01);
+        // Leaving with one jump's fuel: no island at all.
+        let light = RouteRequest { start_fuel: 6.8, ..req.clone() };
+        assert_eq!(island(&g, &light, light.from, End::Origin), None);
+    }
+
+    #[tokio::test]
+    async fn an_island_is_refused_at_once_and_remembered() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "Lone".into(), to: "Home".into(), range_ly: Some(60.0), supercharge: Some(false), ..Default::default() };
+        let started = Instant::now();
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(2), "no planning happened: {:?}", started.elapsed());
+        let PlotOutcome::Refused(PlotRefusal::Island(isle)) = outcome else { panic!("an island refusal, got {outcome:?}") };
+        assert_eq!((isle.end, isle.system.as_str()), ("origin", "Lone"));
+        let (_, again, _) = svc.plot(&h, &api).await.unwrap();
+        assert!(matches!(again, PlotOutcome::Refused(PlotRefusal::Island(_))), "the replot gets the same answer from the refusal cache");
+    }
+
+    #[tokio::test]
+    async fn an_injection_on_the_wire_crosses_an_island_end() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest {
+            from: "Lone".into(),
+            to: "Home".into(),
+            range_ly: Some(60.0),
+            supercharge: Some(false),
+            injection: Some(InjectionApi { grade: "Basic".into(), max: 2 }),
+            ..Default::default()
+        };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route with the injection, got {outcome:?}") };
+        assert_eq!(route.injections, 1, "one injected jump, Lone -> Home");
+        assert_eq!(route.hops.iter().filter_map(|hop| hop.injection.as_deref()).collect::<Vec<_>>(), vec!["basic"]);
+    }
+
+    #[tokio::test]
+    async fn a_route_that_works_without_injections_never_gets_one() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest {
+            from: "Home".into(),
+            to: "Step".into(),
+            range_ly: Some(50.0),
+            supercharge: Some(false),
+            injection: Some(InjectionApi { grade: "premium".into(), max: 5 }),
+            ..Default::default()
+        };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route, got {outcome:?}") };
+        assert_eq!(route.injections, 0);
+        assert_eq!(route.jumps, 1);
+    }
+
+    /// Neither end is an island -- A has B, D has C -- but the 60 ly gap
+    /// in the middle beats a 50 ly drive: the plain pass says no route
+    /// and the injected retry crosses it with exactly one injection.
+    #[tokio::test]
+    async fn a_plain_no_route_retries_with_the_injection() {
+        let (_d, g) = island_galaxy();
+        let h = handle(g);
+        let svc = RouteService::default();
+        let plain = RouteApiRequest { from: "A".into(), to: "D".into(), range_ly: Some(50.0), supercharge: Some(false), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &plain).await.unwrap();
+        assert!(matches!(outcome, PlotOutcome::Refused(PlotRefusal::NoRoute)), "the gap is mid-route, not an island: {outcome:?}");
+        let injected = RouteApiRequest { injection: Some(InjectionApi { grade: "basic".into(), max: 3 }), ..plain.clone() };
+        let (_, outcome, _) = svc.plot(&h, &injected).await.unwrap();
+        let PlotOutcome::Route(route, cached, _) = outcome else { panic!("a route with the injection, got {outcome:?}") };
+        assert!(!cached, "the injected request keys differently from the refused plain one");
+        assert_eq!(route.injections, 1, "one injection, B -> C");
+        assert_eq!(route.jumps, 3);
+        let injected_hop = route.hops.iter().find(|hop| hop.injection.is_some()).unwrap();
+        assert_eq!(injected_hop.name, "C", "the injection is synthesised before the jump into C");
+    }
+
+    #[test]
+    fn an_unknown_injection_grade_is_refused_and_zero_means_none() {
+        let (_d, g) = island_galaxy();
+        let bad = RouteApiRequest { from: "Home".into(), to: "Step".into(), range_ly: Some(50.0), injection: Some(InjectionApi { grade: "mega".into(), max: 1 }), ..Default::default() };
+        assert_eq!(resolve(&g, &bad).unwrap_err(), PlotRefusal::BadInjection("mega".into()));
+        let none = RouteApiRequest { injection: Some(InjectionApi { grade: "premium".into(), max: 0 }), ..bad.clone() };
+        assert_eq!(resolve(&g, &none).unwrap().injection, None, "nothing to synthesise is no injection");
+        let ok = RouteApiRequest { injection: Some(InjectionApi { grade: " Standard ".into(), max: 4 }), ..bad.clone() };
+        assert_eq!(resolve(&g, &ok).unwrap().injection, Some((1.5, "standard", 4)), "case and whitespace are forgiven");
+    }
+
+    #[test]
+    fn the_cache_key_tells_an_injected_plot_from_a_plain_one() {
+        let (_d, g) = island_galaxy();
+        let plain = range_req(&g, "A", "D", 50.0, false);
+        let basic = RouteRequest { injection: Some((1.25, "basic", 3)), ..plain.clone() };
+        let more = RouteRequest { injection: Some((1.25, "basic", 4)), ..plain.clone() };
+        let premium = RouteRequest { injection: Some((2.0, "premium", 3)), ..plain.clone() };
+        let keys = [&plain, &basic, &more, &premium].map(|r| cache_key("v", r));
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                assert_ne!(keys[i], keys[j], "requests {i} and {j} must not share an answer");
+            }
+        }
+    }
+
+    #[test]
+    fn the_wire_rejects_an_injection_with_extra_fields() {
+        let bad: Result<RouteApiRequest, _> = serde_json::from_str(r#"{"from":"a","to":"b","range_ly":50,"injection":{"grade":"basic","max":1,"mult":9.0}}"#);
+        assert!(bad.is_err(), "a caller cannot hand us a multiplier");
+        let ok: RouteApiRequest = serde_json::from_str(r#"{"from":"a","to":"b","range_ly":50,"injection":{"grade":"basic","max":1}}"#).unwrap();
+        assert_eq!(ok.injection, Some(InjectionApi { grade: "basic".into(), max: 1 }));
     }
 }

@@ -1,0 +1,27 @@
+# Rim islands and FSD injections through the API (2026-10-09).
+# VERDICT: an endpoint no known star reaches is now refused in 0.04 s with
+# the numbers (origin Jongou XM-W d1-0, reach 72.2 ly, nearest known star
+# 76.8 ly) where prod spent the whole 100 s long-lane budget and answered
+# 504 "budget" (the boss's app log, 15:29:11-15:30:53Z and 15:33:59-15:35:42Z,
+# two plots). With premium injections on the wire the same plot answers in
+# 6.1 s: 386 jumps, 17 injections. Basic injections (x1.25, 90 ly) found no
+# route in 29.8 s (the planner's own no_route, not the budget). Offline on
+# the same index, the planner with a 400 s budget and no injections said
+# "no route possible" -- the islands are real, not a budget artefact. EDSM
+# agrees: 2 known systems within 100 ly of each endpoint (76.8 / 96.5 and
+# 74.1 / 80.0 ly). Spansh refuses the plot at once without injections and
+# plots it with them (the boss, in his browser).
+# Ship on the wire: range_ly 72.19 (the Caspian Explorer's full-tank reach
+# as the app logged it), boost neutron x6 / white dwarf x3, supercharge on,
+# thorough false. Range-only, so `light` equals the reach here; with the
+# fuel model the light-tank reach is ~77 ly (unit test
+# a_lighter_tank_is_offered_when_it_would_reach).
+# Knob: docs/benches/knobs/rim_islands.sh <api> <label>. Server: the
+# injections worktree build on 127.0.0.1:8789 (WSL, prod artifacts copy).
+label,case,http,wall_s,jumps,injections,detail
+prod-before,plain,504,102.09,,,budget (app log 15:30:53Z; replots 1.98 s from the refusal cache)
+prod-before,plain-2nd-target,504,102.14,,,budget (Byoi Fraae CB-A c0; app log 15:35:42Z)
+offline-400s,plain,,,,,"no route possible" (ed-galaxy bench --thorough --budget 400; explorer model 72.2 ly full tank)
+worktree-8789,plain,422,0.04,,,island origin Jongou XM-W d1-0 reach=72.2 nearest=76.8 light=72.2 injected=None
+worktree-8789,basic,422,29.77,,,no_route
+worktree-8789,premium,200,6.11,386,17,

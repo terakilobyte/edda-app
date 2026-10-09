@@ -1183,6 +1183,11 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
         "weight": query.weight,
         "stop_weight": query.stop_weight,
         "thorough": query.thorough,
+        // Last resort only, server-side as well (2026-10-09): the planner
+        // never spends one on a route that works without it, and the
+        // answer flags every hop that needs one so the Route tab can hold
+        // it against the materials aboard.
+        "injection": injection_wire(injection_available(state), query.injections != Some(false)),
     });
     let started = std::time::Instant::now();
     let mut body = body;
@@ -1257,6 +1262,7 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             return Err(PlotFailure::Refused(match code.as_deref() {
                 // Said with the inputs that decided it: the tank at
                 // departure is the one a commander can change.
+                Some("no_route") if detail.contains("\"island\"") => island_text(detail, &from, &query.to),
                 Some("no_route") => {
                     let tank = match (start_fuel, &ship) {
                         (Some(f), Some((m, _, _, label))) => format!(
@@ -1284,6 +1290,69 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             tracing::warn!(hops = route.hops.len(), to = %query.to, "route planned by API without the neutron highway (server rebuilding it): a bare-range route; replot in a minute");
         }
         return Ok(route);
+    }
+}
+
+/// The injection the plot may fall back on, as the server takes it:
+/// the best grade the commander can synthesise and how many. With no
+/// materials for any grade the request still names premium, capped, so
+/// the answer can say "this needs injections you cannot make" instead
+/// of a bare no-route (the boss, 2026-10-09). Off, nothing is sent.
+pub fn injection_wire(available: Option<(f32, &'static str, u32)>, allow: bool) -> Option<serde_json::Value> {
+    if !allow {
+        return None;
+    }
+    let (grade, max) = match available {
+        Some((_, grade, n)) if n > 0 => (grade, n),
+        _ => ("premium", HYPOTHETICAL_INJECTIONS),
+    };
+    Some(serde_json::json!({ "grade": grade, "max": max }))
+}
+
+/// How many injections a plot may assume when the commander can make
+/// none: enough to cross a rim's gaps, so the answer can name the bill.
+pub const HYPOTHETICAL_INJECTIONS: u32 = 10;
+
+/// An island refusal from the server (`why: "island"`), said with the
+/// numbers that decided it: which end, the reach the plot was made with,
+/// the nearest known star, and what a lighter tank or the injection would
+/// have bought. Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0 on a 72 ly
+/// Caspian: both ends have their nearest known star 74-77 ly out.
+pub fn island_text(detail: &str, from: &str, to: &str) -> String {
+    let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
+    let f = |k: &str| v.get(k).and_then(|x| x.as_f64());
+    let end = v.get("end").and_then(|x| x.as_str()).unwrap_or("destination");
+    let system = v.get("system").and_then(|x| x.as_str()).unwrap_or(if end == "origin" { from } else { to });
+    let reach = f("reach_ly").unwrap_or(0.0);
+    let mut text = match f("nearest_ly") {
+        Some(nearest) => format!(
+            "no known star within {reach:.1} ly of {system} ({}): the nearest is {nearest:.1} ly away",
+            if end == "origin" { "the origin" } else { "the destination" }
+        ),
+        None => format!("no known star anywhere near {system} ({}) at {reach:.1} ly", if end == "origin" { "the origin" } else { "the destination" }),
+    };
+    let nearest = f("nearest_ly");
+    if let (Some(light), Some(n)) = (f("light_reach_ly"), nearest) {
+        if light >= n && light > reach + 0.05 {
+            text.push_str(&format!("; with one jump's fuel aboard the ship reaches {light:.1} ly, which would cross it"));
+        }
+    }
+    match (f("injected_reach_ly"), nearest) {
+        (Some(inj), Some(n)) if inj < n => text.push_str(&format!("; an FSD injection reaches {inj:.1} ly, still short")),
+        (None, _) => text.push_str("; an FSD injection might cross it, but you can synthesise none"),
+        _ => {}
+    }
+    text
+}
+
+/// What the bundled bubble index can say about a system it does not
+/// hold: it is outside the bubble, not unknown to EDDA (the boss,
+/// 2026-10-09: "I'm not sure why this is an unknown system to us, it's a
+/// well known system" -- the server knew it; the fallback did not).
+pub fn bubble_text(local: &str) -> String {
+    match local.strip_prefix("unknown system ") {
+        Some(name) => format!("{name} is outside the bundled bubble index"),
+        None => local.to_string(),
     }
 }
 
@@ -1338,6 +1407,7 @@ async fn plot_inner_untimed(app: AppHandle, state: &AppState, routing: Arc<Routi
     }
     plot_local(app, state, routing, &query).await.map_err(|local| {
         if local.starts_with("unknown system") || local.contains("no route") {
+            let local = bubble_text(&local);
             if transient {
                 format!("the community API did not answer ({remote}) and the bundled bubble index cannot plot this on its own ({local}); try again in a moment")
             } else {
@@ -2286,4 +2356,59 @@ mod dock_memo_tests {
             assert_eq!(hits.load(Ordering::SeqCst), 3);
         });
     }
+}
+
+
+#[cfg(test)]
+mod injection_wire_tests {
+        use super::{bubble_text, injection_wire, island_text, HYPOTHETICAL_INJECTIONS};
+
+        #[test]
+        fn the_wire_names_the_best_grade_the_commander_can_make() {
+            let v = injection_wire(Some((1.5, "standard", 3)), true).unwrap();
+            assert_eq!(v, serde_json::json!({ "grade": "standard", "max": 3 }));
+        }
+
+        #[test]
+        fn no_materials_still_asks_so_the_answer_can_name_the_bill() {
+            let v = injection_wire(None, true).unwrap();
+            assert_eq!(v, serde_json::json!({ "grade": "premium", "max": HYPOTHETICAL_INJECTIONS }));
+            let v = injection_wire(Some((2.0, "premium", 0)), true).unwrap();
+            assert_eq!(v["grade"], "premium");
+            assert_eq!(v["max"], HYPOTHETICAL_INJECTIONS);
+        }
+
+        #[test]
+        fn injections_off_sends_nothing() {
+            assert_eq!(injection_wire(Some((2.0, "premium", 4)), false), None);
+        }
+
+        #[test]
+        fn an_island_is_said_with_its_numbers() {
+            let detail = r#"{"error":"no_route","why":"island","end":"destination","system":"Byoi Fraae CQ-G d10-0","reach_ly":72.2,"nearest_ly":74.1,"light_reach_ly":77.5,"injected_reach_ly":null}"#;
+            let text = island_text(detail, "Jongou XM-W d1-0", "Byoi Fraae CQ-G d10-0");
+            assert_eq!(
+                text,
+                "no known star within 72.2 ly of Byoi Fraae CQ-G d10-0 (the destination): the nearest is 74.1 ly away; with one jump's fuel aboard the ship reaches 77.5 ly, which would cross it; an FSD injection might cross it, but you can synthesise none"
+            );
+        }
+
+        #[test]
+        fn a_short_injection_is_reported_and_a_lighter_tank_only_when_it_helps() {
+            let detail = r#"{"error":"no_route","why":"island","end":"origin","system":"Lone","reach_ly":50.0,"nearest_ly":70.0,"light_reach_ly":50.0,"injected_reach_ly":62.5}"#;
+            let text = island_text(detail, "Lone", "Home");
+            assert_eq!(text, "no known star within 50.0 ly of Lone (the origin): the nearest is 70.0 ly away; an FSD injection reaches 62.5 ly, still short");
+        }
+
+        #[test]
+        fn a_lost_star_has_no_nearest() {
+            let detail = r#"{"error":"no_route","why":"island","end":"origin","system":"Rock","reach_ly":50.0,"nearest_ly":null,"light_reach_ly":50.0,"injected_reach_ly":100.0}"#;
+            assert_eq!(island_text(detail, "Rock", "Home"), "no known star anywhere near Rock (the origin) at 50.0 ly");
+        }
+
+        #[test]
+        fn the_bubble_index_says_outside_not_unknown() {
+            assert_eq!(bubble_text("unknown system \"Jongou XM-W d1-0\""), "\"Jongou XM-W d1-0\" is outside the bundled bubble index");
+            assert_eq!(bubble_text("no route"), "no route");
+        }
 }
