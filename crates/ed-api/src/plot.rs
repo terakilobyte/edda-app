@@ -931,7 +931,15 @@ impl RouteService {
             let _permits = (queued, slot);
             let pool = pool;
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
+            let (span_from, span_to) = (req.from, req.to);
             let found = move |r: &Route| {
+                // The refine-legs stage reports each leg's route through
+                // the same callback (seen 2026-10-09: 37- and 11-jump
+                // "routes" for an 87 kly crossing); only a route spanning
+                // both endpoints is a candidate.
+                if !spans(r, span_from, span_to) {
+                    return;
+                }
                 let _ = found_tx.send(r.clone());
                 // After the early answer went out, every variant that
                 // beats the cached best becomes the best-so-far under the
@@ -1113,6 +1121,12 @@ type Cache = std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, 
 /// holds for this plot, it becomes the best-so-far, still refining. A
 /// finished entry (refining = false) or a missing one is never touched --
 /// the final store is the planner's own business.
+/// A complete answer: the route starts at the plot's origin and ends at
+/// its destination. The planner's `found` callback also reports legs.
+pub fn spans(route: &Route, from: u32, to: u32) -> bool {
+    matches!((route.hops.first(), route.hops.last()), (Some(a), Some(b)) if a.idx == from && b.idx == to)
+}
+
 fn keep_best_so_far(cache: &Cache, key: u64, candidate: &Route) -> bool {
     let held = {
         let cache = cache.lock().unwrap_or_else(|e| e.into_inner());
@@ -1900,6 +1914,29 @@ mod endpoint_tests {
                 assert_ne!(keys[i], keys[j], "requests {i} and {j} must not share an answer");
             }
         }
+    }
+
+    /// A leg reported by the refine stage is not a route: the planner's
+    /// callback hands both through, and only the one spanning the plot's
+    /// endpoints may become an answer (2026-10-09: 11 jumps for 87 kly).
+    #[tokio::test]
+    async fn a_leg_is_not_a_candidate_only_a_route_spanning_both_ends_is() {
+        let (_d, g) = island_galaxy();
+        let (a, d) = (g.find("A").unwrap(), g.find("D").unwrap());
+        let h = handle(g);
+        let svc = RouteService::default();
+        let api = RouteApiRequest { from: "A".into(), to: "D".into(), range_ly: Some(50.0), supercharge: Some(false), injection: Some(InjectionApi { grade: "basic".into(), max: 3 }), ..Default::default() };
+        let (_, outcome, _) = svc.plot(&h, &api).await.unwrap();
+        let PlotOutcome::Route(route, _, _) = outcome else { panic!("a route") };
+        assert!(spans(&route, a, d));
+        let mut leg = (*route).clone();
+        leg.hops.pop();
+        leg.jumps = 1;
+        assert!(!spans(&leg, a, d), "a leg ending short of the destination");
+        let mut other = (*route).clone();
+        other.hops.remove(0);
+        assert!(!spans(&other, a, d), "a leg starting past the origin");
+        assert!(!spans(&Route { hops: vec![], ..(*route).clone() }, a, d));
     }
 
     /// The best-so-far rule: only a refining entry moves, only forward.
