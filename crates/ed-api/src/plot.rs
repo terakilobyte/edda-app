@@ -972,6 +972,12 @@ impl RouteService {
                             metrics::histogram!("edda_route_refined_improvement_jumps", "lane" => lane_name)
                                 .record(early_jumps as f64 - route.jumps as f64);
                             tracing::info!(lane = lane_name, key, early_jumps, final_jumps = route.jumps, refine_ms, planner_ms, result, "route refined");
+                            // An early-served plot never reaches the handler's
+                            // finished arm: count its injections here.
+                            if route.injections > 0 {
+                                metrics::counter!("edda_route_injected_total", "lane" => lane_name).increment(1);
+                                tracing::info!(lane = lane_name, key, injections = route.injections, jumps = route.jumps, "route needs FSD injections");
+                            }
                         }
                         None => tracing::info!(lane = lane_name, key, jumps = route.jumps, planner_ms, storable, "route planned"),
                     }
