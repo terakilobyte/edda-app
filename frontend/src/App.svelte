@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { routing, showFromAi, start as startRouting, stop as stopRouting } from "./lib/route.svelte.js";
+  import Toasts from "./lib/Toasts.svelte";
   import { start as startFollow, stop as stopFollow } from "./lib/follow.svelte.js";
   import { start as startShip, stop as stopShip } from "./lib/ship.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./lib/storage.svelte.js";
@@ -276,6 +277,7 @@
   </div>
 {#if whatsNew}
   <WhatsNew notes={whatsNew} latestOnly onclose={() => (whatsNew = null)} />
+  <Toasts />
 {/if}
 </main>
 
