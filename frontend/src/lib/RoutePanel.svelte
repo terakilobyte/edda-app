@@ -30,6 +30,13 @@
   $effect(() => { void ship.currentId; shipOverride = null; });
   const shipId = $derived(shipOverride);
   const shipLabel = (s) => (s.ship_name ? `${s.ship_name} (${s.ship})` : s.ship) + (s.current ? " · flying" : "");
+  // An island refusal made without injections offers the replot with
+  // them on (the boss, 2026-10-09: "either they check the box or a
+  // button 'try with synthesis'").
+  async function tryWithInjections() {
+    injections.value = true;
+    await plot();
+  }
   async function replotForThisShip() {
     shipOverride = null;
     follow.error = "";
@@ -189,7 +196,7 @@
     <p class="small"><span class="pill accent">plotting</span> {plotStatusLine()} <span class="muted">{plotDetailLine()}</span></p>
   {/if}
   {#if error}
-    <p class="warn small bounded plot-refusal" role="alert">{error}</p>
+    <p class="warn small bounded plot-refusal" role="alert">{error}{#if error.includes("injections if required")} <button class="quiet tiny" onclick={tryWithInjections} disabled={loading}>Try with injections</button>{/if}</p>
 
   {/if}
   {#if route?.highway_pending}

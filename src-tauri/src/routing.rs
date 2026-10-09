@@ -1425,7 +1425,12 @@ pub fn island_text(detail: &str, from: &str, to: &str) -> String {
     }
     match (f("injected_reach_ly"), nearest) {
         (Some(inj), Some(n)) if inj < n => text.push_str(&format!("; an FSD injection reaches {inj:.1} ly, still short")),
-        (None, _) => text.push_str("; an FSD injection might cross it, but you can synthesise none"),
+        // No injected reach in the answer means the request carried no
+        // injection: the commander has them off (on, the request always
+        // names a grade, hypothetically when none can be made). The boss,
+        // 2026-10-09, reading "you can synthesise none" with 87 premium
+        // aboard and the box unticked.
+        (None, _) => text.push_str(REPLOT_WITH_INJECTIONS),
         _ => {}
     }
     text
@@ -1454,6 +1459,10 @@ pub(crate) fn budget_failure(detail: &str) -> PlotFailure {
 pub(crate) fn bubble_worth_trying(remote: &PlotFailure) -> bool {
     matches!(remote, PlotFailure::Transport(_))
 }
+
+/// The tail of an island refusal when the plot was made without
+/// injections; the Route tab offers the replot on this exact phrase.
+pub const REPLOT_WITH_INJECTIONS: &str = "; a route may be possible with FSD injections -- turn on \"injections if required\" and replot";
 
 /// What the bundled bubble index can say about a system it does not
 /// hold: it is outside the bubble, not unknown to EDDA (the boss,
@@ -2513,8 +2522,9 @@ mod injection_wire_tests {
             let text = island_text(detail, "Jongou XM-W d1-0", "Byoi Fraae CQ-G d10-0");
             assert_eq!(
                 text,
-                "no known star within 72.2 ly of Byoi Fraae CQ-G d10-0 (the destination): the nearest is 74.1 ly away; with one jump's fuel aboard the ship reaches 77.5 ly, which would cross it; an FSD injection might cross it, but you can synthesise none"
+                "no known star within 72.2 ly of Byoi Fraae CQ-G d10-0 (the destination): the nearest is 74.1 ly away; with one jump's fuel aboard the ship reaches 77.5 ly, which would cross it; a route may be possible with FSD injections -- turn on \"injections if required\" and replot"
             );
+            assert!(text.ends_with(super::REPLOT_WITH_INJECTIONS), "the tab keys its button on this phrase");
         }
 
         #[test]
