@@ -71,9 +71,6 @@ pub const LONG_QUEUE: usize = 4;
 /// must answer "budget" from here before anything in front of the API
 /// cuts the connection at 120 s and turns the answer into a bare 504.
 pub const LONG_BUDGET_MS: u64 = 100_000;
-/// The least an injected retry gets when the plain pass ate the budget:
-/// enough for a short gap, not a second budget.
-pub const INJECTION_RETRY_FLOOR_MS: u64 = 10_000;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -856,8 +853,8 @@ impl RouteService {
         let plain = RouteRequest { injection: None, ..req.clone() };
         let (from_idx, to_idx) = (req.from, req.to);
         let plain_isle = island(&handle.galaxy, &plain, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &plain, to_idx, End::Destination));
-        let start_injected = match plain_isle {
-            None => false,
+        match plain_isle {
+            None => {}
             Some(plain_isle) => {
                 let injected_isle = match req.injection {
                     Some(_) => island(&handle.galaxy, &req, from_idx, End::Origin).or_else(|| island(&handle.galaxy, &req, to_idx, End::Destination)),
@@ -872,12 +869,11 @@ impl RouteService {
                     }
                     None => {
                         metrics::counter!("edda_route_island_total", "lane" => lane.as_str(), "end" => plain_isle.end, "crossed" => "injection").increment(1);
-                        tracing::info!(lane = lane.as_str(), end = plain_isle.end, reach_ly = plain_isle.reach_ly, nearest_ly = plain_isle.nearest_ly, "route: only an injection crosses an end; planning injected");
-                        true
+                        tracing::info!(lane = lane.as_str(), end = plain_isle.end, reach_ly = plain_isle.reach_ly, nearest_ly = plain_isle.nearest_ly, "route: only an injection crosses an end");
                     }
                 }
             }
-        };
+        }
         let gate = self.gate(lane);
         let Some(queued) = gate.enter() else {
             return Ok((lane, PlotOutcome::Saturated, bridges));
@@ -954,23 +950,16 @@ impl RouteService {
             };
             let none = Control::none();
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
-            let plan = |r: &RouteRequest| pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), r, &ctl));
-            // Plain first, injected only when nothing else crosses: the
-            // same rule as the client's own planner. The retry gets what
-            // is left of the budget, never a second one.
-            let r = match (&req.injection, start_injected) {
-                (None, _) | (Some(_), true) => plan(&req),
-                (Some(_), false) => match plan(&RouteRequest { injection: None, ..req.clone() }) {
-                    Err(RouteError::NoRoute) => {
-                        let spent = plot_started.elapsed().as_millis() as u64;
-                        let again = RouteRequest { time_budget_ms: req.time_budget_ms.saturating_sub(spent).max(INJECTION_RETRY_FLOOR_MS), ..req.clone() };
-                        metrics::counter!("edda_route_injection_retry_total", "lane" => lane_name).increment(1);
-                        tracing::info!(lane = lane_name, key, spent_ms = spent, budget_ms = again.time_budget_ms, "no plain route; retrying with FSD injections");
-                        plan(&again)
-                    }
-                    other => other,
-                },
-            };
+            // One search (the boss, 2026-10-09: "can we fold it into one?").
+            // The planner already prices an injected jump at three plain
+            // ones (INJECTION_PENALTY, and the wave's twin), so a route
+            // that works without them never pays for one, and the search
+            // never dead-ends where only an injection crosses. A plain
+            // pass in front of it measured as the failure: proving "no
+            // plain route" on Jongou AA-A d0 -> Byoi Fraae AT-U d2-1 took
+            // the whole 100 s and starved the injected pass, which plots
+            // the pair in 48 s on its own (371 jumps).
+            let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
             let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
             let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
@@ -1870,10 +1859,11 @@ mod endpoint_tests {
     }
 
     /// Neither end is an island -- A has B, D has C -- but the 60 ly gap
-    /// in the middle beats a 50 ly drive: the plain pass says no route
-    /// and the injected retry crosses it with exactly one injection.
+    /// in the middle beats a 50 ly drive: without an injection on the
+    /// wire the answer is no route; with one, the single search crosses
+    /// the gap with exactly one injection and no other.
     #[tokio::test]
-    async fn a_plain_no_route_retries_with_the_injection() {
+    async fn a_mid_route_gap_is_crossed_with_the_injection_in_one_search() {
         let (_d, g) = island_galaxy();
         let h = handle(g);
         let svc = RouteService::default();

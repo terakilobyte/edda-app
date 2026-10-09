@@ -104,8 +104,13 @@ impl Default for RouteRequest {
 }
 
 /// Extra cost of an injected jump, in jumps: materials are finite and a
-/// route should only spend them where nothing else crosses.
-const INJECTION_PENALTY: u32 = 3;
+/// route should only spend them where nothing else crosses. Thirty, not
+/// three (2026-10-09): at three the single search took an injection as a
+/// shortcut on Sol -> Beagle Point (199 jumps with one, 196 without) and
+/// HD 236233 -> Beagle Point; the boss's rule is "only when required",
+/// and no plain detour of thirty jumps exists on a route that has a
+/// plain alternative at all.
+pub const INJECTION_PENALTY: u32 = 30;
 
 /// FSD injection synthesis, best grade first: (range multiplier, grade,
 /// one unit of each material). Per Inara; an injection does not stack
