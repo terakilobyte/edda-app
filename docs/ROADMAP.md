@@ -70,7 +70,21 @@ verdicts live in the CSV headers under `docs/benches/`.
   `edda_route_infeasible_total`): an unflyable final is dropped, the
   early answer stands as the finished one. The planner fix belongs in
   the leg stitching / fuel rounds for injected routes (the redo's
-  `Err(_) => {}` keeps a leg whose fuel the real tank cannot pay);
+  `Err(_) => {}` keeps a leg whose fuel the real tank cannot pay).
+  **Resolved the same night, and it was the rewrite, not the stitching:**
+  the 21-hop run IS flyable (arrives with 4.6 t), it only breaks the
+  one-jump-in-hand floor, and `minimize_refuels` answered an unmeetable
+  floor by adding a stop at every earlier scoopable star, then giving up
+  and leaving the eager flags. Fixed: a stop is added only where it
+  changes the tank, a funded jump with a thin margin stands (pinned by a
+  hand-built 20-neutron run). **Fuzzed** (`examples/plot_fuzz.rs`,
+  `docs/benches/2026-10-09-plot-fuzz.csv`): 16 random pairs from easy
+  and hard pools, every answer replayed with the exact model, no fake
+  route in either pass, and the fix shows as plot 1's final going from
+  17 stops to 6. Spansh's 484-jump route replayed through our model:
+  every hop we refuse is within 0.3 ly of our reach (REACH_SLACK_LY),
+  so the two physics agree to the slack. The server guard stays as the
+  belt (`edda_route_infeasible_total` should now read zero);
   per-hop `injection` and the route's
   `injections` count already on the wire. Measured on the worktree
   server against the prod index: plain 0.04 s island refusal (was

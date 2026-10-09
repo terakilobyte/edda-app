@@ -1,0 +1,33 @@
+# Plot fuzz (2026-10-09): random pairs from the routing index, plotted on
+# the side server (8789, worktree build, prod index copy) with the Caspian
+# on record (128 t, 6.8 t/jump, 77.81 ly light, x6 neutron), full tank,
+# min-fuel on, premium injections x87; every answer (each early poll and the
+# final) replayed hop by hop with the exact fuel model by
+# crates/ed-api/examples/plot_fuzz.rs. Seed 1, 16 plots: 4 easy-easy
+# (12+ known stars within 100 ly at both ends), 4 hard origin, 4 hard
+# destination, 4 hard-hard (3 or fewer known stars within 100 ly).
+# VERDICT: no fake routes in either pass -- 70 / 68 answers, 0 with a
+# problem (distances match the stars, boosts only off neutrons, scoops only
+# at scoopable stars, tank never dry, counts honest), 1 honest island
+# refusal. The lean-margin fix shows where it should: plot 1's final went
+# from 17 scoop stops to 6 on the same 128 jumps; every other final is
+# identical. Spansh cross-check (their exact-plotter route for Jongou AA-A
+# d0 -> Byoi Fraae AT-U d2-1, 484 jumps, replayed through our model with
+# their boosts, injections and refuels): every hop our model refuses lies
+# within 0.3 ly of our reach -- REACH_SLACK_LY, our deliberate margin --
+# so the two physics agree to the slack; tank readings differ by ~5 t
+# after their partial refuels, which we do not model (we fill).
+pass,n,case,from,to,straight_ly,final_jumps,final_injections,final_refuel_stops,problems
+before,1,easy-easy,Blooe Phoea NK-D d13-7,Ridgooe GG-W b18-2,42620,128,0,17,0
+after,1,easy-easy,Blooe Phoea NK-D d13-7,Ridgooe GG-W b18-2,42620,128,0,6,0
+before,2,hard-origin,Oushaidy WU-W d2-2,Phaa Ain CH-K c22-21,42415,124,0,7,0
+after,2,hard-origin,Oushaidy WU-W d2-2,Phaa Ain CH-K c22-21,42415,124,0,7,0
+both,4,hard-hard,Hypoe Flyai VV-T d4-110,Dryoi Bloae VZ-N d7-13,40904,115,0,6,0
+both,6,hard-origin,Dryeau Aub AA-A h4,Swuemaae IC-O c9-4,27920,,,,island refusal (origin)
+both,8,hard-hard,Eock Prao GB-X d1-0,Oushaidy WU-W d2-2,49303,139,0,6,0
+both,10,hard-origin,Blau Schoe YG-C d13-1,Gru Drye MH-D b58-1,12539,38,1,2,0
+both,13,easy-easy,Synuefou MB-T b37-2,Boeph SZ-E d12-3429,20936,65,0,3,0
+both,15,hard-destination,Eifols HR-J b52-0,Hypoae Breae RA-L d9-0,28174,83,0,4,0
+both,3/5/7/9/11/12/14/16,various,interactive or quick finals,,,,,,0
+summary,before,,,,,70 answers,,,0 problems; 1 refusal
+summary,after,,,,,68 answers,,,0 problems; 1 refusal
