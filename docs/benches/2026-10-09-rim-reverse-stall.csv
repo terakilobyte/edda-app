@@ -1,0 +1,45 @@
+# Rim corridor, direction asymmetry (2026-10-09). OPEN / NEGATIVE for the
+# three fixes tried.
+# The boss's plot Byoi Fraae AE-T d3-0 -> Jongou AB-F d11-0 (85.5 kly,
+# Caspian at 72.2 ly full tank, Mk II SCO x6, premium injections x87)
+# ran the long lane's 100 s budget on the side server and answered
+# "budget"; the mirror plot Jongou AB-F d11-0 -> Byoi Fraae AE-T d3-0
+# plotted in 4.7 s (383 jumps, 14 injections). Offline (ed-galaxy bench,
+# explorer model, --inject premium 87 --budget 100): forward 409 jumps in
+# 25-28 s; reverse "no route found within the search limit" every time.
+# Where the time goes (ED_PLOT_DEBUG): the coarse wave from Byoi Fraae
+# stalls at 30,001 expansions with ~31.3 kly still to go (f ~290, g ~165,
+# open ~300k states, 850 neutrons scanned per expansion), hands the 31 kly
+# remainder to the exact planner as one leg, and that leg burns the rest
+# of the budget. The island's own first leg (1,006 ly to the first neutron,
+# Byaa Fraae OR-W d1-3) is NOT the problem: the exact router plans it alone
+# in 4 ms both ways with the injection (21 / 13 jumps) and refuses it at
+# once without.
+# Tried and measured as no effect (reverted): (1) widening the exact
+# router's goal-ward prune bound to the injected reach; (2) widening the
+# wave's goal run from 12 to the start side's 60 bridging jumps;
+# (3) raising the coarse expansion cap / stall allowance by env
+# (ED_COARSE_CAP 120k and 240k, ED_COARSE_STALL 80k and 160k): still no
+# route in 100 s. The direction asymmetry itself is the open question:
+# the same corridor, the same ship, 28 s one way and nothing the other.
+# Next: a trace of the reverse wave's frontier at the stall (where the
+# 31 kly point lies, what the heuristic says there) before any further
+# change; and a product rule for a Budget answer whose mirror plot is
+# cheap (OPEN, boss's call).
+case,direction,server_or_bench,http_or_result,wall_s,jumps,injections,note
+app,reverse,side server 8789,504 budget,100.1,,,boss's plot 17:36:12Z
+knob,reverse,side server 8789,504 budget,100.0,,,quick
+knob,forward,side server 8789,200,4.7,383,14,quick
+knob,reverse-thorough,side server 8789,504 budget,100.0,,,thorough
+bench,reverse,offline,no route (search limit),100,,,default caps
+bench,forward,offline,ok,25-28,409,,289 boosted 130 scoop stops
+bench,reverse-thorough,offline,no route (search limit),100,,,
+bench,leg island->neutron,offline exact router,ok,0.004,21,,1006 ly with injection
+bench,leg neutron->island,offline exact router,ok,0.007,13,,1006 ly with injection
+bench,leg island->neutron no injection,offline exact router,no route possible,0.011,,,
+bench,reverse prune-bound widened,offline,no route (search limit),100,,,reverted
+bench,reverse goal-run 60 bridges,offline,no route (search limit),100,,,reverted
+bench,reverse ED_COARSE_CAP=120000,offline,no route (search limit),101.6,,,
+bench,reverse ED_COARSE_CAP=120000 ED_COARSE_STALL=80000,offline,no route (search limit),101.6,,,
+bench,reverse ED_COARSE_CAP=240000 ED_COARSE_STALL=160000,offline,no route (search limit),101.4,,,
+bench,Sol->Beagle Point control (goal-run 60),offline,ok,28.9,196,,167 boosted; same as the branch

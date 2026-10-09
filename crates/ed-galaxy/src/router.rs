@@ -906,4 +906,46 @@ mod tests {
         // Tiny graph: may finish before the first cancel check; either way it must not panic.
         let _ = plan(&g, &req, &ctl);
     }
+
+    /// An island whose only exit lies AWAY from the goal, in reach only
+    /// with an injection (2026-10-09, the rim plots). Pins that the quick
+    /// search still takes it: Start at the origin; Goal 200 ly up; Exit
+    /// 70 ly DOWN, beyond remaining + one plain jump (260 ly), which the
+    /// goal-ward cell prune must not drop; a chain from Exit curls to Goal
+    /// outside Start's reach even when injected (every other star is more
+    /// than 75 ly from Start). Range 60, basic injection 1.25 -> 75.
+    #[test]
+    fn an_island_exit_away_from_the_goal_is_taken_with_an_injection() {
+        let stars = [
+            ("Start", 0.0, 0.0),
+            ("Goal", 0.0, 200.0),
+            ("Exit", 0.0, -70.0),
+            ("Q1", 55.0, -60.0),
+            ("Q2", 100.0, -30.0),
+            ("Q3", 100.0, 25.0),
+            ("Q4", 100.0, 80.0),
+            ("Q5", 65.0, 125.0),
+            ("Q6", 30.0, 170.0),
+        ];
+        let mut lines = vec!["[".to_string()];
+        for (i, (name, x, y)) in stars.iter().enumerate() {
+            lines.push(format!(
+                r#"{{"id64":{},"name":"{name}","coords":{{"x":{x},"y":{y},"z":0}},"bodies":[{{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}}]}}{}"#,
+                i + 1,
+                if i + 1 < stars.len() { "," } else { "" }
+            ));
+        }
+        lines.push("]".into());
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let base = RouteRequest { from: g.find("Start").unwrap(), to: g.find("Goal").unwrap(), range_ly: 60.0, supercharge: false, thorough: false, ..Default::default() };
+        assert!(matches!(plan(&g, &base, &Control::none()), Err(RouteError::NoRoute)), "70 ly off an island at 60 ly: no route without an injection");
+        let injected = RouteRequest { injection: Some((1.25, "basic", 2)), ..base.clone() };
+        let route = plan(&g, &injected, &Control::none()).expect("the quick search takes the injected exit even though it points away from the goal");
+        assert_eq!(route.hops[1].name, "Exit");
+        assert_eq!(route.hops[1].injection.as_deref(), Some("basic"));
+        assert_eq!(route.injections, 1, "one injection: off the island, then the chain");
+        assert_eq!(route.hops.last().unwrap().name, "Goal");
+    }
 }

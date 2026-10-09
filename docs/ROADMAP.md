@@ -63,7 +63,18 @@ verdicts live in the CSV headers under `docs/benches/`.
   -- unless the route is being followed, then it waits for "Use it".
   "Try harder" stays a different search (thorough, stops priced at zero,
   its own key): on this corridor it found 377 against the quick
-  search's refined 373, so "no better route" was honest. OPEN: the departure-tank hint is a
+  search's refined 373, so "no better route" was honest.
+  **OPEN -- direction asymmetry on the rim** (measured the same day,
+  `docs/benches/2026-10-09-rim-reverse-stall.csv`): Byoi Fraae AE-T
+  d3-0 → Jongou AB-F d11-0 runs the 100 s budget to "budget" while the
+  mirror plot takes 4.7 s on the server (28 s offline, 409 jumps). The
+  coarse wave from the Byoi side stalls at its 30k-expansion allowance
+  31 kly short and hands the remainder to the exact planner as one leg.
+  The island's own 1,006 ly first leg plans in 4 ms. Three fixes measured
+  as no effect and reverted: the exact router's goal-ward prune bound
+  at the injected reach, the wave's goal run widened to the start side's
+  60 bridges, and the coarse cap / stall allowance at 4x and 8x. Next is
+  a trace of the stalled frontier, not another guess. OPEN: the departure-tank hint is a
   sentence, not a planner option -- a "leave light" plan would need the
   planner to pick the departure fuel, measure before building.
 
