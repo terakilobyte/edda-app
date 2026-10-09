@@ -1236,7 +1236,8 @@ async fn plot_via_api(state: &AppState, query: &PlotQuery, cancel: &tokio_util::
             return Err(PlotFailure::Transport("the route server is busy — try again in a moment".into()));
         }
         if status.as_u16() == 504 {
-            return Err(PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into()));
+            let detail = response.text().await.unwrap_or_default();
+            return Err(budget_failure(&detail));
         }
         if status.is_server_error() {
             return Err(PlotFailure::Transport(format!("route server error ({status})")));
@@ -1430,11 +1431,27 @@ pub fn island_text(detail: &str, from: &str, to: &str) -> String {
     text
 }
 
+/// A 504 from the route server: its own "budget" answer means the planner
+/// ran its whole lane budget and found nothing in time (a refusal the
+/// server remembers for two minutes, so a replot gets it back at once);
+/// anything else in front of the server cutting the connection means the
+/// planner may still be working and a replot collects the route.
+pub(crate) fn budget_failure(detail: &str) -> PlotFailure {
+    let v: serde_json::Value = serde_json::from_str(detail).unwrap_or_default();
+    if v.get("error").and_then(|e| e.as_str()) == Some("budget") {
+        let secs = v.get("budget_ms").and_then(|b| b.as_u64()).map(|ms| ms / 1000).unwrap_or(100);
+        return PlotFailure::Refused(format!(
+            "the route server ran out of its {secs} s budget without finding a route; a shorter leg, a different target, or the galaxy map's own plotter may get there"
+        ));
+    }
+    PlotFailure::Transport("the route server is still working on this plot; replot in a moment and the route will be waiting".into())
+}
+
 /// Whether the bundled bubble index should have a go after the server
 /// did not deliver: yes when the server could not be reached or errored,
 /// no when it answered with a refusal -- its index holds everything the
 /// bubble index holds.
-pub fn bubble_worth_trying(remote: &PlotFailure) -> bool {
+pub(crate) fn bubble_worth_trying(remote: &PlotFailure) -> bool {
     matches!(remote, PlotFailure::Transport(_))
 }
 
@@ -2520,6 +2537,17 @@ mod injection_wire_tests {
             assert_eq!(ServerAnswer::of(&early), ServerAnswer { refining: true, budget_ms: 100_000 });
             let plain = serde_json::json!({ "jumps": 5 });
             assert_eq!(ServerAnswer::of(&plain), ServerAnswer::default(), "an answer without the flags is a finished one");
+        }
+
+        #[test]
+        fn a_budget_504_is_said_as_the_server_giving_up_not_still_working() {
+            use super::{budget_failure, PlotFailure};
+            match budget_failure(r#"{"error":"budget","budget_ms":100000,"lane":"long"}"#) {
+                PlotFailure::Refused(text) => assert_eq!(text, "the route server ran out of its 100 s budget without finding a route; a shorter leg, a different target, or the galaxy map's own plotter may get there"),
+                other => panic!("a refusal, got {other:?}"),
+            }
+            assert!(matches!(budget_failure(""), PlotFailure::Transport(_)), "a bare gateway 504: the planner may still be working");
+            assert!(matches!(budget_failure("<html>Gateway Timeout</html>"), PlotFailure::Transport(_)));
         }
 
         #[test]
