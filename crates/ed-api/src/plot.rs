@@ -71,6 +71,16 @@ pub const LONG_QUEUE: usize = 4;
 /// must answer "budget" from here before anything in front of the API
 /// cuts the connection at 120 s and turns the answer into a bare 504.
 pub const LONG_BUDGET_MS: u64 = 100_000;
+/// A long plot with no first route by now will not find one: every route
+/// that ever succeeded found its first within 1.1 s on the September
+/// matrix (18 routes, PC), 1.7 s on the box (Sol / Wongi -> Beagle),
+/// 2.1 s planner on today's rim pairs, and 13.7 s offline on the hardest
+/// (Jongou AB-F d11-0 -> Byoi Fraae AE-T d3-0, 409 jumps); every failure
+/// (three today) found nothing in 100 s. Three times the hardest, for
+/// the box's slower cores. The budget after a first route is untouched:
+/// that is refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it from the box's
+/// own data (the boss, 2026-10-09: "it feels like a long time to wait").
+pub const FIRST_ROUTE_MS: u64 = 45_000;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -732,6 +742,9 @@ pub struct RouteService {
     /// burning another long-lane budget on the same dead end.
     refusals: Mutex<HashMap<u64, (Instant, PlotRefusal)>>,
     early_grace: std::time::Duration,
+    /// How long a long plot may run without a first route before it is
+    /// a "budget" answer (FIRST_ROUTE_MS).
+    first_route: std::time::Duration,
 }
 
 /// How long a no-route / budget answer is held for the same request.
@@ -762,7 +775,8 @@ impl Default for RouteService {
         let threads_l = env("EDDA_API_PLANNER_THREADS_LONG", LONG_THREADS);
         let early_grace_ms: u64 =
             std::env::var("EDDA_API_EARLY_GRACE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(EARLY_GRACE_MS);
-        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, early_grace_ms, "plot gates and pools sized");
+        let first_route_ms: u64 = std::env::var("EDDA_API_FIRST_ROUTE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(FIRST_ROUTE_MS);
+        tracing::info!(interactive, interactive_queue, long, long_queue, long_ly = LONG_LY, threads_i, threads_l, early_grace_ms, first_route_ms, "plot gates and pools sized");
         RouteService {
             interactive: Gate::new(interactive, interactive_queue),
             long: Gate::new(long, long_queue),
@@ -771,6 +785,7 @@ impl Default for RouteService {
             cache: std::sync::Arc::new(Mutex::new(HashMap::new())),
             refusals: Mutex::new(HashMap::new()),
             early_grace: std::time::Duration::from_millis(early_grace_ms),
+            first_route: std::time::Duration::from_millis(first_route_ms),
         }
     }
 }
@@ -900,6 +915,11 @@ impl RouteService {
         let wants_boost = req.supercharge;
         let highway_less = handle.neutrons.is_none() && wants_boost;
         let gone = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Set by the handler when the first-route deadline passes: the
+        // planner is stopped through `gone` and the answer is "budget".
+        let no_first = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let no_first_task = std::sync::Arc::clone(&no_first);
+        let gone_at_deadline = std::sync::Arc::clone(&gone);
         // Held across the await: if this future is dropped (the client
         // went away), the flag is set and the planner stops — unless the
         // request was already answered early, see `disarm`.
@@ -928,6 +948,7 @@ impl RouteService {
             let pool = pool;
             let cancelled = move || gone.load(std::sync::atomic::Ordering::Relaxed);
             let (span_from, span_to) = (req.from, req.to);
+            let lean = LeanStops::of(&req);
             let found = move |r: &Route| {
                 // The refine-legs stage reports each leg's route through
                 // the same callback (seen 2026-10-09: 37- and 11-jump
@@ -936,6 +957,14 @@ impl RouteService {
                 if !spans(r, span_from, span_to) {
                     return;
                 }
+                // The planner's variants top up at every scoopable star;
+                // the lean rewrite otherwise runs only on the final route.
+                // An early answer or a best-so-far must not carry 197
+                // "scoop stops" and an hour of scooping the real route
+                // never needs (the boss, 2026-10-09).
+                let mut r = r.clone();
+                lean.apply(&mut r);
+                let r = &r;
                 let _ = found_tx.send(r.clone());
                 // After the early answer went out, every variant that
                 // beats the cached best becomes the best-so-far under the
@@ -963,6 +992,10 @@ impl RouteService {
             let early = *served_early_task.lock().unwrap_or_else(|e| e.into_inner());
             let planner_ms = plot_started.elapsed().as_millis() as u64;
             match &r {
+                Err(RouteError::Cancelled) if no_first_task.load(std::sync::atomic::Ordering::Relaxed) => {
+                    metrics::counter!("edda_route_no_first_route_total", "lane" => lane_name).increment(1);
+                    tracing::info!(lane = lane_name, key, planner_ms, "route plot stopped: no first route within the first-route deadline");
+                }
                 Err(RouteError::Cancelled) => {
                     metrics::counter!("edda_route_requests_total", "outcome" => "abandoned", "lane" => lane_name).increment(1);
                     tracing::info!(lane = lane_name, key, planner_ms, "route plot stopped: the client was gone");
@@ -1002,6 +1035,8 @@ impl RouteService {
         let early = lane == Lane::Long && !self.early_grace.is_zero() && storable;
         let outcome = if early {
             let mut best: Option<Route> = None;
+            let first_deadline = tokio::time::sleep(self.first_route);
+            tokio::pin!(first_deadline);
             let finished = loop {
                 tokio::select! {
                     joined = &mut task => break Some(joined),
@@ -1009,6 +1044,12 @@ impl RouteService {
                         Some(r) => { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); }
                         None => break None, // the planner finished; the join lands next
                     },
+                    _ = &mut first_deadline, if best.is_none() => {
+                        // Nothing found by the deadline: nothing will be.
+                        no_first.store(true, std::sync::atomic::Ordering::Relaxed);
+                        gone_at_deadline.store(true, std::sync::atomic::Ordering::Relaxed);
+                        break None;
+                    }
                 }
                 if best.is_some() {
                     // Grace for a better route, then serve what we have.
@@ -1032,6 +1073,12 @@ impl RouteService {
                 (None, None) => Some((&mut task).await),
                 (f, _) => f,
             };
+            if no_first.load(std::sync::atomic::Ordering::Relaxed) {
+                guard.disarm();
+                self.refuse(key, PlotRefusal::Budget);
+                tracing::info!(lane = lane_name, key, first_route_ms = self.first_route.as_millis() as u64, "route refused: no first route within the first-route deadline");
+                return Ok((lane, PlotOutcome::Refused(PlotRefusal::Budget), bridges));
+            }
             match finished {
                 Some(joined) => joined.map_err(|join| anyhow::anyhow!("plot panicked: {join}"))?,
                 None => {
@@ -1110,6 +1157,36 @@ type Cache = std::sync::Arc<Mutex<HashMap<u64, (Instant, std::sync::Arc<Route>, 
 /// holds for this plot, it becomes the best-so-far, still refining. A
 /// finished entry (refining = false) or a missing one is never touched --
 /// the final store is the planner's own business.
+/// The min-fuel rewrite as the planner applies it to its final route
+/// (`long_range::plan_best`): the stops the remaining legs never need are
+/// dropped, or, when the commander wants eager scooping, the comfort
+/// top-ups are labelled optional. Applied to every route that leaves the
+/// server early, so the first answer and the best-so-far are judged and
+/// shown in the same currency as the finished one.
+#[derive(Clone, Copy)]
+pub struct LeanStops {
+    min_fuel: bool,
+    fuel: Option<ed_galaxy::fuel::FuelModel>,
+    boost: ed_galaxy::fuel::BoostProfile,
+    injection_mult: Option<f32>,
+    start_fuel: f32,
+}
+
+impl LeanStops {
+    pub fn of(req: &RouteRequest) -> Self {
+        LeanStops { min_fuel: req.min_fuel, fuel: req.fuel, boost: req.boost, injection_mult: req.injection.map(|(m, _, _)| m), start_fuel: req.start_fuel }
+    }
+
+    pub fn apply(&self, route: &mut Route) {
+        let Some(m) = &self.fuel else { return };
+        if self.min_fuel {
+            ed_galaxy::router::minimize_refuels(m, &self.boost, self.injection_mult, route, self.start_fuel);
+        } else {
+            ed_galaxy::router::mark_optional_stops(m, &self.boost, self.injection_mult, route, self.start_fuel);
+        }
+    }
+}
+
 /// A complete answer: the route starts at the plot's origin and ends at
 /// its destination. The planner's `found` callback also reports legs.
 pub fn spans(route: &Route, from: u32, to: u32) -> bool {
@@ -1952,6 +2029,39 @@ mod endpoint_tests {
         store_in(&svc.cache, key, std::sync::Arc::new(longer.clone()), false);
         assert!(!keep_best_so_far(&svc.cache, key, &shorter), "a finished entry is never touched");
         assert_eq!(svc.cached(key).unwrap().0.jumps, longer.jumps);
+    }
+
+    /// The first-route deadline sits between the hardest measured first
+    /// route (13.7 s offline, three times that for the box) and the lane
+    /// budget it shortens.
+    #[test]
+    fn the_first_route_deadline_is_inside_the_long_budget_and_past_the_hardest_measured_first_route() {
+        assert!(FIRST_ROUTE_MS >= 3 * 13_700, "three times the hardest first route we have seen");
+        assert!(FIRST_ROUTE_MS < LONG_BUDGET_MS, "it must shorten the budget, not extend it");
+        assert!(FIRST_ROUTE_MS > BUDGET_MS, "an interactive plot is never cut by it");
+    }
+
+    /// An eager variant tops up at every scoopable arrival; the same
+    /// route through the lean rewrite keeps only the stops the tank needs.
+    /// Home -> Step -> Pulse -> Far on a 128 t Caspian burns a few tonnes:
+    /// no stop is load-bearing.
+    #[test]
+    fn a_found_route_leaves_the_server_lean() {
+        let (_d, g) = island_galaxy();
+        let caspian = ed_galaxy::fuel::FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let api = RouteApiRequest { from: "Home".into(), to: "Far".into(), fuel_model: Some(caspian), supercharge: Some(true), min_fuel: Some(true), ..Default::default() };
+        let req = resolve(&g, &api).unwrap();
+        let eager = ed_galaxy::router::plan(&g, &RouteRequest { min_fuel: false, ..req.clone() }, &ed_galaxy::router::Control::none()).unwrap();
+        assert!(eager.refuel_stops >= 1, "the exact planner tops up on the way: {:?}", eager.hops.iter().map(|h| (h.name.as_str(), h.refuel)).collect::<Vec<_>>());
+        let mut lean = eager.clone();
+        LeanStops::of(&req).apply(&mut lean);
+        assert_eq!(lean.refuel_stops, 0, "a full tank flies three hops without a stop");
+        assert_eq!(lean.jumps, eager.jumps, "the rewrite changes stops, never hops");
+        // Eager scooping asked for: the stops stay, labelled optional.
+        let mut labelled = eager.clone();
+        LeanStops::of(&RouteRequest { min_fuel: false, ..req.clone() }).apply(&mut labelled);
+        assert_eq!(labelled.refuel_stops, eager.refuel_stops);
+        assert!(labelled.hops.iter().filter(|h| h.refuel).all(|h| h.fuel_optional), "every top-up is a comfort one");
     }
 
     #[test]

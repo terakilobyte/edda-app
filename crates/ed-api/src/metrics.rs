@@ -21,7 +21,7 @@
 //! | Database | `edda_db_pool_connections`, `edda_db_pool_idle` |
 //! | HTTP | `edda_http_requests_total{route,method,status}`, `edda_http_request_seconds{route}`, `edda_artifact_bytes_total` |
 //! | EDSM | `edda_stars_requests_total`, `edda_stars_ids_total{answer}`, `edda_edsm_lookups_total{outcome}` |
-//! | Routing (server-side plots, when the endpoint lands; the client already uses these names locally) | `edda_route_requests_total{outcome}`, `edda_route_wall_seconds`, `edda_route_island_total{lane,end,crossed}` (an endpoint no known star reaches, refused before planning; `crossed=injection` when the injected plan went ahead), `edda_route_injected_total{lane}`, `edda_route_best_so_far_total{lane}` (a variant that beat the early answer and now rides the cache while refining) |
+//! | Routing (server-side plots, when the endpoint lands; the client already uses these names locally) | `edda_route_requests_total{outcome}`, `edda_route_wall_seconds`, `edda_route_island_total{lane,end,crossed}` (an endpoint no known star reaches, refused before planning; `crossed=injection` when the injected plan went ahead), `edda_route_injected_total{lane}`, `edda_route_no_first_route_total{lane}` (a long plot cut at FIRST_ROUTE_MS with nothing found; answered as budget), `edda_route_best_so_far_total{lane}` (a variant that beat the early answer and now rides the cache while refining) |
 //! | Market search (design (b)) | `edda_market_search_requests_total{outcome}`, `edda_market_search_seconds` |
 //! | Station board | `edda_station_board_requests_total{outcome}`, `edda_station_board_seconds` |
 //! | Client telemetry (opt-in, pooled, unlabelled) | `edda_client_search_age_hours`, `edda_client_router_gate_ly`, `edda_client_carrier_stats_age_hours` |

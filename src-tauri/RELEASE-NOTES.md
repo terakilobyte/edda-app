@@ -36,6 +36,12 @@ Full notes:
   the materials you lack. "Injections if required" is on by default; off
   sends nothing to the server. Only the grade and a count ever leave your
   machine.
+- **A plot that will never find a route says so sooner.** Every route
+  that has ever succeeded found its first route within seconds; one that
+  finds nothing in 45 s never does, so the server answers then instead
+  of at 100 s. Scoop stops on the first answer are now the stops the
+  route actually needs, not a top-up at every scoopable star, so the
+  ETA on the first answer is honest.
 - **The refinement reaches the tab.** On a long plot the server answers
   with its first route in seconds and keeps refining; the Route tab now
   shows "Refining on the server… best so far N jumps · boosted · scoop
