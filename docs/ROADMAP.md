@@ -50,7 +50,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   first route by `FIRST_ROUTE_MS` = 45 s (three times the hardest, for
   the box) is answered "budget" then; the budget after a first route
   stays 100 s for refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it;
-  `edda_route_no_first_route_total` counts it. **Lean stops on every
+  `edda_route_no_first_route_total` counts it. **Retracted on ship day
+  (2026-10-12, `docs/benches/2026-10-12-first-route-prod.csv`):** on the
+  box no portfolio variant finishes inside 100 s for Jongou XM-W d1-0 →
+  Byoi Fraae CQ-G d10-0 with injections, the budget cut delivers the
+  route (429 jumps / 13 injections at 100.0 s) with no early answer at
+  all, and the 45 s deadline refused it. The PC's 13.7 s hardest first
+  route does not transfer to two vCPUs. Default now OFF (equal to the
+  budget); the knob stays for a value measured on the box. **Lean stops on every
   route that leaves the server** (the boss: "why the heck are we
   recommending to scoop at every star we can?"): the min-fuel rewrite
   ran only on the planner's final route, so the early answer and every

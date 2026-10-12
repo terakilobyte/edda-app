@@ -1,0 +1,19 @@
+# First-route deadline on the box (2026-10-12, ship day). VERDICT: the
+# premise failed on prod -- default turned OFF (FIRST_ROUTE_MS = the lane
+# budget), knob kept. Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0 with premium
+# injections plots in 6 s on this PC (24 threads: a variant finishes in
+# ~1.2 s planner) but on the box (2 vCPU, long lane 2 threads per slot) no
+# portfolio variant finishes inside 100 s: with the 45 s deadline prod
+# refused it ("no first route"); with the deadline lifted by the env knob
+# the budget cut delivered 429 jumps / 13 injections at 100.0 s, never an
+# early answer. So on the box a route can arrive with no first route at
+# all, and a deadline short of the budget is a false "unable to plot".
+# Other prod smoke plots were fine: island plain refused in 0.8 s; Jongou
+# AA-A d0 -> Byoi Fraae AT-U d2-1 premium 387 jumps / 4 injections early at
+# 7.8 s; Sol -> Beagle Point 201 early at 6.4 s.
+plot,deadline,http,wall_s,jumps,injections,note
+Jongou XM-W d1-0->Byoi Fraae CQ-G d10-0 premium,45 s,504,45.7,,,no_first_route
+Jongou XM-W d1-0->Byoi Fraae CQ-G d10-0 premium,off (100 s),200,101.2,429,13,route planned at planner_ms 100005; no early answer
+Jongou AA-A d0->Byoi Fraae AT-U d2-1 premium,45 s,200,7.8,387,4,early answer
+Sol->Beagle Point plain,45 s,200,6.4,201,0,early answer
+Jongou XM-W d1-0->Byoi Fraae CQ-G d10-0 plain,45 s,422,0.8,,,island refusal

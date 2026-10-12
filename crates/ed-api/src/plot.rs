@@ -71,16 +71,17 @@ pub const LONG_QUEUE: usize = 4;
 /// must answer "budget" from here before anything in front of the API
 /// cuts the connection at 120 s and turns the answer into a bare 504.
 pub const LONG_BUDGET_MS: u64 = 100_000;
-/// A long plot with no first route by now will not find one: every route
-/// that ever succeeded found its first within 1.1 s on the September
-/// matrix (18 routes, PC), 1.7 s on the box (Sol / Wongi -> Beagle),
-/// 2.1 s planner on today's rim pairs, and 13.7 s offline on the hardest
-/// (Jongou AB-F d11-0 -> Byoi Fraae AE-T d3-0, 409 jumps); every failure
-/// (three today) found nothing in 100 s. Three times the hardest, for
-/// the box's slower cores. The budget after a first route is untouched:
-/// that is refinement. `EDDA_API_FIRST_ROUTE_MS` tunes it from the box's
-/// own data (the boss, 2026-10-09: "it feels like a long time to wait").
-pub const FIRST_ROUTE_MS: u64 = 45_000;
+/// How long a long plot may run without a first route before it is a
+/// "budget" answer. OFF by default (equal to the lane budget): the 45 s
+/// the PC's data suggested (every success found its first route within
+/// 13.7 s there, 2026-10-09) was measured on the box the day it shipped
+/// and refused a route the budget delivers -- Jongou XM-W d1-0 -> Byoi
+/// Fraae CQ-G d10-0, premium injections, no variant finishes inside
+/// 100 s on two vCPUs and the budget cut hands over 429 jumps / 13
+/// injections at 100.0 s (`docs/benches/2026-10-12-first-route-prod.csv`).
+/// A first route is not a prerequisite for a route on the box.
+/// `EDDA_API_FIRST_ROUTE_MS` keeps the knob for a measured value.
+pub const FIRST_ROUTE_MS: u64 = LONG_BUDGET_MS;
 
 impl Lane {
     pub fn budget_ms(self) -> u64 {
@@ -2066,13 +2067,13 @@ mod endpoint_tests {
         assert_eq!(svc.cached(key).unwrap().0.jumps, longer.jumps);
     }
 
-    /// The first-route deadline sits between the hardest measured first
-    /// route (13.7 s offline, three times that for the box) and the lane
-    /// budget it shortens.
+    /// The first-route deadline, when set, sits between the hardest
+    /// measured first route and the lane budget; the default is off (the
+    /// box delivered a route with no first route at all, 2026-10-12).
     #[test]
     fn the_first_route_deadline_is_inside_the_long_budget_and_past_the_hardest_measured_first_route() {
-        assert!(FIRST_ROUTE_MS >= 3 * 13_700, "three times the hardest first route we have seen");
-        assert!(FIRST_ROUTE_MS < LONG_BUDGET_MS, "it must shorten the budget, not extend it");
+        assert!(FIRST_ROUTE_MS >= 3 * 13_700, "never under three times the hardest first route we have seen on the PC");
+        assert!(FIRST_ROUTE_MS <= LONG_BUDGET_MS, "it may shorten the budget, never extend it; off means equal");
         assert!(FIRST_ROUTE_MS > BUDGET_MS, "an interactive plot is never cut by it");
     }
 
