@@ -226,12 +226,15 @@ export function tourLines(tour) {
 
 export function itinerary(report) {
   return (report?.engineers ?? []).map((stop) => {
-    const mine = report.items.filter((it) => it.assigned_to === stop.engineer);
     const groups = new Map();
-    for (const it of mine) {
-      const k = jobKey(it);
+    const add = (k, it) => {
       if (!groups.has(k)) groups.set(k, { what: k, module_type: it.module_type, slots: [] });
       groups.get(k).slots.push(it.slot_name);
+    };
+    for (const it of report.items ?? []) {
+      if (it.blueprint && it.assigned_to === stop.engineer) add(jobKey(it), it);
+      // The experimental is its own job and may sit with another engineer.
+      if (it.experimental && it.experimental_assigned_to === stop.engineer) add(`${it.experimental} (experimental)`, it);
     }
     const jobs = [...groups.values()]
       .map((g) => ({ what: g.what, module_type: g.module_type, count: g.slots.length, slots: compactSlots(g.slots) }))
@@ -247,6 +250,22 @@ export function itinerary(report) {
 export function blocked(report) {
   const groups = new Map();
   for (const it of report?.items ?? []) {
+    // An experimental nobody unlocked offers: the way out is an unlock.
+    if (it.experimental && !it.experimental_reachable) {
+      const k = `${it.module_type}|${it.experimental} (experimental)`;
+      if (!groups.has(k)) {
+        groups.set(k, {
+          what: `${it.experimental} (experimental)`,
+          module_type: it.module_type,
+          target_grade: null,
+          max_reachable_grade: null,
+          today: [],
+          unlock: (it.experimental_engineers ?? []).filter((e) => !e.unlocked).map((e) => ({ engineer: e.engineer, status: e.status })),
+          slots: [],
+        });
+      }
+      groups.get(k).slots.push(it.slot_name);
+    }
     if (!it.blueprint || it.reachable) continue;
     const k = `${it.module_type}|${jobKey(it)}`;
     if (!groups.has(k)) {
