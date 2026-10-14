@@ -757,7 +757,7 @@ pub async fn material_shopping(
 /// This is the check that has to run *before* any recommendation: an
 /// inaccessible blueprint is not a suggestion, and no external site knows
 /// your unlock state.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct EngineerAccess {
     pub engineer: String,
     pub status: String,
