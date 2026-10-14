@@ -57,9 +57,9 @@ describe("planRequest / proposedFor / savedFrom", () => {
     rows[3] = { ...rows[3], experimental: "Super Conduits", include: true };
     const req = planRequest(rows);
     expect(req).toEqual([
-      { slot: "LargeHardpoint1", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, target_grade: 4, experimental: null },
-      { slot: "LargeHardpoint2", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 0, target_grade: 4, experimental: null },
-      { slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 0, target_grade: 5, experimental: "Super Conduits" },
+      { slot: "LargeHardpoint1", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, target_grade: 4, experimental: null, fitted_engineer: null },
+      { slot: "LargeHardpoint2", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 0, target_grade: 4, experimental: null, fitted_engineer: null },
+      { slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 0, target_grade: 5, experimental: "Super Conduits", fitted_engineer: null },
     ]);
     // The SLEF export carries only blueprints (an experimental has no grade).
     expect(proposedFor(rows)).toEqual([
@@ -87,7 +87,7 @@ describe("planRequest / proposedFor / savedFrom", () => {
     expect(isPlanned({ ...rows[0], include: true })).toBe(false);
     const withX = { ...rows[0], experimental: "Super Conduits", include: true };
     expect(hasWork(withX)).toBe(true);
-    expect(planRequest([withX])).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Super Conduits" }]);
+    expect(planRequest([withX])).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Super Conduits", fitted_engineer: null }]);
     expect(proposedFor([withX])).toEqual([]);
   });
 
@@ -287,7 +287,7 @@ describe("swaps: only what the slot takes, starting over", () => {
     expect(drive).toMatchObject({ swap: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4", module_type: "Frame Shift Drive", blueprint: "Increased FSD Range", from_grade: 5, include: false });
     expect(hasWork(drive)).toBe(false);
     expect(hasWork({ ...drive, experimental: "Mass Manager", include: true })).toBe(true);
-    expect(planRequest([{ ...drive, experimental: "Mass Manager", include: true }])).toEqual([{ slot: "FrameShiftDrive", module_type: "Frame Shift Drive", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Mass Manager" }]);
+    expect(planRequest([{ ...drive, experimental: "Mass Manager", include: true }])).toEqual([{ slot: "FrameShiftDrive", module_type: "Frame Shift Drive", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Mass Manager", fitted_engineer: null }]);
     expect(swapsFrom([drive])).toEqual([{ slot: "FrameShiftDrive", item: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4" }]);
     const saved = savedFrom([rows[0], drive, rows[2], rows[3]]);
     expect(planRows(fitted, saved, slots)[1]).toMatchObject({ preset: "sco_v1_4", from_grade: 5, blueprint: "Increased FSD Range" });

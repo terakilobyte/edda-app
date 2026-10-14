@@ -38,6 +38,13 @@ pub struct PlanItem {
     pub target_grade: i64,
     #[serde(default)]
     pub experimental: Option<String>,
+    /// Who engineered the fitted module, from the ship's Loadout (the
+    /// boss, 2026-10-14, thrusters already Dirty Drives G5 by Palin: "if
+    /// the engineer modifies them assume that blueprint is applied" --
+    /// the experimental goes to the engineer who did the module). None
+    /// for a swap or an unengineered module.
+    #[serde(default)]
+    pub fitted_engineer: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,6 +80,8 @@ pub struct PlanItemReport {
     /// from `assigned_to` when the blueprint's engineer does not offer it.
     #[serde(default)]
     pub experimental_assigned_to: Option<String>,
+    #[serde(default)]
+    pub fitted_engineer: Option<String>,
 }
 
 /// One stop on the itinerary: an unlocked engineer and the slots to bring.
@@ -267,19 +276,26 @@ pub fn mark_assigned(reports: &mut [PlanItemReport], itinerary: &[PlanEngineer])
 
 /// Blueprints first by set cover, then each experimental effect placed
 /// (the boss, 2026-10-14: "if the engineer modifies them assume that
-/// blueprint is applied"): with the engineer who rolls that module when
-/// they offer the effect; otherwise at an engineer already on the
+/// blueprint is applied"): with the engineer who rolls that module in
+/// this plan when they offer the effect; else with the engineer who
+/// engineered the fitted module (the Loadout's `Engineering.Engineer`),
+/// when unlocked and offering it; else at an engineer already on the
 /// itinerary who offers it (the one with the most jobs, then the name);
-/// otherwise the leftovers go through set cover as stops of their own.
-/// Items are stamped with both engineers; every stop lists its jobs.
+/// else the leftovers go through set cover as stops of their own. Items
+/// are stamped with both engineers; every stop lists its jobs.
 pub fn assign_plan(blueprint_jobs: &[Job], experimental_jobs: &[(String, Job)], reports: &mut [PlanItemReport]) -> (Vec<PlanEngineer>, Vec<String>) {
     let (mut itinerary, mut unassigned) = assign(blueprint_jobs);
     mark_assigned(reports, &itinerary);
     let mut leftovers: Vec<Job> = Vec::new();
     for (slot_name, job) in experimental_jobs {
-        let roller = reports.iter().find(|r| &r.slot_name == slot_name).and_then(|r| r.assigned_to.clone());
-        let can = |name: &str| job.candidates.iter().any(|(c, _)| c == name);
-        let chosen = roller.filter(|e| can(e)).or_else(|| {
+        let item = reports.iter().find(|r| &r.slot_name == slot_name);
+        let roller = item.and_then(|r| r.assigned_to.clone());
+        let fitted = item.and_then(|r| r.fitted_engineer.clone());
+        // Candidates are already the unlocked engineers who offer it, so a
+        // fitted engineer the commander cannot visit never wins.
+        let can = |name: &str| job.candidates.iter().any(|(c, _)| c.eq_ignore_ascii_case(name));
+        let canonical = |name: &str| job.candidates.iter().find(|(c, _)| c.eq_ignore_ascii_case(name)).map(|(c, _)| c.clone());
+        let chosen = roller.filter(|e| can(e)).or_else(|| fitted.as_deref().and_then(canonical)).or_else(|| {
             itinerary
                 .iter()
                 .filter(|s| can(&s.engineer))
@@ -444,6 +460,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             experimental_engineers,
             experimental_reachable,
             experimental_assigned_to: None,
+            fitted_engineer: it.fitted_engineer.clone(),
         });
     }
 
@@ -825,7 +842,7 @@ mod tests {
         let item = |slot: &str, blueprint: Option<&str>, experimental: Option<&str>| PlanItemReport {
             slot: slot.into(), slot_name: slot.into(), item_name: String::new(), module_type: String::new(), blueprint: blueprint.map(str::to_string), from_grade: 0, target_grade: 5,
             experimental: experimental.map(str::to_string), lines: vec![], engineers: vec![], reachable: true, max_reachable_grade: None, assigned_to: None,
-            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None,
+            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, fitted_engineer: None,
         };
         let mut reports = vec![item("Thrusters", None, Some("Drag Drives")), item("Frame Shift Drive", Some("Increased FSD Range"), None)];
         mark_assigned(&mut reports, &stops);
@@ -850,17 +867,20 @@ mod tests {
     #[test]
     fn an_experimental_is_applied_where_its_blueprint_is_rolled_else_at_an_existing_stop() {
         let acc = |names: &[&str]| names.iter().map(|n| crate::commands::EngineerAccess { engineer: n.to_string(), status: "Unlocked".into(), rank: Some(5), unlocked: true, max_grade: 0, rank_grade: 0 }).collect::<Vec<_>>();
-        let item = |slot: &str, module: &str, blueprint: Option<&str>, experimental: Option<&str>| PlanItemReport {
+        let item = |slot: &str, module: &str, blueprint: Option<&str>, experimental: Option<&str>, fitted: Option<&str>| PlanItemReport {
             slot: slot.into(), slot_name: slot.into(), item_name: String::new(), module_type: module.into(), blueprint: blueprint.map(str::to_string), from_grade: 0, target_grade: 5,
             experimental: experimental.map(str::to_string), lines: vec![], engineers: vec![], reachable: true, max_reachable_grade: None, assigned_to: None,
-            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None,
+            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, fitted_engineer: fitted.map(str::to_string),
         };
         let mut reports = vec![
-            item("Large hardpoint 3", "Beam Laser", Some("Long Range Weapon"), Some("Thermal Vent")),
-            item("Power Distributor", "Power Distributor", Some("Charge Enhanced"), Some("Super Conduits")),
-            item("Frame Shift Drive", "Frame Shift Drive", Some("Increased FSD Range"), None),
-            item("Thrusters", "Thrusters", None, Some("Drag Drives")),
-            item("Power Plant", "Power Plant", None, Some("Thermal Spread")),
+            item("Large hardpoint 3", "Beam Laser", Some("Long Range Weapon"), Some("Thermal Vent"), None),
+            item("Power Distributor", "Power Distributor", Some("Charge Enhanced"), Some("Super Conduits"), None),
+            item("Frame Shift Drive", "Frame Shift Drive", Some("Increased FSD Range"), None, None),
+            // Dirty Drives G5 already on, by Palin: the effect goes to him even though Felicity is a stop.
+            item("Thrusters", "Thrusters", None, Some("Drag Drives"), Some("Professor Palin")),
+            item("Power Plant", "Power Plant", None, Some("Thermal Spread"), None),
+            // Mass Manager on an FSD Elvira engineered, but Elvira is not unlocked: the fitted engineer cannot win.
+            item("Optional 1", "Frame Shift Drive", None, Some("Mass Manager"), Some("Elvira Martuuk")),
         ];
         let blueprint_jobs = vec![
             job("Large hardpoint 3: Long Range Weapon G5", &["Broo Tarquin"]),
@@ -871,20 +891,22 @@ mod tests {
         let experimental_jobs = vec![
             exp("Large hardpoint 3", "Thermal Vent", &["The Dweller", "Broo Tarquin"]),
             exp("Power Distributor", "Super Conduits", &["The Dweller", "Hera Tani"]),
-            exp("Thrusters", "Drag Drives", &["Felicity Farseer", "Professor Palin", "Elvira Martuuk"]),
+            exp("Thrusters", "Drag Drives", &["Felicity Farseer", "Professor Palin"]),
             exp("Power Plant", "Thermal Spread", &["Hera Tani", "Marco Qwent"]),
+            exp("Optional 1", "Mass Manager", &["Felicity Farseer", "Professor Palin"]),
         ];
         let (stops, unassigned) = assign_plan(&blueprint_jobs, &experimental_jobs, &mut reports);
         assert!(unassigned.is_empty());
         let by = |e: &str| stops.iter().find(|s| s.engineer == e).map(|s| s.jobs.clone()).unwrap_or_default();
         assert_eq!(by("Broo Tarquin"), ["Large hardpoint 3: Long Range Weapon G5", "Large hardpoint 3: Thermal Vent (experimental)"], "the effect rides with the roll");
         assert_eq!(by("The Dweller"), ["Power Distributor: Charge Enhanced G5", "Power Distributor: Super Conduits (experimental)"]);
-        assert_eq!(by("Felicity Farseer"), ["Frame Shift Drive: Increased FSD Range G5", "Thrusters: Drag Drives (experimental)"], "an existing stop that offers it, not a new stop at Palin");
+        assert_eq!(by("Professor Palin"), ["Thrusters: Drag Drives (experimental)"], "the engineer who did the thrusters gets their effect, a stop of his own");
+        assert_eq!(by("Felicity Farseer"), ["Frame Shift Drive: Increased FSD Range G5", "Optional 1: Mass Manager (experimental)"], "Elvira did the module but is not unlocked: an existing stop that offers it");
         assert_eq!(by("Hera Tani"), ["Power Plant: Thermal Spread (experimental)"], "nobody on the itinerary offers it: a stop of its own");
-        assert!(stops.iter().all(|s| s.engineer != "Professor Palin"));
         assert_eq!(reports[0].experimental_assigned_to.as_deref(), Some("Broo Tarquin"));
-        assert_eq!(reports[3].experimental_assigned_to.as_deref(), Some("Felicity Farseer"));
+        assert_eq!(reports[3].experimental_assigned_to.as_deref(), Some("Professor Palin"));
         assert_eq!(reports[4].experimental_assigned_to.as_deref(), Some("Hera Tani"));
+        assert_eq!(reports[5].experimental_assigned_to.as_deref(), Some("Felicity Farseer"));
     }
 
     /// Equal coverage falls to the name, so two reads give one itinerary.
