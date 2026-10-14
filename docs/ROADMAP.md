@@ -669,6 +669,27 @@ verdicts live in the CSV headers under `docs/benches/`.
   Odyssey suit/weapon engineers are not vendored (the ship planner never
   sends anyone to them); "how often an itinerary has 3+ stops" wants a
   journal sample once a few commanders have planned builds.
+- **The Build Planner's rows follow the ship** (the boss, 2026-10-14,
+  flying his Corsair between engineers: "Why is it recommending to
+  visit an engineer I don't need to?" ... "is the build planner using a
+  cached version of the ship or some bullshit?" ... "build planner
+  doesn't recognize my experimentals already applied, at all"). It was.
+  The store was right all along (`ships` and `loadout` both carried
+  Charge Enhanced G5 + Super Conduits minutes after The Dweller applied
+  them) and the server's done/needs-blueprint rules were right; the
+  panel shaped its rows once, at the ship pick, from that moment's
+  Loadout, and the journal refresh re-asked the server with those same
+  rows -- from-grade 3, no fitted experimental -- so every engineer
+  visited this session stayed on the itinerary. Now the refresh re-reads
+  the Loadout and slot table first and, when the modules changed, lays
+  the commander's choices over the fitted grades and experimentals
+  (`refit`), and a tick with nothing left comes off. The same hour,
+  "Utility 1: no blueprint 'Ammo Capacity' at grade 5": the default
+  continued a fitted blueprint "to the top", and the top was always 5
+  -- `capGrades` caps the target at what the blueprint offers (Ammo
+  Capacity stops at G1). The plan request is now logged item by item
+  (`build_plan` target) so the next "why this engineer" is read from the
+  log, not guessed. Pinned in `frontend/src/test/buildplan.test.js`.
 
 - **Code-sign the Windows binary** (2026-10-07, launch night; open).
   One of the first downloaders put `edda.exe` on VirusTotal at
