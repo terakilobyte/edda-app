@@ -59,6 +59,20 @@ pub struct PlanItemReport {
     pub max_reachable_grade: Option<i64>,
     /// The engineer this slot is routed to in the itinerary, if any.
     pub assigned_to: Option<String>,
+    /// The experimental effect's engineers (an effect has no grade ladder:
+    /// `max_grade` and `rank_grade` are 0; `unlocked` is what matters), and
+    /// whether any of them is unlocked. Until 2026-10-14 an experimental
+    /// was a materials line only -- no engineer, no stop on the itinerary
+    /// (the boss: "it's not recommending me professor palin to put the drag
+    /// drive experimental on?").
+    #[serde(default)]
+    pub experimental_engineers: Vec<EngineerAccess>,
+    #[serde(default)]
+    pub experimental_reachable: bool,
+    /// Who the itinerary sends the commander to for the effect; may differ
+    /// from `assigned_to` when the blueprint's engineer does not offer it.
+    #[serde(default)]
+    pub experimental_assigned_to: Option<String>,
 }
 
 /// One stop on the itinerary: an unlocked engineer and the slots to bring.
@@ -215,6 +229,41 @@ pub struct Job {
     pub candidates: Vec<(String, Option<i64>)>,
 }
 
+/// The job an experimental effect is: one stop at any unlocked engineer
+/// who offers it (effects have no grades; the rank does not gate them).
+pub fn experimental_job(slot_name: &str, effect: &str, access: &[EngineerAccess]) -> Job {
+    Job {
+        label: experimental_label(slot_name, effect),
+        candidates: access.iter().filter(|a| a.unlocked).map(|a| (a.engineer.clone(), a.rank)).collect(),
+    }
+}
+
+fn blueprint_label(r: &PlanItemReport) -> String {
+    format!("{}: {} G{}", r.slot_name, r.blueprint.as_deref().unwrap_or(""), r.target_grade)
+}
+
+fn experimental_label(slot_name: &str, effect: &str) -> String {
+    format!("{slot_name}: {effect} (experimental)")
+}
+
+/// Stamp each item with the engineer its job landed on: the blueprint's
+/// job and the experimental's are separate jobs, and may land on
+/// different engineers.
+pub fn mark_assigned(reports: &mut [PlanItemReport], itinerary: &[PlanEngineer]) {
+    for stop in itinerary {
+        for r in reports.iter_mut() {
+            if r.blueprint.is_some() && stop.jobs.contains(&blueprint_label(r)) {
+                r.assigned_to = Some(stop.engineer.clone());
+            }
+            if let Some(x) = &r.experimental {
+                if stop.jobs.contains(&experimental_label(&r.slot_name, x)) {
+                    r.experimental_assigned_to = Some(stop.engineer.clone());
+                }
+            }
+        }
+    }
+}
+
 /// Fewest stops: greedy set cover. Each round takes the engineer who can
 /// still do the most remaining slots (ties to the name, so two reads give
 /// the same itinerary); slots nobody can do are reported, never dropped.
@@ -313,11 +362,18 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
                     .collect(),
             });
         }
+        let mut experimental_engineers: Vec<EngineerAccess> = Vec::new();
+        let mut experimental_reachable = false;
         if let Some(x) = &it.experimental {
             let gap = catalog
                 .experimental_gap(&it.module_type, x, &have)
                 .ok_or_else(|| format!("{slot_name}: no experimental effect {x:?} for {:?}", it.module_type))?;
             lines.extend(gap.lines);
+            if let Some(bp) = catalog.find_experimental(&it.module_type, x) {
+                experimental_engineers = commands::experimental_access(&engineers, &bp.engineers);
+                experimental_reachable = experimental_engineers.iter().any(|a| a.unlocked);
+                jobs.push(experimental_job(&slot_name, x, &experimental_engineers));
+            }
         }
         per_item.push(lines.clone());
         reports.push(PlanItemReport {
@@ -334,6 +390,9 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             reachable,
             max_reachable_grade: max_reachable,
             assigned_to: None,
+            experimental_engineers,
+            experimental_reachable,
+            experimental_assigned_to: None,
         });
     }
 
@@ -628,14 +687,7 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     let materials = pool(&per_item);
     let fully_met = materials.iter().all(|l| l.have >= l.need) && commodities.iter().all(|c| c.have >= c.need);
     let (itinerary, unassigned) = assign(&jobs);
-    for stop in &itinerary {
-        for r in reports.iter_mut().filter(|r| r.blueprint.is_some()) {
-            let label = format!("{}: {} G{}", r.slot_name, r.blueprint.as_deref().unwrap_or(""), r.target_grade);
-            if stop.jobs.contains(&label) {
-                r.assigned_to = Some(stop.engineer.clone());
-            }
-        }
-    }
+    mark_assigned(&mut reports, &itinerary);
 
     let shopping = if fully_met {
         None
@@ -701,6 +753,41 @@ mod tests {
         let (stops, unassigned) = assign(&jobs);
         assert_eq!(stops.iter().map(|s| (s.engineer.as_str(), s.jobs.len())).collect::<Vec<_>>(), [("The Dweller", 9), ("Felicity Farseer", 1)]);
         assert_eq!(unassigned, ["Thrusters: Dirty Drive Tuning G5"]);
+    }
+
+    /// The boss's thrusters, 2026-10-14: Dirty Drives G5 is done, Drag
+    /// Drives is wanted. The experimental is its own job for the engineers
+    /// who offer it, lands on the itinerary, and is stamped on the item
+    /// separately from the blueprint's engineer.
+    #[test]
+    fn an_experimental_effect_is_a_job_for_the_engineers_who_offer_it() {
+        let access = |name: &str, unlocked: bool| crate::commands::EngineerAccess {
+            engineer: name.into(), status: if unlocked { "Unlocked" } else { "Known" }.into(), rank: unlocked.then_some(5), unlocked, max_grade: 0, rank_grade: 0,
+        };
+        let drag = [access("Professor Palin", true), access("Chloe Sedesi", false), access("Mel Brandon", false)];
+        let job = experimental_job("Thrusters", "Drag Drives", &drag);
+        assert_eq!(job.label, "Thrusters: Drag Drives (experimental)");
+        assert_eq!(job.candidates, vec![("Professor Palin".to_string(), Some(5))], "only the unlocked engineer is a candidate");
+        let jobs = vec![job, super::Job { label: "Frame Shift Drive: Increased FSD Range G5".into(), candidates: vec![("Felicity Farseer".into(), Some(5))] }];
+        let (stops, unassigned) = assign(&jobs);
+        assert!(unassigned.is_empty());
+        assert_eq!(stops.iter().map(|s| s.engineer.as_str()).collect::<Vec<_>>(), ["Felicity Farseer", "Professor Palin"]);
+        let item = |slot: &str, blueprint: Option<&str>, experimental: Option<&str>| PlanItemReport {
+            slot: slot.into(), slot_name: slot.into(), item_name: String::new(), module_type: String::new(), blueprint: blueprint.map(str::to_string), from_grade: 0, target_grade: 5,
+            experimental: experimental.map(str::to_string), lines: vec![], engineers: vec![], reachable: true, max_reachable_grade: None, assigned_to: None,
+            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None,
+        };
+        let mut reports = vec![item("Thrusters", None, Some("Drag Drives")), item("Frame Shift Drive", Some("Increased FSD Range"), None)];
+        mark_assigned(&mut reports, &stops);
+        assert_eq!(reports[0].experimental_assigned_to.as_deref(), Some("Professor Palin"));
+        assert_eq!(reports[0].assigned_to, None, "no blueprint on the thrusters this time");
+        assert_eq!(reports[1].assigned_to.as_deref(), Some("Felicity Farseer"));
+        assert_eq!(reports[1].experimental_assigned_to, None);
+        // Nobody unlocked offers it: no candidates, named as unassigned.
+        let none = experimental_job("Thrusters", "Drag Drives", &drag[1..]);
+        assert!(none.candidates.is_empty());
+        let (_, unassigned) = assign(&[none]);
+        assert_eq!(unassigned, ["Thrusters: Drag Drives (experimental)"]);
     }
 
     /// Equal coverage falls to the name, so two reads give one itinerary.

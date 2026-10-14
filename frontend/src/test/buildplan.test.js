@@ -116,13 +116,25 @@ describe("the report reads as groups, not one line per slot", () => {
         engineers: [{ engineer: "Etienne Dorn", max_grade: 5, unlocked: false, status: "Not known" }, { engineer: "Felicity Farseer", max_grade: 1, unlocked: true, status: "Unlocked" }, { engineer: "Marco Qwent", max_grade: 4, unlocked: true, status: "Unlocked" }] },
       ...[1, 2, 3, 5, 6, 8].map((n) => ({ slot_name: `Utility ${n}`, module_type: "Shield Booster", blueprint: "Resistance Augmented", target_grade: 5, reachable: false, max_reachable_grade: 3, assigned_to: null,
         engineers: [{ engineer: "Didi Vatermann", max_grade: 5, unlocked: false, status: "Not known" }, { engineer: "Lei Cheung", max_grade: 3, unlocked: true, status: "Unlocked" }, { engineer: "Mel Brandon", max_grade: 5, unlocked: false, status: "Known" }] })),
-      { slot_name: "Power Distributor", module_type: "Power Distributor", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Conduits" },
+      { slot_name: "Power Distributor", module_type: "Power Distributor", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Conduits",
+        experimental_engineers: [{ engineer: "The Dweller", unlocked: true, status: "Unlocked" }], experimental_reachable: true, experimental_assigned_to: "The Dweller" },
+      // 2026-10-14: Drag Drives on thrusters already at G5 -- an experimental-only item with its own engineer.
+      { slot_name: "Thrusters", module_type: "Thrusters", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Drag Drives",
+        experimental_engineers: [{ engineer: "Professor Palin", unlocked: true, status: "Unlocked" }, { engineer: "Chloe Sedesi", unlocked: false, status: "Known" }], experimental_reachable: true, experimental_assigned_to: "Professor Palin" },
+      // An experimental nobody unlocked offers.
+      { slot_name: "Small hardpoint 1", module_type: "Rail Gun", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Penetrator",
+        experimental_engineers: [{ engineer: "Tod McQuinn", unlocked: false, status: "Invited" }], experimental_reachable: false, experimental_assigned_to: null },
     ],
   };
 
-  it("one line per engineer, jobs grouped by blueprint and grade with the slots folded", () => {
-    expect(itinerary(report)).toEqual([
-      { engineer: "The Dweller", rank: 5, jobs: [{ what: "Long Range Weapon G4", module_type: "Pulse Laser", count: 7, slots: "Large hardpoints 1–4; Medium hardpoints 1–3" }] },
+  it("one line per engineer, jobs grouped by blueprint and grade with the slots folded, experimentals as their own jobs", () => {
+    const withPalin = { ...report, engineers: [...report.engineers, { engineer: "Professor Palin", rank: 5, jobs: [] }] };
+    expect(itinerary(withPalin)).toEqual([
+      { engineer: "The Dweller", rank: 5, jobs: [
+        { what: "Long Range Weapon G4", module_type: "Pulse Laser", count: 7, slots: "Large hardpoints 1–4; Medium hardpoints 1–3" },
+        { what: "Super Conduits (experimental)", module_type: "Power Distributor", count: 1, slots: "Power Distributor" },
+      ] },
+      { engineer: "Professor Palin", rank: 5, jobs: [{ what: "Drag Drives (experimental)", module_type: "Thrusters", count: 1, slots: "Thrusters" }] },
     ]);
   });
 
@@ -131,7 +143,9 @@ describe("the report reads as groups, not one line per slot", () => {
     expect(b.map((g) => [g.what, g.count, g.slots])).toEqual([
       ["Overcharged G5", 1, "Power Plant"],
       ["Resistance Augmented G5", 6, "Utility 1–3, 5–6, 8"],
+      ["Super Penetrator (experimental)", 1, "Small hardpoint 1"],
     ]);
+    expect(b[2]).toMatchObject({ today: [], unlock: [{ engineer: "Tod McQuinn", status: "Invited" }] });
     expect(b[1]).toMatchObject({ max_reachable_grade: 3, today: ["Lei Cheung"], unlock: [{ engineer: "Didi Vatermann", status: "Not known" }, { engineer: "Mel Brandon", status: "Known" }] });
     expect(b[0]).toMatchObject({ today: ["Marco Qwent"], unlock: [{ engineer: "Etienne Dorn", status: "Not known" }] });
   });

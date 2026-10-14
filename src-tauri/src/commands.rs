@@ -791,6 +791,26 @@ pub struct BlueprintAccess {
 /// engineer with their cap, whether someone unlocked offers `grade`, and
 /// the highest grade an unlocked engineer offers. None when the blueprint
 /// has no such grade. Shared by the command, the tool and the build plan.
+/// The engineer records for an experimental effect: who offers it and
+/// whether the commander has them unlocked. Effects have no grade ladder
+/// (`max_grade` and `rank_grade` 0).
+pub(crate) fn experimental_access(engineers: &[query::Engineer], names: &[String]) -> Vec<EngineerAccess> {
+    names
+        .iter()
+        .map(|n| {
+            let e = engineers.iter().find(|e| e.name.eq_ignore_ascii_case(n));
+            EngineerAccess {
+                engineer: n.clone(),
+                status: e.and_then(|e| e.progress.clone()).unwrap_or_else(|| "Not known".into()),
+                rank: e.and_then(|e| e.rank),
+                unlocked: e.is_some_and(|e| e.is_unlocked()),
+                max_grade: 0,
+                rank_grade: 0,
+            }
+        })
+        .collect()
+}
+
 /// The grade an engineer applies for this commander: the blueprint's
 /// offered cap, limited by the rank the journal reports with them (an
 /// engineer at rank N applies grades 1..=N); nothing while not unlocked.

@@ -40,11 +40,18 @@
   // fetched whenever the report changes (the boss, 2026-10-14).
   let tour = $state(null);
   let tourMsg = $state("");
+  // The report refreshes with the journal; the tour is only re-asked when
+  // the engineers or their jobs actually changed, and the old tour stays
+  // on screen until the new one lands (no blink -- the boss, 2026-10-14:
+  // "the window flashing every little while").
+  let tourKey = "";
   $effect(() => {
     const asks = planReport ? tourAsks(planReport) : [];
-    tour = null; tourMsg = "";
-    if (!asks.length) return;
-    engineerTour(asks).then((t) => { tour = t; }).catch((e) => { tourMsg = String(e); });
+    const key = JSON.stringify(asks);
+    if (key === tourKey) return;
+    tourKey = key;
+    if (!asks.length) { tour = null; tourMsg = ""; return; }
+    engineerTour(asks).then((t) => { if (tourKey === key) { tour = t; tourMsg = ""; } }).catch((e) => { if (tourKey === key) tourMsg = String(e); });
   });
   async function followTour() {
     if (!tour?.stops?.length) return;
