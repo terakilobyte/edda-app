@@ -57,9 +57,9 @@ describe("planRequest / proposedFor / savedFrom", () => {
     rows[3] = { ...rows[3], experimental: "Super Conduits", include: true };
     const req = planRequest(rows);
     expect(req).toEqual([
-      { slot: "LargeHardpoint1", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, target_grade: 4, experimental: null, fitted_engineer: null },
-      { slot: "LargeHardpoint2", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 0, target_grade: 4, experimental: null, fitted_engineer: null },
-      { slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 0, target_grade: 5, experimental: "Super Conduits", fitted_engineer: null },
+      { slot: "LargeHardpoint1", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 2, target_grade: 4, experimental: null, fitted_experimental: null },
+      { slot: "LargeHardpoint2", module_type: "Pulse Laser", blueprint: "Focused Weapon", from_grade: 0, target_grade: 4, experimental: null, fitted_experimental: null },
+      { slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 0, target_grade: 5, experimental: "Super Conduits", fitted_experimental: null },
     ]);
     // The SLEF export carries only blueprints (an experimental has no grade).
     expect(proposedFor(rows)).toEqual([
@@ -87,7 +87,7 @@ describe("planRequest / proposedFor / savedFrom", () => {
     expect(isPlanned({ ...rows[0], include: true })).toBe(false);
     const withX = { ...rows[0], experimental: "Super Conduits", include: true };
     expect(hasWork(withX)).toBe(true);
-    expect(planRequest([withX])).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Super Conduits", fitted_engineer: null }]);
+    expect(planRequest([withX])).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Super Conduits", fitted_experimental: null }]);
     expect(proposedFor([withX])).toEqual([]);
   });
 
@@ -126,6 +126,9 @@ describe("the report reads as groups, not one line per slot", () => {
         experimental_engineers: [{ engineer: "Selene Jean", unlocked: true, status: "Unlocked" }], experimental_reachable: true, experimental_assigned_to: "Selene Jean" },
       { slot_name: "Optional 5 (size 5)", module_type: "Hull Reinforcement Package", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Deep Plating",
         experimental_engineers: [{ engineer: "Selene Jean", unlocked: true, status: "Unlocked" }], experimental_reachable: true, experimental_assigned_to: "Selene Jean" },
+      // Thermal Spread wanted on a power plant never engineered, no blueprint planned: a blueprint first.
+      { slot_name: "Power Plant", module_type: "Power Plant", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Thermal Spread",
+        experimental_engineers: [], experimental_reachable: false, experimental_assigned_to: null, experimental_needs_blueprint: true },
       // An experimental nobody unlocked offers.
       { slot_name: "Small hardpoint 1", module_type: "Rail Gun", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Penetrator",
         experimental_engineers: [{ engineer: "Tod McQuinn", unlocked: false, status: "Invited" }], experimental_reachable: false, experimental_assigned_to: null },
@@ -152,9 +155,11 @@ describe("the report reads as groups, not one line per slot", () => {
     expect(b.map((g) => [g.what, g.count, g.slots])).toEqual([
       ["Overcharged G5", 1, "Power Plant"],
       ["Resistance Augmented G5", 6, "Utility 1–3, 5–6, 8"],
+      ["Thermal Spread (experimental)", 1, "Power Plant"],
       ["Super Penetrator (experimental)", 1, "Small hardpoint 1"],
     ]);
-    expect(b[2]).toMatchObject({ today: [], unlock: [{ engineer: "Tod McQuinn", status: "Invited" }] });
+    expect(b[2]).toMatchObject({ needs_blueprint: true, today: [], unlock: [] });
+    expect(b[3]).toMatchObject({ today: [], unlock: [{ engineer: "Tod McQuinn", status: "Invited" }] });
     expect(b[1]).toMatchObject({ max_reachable_grade: 3, today: ["Lei Cheung"], unlock: [{ engineer: "Didi Vatermann", status: "Not known" }, { engineer: "Mel Brandon", status: "Known" }] });
     expect(b[0]).toMatchObject({ today: ["Marco Qwent"], unlock: [{ engineer: "Etienne Dorn", status: "Not known" }] });
   });
@@ -287,7 +292,7 @@ describe("swaps: only what the slot takes, starting over", () => {
     expect(drive).toMatchObject({ swap: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4", module_type: "Frame Shift Drive", blueprint: "Increased FSD Range", from_grade: 5, include: false });
     expect(hasWork(drive)).toBe(false);
     expect(hasWork({ ...drive, experimental: "Mass Manager", include: true })).toBe(true);
-    expect(planRequest([{ ...drive, experimental: "Mass Manager", include: true }])).toEqual([{ slot: "FrameShiftDrive", module_type: "Frame Shift Drive", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Mass Manager", fitted_engineer: null }]);
+    expect(planRequest([{ ...drive, experimental: "Mass Manager", include: true }])).toEqual([{ slot: "FrameShiftDrive", module_type: "Frame Shift Drive", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Mass Manager", fitted_experimental: null }]);
     expect(swapsFrom([drive])).toEqual([{ slot: "FrameShiftDrive", item: "int_hyperdrive_overcharge_size4_class5", preset: "sco_v1_4" }]);
     const saved = savedFrom([rows[0], drive, rows[2], rows[3]]);
     expect(planRows(fitted, saved, slots)[1]).toMatchObject({ preset: "sco_v1_4", from_grade: 5, blueprint: "Increased FSD Range" });

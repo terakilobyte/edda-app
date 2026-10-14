@@ -53,7 +53,7 @@ export function planRows(modules, saved = {}, slots = null) {
       fitted_name: m?.item_name ?? slotInfo?.fitted_name ?? null,
       fitted_grade: fittedGrade,
       fitted_blueprint: fittedBlueprint,
-      fitted_engineer: m?.engineer ?? null,
+      fitted_experimental: m?.experimental ?? null,
       fitted_module_type: m?.module_type ?? null,
       swap,
       preset,
@@ -147,9 +147,9 @@ export function planRequest(rows) {
     from_grade: r.from_grade,
     target_grade: Number(r.target_grade),
     experimental: r.experimental || null,
-    // The engineer who did the fitted module: an experimental goes to them
-    // when they offer it. A swapped-in module has no such history.
-    fitted_engineer: r.swap ? null : r.fitted_engineer ?? null,
+    // The effect already on the fitted module: asking for it again is no
+    // work. A swapped-in module carries none.
+    fitted_experimental: r.swap ? null : r.fitted_experimental ?? null,
   }));
 }
 
@@ -258,8 +258,16 @@ export function itinerary(report) {
 export function blocked(report) {
   const groups = new Map();
   for (const it of report?.items ?? []) {
+    // An effect on a module that has never been engineered, with no
+    // blueprint planned: the way out is a blueprint, any grade.
+    if (it.experimental && it.experimental_needs_blueprint) {
+      const k = `${it.module_type}|${it.experimental} (experimental)|blueprint`;
+      if (!groups.has(k)) groups.set(k, { what: `${it.experimental} (experimental)`, module_type: it.module_type, target_grade: null, max_reachable_grade: null, today: [], unlock: [], needs_blueprint: true, slots: [] });
+      groups.get(k).slots.push(it.slot_name);
+      continue;
+    }
     // An experimental nobody unlocked offers: the way out is an unlock.
-    if (it.experimental && !it.experimental_reachable) {
+    if (it.experimental && !it.experimental_done && !it.experimental_reachable) {
       const k = `${it.module_type}|${it.experimental} (experimental)`;
       if (!groups.has(k)) {
         groups.set(k, {
@@ -292,7 +300,7 @@ export function blocked(report) {
   return [...groups.values()].map((g) => ({ ...g, count: g.slots.length, slots: compactSlots(g.slots) }));
 }
 
-const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_engineer: null, fitted_module_type: null, swap: null, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
+const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_experimental: null, fitted_module_type: null, swap: null, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
 
 /**
  * An imported build laid over the rows: every module the build has where
