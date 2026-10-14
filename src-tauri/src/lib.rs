@@ -509,6 +509,7 @@ pub fn run() {
             trade_follow::trade_follow_start,
             engineer_tour::engineer_tour,
             engineer_tour::engineer_tour_follow,
+            engineer_tour::engineer_tour_update,
             trade_follow::trade_follow_stop,
             trade_follow::trade_follow_status,
             carrier_follow::carrier_route_plot,

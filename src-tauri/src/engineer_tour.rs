@@ -14,7 +14,7 @@
 //! follower's multi-stop machinery (kind `engineers`, no cargo, no laps).
 
 use crate::state::AppState;
-use crate::trade_follow::{LegInput, StationRefInput};
+use crate::trade_follow::{LegInput, Phase, StationRefInput, TradeRoute};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
@@ -204,9 +204,158 @@ pub async fn engineer_tour_follow(app: tauri::AppHandle, state: State<'_, AppSta
     crate::trade_follow::trade_follow_start(app, state, legs, "engineers".into()).await
 }
 
+/// The itinerary shrank or moved while the tour is being followed: the
+/// jobs at a pad are done, so the plan re-ran, the panel re-asked the
+/// tour from here, and the follower must drop the engineers whose work is
+/// finished (the boss, 2026-10-14: "it'd be nice if the engineer tour
+/// removed engineers as we visited them and got the work done"). Quiet:
+/// no new opening line, no re-plot when the next stop is unchanged. One
+/// short note names what was finished and what is next. An empty tour
+/// ends the follow: every job on the plan is done. A no-op unless an
+/// engineer tour is the route being followed -- a trade route is never
+/// touched by the planner.
+#[tauri::command]
+pub async fn engineer_tour_update(app: tauri::AppHandle, state: State<'_, AppState>, tour: TourView) -> Result<serde_json::Value, String> {
+    use crate::events::EmitExt as _;
+    use crate::trade_follow::{clear, load, save, view};
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let (old, location, capacity, plotted_to, plotted_by_trade) = state.with_read(|s| {
+        let active = crate::follow::load(s.conn());
+        (
+            load(s.conn()),
+            ed_store::query::location(s.conn()).ok().flatten(),
+            crate::trade_follow::live_capacity(s.conn(), 0),
+            active.as_ref().and_then(|ar| ar.route.hops.last().map(|h| h.name.clone())),
+            active.is_some_and(|ar| ar.source == "trade"),
+        )
+    });
+    let Some(old) = old.filter(|r| r.kind == "engineers") else {
+        tracing::info!(stops = tour.stops.len(), "engineer tour update: no tour followed, nothing to do");
+        return Ok(view(load_current(&state).as_ref()));
+    };
+    if tour.stops.is_empty() {
+        tracing::info!(had = old.stops.len(), "engineer tour update: every job done, tour complete");
+        state.with_store(|s| {
+            clear(s.conn());
+            if plotted_by_trade {
+                let _ = s.conn().execute("DELETE FROM active_route WHERE id = 1", []);
+            }
+            Ok::<(), String>(())
+        })?;
+        state.events.emit(crate::events::TRADE_FOLLOW, view(None));
+        if plotted_by_trade {
+            use tauri::Emitter as _;
+            let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(None));
+        }
+        crate::watcher::deliver(&app, vec![(crate::callouts::Callout::new("trade", "", 1, true, "Every job on the plan is done, Commander: tour complete.".to_string()), None)]);
+        return Ok(view(None));
+    }
+    let legs = legs_of(&tour);
+    let capacity = if capacity > 0 { capacity } else { 1 };
+    let mut route = TradeRoute::new(&legs, "engineers", capacity, &old.lap_started).ok_or("the tour has no stops")?;
+    route.counters = old.counters.clone();
+    // Docked at the first stop with jobs still to do here: the departure is
+    // pending, the cursor already points at the stop after it (the same
+    // convention as a follow started while docked).
+    let docked_here = location.as_ref().filter(|l| l.docked).and_then(|l| l.station_name.clone().zip(l.system_name.clone()));
+    let here_system = location.as_ref().and_then(|l| l.system_name.clone()).unwrap_or_default();
+    if docked_here.is_some_and(|(st, sy)| route.rotate_to_station(None, &st, &sy)) {
+        route.phase = Phase::AtStop;
+        if route.stops.len() > 1 {
+            route.advance(&now);
+        }
+    }
+    let note = update_line(&old, &route);
+    let next_system = route.current().system.clone();
+    let replot = !next_system.eq_ignore_ascii_case(&here_system) && !plotted_to.as_deref().is_some_and(|p| p.eq_ignore_ascii_case(&next_system));
+    tracing::info!(
+        old = old.stops.len(),
+        new = route.stops.len(),
+        next = %next_system,
+        plotted = ?plotted_to,
+        replot,
+        dropped = note.is_some(),
+        "engineer tour update"
+    );
+    state.with_store(|s| save(s.conn(), &route))?;
+    state.events.emit(crate::events::TRADE_FOLLOW, view(Some(&route)));
+    if replot {
+        let app2 = app.clone();
+        tauri::async_runtime::spawn(async move { crate::trade_follow::plot_next(app2, next_system, None).await });
+    }
+    if let Some(text) = note {
+        crate::watcher::deliver(&app, vec![(crate::callouts::Callout::new("trade", "", 1, true, text), None)]);
+    }
+    Ok(view(Some(&route)))
+}
+
+fn load_current(state: &AppState) -> Option<TradeRoute> {
+    state.with_read(|s| crate::trade_follow::load(s.conn()))
+}
+
+/// The engineer of a tour stop, from the note the leg carries
+/// ("Felicity Farseer: Frame Shift Drive ...").
+fn engineer_of(stop: &crate::trade_follow::TradeStop) -> String {
+    stop.note.as_deref().unwrap_or(&stop.station).split(':').next().unwrap_or_default().trim().to_string()
+}
+
+/// What to say when the followed tour is replaced: the engineers no longer
+/// on it (their work is done) and where the tour now leads. Nothing when
+/// no stop was dropped -- a re-order alone is not worth a word.
+pub fn update_line(old: &TradeRoute, new: &TradeRoute) -> Option<String> {
+    let still: Vec<String> = new.stops.iter().map(engineer_of).collect();
+    let done: Vec<String> = old.stops.iter().map(engineer_of).filter(|e| !e.is_empty() && !still.contains(e)).collect();
+    if done.is_empty() {
+        return None;
+    }
+    let who = match done.len() {
+        1 => done[0].clone(),
+        n => format!("{} and {}", done[..n - 1].join(", "), done[n - 1]),
+    };
+    let next = new.current();
+    let left = match new.stops.len() {
+        1 => "one stop left".to_string(),
+        n => format!("{n} stops left"),
+    };
+    Some(format!("{who} done, Commander. Next: {} at {} in {}; {left}.", engineer_of(next), next.station, next.system))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tour_route(stops: &[(&str, &str, &str)]) -> TradeRoute {
+        let view = TourView {
+            from_system: "Sol".into(),
+            stops: stops
+                .iter()
+                .enumerate()
+                .map(|(i, (e, st, sy))| TourStop { engineer: e.to_string(), system: sy.to_string(), station: st.to_string(), system_id64: i as i64 + 1, pos: [0.0; 3], leg_ly: 1.0, jobs: vec!["a job".into()] })
+                .collect(),
+            total_ly: 1.0,
+            unplaced: vec![],
+        };
+        TradeRoute::new(&legs_of(&view), "engineers", 64, "2026-10-14T00:00:00Z").unwrap()
+    }
+
+    /// Felicity's FSD is rolled; the plan re-ran without her, the tour was
+    /// re-asked from Deciat, and the follower is told what changed.
+    #[test]
+    fn the_update_line_names_the_engineers_dropped_and_the_next_stop() {
+        let old = tour_route(&[("Felicity Farseer", "Farseer Inc", "Deciat"), ("Professor Palin", "Abel Laboratory", "Arque"), ("The Dweller", "Black Hide", "Wyrd")]);
+        let new = tour_route(&[("Professor Palin", "Abel Laboratory", "Arque"), ("The Dweller", "Black Hide", "Wyrd")]);
+        assert_eq!(update_line(&old, &new).as_deref(), Some("Felicity Farseer done, Commander. Next: Professor Palin at Abel Laboratory in Arque; 2 stops left."));
+        let two_gone = tour_route(&[("The Dweller", "Black Hide", "Wyrd")]);
+        assert_eq!(update_line(&old, &two_gone).as_deref(), Some("Felicity Farseer and Professor Palin done, Commander. Next: The Dweller at Black Hide in Wyrd; one stop left."));
+    }
+
+    /// The same stops in another order (the commander moved): nothing to say.
+    #[test]
+    fn a_reorder_alone_says_nothing() {
+        let old = tour_route(&[("Felicity Farseer", "Farseer Inc", "Deciat"), ("The Dweller", "Black Hide", "Wyrd")]);
+        let new = tour_route(&[("The Dweller", "Black Hide", "Wyrd"), ("Felicity Farseer", "Farseer Inc", "Deciat")]);
+        assert_eq!(update_line(&old, &new), None);
+    }
 
     fn p(x: f32, y: f32) -> [f32; 3] {
         [x, y, 0.0]

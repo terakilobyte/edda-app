@@ -7,8 +7,8 @@
   // pooled, one shopping list, the fewest engineers to visit. Its own page
   // with a ship dropdown (maintainer, 2026-09-20); the Ships tab's Plan
   // build lands here.
-  import { shipsList, hullsList, shipModules, slotOptions, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance, engineerTour, engineerTourFollow } from "./api.js";
-  import { tradeFollow } from "./tradeFollow.svelte.js";
+  import { shipsList, hullsList, shipModules, slotOptions, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance, engineerTour, engineerTourFollow, engineerTourUpdate } from "./api.js";
+  import { tradeFollow, stopTrade } from "./tradeFollow.svelte.js";
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
@@ -43,16 +43,30 @@
   // The report refreshes with the journal; the tour is only re-asked when
   // the engineers or their jobs actually changed, and the old tour stays
   // on screen until the new one lands (no blink -- the boss, 2026-10-14:
-  // "the window flashing every little while").
+  // "the window flashing every little while"). A tour being followed is
+  // kept in step: the follower drops the engineers whose jobs are done
+  // and ends when the plan is (the boss, 2026-10-14: "removed engineers
+  // as we visited them and got the work done"). Only a report moves the
+  // follower -- a plan being edited (no report yet) leaves it alone.
   let tourKey = "";
   $effect(() => {
-    const asks = planReport ? tourAsks(planReport) : [];
+    if (!planReport) { tourKey = ""; tour = null; tourMsg = ""; return; }
+    const asks = tourAsks(planReport);
     const key = JSON.stringify(asks);
     if (key === tourKey) return;
     tourKey = key;
-    if (!asks.length) { tour = null; tourMsg = ""; return; }
-    engineerTour(asks).then((t) => { if (tourKey === key) { tour = t; tourMsg = ""; } }).catch((e) => { if (tourKey === key) tourMsg = String(e); });
+    if (!asks.length) { tour = null; tourMsg = ""; syncFollow({ from_system: "", stops: [], total_ly: 0, unplaced: [] }); return; }
+    engineerTour(asks).then((t) => { if (tourKey === key) { tour = t; tourMsg = ""; syncFollow(t); } }).catch((e) => { if (tourKey === key) tourMsg = String(e); });
   });
+  function syncFollow(t) {
+    if (!(tradeFollow.active && tradeFollow.kind === "engineers")) return;
+    engineerTourUpdate(t).catch((e) => { tourMsg = String(e); });
+  }
+  async function stopTour() {
+    tourMsg = "";
+    await stopTrade();
+    if (tradeFollow.error) tourMsg = tradeFollow.error;
+  }
   async function followTour() {
     if (!tour?.stops?.length) return;
     tourMsg = "";
@@ -495,7 +509,7 @@
         </ol>
         {#if tour.unplaced?.length}<p class="warn small bounded">Not on the tour: {tour.unplaced.join("; ")}.</p>{/if}
         <p class="small muted">
-          {#if tradeFollow.active && tradeFollow.kind === "engineers"}Following the tour: the HUD shows the stops and each arrival is briefed.{:else}<button class="quiet tiny" onclick={followTour}>Follow tour</button> plots each leg as you go and briefs you at every engineer's pad.{/if}
+          {#if tradeFollow.active && tradeFollow.kind === "engineers"}Following the tour: the HUD shows the stops, each arrival is briefed, and an engineer leaves the tour once the work there is done. <button class="quiet tiny" onclick={stopTour}>Stop following</button>{:else}<button class="quiet tiny" onclick={followTour}>Follow tour</button> plots each leg as you go and briefs you at every engineer's pad.{/if}
           {#if tourMsg}<span class="warn"> {tourMsg}</span>{/if}
         </p>
       {:else if tourMsg}
