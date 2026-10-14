@@ -17,8 +17,63 @@
 //! increase with time, so ties in `ts` resolve correctly.
 
 use anyhow::Result;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
+
+/// The `Engineering` object a Loadout carries for a module, built from an
+/// EngineerCraft event (same field names; the craft has them all).
+fn engineering_of(craft: &Value) -> Value {
+    let mut e = serde_json::Map::new();
+    for key in ["Engineer", "EngineerID", "BlueprintID", "BlueprintName", "Level", "Quality", "ExperimentalEffect", "ExperimentalEffect_Localised", "Modifiers"] {
+        if let Some(x) = craft.get(key) {
+            e.insert(key.to_string(), x.clone());
+        }
+    }
+    Value::Object(e)
+}
+
+/// Set `Engineering` on the module in `slot` of a Loadout value (the
+/// module name is checked too: a craft on a module the stored ship does
+/// not hold any more is ignored). `true` when a module was patched.
+fn patch_module_engineering(loadout: &mut Value, slot: &str, module: &str, eng: &Value) -> bool {
+    let Some(modules) = loadout.get_mut("Modules").and_then(Value::as_array_mut) else { return false };
+    for m in modules.iter_mut() {
+        let same_slot = m.get("Slot").and_then(Value::as_str).is_some_and(|x| x.eq_ignore_ascii_case(slot));
+        let same_item = m.get("Item").and_then(Value::as_str).is_some_and(|x| x.eq_ignore_ascii_case(module));
+        if same_slot && same_item {
+            if let Some(obj) = m.as_object_mut() {
+                obj.insert("Engineering".into(), eng.clone());
+            }
+            return true;
+        }
+    }
+    false
+}
+
+/// Patch the rows already written: the current ship's `loadout.modules`
+/// and the newest `ships.raw` (the Loadout of the ship being flown is the
+/// newest one on record -- a swap writes a fresh Loadout).
+fn patch_stored_engineering(tx: &rusqlite::Transaction<'_>, slot: &str, module: &str, eng: &Value) -> rusqlite::Result<()> {
+    if let Some(text) = tx.query_row("SELECT modules FROM loadout WHERE id = 1", [], |r| r.get::<_, Option<String>>(0)).optional()?.flatten() {
+        if let Ok(modules) = serde_json::from_str::<Value>(&text) {
+            let mut wrapped = serde_json::json!({ "Modules": modules });
+            if patch_module_engineering(&mut wrapped, slot, module, eng) {
+                tx.execute("UPDATE loadout SET modules = ?1 WHERE id = 1", [wrapped["Modules"].to_string()])?;
+            }
+        }
+    }
+    if let Some((ship_id, raw)) = tx
+        .query_row("SELECT ship_id, raw FROM ships WHERE raw IS NOT NULL ORDER BY loadout_ts DESC LIMIT 1", [], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+        .optional()?
+    {
+        if let Ok(mut v) = serde_json::from_str::<Value>(&raw) {
+            if patch_module_engineering(&mut v, slot, module, eng) {
+                tx.execute("UPDATE ships SET raw = ?1 WHERE ship_id = ?2", params![v.to_string(), ship_id])?;
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Events that actually feed a derived table. Everything else stays in the
 /// log for later phases -- filtering here keeps a re-derive from parsing
@@ -448,6 +503,22 @@ fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Resul
                 }
             }
 
+            // An engineering craft rewrites one module now; the game's next
+            // Loadout comes minutes later (the boss's journal, 2026-10-14:
+            // three crafts at 15:29-15:30Z, the Loadout at 15:32:33Z, on
+            // leaving the workshop), so the stored ship is patched here --
+            // the batch's own Loadout in memory, and the rows already
+            // written -- and the build planner sees the new grade at once.
+            "EngineerCraft" => {
+                if let (Some(slot), Some(module)) = (s(&v, "Slot"), s(&v, "Module")) {
+                    let eng = engineering_of(&v);
+                    if let Some((_, lv)) = loadout.as_mut() {
+                        patch_module_engineering(lv, &slot, &module, &eng);
+                    }
+                    patch_stored_engineering(&tx, &slot, &module, &eng)?;
+                    ship_events = true;
+                }
+            }
             "Loadout" => {
                 loadout = Some((ts.clone(), v.clone()));
                 ship_events = true;
@@ -819,6 +890,39 @@ mod resume_tests {
     /// The boss's 2026-10-03 afternoon: the 13:04 roll-call has Broo
     /// Tarquin "Invited"; at 14:14 the game writes the single-engineer
     /// form — Unlocked, Rank 1 — then four rank-ups to 5 with no Progress
+    /// An engineering craft is on the ship the moment it lands: the stored
+    /// Loadout's module carries the new `Engineering` (level, blueprint,
+    /// modifiers) before the game writes its next Loadout minutes later.
+    /// Both paths: the craft in the same batch as the Loadout, and in a
+    /// later batch against rows already written.
+    #[test]
+    fn an_engineer_craft_updates_the_stored_module_at_once() {
+        let conn = db();
+        let ev = |offset: i64, ts: &str, event: &str, raw: &str| {
+            conn.execute("INSERT INTO events (file, offset, ts, event, raw) VALUES (?1, ?2, ?3, ?4, ?5)", params![NEW, offset, ts, event, raw]).unwrap();
+        };
+        ev(1, "2026-10-14T15:00:00Z", "Loadout", r#"{"timestamp":"2026-10-14T15:00:00Z","event":"Loadout","Ship":"corsair","ShipID":7,"ShipName":"","ShipIdent":"WI-06C","UnladenMass":500.0,"MaxJumpRange":20.2,"FuelCapacity":{"Main":32.0,"Reserve":1.0},"Modules":[{"Slot":"PowerDistributor","Item":"int_powerdistributor_size7_class5","On":true,"Priority":0,"Engineering":{"Engineer":"The Dweller","EngineerID":300180,"BlueprintID":128673739,"BlueprintName":"PowerDistributor_HighFrequency","Level":3,"Quality":0.8,"Modifiers":[]}},{"Slot":"FrameShiftDrive","Item":"int_hyperdrive_size5_class5","On":true,"Priority":0}]}"#);
+        ev(2, "2026-10-14T15:30:24Z", "EngineerCraft", r#"{"timestamp":"2026-10-14T15:30:24Z","event":"EngineerCraft","Slot":"PowerDistributor","Module":"int_powerdistributor_size7_class5","ApplyExperimentalEffect":"special_powerdistributor_fast","Engineer":"The Dweller","EngineerID":300180,"BlueprintID":128673739,"BlueprintName":"PowerDistributor_HighFrequency","Level":5,"Quality":1.0,"ExperimentalEffect":"special_powerdistributor_fast","Modifiers":[{"Label":"WeaponsCapacity","Value":60.0,"OriginalValue":50.0,"LessIsGood":0}]}"#);
+        derive_all(&conn).unwrap();
+        let level = |slot: &str| -> (i64, i64) {
+            let modules: String = conn.query_row("SELECT modules FROM loadout WHERE id = 1", [], |r| r.get(0)).unwrap();
+            let raw: String = conn.query_row("SELECT raw FROM ships WHERE ship_id = 7", [], |r| r.get(0)).unwrap();
+            let pick = |v: &serde_json::Value| v.as_array().unwrap().iter().find(|m| m["Slot"] == slot).and_then(|m| m["Engineering"]["Level"].as_i64()).unwrap_or(0);
+            (pick(&serde_json::from_str(&modules).unwrap()), pick(&serde_json::from_str::<serde_json::Value>(&raw).unwrap()["Modules"]))
+        };
+        assert_eq!(level("PowerDistributor"), (5, 5), "same batch: both stored copies carry the G5 craft");
+        assert_eq!(level("FrameShiftDrive"), (0, 0), "an untouched slot stays untouched");
+        // A later craft on the FSD, in its own batch, against the rows already written.
+        ev(3, "2026-10-14T16:00:00Z", "EngineerCraft", r#"{"timestamp":"2026-10-14T16:00:00Z","event":"EngineerCraft","Slot":"FrameShiftDrive","Module":"int_hyperdrive_size5_class5","Engineer":"Felicity Farseer","EngineerID":300100,"BlueprintID":128673694,"BlueprintName":"FSD_LongRange","Level":5,"Quality":1.0,"Modifiers":[]}"#);
+        derive_incremental(&conn).unwrap();
+        assert_eq!(level("FrameShiftDrive"), (5, 5), "later batch: the rows are patched in place");
+        assert_eq!(level("PowerDistributor"), (5, 5));
+        // A craft for a module the stored ship does not hold is ignored.
+        ev(4, "2026-10-14T16:01:00Z", "EngineerCraft", r#"{"timestamp":"2026-10-14T16:01:00Z","event":"EngineerCraft","Slot":"FrameShiftDrive","Module":"int_hyperdrive_size6_class5","Engineer":"Felicity Farseer","EngineerID":300100,"BlueprintID":128673694,"BlueprintName":"FSD_LongRange","Level":2,"Quality":1.0,"Modifiers":[]}"#);
+        derive_incremental(&conn).unwrap();
+        assert_eq!(level("FrameShiftDrive"), (5, 5), "a different module in that slot: not this ship's, left alone");
+    }
+
     /// field. All of it must land, in order; a later roll-call still resets.
     #[test]
     fn a_single_engineer_progress_event_updates_the_table() {

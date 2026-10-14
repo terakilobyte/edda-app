@@ -158,7 +158,7 @@
       {/if}
       <div class="row small" style="margin-top:0.3rem">
         {#each eng.access.engineers as e}
-          <span class="pill {e.unlocked ? 'ok' : e.status === 'Not known' ? 'bad' : 'warn'} {e.max_grade < eng.access.grade ? 'dim' : ''}" title={e.max_grade < eng.access.grade ? `${e.engineer} stops at grade ${e.max_grade}` : `${e.engineer} offers this to grade ${e.max_grade}`}>{e.engineer} · {e.status}{e.rank ? ` · rank ${e.rank}` : ""} · to G{e.max_grade}</span>
+          <span class="pill {e.unlocked ? 'ok' : e.status === 'Not known' ? 'bad' : 'warn'} {(e.rank_grade ?? e.max_grade) < eng.access.grade ? 'dim' : ''}" title={e.max_grade < eng.access.grade ? `${e.engineer} stops at grade ${e.max_grade}` : e.unlocked && e.rank_grade < e.max_grade ? `${e.engineer} offers this to grade ${e.max_grade}; at rank ${e.rank ?? 0} you get grade ${e.rank_grade} today` : `${e.engineer} offers this to grade ${e.max_grade}`}>{e.engineer} · {e.status}{e.rank ? ` · rank ${e.rank}` : ""} · to G{e.max_grade}{#if e.unlocked && e.rank_grade < e.max_grade}{` · G${e.rank_grade} for you`}{/if}</span>
         {/each}
       </div>
     </div>

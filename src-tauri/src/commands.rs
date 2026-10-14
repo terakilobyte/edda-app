@@ -767,6 +767,13 @@ pub struct EngineerAccess {
     /// holds EVERY engineer who works the blueprint at any grade, so one
     /// who stops short of the asked grade is still shown, with this cap.
     pub max_grade: i64,
+    /// The grade this engineer will apply for THIS commander today: the
+    /// offered cap limited by the commander's rank with them (rank 4
+    /// means grades 1-4). 0 while not unlocked. The boss, 2026-10-14,
+    /// offered Elvira Martuuk at rank 4 for a G5 FSD with Felicity
+    /// Farseer at rank 5 in the same journal: "why are we recommending
+    /// this when I have felicity farseer fully unlocked?"
+    pub rank_grade: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -784,6 +791,16 @@ pub struct BlueprintAccess {
 /// engineer with their cap, whether someone unlocked offers `grade`, and
 /// the highest grade an unlocked engineer offers. None when the blueprint
 /// has no such grade. Shared by the command, the tool and the build plan.
+/// The grade an engineer applies for this commander: the blueprint's
+/// offered cap, limited by the rank the journal reports with them (an
+/// engineer at rank N applies grades 1..=N); nothing while not unlocked.
+pub(crate) fn rank_grade(max_grade: i64, rank: Option<i64>, unlocked: bool) -> i64 {
+    if !unlocked {
+        return 0;
+    }
+    max_grade.min(rank.unwrap_or(0)).max(0)
+}
+
 pub(crate) fn access_for(
     engineers: &[query::Engineer],
     engineering: &ed_engineering::Catalog,
@@ -804,15 +821,20 @@ pub(crate) fn access_for(
         .into_iter()
         .map(|(e, max_grade)| {
             let (status, rank, unlocked) = status_of(&e);
-            EngineerAccess { engineer: e, status, rank, unlocked, max_grade }
+            let rank_grade = rank_grade(max_grade, rank, unlocked);
+            EngineerAccess { engineer: e, status, rank, unlocked, max_grade, rank_grade }
         })
         .collect();
-    // Reachable means someone unlocked offers THIS grade.
-    let reachable = bp.engineers.iter().any(|e| status_of(e).2);
+    // Reachable means someone unlocked, and ranked for it, offers THIS grade.
+    let can = |e: &str, g: i64| {
+        let (_, rank, unlocked) = status_of(e);
+        rank_grade(g, rank, unlocked) >= g
+    };
+    let reachable = bp.engineers.iter().any(|e| can(e, grade));
     let mut max_reachable_grade = None;
     for g in 1..=5 {
         if let Some(b) = engineering.find(module_type, name, g) {
-            if b.engineers.iter().any(|e| status_of(e).2) {
+            if b.engineers.iter().any(|e| can(e, g)) {
                 max_reachable_grade = Some(g);
             }
         }
@@ -1712,6 +1734,7 @@ pub async fn check_experimental(
                 unlocked: e.is_some_and(|e| e.is_unlocked()),
                 // An experimental effect has no grade ladder.
                 max_grade: 0,
+                rank_grade: 0,
             }
         })
         .collect();
@@ -3435,3 +3458,21 @@ mod powerplay_vocabulary_tests {
         assert_eq!(states[0], "stronghold", "the table's own spelling is kept");
     }
 }
+
+#[cfg(test)]
+mod rank_grade_tests {
+    use super::rank_grade;
+
+    /// Rank N with an engineer applies grades 1..=N, never past the
+    /// blueprint's own cap, and nothing while not unlocked (the boss,
+    /// 2026-10-14: Elvira at rank 4 was offered for a G5 FSD).
+    #[test]
+    fn an_engineer_applies_grades_up_to_the_commanders_rank() {
+        assert_eq!(rank_grade(5, Some(4), true), 4, "Elvira at rank 4: G4 today, not G5");
+        assert_eq!(rank_grade(5, Some(5), true), 5, "Felicity at rank 5: G5");
+        assert_eq!(rank_grade(3, Some(5), true), 3, "a blueprint capped at G3 stays G3");
+        assert_eq!(rank_grade(5, None, true), 0, "unlocked with no rank on record: nothing yet");
+        assert_eq!(rank_grade(5, Some(5), false), 0, "not unlocked: nothing");
+    }
+}
+

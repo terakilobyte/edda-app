@@ -623,6 +623,40 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Engineers: the rank gates the grade; a craft is on the ship at once**
+  (2026-10-14, the boss: "why are we recommending this when I have
+  felicity farseer fully unlocked?" -- the build plan offered Elvira
+  Martuuk, rank 4, for a G5 FSD range job with Felicity Farseer at rank 5
+  in the same journal). The candidate filter and `access_for` used only
+  the blueprint's offered cap (`max_grade`); an engineer applies grades
+  1..=rank, so `EngineerAccess.rank_grade` = min(cap, rank) now gates
+  candidates, "reachable" and the max reachable grade, and the
+  Engineering panel says "G4 for you" beside "to G5". Second question,
+  "when I apply an engineering upgrade does that not reflect in the
+  journal and our ship in real time?": the game writes `EngineerCraft`
+  at the craft with the module's full `Engineering` block, but its next
+  `Loadout` only minutes later (his journal: crafts 15:29-15:30Z, Loadout
+  15:32:33Z, on leaving the workshop), and only Loadout fed the stored
+  ship. `derive` now patches the stored module from the craft (the
+  batch's own Loadout in memory and the written `loadout.modules` /
+  `ships.raw` rows; a craft naming a module the ship no longer holds is
+  ignored), so the planner's "from grade" moves the moment the craft
+  lands. Tests: `rank_grade` table; a derive test over both batch paths.
+- **OPEN -- an engineer tour** (the boss, 2026-10-14): "calculate the
+  optimal route to visit engineers and follow it like a multi-step trade
+  route. From current location, visit engineer a, then engineer b, and
+  so on." Shape: the build plan's itinerary (fewest engineers by set
+  cover) becomes an ordered tour from the current system -- engineers'
+  home systems are fixed facts (vendor the EDCD/wiki table, one row per
+  engineer with system and station), order by nearest-neighbour then a
+  2-opt pass on straight-line distance (a dozen stops at most, exact is
+  cheap), each leg plotted by the route server on demand, and followed
+  with the trade-route follower's multi-stop machinery (`trade-follow`
+  events, "next stop" callouts, dock memo). Measure before building: how
+  often the planner's itinerary has 3+ stops in real journals, and the
+  straight-line vs plotted-jump ordering difference on the six-engineer
+  bubble cluster (Deciat, Khun, Kuk, Wolf 397, Leesti, Laksak).
+
 - **Code-sign the Windows binary** (2026-10-07, launch night; open).
   One of the first downloaders put `edda.exe` on VirusTotal at
   18:47Z: 1 of 48 engines flagged it, Trapmine's "Malicious.moderate.

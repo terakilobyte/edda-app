@@ -303,9 +303,12 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             }
             jobs.push(Job {
                 label: format!("{label} G{}", it.target_grade),
+                // A candidate must be unlocked AND ranked for the grade: the
+                // offered cap alone put Elvira Martuuk (rank 4) on a G5 FSD
+                // job with Felicity Farseer at rank 5 (the boss, 2026-10-14).
                 candidates: access
                     .iter()
-                    .filter(|a| a.unlocked && a.max_grade >= it.target_grade)
+                    .filter(|a| a.unlocked && a.rank_grade >= it.target_grade)
                     .map(|a| (a.engineer.clone(), a.rank))
                     .collect(),
             });
