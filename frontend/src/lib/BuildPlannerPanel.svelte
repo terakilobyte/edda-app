@@ -7,11 +7,12 @@
   // pooled, one shopping list, the fewest engineers to visit. Its own page
   // with a ship dropdown (maintainer, 2026-09-20); the Ships tab's Plan
   // build lands here.
-  import { shipsList, hullsList, shipModules, slotOptions, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance } from "./api.js";
+  import { shipsList, hullsList, shipModules, slotOptions, shipSlef, listBlueprintNames, buildPlanReport, importBuild, buildPerformance, engineerTour, engineerTourFollow } from "./api.js";
+  import { tradeFollow } from "./tradeFollow.svelte.js";
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
-  import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport } from "./buildplan.js";
+  import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport, tourAsks, tourLines } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { useTabActive, journalResource } from "./lifecycle.svelte.js";
   import Place from "./Place.svelte";
@@ -35,6 +36,21 @@
   let rows = $state([]);
   let bpOptions = $state({});      // module type → [{name, grades}]
   let planReport = $state(null);
+  // The engineer tour for the itinerary: ordered from the current system,
+  // fetched whenever the report changes (the boss, 2026-10-14).
+  let tour = $state(null);
+  let tourMsg = $state("");
+  $effect(() => {
+    const asks = planReport ? tourAsks(planReport) : [];
+    tour = null; tourMsg = "";
+    if (!asks.length) return;
+    engineerTour(asks).then((t) => { tour = t; }).catch((e) => { tourMsg = String(e); });
+  });
+  async function followTour() {
+    if (!tour?.stops?.length) return;
+    tourMsg = "";
+    try { await engineerTourFollow(tour); } catch (e) { tourMsg = String(e); }
+  }
   let planBusy = $state(false);
   let planMsg = $state("");
   let planPicked = $state(new Set());
@@ -450,6 +466,21 @@
           {#each stop.jobs as j}<div style="margin-left:1rem">{j.count > 1 ? `${j.count} × ` : ""}{j.module_type} {j.what} <span class="muted">({j.slots})</span></div>{/each}
         </div>
       {/each}
+      {#if tour?.stops?.length}
+        <h3 style="margin-top:0.8rem">Tour <span class="muted">from {tour.from_system}, shortest path through every stop, {Math.round(tour.total_ly)} ly straight-line</span></h3>
+        <ol class="small tour" style="margin:0.3rem 0 0.3rem 1.2rem">
+          {#each tourLines(tour) as leg}
+            <li><strong>{leg.engineer}</strong> · {leg.where} <span class="muted">· {leg.leg}</span></li>
+          {/each}
+        </ol>
+        {#if tour.unplaced?.length}<p class="warn small bounded">Not on the tour: {tour.unplaced.join("; ")}.</p>{/if}
+        <p class="small muted">
+          {#if tradeFollow.active && tradeFollow.kind === "engineers"}Following the tour: the HUD shows the stops and each arrival is briefed.{:else}<button class="quiet tiny" onclick={followTour}>Follow tour</button> plots each leg as you go and briefs you at every engineer's pad.{/if}
+          {#if tourMsg}<span class="warn"> {tourMsg}</span>{/if}
+        </p>
+      {:else if tourMsg}
+        <p class="warn small bounded">Tour: {tourMsg}</p>
+      {/if}
       {#if blocked(planReport).length}
         <h3 style="margin-top:0.6rem">Not reachable yet <span class="muted">no unlocked engineer offers the asked grade</span></h3>
         {#each blocked(planReport) as b}

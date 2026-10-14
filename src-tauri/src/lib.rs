@@ -35,6 +35,7 @@ mod listen;
 mod metrics;
 mod time_fit;
 mod trade_follow;
+mod engineer_tour;
 mod trade_timing;
 mod overlay;
 mod persona;
@@ -506,6 +507,8 @@ pub fn run() {
             data_location_get,
             data_location_choose,
             trade_follow::trade_follow_start,
+            engineer_tour::engineer_tour,
+            engineer_tour::engineer_tour_follow,
             trade_follow::trade_follow_stop,
             trade_follow::trade_follow_status,
             carrier_follow::carrier_route_plot,

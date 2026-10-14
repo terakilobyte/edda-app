@@ -204,6 +204,26 @@ export function compactSlots(names) {
 const jobKey = (it) => `${it.blueprint} G${it.target_grade}`;
 
 /** The itinerary, one line per engineer, each job grouped by blueprint and grade. */
+/** What the tour command is asked for: the itinerary's engineers with
+ * their jobs as short lines ("2 × Frame Shift Drive Increased Range G5"). */
+export function tourAsks(report) {
+  return itinerary(report).map((stop) => ({
+    engineer: stop.engineer,
+    jobs: stop.jobs.map((j) => `${j.count > 1 ? `${j.count} × ` : ""}${j.module_type} ${j.what}`),
+  }));
+}
+
+/** The tour as one line per leg for the panel: "Farseer Inc (Deciat) · 12 ly". */
+export function tourLines(tour) {
+  if (!tour?.stops?.length) return [];
+  return tour.stops.map((s) => ({
+    engineer: s.engineer,
+    where: `${s.station} (${s.system})`,
+    leg: `${Math.round(s.leg_ly)} ly`,
+    jobs: s.jobs ?? [],
+  }));
+}
+
 export function itinerary(report) {
   return (report?.engineers ?? []).map((stop) => {
     const mine = report.items.filter((it) => it.assigned_to === stop.engineer);

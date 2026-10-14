@@ -249,12 +249,12 @@
              its goods, the current one highlighted. Supersedes the passive
              pinned loop while active. -->
         <div class="line loop trade {compact(id)}">
-          <span class="lbl">TRADE ROUTE{tradeFollow.lap > 1 ? ` · lap ${tradeFollow.lap}` : ""}</span>
+          <span class="lbl">{tradeFollow.kind === "engineers" ? "ENGINEER TOUR" : "TRADE ROUTE"}{tradeFollow.cycle && tradeFollow.lap > 1 ? ` · lap ${tradeFollow.lap}` : ""}</span>
           {#if interactive}<button class="quiet small" title="Stop following" onclick={stopTrade}>✕</button>{/if}
           <span>
             {#each tradeFollow.stops as s, i}
               {#if i > 0} → {/if}<strong class={i === tradeFollow.at ? "now" : "muted"}>{s.station}</strong>
-              <span class="muted small">({s.system}){#each s.sell as g} sell {g.commodity} ×{g.tons}{/each}{#each s.buy as g} buy {g.commodity} ×{g.tons}{/each}</span>
+              <span class="muted small">({s.system}){#if s.note} {s.note}{/if}{#each s.sell as g} sell {g.commodity} ×{g.tons}{/each}{#each s.buy as g} buy {g.commodity} ×{g.tons}{/each}</span>
             {/each}
           </span>
         </div>
