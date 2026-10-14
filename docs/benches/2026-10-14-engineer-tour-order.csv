@@ -1,0 +1,11 @@
+# Engineer tour ordering (2026-10-14). VERDICT: the straight-line optimum
+# (what the tour ships) is also the fewest plotted jumps on the bubble
+# cluster -- 13 against 14 for nearest-neighbour and 15 for the reversed
+# optimum -- so straight-line ordering stands; no plotted-leg ordering
+# needed. Seven core engineers from Sol, each leg plotted on prod
+# (/v1/route, 72 ly, supercharge on, quick) by
+# docs/benches/knobs/engineer_tour_order.py; coordinates from EDSM.
+order,stops,straight_ly,total_jumps,legs
+straight-line exact,The Dweller > Selene Jean > Tod McQuinn > Felicity Farseer > Didi Vatermann > Lei Cheung > Elvira Martuuk,743,13,Sol->Wyrd=1 | Wyrd->Kuk=1 | Kuk->Wolf 397=1 | Wolf 397->Deciat=2 | Deciat->Leesti=2 | Leesti->Laksak=2 | Laksak->Khun=4
+nearest-neighbour,The Dweller > Selene Jean > Tod McQuinn > Didi Vatermann > Lei Cheung > Felicity Farseer > Elvira Martuuk,860,14,Sol->Wyrd=1 | Wyrd->Kuk=1 | Kuk->Wolf 397=1 | Wolf 397->Leesti=2 | Leesti->Laksak=2 | Laksak->Deciat=4 | Deciat->Khun=3
+exact reversed,Elvira Martuuk > Lei Cheung > Didi Vatermann > Felicity Farseer > Tod McQuinn > Selene Jean > The Dweller,891,15,Sol->Khun=3 | Khun->Laksak=4 | Laksak->Leesti=2 | Leesti->Deciat=2 | Deciat->Wolf 397=2 | Wolf 397->Kuk=1 | Kuk->Wyrd=1
