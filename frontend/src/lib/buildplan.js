@@ -227,8 +227,12 @@ export function tourLines(tour) {
 export function itinerary(report) {
   return (report?.engineers ?? []).map((stop) => {
     const groups = new Map();
-    const add = (k, it) => {
-      if (!groups.has(k)) groups.set(k, { what: k, module_type: it.module_type, slots: [] });
+    // Grouped by module type AND job: Deep Plating on the bulkheads is not
+    // the same job as Deep Plating on four hull reinforcement packages
+    // (the boss's plan, 2026-10-14, read "5 × Armour Deep Plating").
+    const add = (what, it) => {
+      const k = `${it.module_type}|${what}`;
+      if (!groups.has(k)) groups.set(k, { what, module_type: it.module_type, slots: [] });
       groups.get(k).slots.push(it.slot_name);
     };
     for (const it of report.items ?? []) {
