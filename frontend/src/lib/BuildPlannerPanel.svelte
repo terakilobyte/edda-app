@@ -493,7 +493,7 @@
         {#each blocked(planReport) as b}
           <div class="small" style="margin:0.3rem 0"><span class="bad">{b.count > 1 ? `${b.count} × ` : ""}{b.module_type} {b.what}</span> <span class="muted">({b.slots})</span>
             <div style="margin-left:1rem">
-              {#if b.max_reachable_grade}Today: to G{b.max_reachable_grade} with {b.today.join(" or ")}.{:else}Nobody unlocked works this blueprint.{/if}
+              {#if b.needs_blueprint}The module has never been engineered: apply any blueprint first, then the effect goes on with it.{:else if b.max_reachable_grade}Today: to G{b.max_reachable_grade} with {b.today.join(" or ")}.{:else}Nobody unlocked works this blueprint.{/if}
               {#if b.unlock.length}For G{b.target_grade}: unlock {b.unlock.map((u) => `${u.engineer} (${u.status.toLowerCase()})`).join(" or ")}.{/if}
             </div>
           </div>

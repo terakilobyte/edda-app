@@ -38,16 +38,37 @@ pub struct PlanItem {
     pub target_grade: i64,
     #[serde(default)]
     pub experimental: Option<String>,
-    /// Who engineered the fitted module, from the ship's Loadout (the
-    /// boss, 2026-10-14, thrusters already Dirty Drives G5 by Palin: "if
-    /// the engineer modifies them assume that blueprint is applied" --
-    /// the experimental goes to the engineer who did the module). None
-    /// for a swap or an unengineered module.
+    /// The experimental effect already on the fitted module, from the
+    /// ship's Loadout (localised name). An effect the module already has
+    /// is nothing to do; none for a swap.
     #[serde(default)]
-    pub fitted_engineer: Option<String>,
+    pub fitted_experimental: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+/// Whether an asked-for experimental effect is work at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExperimentalState {
+    /// Already on the module: no job, no stop, no materials.
+    Done,
+    /// The module has never been engineered and no blueprint is planned:
+    /// an effect cannot be applied to an unengineered module (the boss,
+    /// 2026-10-14: "the trick is that the module has to at least be
+    /// engineered once").
+    NeedsBlueprint,
+    Open,
+}
+
+pub fn experimental_state(planned: &str, fitted: Option<&str>, from_grade: i64, has_blueprint: bool) -> ExperimentalState {
+    if fitted.is_some_and(|f| f.eq_ignore_ascii_case(planned)) {
+        ExperimentalState::Done
+    } else if from_grade < 1 && !has_blueprint {
+        ExperimentalState::NeedsBlueprint
+    } else {
+        ExperimentalState::Open
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct PlanItemReport {
     pub slot: String,
     pub slot_name: String,
@@ -80,8 +101,13 @@ pub struct PlanItemReport {
     /// from `assigned_to` when the blueprint's engineer does not offer it.
     #[serde(default)]
     pub experimental_assigned_to: Option<String>,
+    /// The effect is already on the module: listed for the record, no job.
     #[serde(default)]
-    pub fitted_engineer: Option<String>,
+    pub experimental_done: bool,
+    /// The module is unengineered and no blueprint is planned: the effect
+    /// cannot be applied until it is.
+    #[serde(default)]
+    pub experimental_needs_blueprint: bool,
 }
 
 /// One stop on the itinerary: an unlocked engineer and the slots to bring.
@@ -274,34 +300,31 @@ pub fn mark_assigned(reports: &mut [PlanItemReport], itinerary: &[PlanEngineer])
     }
 }
 
-/// Blueprints first by set cover, then each experimental effect placed
-/// (the boss, 2026-10-14: "if the engineer modifies them assume that
-/// blueprint is applied"): with the engineer who rolls that module in
-/// this plan when they offer the effect; else with the engineer who
-/// engineered the fitted module (the Loadout's `Engineering.Engineer`),
-/// when unlocked and offering it; else at an engineer already on the
-/// itinerary who offers it (the one with the most jobs, then the name);
-/// else the leftovers go through set cover as stops of their own. Items
-/// are stamped with both engineers; every stop lists its jobs.
-pub fn assign_plan(blueprint_jobs: &[Job], experimental_jobs: &[(String, Job)], reports: &mut [PlanItemReport]) -> (Vec<PlanEngineer>, Vec<String>) {
+/// Blueprints first by set cover, then each experimental effect placed.
+/// Any engineer who offers an effect can apply it, whoever rolled the
+/// module (the boss confirmed it in game, 2026-10-14), so the order is:
+/// the engineer rolling that module in this plan (same pad), else an
+/// engineer already on the itinerary who offers it (no new stop; the one
+/// with the most jobs, then the name), else the NEAREST engineer who
+/// offers it ("we should always prefer closer"), else the leftovers go
+/// through set cover. Items are stamped with both engineers.
+pub fn assign_plan(blueprint_jobs: &[Job], experimental_jobs: &[(String, Job)], reports: &mut [PlanItemReport], nearest: &dyn Fn(&[(String, Option<i64>)]) -> Option<String>) -> (Vec<PlanEngineer>, Vec<String>) {
     let (mut itinerary, mut unassigned) = assign(blueprint_jobs);
     mark_assigned(reports, &itinerary);
     let mut leftovers: Vec<Job> = Vec::new();
     for (slot_name, job) in experimental_jobs {
-        let item = reports.iter().find(|r| &r.slot_name == slot_name);
-        let roller = item.and_then(|r| r.assigned_to.clone());
-        let fitted = item.and_then(|r| r.fitted_engineer.clone());
-        // Candidates are already the unlocked engineers who offer it, so a
-        // fitted engineer the commander cannot visit never wins.
+        let roller = reports.iter().find(|r| &r.slot_name == slot_name).and_then(|r| r.assigned_to.clone());
         let can = |name: &str| job.candidates.iter().any(|(c, _)| c.eq_ignore_ascii_case(name));
-        let canonical = |name: &str| job.candidates.iter().find(|(c, _)| c.eq_ignore_ascii_case(name)).map(|(c, _)| c.clone());
-        let chosen = roller.filter(|e| can(e)).or_else(|| fitted.as_deref().and_then(canonical)).or_else(|| {
-            itinerary
-                .iter()
-                .filter(|s| can(&s.engineer))
-                .max_by(|a, b| a.jobs.len().cmp(&b.jobs.len()).then(b.engineer.cmp(&a.engineer)))
-                .map(|s| s.engineer.clone())
-        });
+        let chosen = roller
+            .filter(|e| can(e))
+            .or_else(|| {
+                itinerary
+                    .iter()
+                    .filter(|s| can(&s.engineer))
+                    .max_by(|a, b| a.jobs.len().cmp(&b.jobs.len()).then(b.engineer.cmp(&a.engineer)))
+                    .map(|s| s.engineer.clone())
+            })
+            .or_else(|| nearest(&job.candidates));
         match chosen {
             Some(e) => {
                 let rank = job.candidates.iter().find(|(c, _)| *c == e).and_then(|(_, r)| *r);
@@ -431,15 +454,23 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
         }
         let mut experimental_engineers: Vec<EngineerAccess> = Vec::new();
         let mut experimental_reachable = false;
+        let mut experimental_done = false;
+        let mut experimental_needs_blueprint = false;
         if let Some(x) = &it.experimental {
             let gap = catalog
                 .experimental_gap(&it.module_type, x, &have)
                 .ok_or_else(|| format!("{slot_name}: no experimental effect {x:?} for {:?}", it.module_type))?;
-            lines.extend(gap.lines);
-            if let Some(bp) = catalog.find_experimental(&it.module_type, x) {
-                experimental_engineers = commands::experimental_access(&engineers, &bp.engineers);
-                experimental_reachable = experimental_engineers.iter().any(|a| a.unlocked);
-                exp_jobs.push((slot_name.clone(), experimental_job(&slot_name, x, &experimental_engineers)));
+            match experimental_state(x, it.fitted_experimental.as_deref(), it.from_grade, it.blueprint.is_some()) {
+                ExperimentalState::Done => experimental_done = true,
+                ExperimentalState::NeedsBlueprint => experimental_needs_blueprint = true,
+                ExperimentalState::Open => {
+                    lines.extend(gap.lines);
+                    if let Some(bp) = catalog.find_experimental(&it.module_type, x) {
+                        experimental_engineers = commands::experimental_access(&engineers, &bp.engineers);
+                        experimental_reachable = experimental_engineers.iter().any(|a| a.unlocked);
+                        exp_jobs.push((slot_name.clone(), experimental_job(&slot_name, x, &experimental_engineers)));
+                    }
+                }
             }
         }
         per_item.push(lines.clone());
@@ -460,7 +491,8 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
             experimental_engineers,
             experimental_reachable,
             experimental_assigned_to: None,
-            fitted_engineer: it.fitted_engineer.clone(),
+            experimental_done,
+            experimental_needs_blueprint,
         });
     }
 
@@ -754,7 +786,28 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     }
     let materials = pool(&per_item);
     let fully_met = materials.iter().all(|l| l.have >= l.need) && commodities.iter().all(|c| c.have >= c.need);
-    let (itinerary, unassigned) = assign_plan(&jobs, &exp_jobs, &mut reports);
+    // The nearest engineer who offers an effect, by straight-line distance
+    // from the current system through the bundled bubble index; None when
+    // the index or the location is not to hand (then the set cover decides).
+    let (here, galaxy) = (
+        state.with_read(|s| ed_store::query::location(s.conn()).ok().flatten().and_then(|l| l.system_name)),
+        state.routing.galaxy(&state.data_dir),
+    );
+    let start = here.as_deref().and_then(|h| galaxy.as_ref().and_then(|g| g.find(h).map(|i| g.pos_of(i))));
+    let nearest = |candidates: &[(String, Option<i64>)]| -> Option<String> {
+        let (g, start) = (galaxy.as_ref()?, start?);
+        candidates
+            .iter()
+            .filter_map(|(name, _)| {
+                let fact = ed_engineering::unlocks::find(name)?;
+                let i = g.find(&fact.system)?;
+                let p = g.pos_of(i);
+                Some((name.clone(), ((p[0] - start[0]).powi(2) + (p[1] - start[1]).powi(2) + (p[2] - start[2]).powi(2)).sqrt()))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)))
+            .map(|(name, _)| name)
+    };
+    let (itinerary, unassigned) = assign_plan(&jobs, &exp_jobs, &mut reports, &nearest);
 
     let shopping = if fully_met {
         None
@@ -842,7 +895,7 @@ mod tests {
         let item = |slot: &str, blueprint: Option<&str>, experimental: Option<&str>| PlanItemReport {
             slot: slot.into(), slot_name: slot.into(), item_name: String::new(), module_type: String::new(), blueprint: blueprint.map(str::to_string), from_grade: 0, target_grade: 5,
             experimental: experimental.map(str::to_string), lines: vec![], engineers: vec![], reachable: true, max_reachable_grade: None, assigned_to: None,
-            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, fitted_engineer: None,
+            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, experimental_done: false, experimental_needs_blueprint: false,
         };
         let mut reports = vec![item("Thrusters", None, Some("Drag Drives")), item("Frame Shift Drive", Some("Increased FSD Range"), None)];
         mark_assigned(&mut reports, &stops);
@@ -857,30 +910,40 @@ mod tests {
         assert_eq!(unassigned, ["Thrusters: Drag Drives (experimental)"]);
     }
 
+    /// An effect already on the module is done; one on a never-engineered
+    /// module with no blueprint planned cannot be applied; otherwise open.
+    #[test]
+    fn an_experimental_is_done_or_blocked_or_open() {
+        assert_eq!(experimental_state("Mass Manager", Some("Mass Manager"), 5, false), ExperimentalState::Done);
+        assert_eq!(experimental_state("mass manager", Some("Mass Manager"), 5, true), ExperimentalState::Done, "case does not matter");
+        assert_eq!(experimental_state("Thermal Spread", None, 0, false), ExperimentalState::NeedsBlueprint);
+        assert_eq!(experimental_state("Thermal Spread", None, 0, true), ExperimentalState::Open, "a blueprint in the plan engineers it first");
+        assert_eq!(experimental_state("Drag Drives", None, 5, false), ExperimentalState::Open);
+        assert_eq!(experimental_state("Drag Drives", Some("Drive Distributors"), 5, false), ExperimentalState::Open, "a different effect is replaced");
+    }
+
     /// The boss's plan, 2026-10-14: Long Range on the beam laser goes to
     /// Broo (the only G5), so Thermal Vent on the same laser goes to Broo
     /// too, not to The Dweller; Super Conduits sits with the distributor's
     /// Charge Enhanced at The Dweller; Drag Drives on thrusters with no
     /// blueprint in the plan goes to an engineer already on the itinerary
-    /// who offers it (Felicity, there for the FSD) rather than a new stop
-    /// at Palin; an effect nobody on the itinerary offers becomes a stop.
+    /// who offers it (Felicity, there for the FSD) rather than a new stop;
+    /// an effect nobody on the itinerary offers goes to the NEAREST
+    /// engineer who does.
     #[test]
-    fn an_experimental_is_applied_where_its_blueprint_is_rolled_else_at_an_existing_stop() {
+    fn an_experimental_is_applied_where_its_blueprint_is_rolled_else_at_an_existing_stop_else_nearest() {
         let acc = |names: &[&str]| names.iter().map(|n| crate::commands::EngineerAccess { engineer: n.to_string(), status: "Unlocked".into(), rank: Some(5), unlocked: true, max_grade: 0, rank_grade: 0 }).collect::<Vec<_>>();
-        let item = |slot: &str, module: &str, blueprint: Option<&str>, experimental: Option<&str>, fitted: Option<&str>| PlanItemReport {
+        let item = |slot: &str, module: &str, blueprint: Option<&str>, experimental: Option<&str>| PlanItemReport {
             slot: slot.into(), slot_name: slot.into(), item_name: String::new(), module_type: module.into(), blueprint: blueprint.map(str::to_string), from_grade: 0, target_grade: 5,
             experimental: experimental.map(str::to_string), lines: vec![], engineers: vec![], reachable: true, max_reachable_grade: None, assigned_to: None,
-            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, fitted_engineer: fitted.map(str::to_string),
+            experimental_engineers: vec![], experimental_reachable: true, experimental_assigned_to: None, experimental_done: false, experimental_needs_blueprint: false,
         };
         let mut reports = vec![
-            item("Large hardpoint 3", "Beam Laser", Some("Long Range Weapon"), Some("Thermal Vent"), None),
-            item("Power Distributor", "Power Distributor", Some("Charge Enhanced"), Some("Super Conduits"), None),
-            item("Frame Shift Drive", "Frame Shift Drive", Some("Increased FSD Range"), None, None),
-            // Dirty Drives G5 already on, by Palin: the effect goes to him even though Felicity is a stop.
-            item("Thrusters", "Thrusters", None, Some("Drag Drives"), Some("Professor Palin")),
-            item("Power Plant", "Power Plant", None, Some("Thermal Spread"), None),
-            // Mass Manager on an FSD Elvira engineered, but Elvira is not unlocked: the fitted engineer cannot win.
-            item("Optional 1", "Frame Shift Drive", None, Some("Mass Manager"), Some("Elvira Martuuk")),
+            item("Large hardpoint 3", "Beam Laser", Some("Long Range Weapon"), Some("Thermal Vent")),
+            item("Power Distributor", "Power Distributor", Some("Charge Enhanced"), Some("Super Conduits")),
+            item("Frame Shift Drive", "Frame Shift Drive", Some("Increased FSD Range"), None),
+            item("Thrusters", "Thrusters", None, Some("Drag Drives")),
+            item("Power Plant", "Power Plant", None, Some("Thermal Spread")),
         ];
         let blueprint_jobs = vec![
             job("Large hardpoint 3: Long Range Weapon G5", &["Broo Tarquin"]),
@@ -893,20 +956,25 @@ mod tests {
             exp("Power Distributor", "Super Conduits", &["The Dweller", "Hera Tani"]),
             exp("Thrusters", "Drag Drives", &["Felicity Farseer", "Professor Palin"]),
             exp("Power Plant", "Thermal Spread", &["Hera Tani", "Marco Qwent"]),
-            exp("Optional 1", "Mass Manager", &["Felicity Farseer", "Professor Palin"]),
         ];
-        let (stops, unassigned) = assign_plan(&blueprint_jobs, &experimental_jobs, &mut reports);
+        // "Nearest": Marco Qwent is closer than Hera Tani from where we are.
+        let nearest = |c: &[(String, Option<i64>)]| c.iter().find(|(n, _)| n == "Marco Qwent").or_else(|| c.first()).map(|(n, _)| n.clone());
+        let (stops, unassigned) = assign_plan(&blueprint_jobs, &experimental_jobs, &mut reports, &nearest);
         assert!(unassigned.is_empty());
         let by = |e: &str| stops.iter().find(|s| s.engineer == e).map(|s| s.jobs.clone()).unwrap_or_default();
         assert_eq!(by("Broo Tarquin"), ["Large hardpoint 3: Long Range Weapon G5", "Large hardpoint 3: Thermal Vent (experimental)"], "the effect rides with the roll");
         assert_eq!(by("The Dweller"), ["Power Distributor: Charge Enhanced G5", "Power Distributor: Super Conduits (experimental)"]);
-        assert_eq!(by("Professor Palin"), ["Thrusters: Drag Drives (experimental)"], "the engineer who did the thrusters gets their effect, a stop of his own");
-        assert_eq!(by("Felicity Farseer"), ["Frame Shift Drive: Increased FSD Range G5", "Optional 1: Mass Manager (experimental)"], "Elvira did the module but is not unlocked: an existing stop that offers it");
-        assert_eq!(by("Hera Tani"), ["Power Plant: Thermal Spread (experimental)"], "nobody on the itinerary offers it: a stop of its own");
+        assert_eq!(by("Felicity Farseer"), ["Frame Shift Drive: Increased FSD Range G5", "Thrusters: Drag Drives (experimental)"], "an existing stop that offers it beats a new stop, however close");
+        assert_eq!(by("Marco Qwent"), ["Power Plant: Thermal Spread (experimental)"], "nobody on the itinerary offers it: the nearest engineer who does");
+        assert!(stops.iter().all(|s| s.engineer != "Professor Palin" && s.engineer != "Hera Tani"));
         assert_eq!(reports[0].experimental_assigned_to.as_deref(), Some("Broo Tarquin"));
-        assert_eq!(reports[3].experimental_assigned_to.as_deref(), Some("Professor Palin"));
-        assert_eq!(reports[4].experimental_assigned_to.as_deref(), Some("Hera Tani"));
-        assert_eq!(reports[5].experimental_assigned_to.as_deref(), Some("Felicity Farseer"));
+        assert_eq!(reports[3].experimental_assigned_to.as_deref(), Some("Felicity Farseer"));
+        assert_eq!(reports[4].experimental_assigned_to.as_deref(), Some("Marco Qwent"));
+        // No distance to hand: the leftovers go through set cover instead.
+        let mut again = reports.clone();
+        for r in again.iter_mut() { r.assigned_to = None; r.experimental_assigned_to = None; }
+        let (stops2, _) = assign_plan(&blueprint_jobs, &experimental_jobs, &mut again, &|_| None);
+        assert!(stops2.iter().any(|s| s.engineer == "Hera Tani" || s.engineer == "Marco Qwent"), "still placed, by set cover");
     }
 
     /// Equal coverage falls to the name, so two reads give one itinerary.
