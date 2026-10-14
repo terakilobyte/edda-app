@@ -121,6 +121,11 @@ describe("the report reads as groups, not one line per slot", () => {
       // 2026-10-14: Drag Drives on thrusters already at G5 -- an experimental-only item with its own engineer.
       { slot_name: "Thrusters", module_type: "Thrusters", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Drag Drives",
         experimental_engineers: [{ engineer: "Professor Palin", unlocked: true, status: "Unlocked" }, { engineer: "Chloe Sedesi", unlocked: false, status: "Known" }], experimental_reachable: true, experimental_assigned_to: "Professor Palin" },
+      // Deep Plating on the bulkheads and on a hull reinforcement package: two jobs, not "2 × Armour".
+      { slot_name: "Bulkheads", module_type: "Armour", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Deep Plating",
+        experimental_engineers: [{ engineer: "Selene Jean", unlocked: true, status: "Unlocked" }], experimental_reachable: true, experimental_assigned_to: "Selene Jean" },
+      { slot_name: "Optional 5 (size 5)", module_type: "Hull Reinforcement Package", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Deep Plating",
+        experimental_engineers: [{ engineer: "Selene Jean", unlocked: true, status: "Unlocked" }], experimental_reachable: true, experimental_assigned_to: "Selene Jean" },
       // An experimental nobody unlocked offers.
       { slot_name: "Small hardpoint 1", module_type: "Rail Gun", blueprint: null, target_grade: 5, reachable: false, assigned_to: null, engineers: [], experimental: "Super Penetrator",
         experimental_engineers: [{ engineer: "Tod McQuinn", unlocked: false, status: "Invited" }], experimental_reachable: false, experimental_assigned_to: null },
@@ -128,13 +133,17 @@ describe("the report reads as groups, not one line per slot", () => {
   };
 
   it("one line per engineer, jobs grouped by blueprint and grade with the slots folded, experimentals as their own jobs", () => {
-    const withPalin = { ...report, engineers: [...report.engineers, { engineer: "Professor Palin", rank: 5, jobs: [] }] };
+    const withPalin = { ...report, engineers: [...report.engineers, { engineer: "Professor Palin", rank: 5, jobs: [] }, { engineer: "Selene Jean", rank: 5, jobs: [] }] };
     expect(itinerary(withPalin)).toEqual([
       { engineer: "The Dweller", rank: 5, jobs: [
         { what: "Long Range Weapon G4", module_type: "Pulse Laser", count: 7, slots: "Large hardpoints 1–4; Medium hardpoints 1–3" },
         { what: "Super Conduits (experimental)", module_type: "Power Distributor", count: 1, slots: "Power Distributor" },
       ] },
       { engineer: "Professor Palin", rank: 5, jobs: [{ what: "Drag Drives (experimental)", module_type: "Thrusters", count: 1, slots: "Thrusters" }] },
+      { engineer: "Selene Jean", rank: 5, jobs: [
+        { what: "Deep Plating (experimental)", module_type: "Armour", count: 1, slots: "Bulkheads" },
+        { what: "Deep Plating (experimental)", module_type: "Hull Reinforcement Package", count: 1, slots: "Optional 5 (size 5)" },
+      ] },
     ]);
   });
 
