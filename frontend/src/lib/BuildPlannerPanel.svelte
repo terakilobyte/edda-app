@@ -130,10 +130,20 @@
       const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
       build = b; slots = s;
     } catch (e) { msg = String(e); return; }
-    rows = planRows(build.modules, readKey(planKey(), {}, { json: true }) ?? {}, slots);
+    setRows(planRows(build.modules, readKey(planKey(), {}, { json: true }) ?? {}, slots));
     refreshPerformance();
-    await loadOptions();
-    rows = capGrades(rows, bpOptions);
+  }
+  // Every change to the rows goes through here: the target grades are
+  // capped at what each blueprint offers, with the blueprint list fetched
+  // first for any module type not seen yet. The boss's four heat sink
+  // launchers (2026-10-14) were swaps to the pre-engineered variant, which
+  // comes with Ammo Capacity G1 -- a swapped row started at "the top", 5,
+  // and the server answered "no blueprint 'Ammo Capacity' at grade 5".
+  function setRows(next) {
+    rows = capGrades(next, bpOptions);
+    if (next.some((r) => r.module_type && !bpOptions[r.module_type])) {
+      loadOptions().then(() => { rows = capGrades(rows, bpOptions); });
+    }
   }
   async function loadOptions() {
     const types = [...new Set(rows.map((r) => r.module_type).filter(Boolean))].filter((t) => !bpOptions[t]);
@@ -175,7 +185,7 @@
     }
     if ("blueprint" in patch || "experimental" in patch) r.include = hasWork(r);
     if (!hasWork(r)) r.include = false;
-    rows = rows.map((x, j) => (j === i ? r : x));
+    setRows(rows.map((x, j) => (j === i ? r : x)));
     planReport = null;
     savePlan();
   }
@@ -185,13 +195,12 @@
   async function swapTo(i, key) {
     const [item, preset] = key.split("|");
     const candidate = key === EMPTY ? { item: EMPTY } : item ? findCandidate(candidatesFor(rows[i].slot), item, preset || null) : null;
-    rows = rows.map((x, j) => (j === i ? withSwap(x, candidate) : x));
+    setRows(rows.map((x, j) => (j === i ? withSwap(x, candidate) : x)));
     planReport = null;
     savePlan();
-    await loadOptions();
   }
-  function copyToAll(i) { rows = sameForAll(rows, rows[i]); planReport = null; savePlan(); }
-  function includeAll(on) { rows = rows.map((r) => ({ ...r, include: on && hasWork(r) })); planReport = null; savePlan(); }
+  function copyToAll(i) { setRows(sameForAll(rows, rows[i])); planReport = null; savePlan(); }
+  function includeAll(on) { setRows(rows.map((r) => ({ ...r, include: on && hasWork(r) }))); planReport = null; savePlan(); }
   // A pick survives a refresh by what the trade is, not where it sits.
   let unpicked = $state(new Set());
   const tradeKey = (t) => `${t.kind}|${t.give_material}|${t.get_material}`;
@@ -219,7 +228,7 @@
       const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
       if (JSON.stringify(b.modules) !== JSON.stringify(build.modules)) {
         build = b; slots = s;
-        rows = capGrades(refit(rows, b.modules, s), bpOptions);
+        setRows(refit(rows, b.modules, s));
         refreshPerformance();
       }
       if (planReport) {
@@ -257,7 +266,7 @@
         return;
       }
       imported = r;
-      rows = applyImport(rows, r);
+      setRows(applyImport(rows, r));
       planReport = null;
       savePlan();
       await loadOptions();
@@ -273,7 +282,7 @@
     if ((selectedId == null && !selectedHull) || !build) return;
     removeKey(planKey());
     imported = null; planReport = null; planMsg = "";
-    rows = planRows(build.modules, {}, slots);
+    setRows(planRows(build.modules, {}, slots));
     refreshPerformance();
   }
 

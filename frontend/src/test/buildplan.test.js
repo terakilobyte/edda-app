@@ -97,6 +97,21 @@ describe("capGrades", () => {
     expect(capped[0]).toMatchObject({ target_grade: 1, include: false });
     expect(planRequest(capped)).toEqual([]);
   });
+  // The boss's actual case (log, 2026-10-14 20:05Z): four utility slots
+  // swapped to the pre-engineered launcher, which comes with Ammo Capacity
+  // G1; a swapped row starts at "the top" and must be capped like any other.
+  it("a swap to a pre-engineered variant is capped at its blueprint's top grade", () => {
+    const slots = [{ slot: "TinyHardpoint1", slot_name: "Utility 1", group: "utility", size: 0, fitted: "hpt_heatsinklauncher_turret_tiny", fitted_name: "Heat Sink Launcher", candidates: [
+      { item: "hpt_heatsinklauncher_turret_tiny", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher" },
+      { item: "hpt_heatsinklauncher_turret_tiny", item_name: "Heat Sink Launcher (pre-engineered)", module_type: "Heat Sink Launcher", preset: "heatsink_v1", preset_blueprint: "Ammo Capacity", preset_grade: 1 },
+    ] }];
+    const rows = planRows([{ slot: "TinyHardpoint1", slot_name: "Utility 1", item: "hpt_heatsinklauncher_turret_tiny", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher", blueprint: null, grade: null }], {}, slots);
+    const swapped = withSwap(rows[0], slots[0].candidates[1]);
+    expect(swapped).toMatchObject({ swap: "hpt_heatsinklauncher_turret_tiny", preset: "heatsink_v1", blueprint: "Ammo Capacity", from_grade: 1, target_grade: 5 });
+    const capped = capGrades([{ ...swapped, include: true }], options);
+    expect(capped[0]).toMatchObject({ target_grade: 1, include: false });
+    expect(planRequest(capped)).toEqual([]);
+  });
   it("a capped row with grades left stays planned; a five-grade blueprint and an unknown one are untouched", () => {
     const rows = planRows([
       { slot: "TinyHardpoint1", slot_name: "Utility 1", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher", blueprint: "Ammo Capacity", grade: null },
