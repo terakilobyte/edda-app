@@ -642,20 +642,33 @@ verdicts live in the CSV headers under `docs/benches/`.
   `ships.raw` rows; a craft naming a module the ship no longer holds is
   ignored), so the planner's "from grade" moves the moment the craft
   lands. Tests: `rank_grade` table; a derive test over both batch paths.
-- **OPEN -- an engineer tour** (the boss, 2026-10-14): "calculate the
-  optimal route to visit engineers and follow it like a multi-step trade
-  route. From current location, visit engineer a, then engineer b, and
-  so on." Shape: the build plan's itinerary (fewest engineers by set
-  cover) becomes an ordered tour from the current system -- engineers'
-  home systems are fixed facts (vendor the EDCD/wiki table, one row per
-  engineer with system and station), order by nearest-neighbour then a
-  2-opt pass on straight-line distance (a dozen stops at most, exact is
-  cheap), each leg plotted by the route server on demand, and followed
-  with the trade-route follower's multi-stop machinery (`trade-follow`
-  events, "next stop" callouts, dock memo). Measure before building: how
-  often the planner's itinerary has 3+ stops in real journals, and the
-  straight-line vs plotted-jump ordering difference on the six-engineer
-  bubble cluster (Deciat, Khun, Kuk, Wolf 397, Leesti, Laksak).
+- **The engineer tour** (the boss, 2026-10-14: "calculate the optimal
+  route to visit engineers and follow it like a multi-step trade route.
+  From current location, visit engineer a, then engineer b, and so on";
+  "ideally we could do the calculation client-side"; built the same
+  day). Client-side by design: the engineers' home systems and bases
+  are vendored facts (`ed-engineering/data/engineer_unlocks.json`, now
+  all 25 ship engineers -- Chloe Sedesi, Etienne Dorn, Marsha Hicks,
+  Mel Brandon and Petra Olmanova added from the wiki's Engineers table
+  via api.php, every system re-checked by
+  `knobs/engineer_locations_wiki.py`: 0 differences), coordinates come
+  from the bundled bubble index, the itinerary from the build plan, and
+  the ordering is an open path from the current system: exact by
+  enumeration up to 8 stops, nearest-neighbour + 2-opt past that, on
+  straight-line distance (`src-tauri/src/engineer_tour.rs`). The route
+  server is only asked for each leg's jumps when the tour is followed:
+  the trade follower takes it as kind `engineers` -- stops carry a
+  `note` (engineer and jobs) the arrival briefing speaks, `cycle:
+  false` ends it at the last stop ("That is the last stop: tour
+  complete."), synthetic distinct station ids so the follower matches
+  arrivals by base and system name. The Build Planner shows the tour
+  under the itinerary with each leg's straight-line distance and
+  "Follow tour"; the HUD strip reads ENGINEER TOUR. Measured:
+  `docs/benches/2026-10-14-engineer-tour-order.csv` (straight-line
+  optimum vs nearest-neighbour vs reversed, plotted on prod). OPEN: the
+  Odyssey suit/weapon engineers are not vendored (the ship planner never
+  sends anyone to them); "how often an itinerary has 3+ stops" wants a
+  journal sample once a few commanders have planned builds.
 
 - **Code-sign the Windows binary** (2026-10-07, launch night; open).
   One of the first downloaders put `edda.exe` on VirusTotal at

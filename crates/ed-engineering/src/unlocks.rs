@@ -53,11 +53,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn guide_parses_with_all_twenty_engineers() {
+    fn guide_parses_with_every_ship_engineer_placed() {
         let g = guide();
-        assert_eq!(g.engineers.len(), 20);
+        // The guide's twenty, plus the five ship engineers added 2026-10-14
+        // with locations from the wiki's Engineers table (the engineer tour
+        // needs every one of them placed).
+        assert_eq!(g.engineers.len(), 25);
         assert!(g.source.contains("wanderer-toolbox"));
         assert_eq!(g.engineers.iter().filter(|e| e.step.is_some()).count(), 14);
+        for (name, system, base) in [
+            ("Chloe Sedesi", "Shenve", "Cinder Dock"),
+            ("Etienne Dorn", "Los", "Kraken's Retreat"),
+            ("Marsha Hicks", "Tir", "The Watchtower"),
+            ("Mel Brandon", "Luchtaine", "The Brig"),
+            ("Petra Olmanova", "Asura", "Sanctuary"),
+        ] {
+            let e = find(name).unwrap_or_else(|| panic!("{name} missing"));
+            assert_eq!((e.system.as_str(), e.base.as_str()), (system, base), "{name}");
+        }
+        assert!(g.engineers.iter().all(|e| !e.system.is_empty() && !e.base.is_empty()), "every engineer has a system and a base");
     }
 
     #[test]

@@ -3,7 +3,7 @@
 // the jump-route follower: one cyclic list of buy/sell stops.
 import { tradeFollowStart, tradeFollowStop, tradeFollowStatus, onTradeFollow } from "./api.js";
 
-export const TRADE_FOLLOW_IDLE = { active: false, kind: "", lap: 0, at: 0, phase: "travelling", stops: [], expected_profit_per_lap: 0 };
+export const TRADE_FOLLOW_IDLE = { active: false, kind: "", cycle: true, lap: 0, at: 0, phase: "travelling", stops: [], expected_profit_per_lap: 0 };
 
 export const tradeFollow = $state({ ...TRADE_FOLLOW_IDLE, error: "" });
 

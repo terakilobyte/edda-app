@@ -46,6 +46,10 @@ pub struct TradeStop {
     pub sell: Vec<CargoItem>,
     /// Spoken second; loaded before departing for the next stop.
     pub buy: Vec<CargoItem>,
+    /// The engineer tour's briefing for this stop (2026-10-14); none on a
+    /// trade stop.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,6 +90,10 @@ pub struct TradeRoute {
     /// "leg" | "round_trip" | "ring" — a display label only; the code
     /// path is identical for all three.
     pub kind: String,
+    /// A trade route loops (lap after lap); an engineer tour ends at its
+    /// last stop. Older saved routes read as cyclic.
+    #[serde(default = "cyclic")]
+    pub cycle: bool,
     #[serde(default)]
     pub counters: Counters,
     /// The stop index a wrong-station redirect was already spoken for,
@@ -112,6 +120,10 @@ pub struct StationRefInput {
     pub system_id64: i64,
     #[serde(default)]
     pub arrival_ls: Option<f64>,
+    /// Spoken on arrival after "Docked at X": the engineer tour's "who and
+    /// what to do here". Trade legs leave it empty.
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -144,6 +156,10 @@ pub struct LegInput {
 /// closes into a cycle. A lone leg therefore becomes two stops with
 /// goods one way, and the empty hop back to the buy stop is simply the
 /// cycle wrapping — no special case anywhere.
+fn cyclic() -> bool {
+    true
+}
+
 pub fn stops_from_legs(legs: &[LegInput]) -> Vec<TradeStop> {
     let mut stops: Vec<TradeStop> = Vec::new();
     let stop_index = |stops: &mut Vec<TradeStop>, r: &StationRefInput| -> usize {
@@ -158,6 +174,7 @@ pub fn stops_from_legs(legs: &[LegInput]) -> Vec<TradeStop> {
             arrival_ls: r.arrival_ls,
             sell: Vec::new(),
             buy: Vec::new(),
+            note: r.note.clone(),
         });
         stops.len() - 1
     };
@@ -202,6 +219,7 @@ impl TradeRoute {
             cargo_capacity,
             expected_profit_per_lap: legs.iter().map(|l| l.profit).sum(),
             kind: kind.to_string(),
+            cycle: kind != "engineers",
             counters: Counters::default(),
             noted_wrong_at: None,
             guided_at: None,
@@ -283,6 +301,11 @@ impl TradeRoute {
     pub fn next_stop(&self) -> &TradeStop {
         &self.stops[(self.at + 1) % self.stops.len()]
     }
+
+    /// The last stop of a route that does not loop: arriving here ends it.
+    pub fn ends_here(&self) -> bool {
+        !self.cycle && self.at + 1 == self.stops.len()
+    }
 }
 
 // ── Speech (pure, tested; the player is "Commander", never sir/ma'am) ──
@@ -324,6 +347,13 @@ pub fn arrival_line(route: &TradeRoute, capacity: i64) -> String {
     let stop = route.current();
     let next = route.next_stop();
     let mut parts: Vec<String> = vec![format!("Docked at {}.", stop.station)];
+    if let Some(note) = stop.note.as_deref().filter(|n| !n.is_empty()) {
+        parts.push(format!("{note}."));
+    }
+    if route.ends_here() {
+        parts.push("That is the last stop: tour complete.".to_string());
+        return parts.join(" ");
+    }
     if !stop.sell.is_empty() {
         parts.push(format!("Sell {} here.", goods_list(&stop.sell, capacity)));
     }
@@ -403,9 +433,10 @@ pub fn view(route: Option<&TradeRoute>) -> serde_json::Value {
             "at": tr.at,
             "phase": tr.phase,
             "expected_profit_per_lap": tr.expected_profit_per_lap,
+            "cycle": tr.cycle,
             "stops": tr.stops.iter().map(|s| serde_json::json!({
                 "system": s.system, "station": s.station, "arrival_ls": s.arrival_ls,
-                "buy": s.buy, "sell": s.sell,
+                "buy": s.buy, "sell": s.sell, "note": s.note,
             })).collect::<Vec<_>>(),
         }),
     }
@@ -496,6 +527,19 @@ pub fn on_docked(
         // Plan the leg OUT of this pad at the mass it will actually
         // carry: this stop's shopping list (maintainer, 2026-09-05 — "factor
         // in cargo for a planned trade route").
+        if tr.ends_here() {
+            // The engineer tour's last stop: brief it and let go -- no next
+            // leg, no lap, nothing left to follow.
+            tracing::info!(stop = %station, stops = tr.stops.len(), kind = %tr.kind, "trade_follow tour complete");
+            clear(conn);
+            let _ = conn.execute("DELETE FROM active_route WHERE id = 1", []);
+            use crate::events::EmitExt as _;
+            app.state::<crate::state::AppState>().events.emit(crate::events::TRADE_FOLLOW, view(None));
+            use tauri::Emitter as _;
+            let _ = app.emit(crate::events::ROUTE_FOLLOW, crate::follow::view(None));
+            out.push((crate::callouts::Callout::new("trade", ts, 1, true, text), Some(v.clone())));
+            return;
+        }
         let departing_cargo = TradeRoute::departing_cargo_t(tr.current(), capacity);
         tr.advance(ts);
         let next_system = tr.current().system.clone();
@@ -713,7 +757,7 @@ mod tests {
             station: name.into(),
             system: system.into(),
             system_id64: id * 1000,
-            arrival_ls: Some(ls),
+            note: None, arrival_ls: Some(ls),
         }
     }
 
