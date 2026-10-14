@@ -12,7 +12,7 @@
   import { ship } from "./ship.svelte.js";
   import { planner } from "./planner.svelte.js";
   import { KEYS, readKey, writeKey, removeKey } from "./storage.svelte.js";
-  import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport, tourAsks, tourLines } from "./buildplan.js";
+  import { planRows, refit, capGrades, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, itinerary, blocked, applyImport, tourAsks, tourLines } from "./buildplan.js";
   import ShoppingReport from "./ShoppingReport.svelte";
   import { useTabActive, journalResource } from "./lifecycle.svelte.js";
   import Place from "./Place.svelte";
@@ -119,6 +119,7 @@
     rows = planRows(build.modules, readKey(planKey(), {}, { json: true }) ?? {}, slots);
     refreshPerformance();
     await loadOptions();
+    rows = capGrades(rows, bpOptions);
   }
   async function loadOptions() {
     const types = [...new Set(rows.map((r) => r.module_type).filter(Boolean))].filter((t) => !bpOptions[t]);
@@ -189,17 +190,29 @@
   // The report is derived from the inventory and the hold, so it follows
   // the journal: a trade made, a commodity bought, a material collected
   // moves the figures without a click (maintainer, 2026-09-28: "seems we
-  // could update that in real time too"). Quietly — no busy state — and
-  // never two at once; the tab's own gate keeps a hidden panel from
+  // could update that in real time too"). The ship itself is re-read
+  // first: an engineer's roll or an experimental applied this session
+  // changes the fitted grades the rows start from, and the rows kept the
+  // Loadout from the ship pick (the boss, 2026-10-14: "is the build
+  // planner using a cached version of the ship"). Quietly — no busy state
+  // — and never two at once; the tab's own gate keeps a hidden panel from
   // re-asking on every event and catches up once when shown.
   let refreshing = false;
   journalResource(async () => {
-    if (!planReport || planBusy || refreshing) return;
+    if (!build || planBusy || refreshing) return;
     refreshing = true;
     try {
-      const r = await buildPlanReport({ shipId: target.shipId, hull: target.hull, items: planRequest(rows), swaps: swapsFrom(rows) });
-      planReport = r;
-      planPicked = picksFor(r);
+      const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
+      if (JSON.stringify(b.modules) !== JSON.stringify(build.modules)) {
+        build = b; slots = s;
+        rows = capGrades(refit(rows, b.modules, s), bpOptions);
+        refreshPerformance();
+      }
+      if (planReport) {
+        const r = await buildPlanReport({ shipId: target.shipId, hull: target.hull, items: planRequest(rows), swaps: swapsFrom(rows) });
+        planReport = r;
+        planPicked = picksFor(r);
+      }
     } catch (e) { planMsg = String(e); } finally { refreshing = false; }
   });
 

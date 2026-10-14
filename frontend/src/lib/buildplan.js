@@ -71,6 +71,40 @@ export function planRows(modules, saved = {}, slots = null) {
   return (modules ?? []).filter((m) => m.module_type).map((m) => shape(m, null));
 }
 
+/**
+ * The rows laid over a fresh Loadout: the commander's choices kept (what
+ * `savedFrom` keeps), the fitted grades, blueprints and experimentals
+ * taken from the ship as it is now. Engineering applied during the
+ * session reaches the plan this way -- the rows were shaped once, at the
+ * ship pick, and the journal refresh kept asking the server with those
+ * stale grades, so an engineer already visited stayed on the itinerary
+ * (the boss, 2026-10-14: "is the build planner using a cached version of
+ * the ship"). A tick with nothing left to do comes off.
+ */
+export function refit(rows, modules, slots = null) {
+  return planRows(modules, savedFrom(rows), slots).map((r) => (r.include && !hasWork(r) ? { ...r, include: false } : r));
+}
+
+/**
+ * Target grades capped at what the blueprint offers: Ammo Capacity on a
+ * heat sink launcher stops at G1, and the default "continue the fitted
+ * blueprint to the top" asked the server for G5 ("no blueprint 'Ammo
+ * Capacity' at grade 5" -- the boss, 2026-10-14). `options` is the
+ * panel's module type -> [{name, grades}]; a blueprint not listed is
+ * left as it is. A row capped down to its fitted grade loses its tick.
+ */
+export function capGrades(rows, options) {
+  return rows.map((r) => {
+    if (!r.module_type || !r.blueprint) return r;
+    const grades = (options?.[r.module_type] ?? []).find((b) => b.name === r.blueprint)?.grades;
+    if (!grades?.length) return r;
+    const top = Math.max(...grades);
+    if (Number(r.target_grade) <= top) return r;
+    const capped = { ...r, target_grade: top };
+    return hasWork(capped) ? capped : { ...capped, include: false };
+  });
+}
+
 /** The candidate with this item and (when given) this pre-engineered variant. */
 export function findCandidate(candidates, item, preset = null) {
   const want = String(item).toLowerCase();

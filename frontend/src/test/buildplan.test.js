@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planRows, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked, applyImport } from "../lib/buildplan.js";
+import { planRows, refit, capGrades, withSwap, swapsFrom, findCandidate, swapKey, EMPTY, sameForAll, groupCounts, planRequest, proposedFor, savedFrom, isPlanned, hasWork, compactSlots, itinerary, blocked, applyImport } from "../lib/buildplan.js";
 
 // A Type-10's business end: nine hardpoints, one already engineered.
 const modules = [
@@ -47,6 +47,66 @@ describe("sameForAll", () => {
     const out = sameForAll(rows, { ...rows[1], blueprint: "Focused Weapon", target_grade: 4, include: true });
     expect(out[0].include).toBe(false);
     expect(out[1].include).toBe(true);
+  });
+});
+
+// The boss's Corsair, 2026-10-14: the planner was opened with the power
+// distributor at Charge Enhanced G3 and Super Conduits planned; The Dweller
+// then rolled it to G5 and applied the effect, and the itinerary kept him
+// -- the rows still carried the Loadout from the ship pick.
+describe("refit", () => {
+  const before = [{ slot: "PowerDistributor", slot_name: "Power Distributor", item_name: "Power Distributor 7A", module_type: "Power Distributor", blueprint: "Charge Enhanced", grade: 3, experimental: null }];
+  const after = [{ ...before[0], grade: 5, experimental: "Super Conduits" }];
+  it("keeps the choices and takes the fitted grade and experimental from the ship as it is now", () => {
+    let rows = planRows(before);
+    rows = [{ ...rows[0], target_grade: 5, experimental: "Super Conduits", include: true }];
+    expect(planRequest(rows)).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: "Charge Enhanced", from_grade: 3, target_grade: 5, experimental: "Super Conduits", fitted_experimental: null }]);
+    const refitted = refit(rows, after);
+    expect(refitted[0]).toMatchObject({ from_grade: 5, fitted_grade: 5, fitted_experimental: "Super Conduits", blueprint: "Charge Enhanced", target_grade: 5, experimental: "Super Conduits" });
+    // Still work for the server to call done (the effect is on): the request says so.
+    expect(planRequest(refitted)).toEqual([{ slot: "PowerDistributor", module_type: "Power Distributor", blueprint: null, from_grade: 5, target_grade: 5, experimental: "Super Conduits", fitted_experimental: "Super Conduits" }]);
+  });
+  it("a tick with nothing left to do comes off", () => {
+    let rows = planRows(before);
+    rows = [{ ...rows[0], target_grade: 5, include: true }];
+    expect(isPlanned(rows[0])).toBe(true);
+    const refitted = refit(rows, after);
+    expect(refitted[0].include).toBe(false);
+    expect(planRequest(refitted)).toEqual([]);
+  });
+  it("a swap the slot now carries is fitted, not a swap", () => {
+    const slots = [{ slot: "PowerDistributor", slot_name: "Power Distributor", group: "core", size: 7, fitted: "int_powerdistributor_size7_class4", fitted_name: "Power Distributor 7B", candidates: [{ item: "int_powerdistributor_size7_class5", item_name: "Power Distributor 7A", module_type: "Power Distributor" }] }];
+    let rows = planRows([{ slot: "PowerDistributor", slot_name: "Power Distributor", item: "int_powerdistributor_size7_class4", item_name: "Power Distributor 7B", module_type: "Power Distributor", blueprint: null, grade: null }], {}, slots);
+    rows = [withSwap(rows[0], slots[0].candidates[0])];
+    expect(rows[0].swap).toBe("int_powerdistributor_size7_class5");
+    const bought = [{ slot: "PowerDistributor", slot_name: "Power Distributor", item: "int_powerdistributor_size7_class5", item_name: "Power Distributor 7A", module_type: "Power Distributor", blueprint: null, grade: null }];
+    const refitted = refit(rows, bought, [{ ...slots[0], fitted: "int_powerdistributor_size7_class5", fitted_name: "Power Distributor 7A" }]);
+    expect(refitted[0]).toMatchObject({ swap: null, item: "int_powerdistributor_size7_class5", from_grade: 0 });
+  });
+});
+
+// The boss's heat sink launcher, 2026-10-14: Ammo Capacity G1 fitted, the
+// default continued it "to the top" and the server answered "no blueprint
+// 'Ammo Capacity' at grade 5".
+describe("capGrades", () => {
+  const options = { "Heat Sink Launcher": [{ name: "Ammo Capacity", grades: [1] }, { name: "Lightweight", grades: [1, 2, 3, 4, 5] }], "Pulse Laser": [{ name: "Focused Weapon", grades: [1, 2, 3, 4, 5] }] };
+  it("caps the target at the blueprint's top grade and unticks a row with nothing left", () => {
+    const rows = planRows([{ slot: "TinyHardpoint1", slot_name: "Utility 1", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher", blueprint: "Ammo Capacity", grade: 1 }]);
+    expect(rows[0]).toMatchObject({ target_grade: 5, include: true });
+    const capped = capGrades(rows, options);
+    expect(capped[0]).toMatchObject({ target_grade: 1, include: false });
+    expect(planRequest(capped)).toEqual([]);
+  });
+  it("a capped row with grades left stays planned; a five-grade blueprint and an unknown one are untouched", () => {
+    const rows = planRows([
+      { slot: "TinyHardpoint1", slot_name: "Utility 1", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher", blueprint: "Ammo Capacity", grade: null },
+      { slot: "TinyHardpoint2", slot_name: "Utility 2", item_name: "Heat Sink Launcher", module_type: "Heat Sink Launcher", blueprint: "Lightweight", grade: 2 },
+      { slot: "LargeHardpoint1", slot_name: "Large Hardpoint 1", item_name: "Pulse Laser 3C/G", module_type: "Pulse Laser", blueprint: "Unknown Thing", grade: 1 },
+    ], { TinyHardpoint1: { blueprint: "Ammo Capacity", target_grade: 5, include: true } });
+    const capped = capGrades(rows, options);
+    expect(capped[0]).toMatchObject({ target_grade: 1, from_grade: 0, include: true });
+    expect(capped[1]).toMatchObject({ target_grade: 5, include: true });
+    expect(capped[2]).toMatchObject({ target_grade: 5, include: true });
   });
 });
 
