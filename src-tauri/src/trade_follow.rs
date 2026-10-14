@@ -326,7 +326,13 @@ fn goods_list(items: &[CargoItem], capacity: i64) -> String {
 /// The start briefing.
 pub fn start_line(route: &TradeRoute, capacity: i64) -> String {
     let first = route.current();
-    let opening = if route.stops.len() > 2 {
+    let opening = if route.kind == "engineers" {
+        // An engineer tour is not a trade route and has no laps.
+        match route.stops.len() {
+            1 => "Engineer tour, Commander: one stop.".to_string(),
+            n => format!("Engineer tour, Commander: {n} stops."),
+        }
+    } else if route.stops.len() > 2 {
         format!("Trade route, Commander: {} stops per lap.", route.stops.len())
     } else {
         "Trade route, Commander.".to_string()
@@ -458,7 +464,7 @@ fn measured_lap_profit(conn: &rusqlite::Connection, since_ts: &str) -> Option<i6
 
 /// Live hold size; falls back to the plan's capacity when the loadout
 /// row is missing (a fresh database).
-fn live_capacity(conn: &rusqlite::Connection, fallback: i64) -> i64 {
+pub(crate) fn live_capacity(conn: &rusqlite::Connection, fallback: i64) -> i64 {
     conn.query_row("SELECT cargo_capacity FROM loadout WHERE id = 1", [], |r| r.get::<_, Option<i64>>(0))
         .ok()
         .flatten()
@@ -577,7 +583,7 @@ pub fn on_docked(
 /// to the GAME's own plotter (clipboard armed, "press Target Next");
 /// anything longer is planned by EDDA and followed under source
 /// "trade".
-async fn plot_next(app: tauri::AppHandle, system: String, cargo_t: Option<i64>) {
+pub(crate) async fn plot_next(app: tauri::AppHandle, system: String, cargo_t: Option<i64>) {
     use tauri::Manager as _;
     let state = app.state::<crate::state::AppState>();
     let max = state.config.lock().unwrap_or_else(|e| e.into_inner()).game_route_max_ly;

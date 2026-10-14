@@ -665,7 +665,20 @@ verdicts live in the CSV headers under `docs/benches/`.
   under the itinerary with each leg's straight-line distance and
   "Follow tour"; the HUD strip reads ENGINEER TOUR. Measured:
   `docs/benches/2026-10-14-engineer-tour-order.csv` (straight-line
-  optimum vs nearest-neighbour vs reversed, plotted on prod). OPEN: the
+  optimum vs nearest-neighbour vs reversed, plotted on prod). Later the
+  same day (the boss: "it'd be nice if the engineer tour removed
+  engineers as we visited them and got the work done" ... "and not to
+  have to go to the trade tab to stop following the route"): the plan
+  re-runs on every Loadout change, so when the jobs at a pad are done
+  the itinerary loses that engineer, the panel re-asks the tour from
+  the current system, and -- when the tour is being followed --
+  `engineer_tour_update` replaces the followed route quietly (no new
+  opening line, no re-plot when the next stop is unchanged, one note:
+  "Felicity Farseer done, Commander. Next: ... ; 2 stops left."). An
+  empty plan ends the follow ("Every job on the plan is done,
+  Commander: tour complete."). A plan being edited (no report yet)
+  never touches the follower. The tour block carries "Stop following";
+  the opening line says "Engineer tour", not "Trade route". OPEN: the
   Odyssey suit/weapon engineers are not vendored (the ship planner never
   sends anyone to them); "how often an itinerary has 3+ stops" wants a
   journal sample once a few commanders have planned builds.
