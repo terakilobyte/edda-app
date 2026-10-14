@@ -393,6 +393,23 @@ pub fn report(state: &AppState, ship_id: Option<i64>, hull: Option<&str>, items:
     let learned = commands::learned_presets(state);
     commands::check_swaps(&raw, swaps, &learned)?;
     let loadout = commands::ship_loadout(state, ship_id, hull)?;
+    // What the planner was asked, item by item, so a plan that lists an
+    // engineer the commander does not need can be read back from the log
+    // (the boss, 2026-10-14: "is the build planner using a cached version
+    // of the ship" -- it was; the rows kept the Loadout from the ship pick).
+    tracing::info!(
+        target: "build_plan",
+        ship_id,
+        hull,
+        loadout_ship = %loadout.ship,
+        items = %items
+            .iter()
+            .map(|it| format!("{}:{} {:?} G{}->G{} x={:?} fitted_x={:?}", it.slot, it.module_type, it.blueprint, it.from_grade, it.target_grade, it.experimental, it.fitted_experimental))
+            .collect::<Vec<_>>()
+            .join(" | "),
+        swaps = swaps.len(),
+        "build plan requested"
+    );
     let (have, engineers) = state.with_read(|s| {
         (
             commands::material_inventory(s.conn()),
