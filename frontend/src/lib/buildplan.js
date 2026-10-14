@@ -53,6 +53,7 @@ export function planRows(modules, saved = {}, slots = null) {
       fitted_name: m?.item_name ?? slotInfo?.fitted_name ?? null,
       fitted_grade: fittedGrade,
       fitted_blueprint: fittedBlueprint,
+      fitted_engineer: m?.engineer ?? null,
       fitted_module_type: m?.module_type ?? null,
       swap,
       preset,
@@ -146,6 +147,9 @@ export function planRequest(rows) {
     from_grade: r.from_grade,
     target_grade: Number(r.target_grade),
     experimental: r.experimental || null,
+    // The engineer who did the fitted module: an experimental goes to them
+    // when they offer it. A swapped-in module has no such history.
+    fitted_engineer: r.swap ? null : r.fitted_engineer ?? null,
   }));
 }
 
@@ -288,7 +292,7 @@ export function blocked(report) {
   return [...groups.values()].map((g) => ({ ...g, count: g.slots.length, slots: compactSlots(g.slots) }));
 }
 
-const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_module_type: null, swap: null, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
+const emptyRow = (slot, slot_name) => ({ slot, slot_name, group: null, size: null, fitted_item: null, fitted_name: null, fitted_grade: 0, fitted_blueprint: "", fitted_engineer: null, fitted_module_type: null, swap: null, preset: null, item: null, item_name: null, module_type: null, blueprint: "", from_grade: 0, target_grade: TOP_GRADE, experimental: "", include: false });
 
 /**
  * An imported build laid over the rows: every module the build has where
