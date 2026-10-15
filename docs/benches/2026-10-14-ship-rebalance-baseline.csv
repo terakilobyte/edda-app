@@ -1,0 +1,12 @@
+# Ship rebalance baseline from EDDA's vendored tables (Coriolis ship rows + ship_slots.json); the dev log of 2026-10-14 announced the changes in the last column, landing 2026-10-20. Rerun after refreshing the vendored data and diff.
+ship,symbol,hullMass,speed,boost,baseShieldStrength,baseArmour,heatCapacity,pitch,roll,yaw,masslock,stock_fsd_class,internals_by_size,military,hardpoints,utilities,slot_table_internals,slot_table_utilities,announced
+"Asp Scout",asp_scout,150,220,300,120,180,210,40,110,15,8,4,"5x1 4x1 3x2 2x2 1x2",0,4,2,"5x1 4x1 3x2 2x2 1x2",2,"additional utility slot; improved jump range; increased speed; additional maneuverability"
+"Federal Dropship",federation_dropship,580,180,300,200,300,331,30,80,14,14,5,"6x1 5x2 4x3 3x2 2x1 1x2",0,5,4,"6x1 5x2 4x1 3x2 2x1 1x2",4,"additional size 6 internal; improved jump range; increased speed"
+"Imperial Clipper",empire_trader,400,300,380,180,270,304,40,80,18,12,5,"7x1 6x1 4x2 3x2 2x2 1x2",0,4,4,"7x1 6x1 4x2 3x2 2x2 1x2",4,"additional size 7 internal; improved jump range; increased shield capacity"
+"Type-6 Transporter",type6,155,220,350,90,180,179,30,100,17,8,4,"5x2 4x2 3x1 2x2 1x2",0,2,3,"5x2 4x2 3x1 2x2 1x2",3,"additional size 6 internal; increased shield capacity"
+"Type-7 Transporter",type7,350,180,300,155,340,226,22,60,22,10,5,"6x3 5x3 3x2 2x1 1x2",0,4,4,"6x3 5x3 3x2 2x1 1x2",4,"additional size 7 internal; improved jump range; greater thermal"
+"Viper Mk IV",viper_mkiv,190,270,340,150,150,209,30,90,12,7,4,"4x2 3x2 2x2 1x4",0,4,2,"4x2 3x1 2x2 1x4",2,"increased shield capacity; increased speed; additional maneuverability"
+Sidewinder,sidewinder,25,220,320,40,60,140,42,110,16,6,2,"2x2 1x5",0,2,2,"2x2 1x5",2,"increased shield capacity; additional maneuverability"
+Eagle,eagle,50,240,350,60,40,165,50,120,18,6,3,"3x1 2x2 1x5",0,3,1,"3x1 2x1 1x5",1,"increased shield capacity"
+"Caspian Explorer",explorer_nx,950,210,290,500,345,250,30,75,14,19,8,"7x1 6x2 5x4 4x2 3x1 2x1 1x4",0,7,6,"7x1 6x2 5x4 4x2 3x1 2x1 1x4",6,"improved jump range"
+Mandalay,mandalay,230,280,350,220,230,250,35,96,28,11,5,"6x1 5x1 4x2 3x2 2x1 1x4",0,6,4,"6x1 5x1 4x2 3x2 2x1 1x4",4,"improved jump range"

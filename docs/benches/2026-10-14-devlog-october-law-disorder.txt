@@ -1,0 +1,97 @@
+# Source pin: Frontier, "Elite Dangerous: October Dev Log 2026 | Law & Disorder",
+# https://www.elitedangerous.com/en-US/news/elite-dangerous-october-dev-log-2026-law-disorder
+# published 2026-10-14, read in the maintainer's browser the same day (the site
+# returns 403 to server fetches). Verbatim text of the sections EDDA must
+# prepare for; marketing sections (starter pack, paint jobs, Galnet recap) left out.
+
+== Law & Disorder (free update, December) ==
+
+Detection of crime
+- Crime now has to be observed, and more importantly confirmed, by an authority to be added to a criminal's record.
+- When a Commander commits a crime an unconfirmed bounty (UCB) is issued. UCBs allow other actors in the instance to legally treat the UCB carrier as a criminal and they can legally attack. Killing a UCB carrier means that the value of the UCB is paid out as a bounty.
+- The act of generating a UCB in space will alert the system authorities, and a response will be sent to the crime location, the scale of this response and arrival time will depend on the system's security level.
+- If a UCB carrier is scanned by an authority vessel, Omnipol or is radioed out on foot, the UCB is converted into a regular bounty.
+- A Commander leaving the scene before confirmation will have all UCBs wiped.
+- Most items [in settlements] will only be flagged as stolen if they were observed being taken. Important items that obviously belong to the settlement will be flagged as stolen on scan.
+- Crime will now only be associated with a Commander not a ship or any of its modules.
+
+Scanning
+- The kill warrant scanner will be removed from the game. When you scan someone, you will understand all of the crimes they have committed and can claim their aggregated value in one go.
+- When you are in an instance you passively gain information about the other vessels including the ship name, the ID, their faction, power and any UCBs they have.
+- The regular targeted scan will reveal the pilot's name and their legal status, the output of a scan that reveals a criminal is broadcast to other vessels.
+- Anonymous access will be removed from starport services. If the port detects you as a criminal, it will block your landing permission. Committing a crime within a station's no fire zone will immediately expose you as a criminal and will therefore cause docking requests to be blocked or cancelled.
+
+Criminal tiers
+- The new crime system will be broken down into five escalating tiers.
+- Small crimes can generate fines and these will put you in the lowest criminal tiers. In many cases fines can be paid on the spot or on demand.
+- In the case of pad loitering the station ATC will offer to take control of a Commander's ship to pilot it out of the station rather than immediately escalating to lethal force.
+- Having weapons deployed or accidentally discharging your weapons in a no fire zone, as long as they don't hit anything, will result in a warning. Continued firing will result in fines.
+- Fines will no longer automatically become bounties just because they haven't been paid over a period of time.
+- If fines continue to escalate, eventually they will tip the commander into a higher criminal tier, effectively becoming bounties, at which point authorities will demand payment or they will become hostile. Gaining even higher tiers will see authorities skip the demand to pay off bounties and will instead attack on sight.
+
+Pilots Federation and PvP crime
+- Crimes that Commanders commit against other Commanders will be handled by the Pilot's Federation using a separate tiering system. The response will be significant and from the ATR.
+- Players can still turn off crime reporting.
+
+Paying off Crimes
+- There will be no hidden systems like Interstellar Factors, you will know where to go to pay off fines and bounties.
+- Pay them off at any valid location; not necessary to travel to a location controlled by a faction you've committed a crime against.
+- Commanders carrying crimes committed in the top two tiers will not be able to pay their crimes off casually at an Administrative Contact, instead they will need to find a Record Cleaner located in a criminally controlled port.
+- Notoriety as it currently exists in Elite Dangerous will be removed completely.
+- Notoriety will be repurposed and assigned to ships. A notorious ship is more likely to be scanned by the authorities but can also mean you have a better chance of being successful at piracy. Clean ships provide some level of camouflage for wanted Commanders. Ship notoriety can be removed by visiting and paying for the services of the Record Cleaner.
+
+Crime Pays
+- Piracy will be expanded with a new cargo demand system, allowing Commanders to demand cargo directly from NPC vessels. Targeted ships will now assess their situation and decide whether to comply or resist (relative strengths of the ships, how notorious the pirate ship is, how 'honourable' the pirate's reputation is).
+- Successfully acquired cargo can then be sold through Black-Markets or on the open market in criminal systems.
+- Smuggling will also be a valid source of income ... more to talk about regarding smuggling mechanics in the future.
+
+Anarchy Systems
+- Inhabited anarchy systems will be renamed criminal with the anarchy tag being reserved for uninhabited systems where there will never be an authority response to confirm bounties.
+- Systems belonging to criminal factions will now have a security rating; security facilities still exist and add to this security rating but can be considered corrupt.
+- Criminal factions will now also have system authority vessels ... more like bouncers and enforcers rather than a trained police force. This does mean that occasionally they might pirate you! More likely if your reputation with their faction is low and if you're carrying a lot of valuable cargo.
+- Commanders will now be able to hand in bounties [to criminal factions], meaning that they can boost criminal influence in a system.
+
+Crime and Powerplay
+- If you are aligned to a power and perform an activity like killing another power's ship this will not be considered a crime, instead being viewed as part of warfare, so bounties will not be issued. However, these acts can still mean you will be considered hostile by regular authorities and attacking them will still count as a crime.
+- For the specific powerplay activity of 'commit crimes' this will not be the case, but these crimes will have to be committed against regular people living in the system and not at any Power present.
+- If you commit a crime against faction A inside your power's territory, then faction A will consider you a criminal there. If the same faction exists elsewhere in your power's territory, then the power will repress the faction's response in that system.
+
+- Law & Disorder will be available as a free update for all players, launching in December.
+- Next month: more details on Law & Disorder, including new modules, Pilots Federation Bounties.
+
+== Anaconda Mk II (2026-10-20) ==
+- Multi-role anchor: "it's not gonna out jump the Caspian or out trade the Panther Clipper, but it does trade better than the Caspian and jump better than the Panther."
+- Mk II Ablative armour; a Size 6 optional internal perfectly suited to an Optimised Cargo Rack; a Mk II Mining Optimised Hardpoint, best suited to the Mining Volley Repeater.
+Specs:
+  Power Plant: 8
+  Thrusters: 7
+  FSD: 8
+  Life Support: 5
+  Power Distributor: 8
+  Sensors: 8
+  Size 1 Internals: 1
+  Size 2 Internals: 1
+  Size 3 Internals: 1
+  Size 4 Internals: 2
+  Size 5 Internals: 5 (2 Military)
+  Size 6 Internals: 1 (1 Cargo)
+  Size 7 Internals: 2
+  Size 8 Internals: 1
+  Max Cargo: 750
+  Hardpoints: 2 Small, 4 Large, 1 Huge
+- "Full stats will be available via the equipment page alongside the Anaconda Mk II update on 20th October."
+
+== Ship rebalancing (2026-10-20) ==
+  Asp Scout: Additional Utility Slot; Improved Jump Range; Increased Speed; Additional Maneuverability
+  Federal Dropship: Additional Size 6 Internal; Improved Jump Range; Increased Speed
+  Imperial Clipper: Additional Size 7 Internal; Improved Jump Range; Increased Shield Capacity
+  Type 6: Additional Size 6 Internal; Increased Shield Capacity
+  Type 7: Additional Size 7 Internal; Improved Jump Range; Greater Thermal
+  Viper Mk IV: Increased Shield Capacity; Increased Speed; Additional Maneuverability
+  Sidewinder: Increased Shield Capacity; Additional Maneuverability
+  Eagle: Increased Shield Capacity
+  Caspian: Improved Jump Range
+  Mandalay: Improved Jump Range
+
+== Operation: Found Adrift (2026-10-20) ==
+- Free on-foot Operation for up to four players: a megaship thought lost for months has reappeared without communications; recover a valuable asset from the vault against an opposing group. Launches alongside the Anaconda Mk II on 20th October.
