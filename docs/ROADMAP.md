@@ -734,6 +734,60 @@ verdicts live in the CSV headers under `docs/benches/`.
   (`gen_preengineered.py`) is now idempotent -- it used to append its
   Coriolis path to the SCO drives' source line on every run.
 
+- **October 2026 dev log: what lands and what EDDA does about it**
+  (the boss, 2026-10-14: "oh shit, prepare"). Source pinned verbatim in
+  `docs/benches/2026-10-14-devlog-october-law-disorder.txt` (the site
+  returns 403 to server fetches; read in his browser).
+  - **Anaconda Mk II, 2026-10-20.** Specs published (PP 8 / thrusters 7 /
+    FSD 8 / LS 5 / PD 8 / sensors 8; internals 1x S1, 1x S2, 1x S3, 2x S4,
+    5x S5 of which 2 military, 1x S6 cargo-only, 2x S7, 1x S8; 2 small,
+    4 large, 1 huge hardpoints; 750 t max cargo). The hull symbol is not
+    published; nothing is vendored on a guess (names rule). Day one runs
+    from his first Loadout: `docs/benches/knobs/new_hull_from_loadout.py`
+    derives the slot-table entry from the Loadout and diffs it against
+    the pre-registered specs above; validated on the Corsair's Loadout
+    (29 of 29 slots identical to the table's entry, kinds and exact-size
+    rules included). Until the entry lands, the Build Planner no longer
+    blanks on a hull the slot table lacks: it plans the fitted modules
+    and says swaps and empty slots need the table (it used to fail the
+    whole ship pick on the slot-options error). Still open for day one:
+    the FDevIDs shipyard row, `ed_journal::ships` name + "Mk II" spacing,
+    the Coriolis hull row (mass, shields, speed: the performance figures
+    read 0 hull mass until it exists), SCO boost class.
+  - **Ship rebalance, 2026-10-20** (Asp Scout, Federal Dropship,
+    Imperial Clipper, Type-6, Type-7, Viper Mk IV, Sidewinder, Eagle,
+    Caspian, Mandalay: extra internals/utility, jump range, speed,
+    shields, agility). Baseline pinned before the patch:
+    `docs/benches/2026-10-14-ship-rebalance-baseline.csv` from
+    `knobs/ship_rebalance_pin.py` (Coriolis hull row + slot table per
+    ship, with the announced change as the pre-registered expectation).
+    After the patch: refresh the vendored Coriolis data and EDSY-derived
+    slot table, rerun, diff. Note from the baseline itself: Coriolis
+    counts military slots among the internals (Dropship 4x3 vs the slot
+    table's 4x1), which is why the two columns differ today.
+  - **Law & Disorder, December** (details next month). Touchpoints found
+    by grep, each an OPEN item until the journal manual for the update:
+    (1) the kill warrant scanner is removed -- `outfitting.csv` rows,
+    `ed_journal::modules`, its blueprints in `ed_engineering::journal`,
+    EDSY imports carrying one; (2) Interstellar Factors go away, a
+    "Record Cleaner" arrives at criminal ports -- the Galaxy tab's
+    default service is `interstellar_factors` (lookup.rs service list,
+    GalaxyPanel, station domain, Spansh hydration); (3) inhabited anarchy
+    becomes "criminal" with a security rating -- `ed_domain::system::
+    security_name` maps `..._anarchy` -> "Anarchy"; new strings expected;
+    (4) scanning: passive info now carries ship name/ID/faction/power and
+    UCBs, the targeted scan the pilot's legal status -- the "Wanted {ship},
+    bounty" and "Being scanned for wanted status" callouts (callouts.rs)
+    and whatever the journal writes for UCBs; (5) bounties: derive.rs,
+    ingest.rs, merit_capture.rs (power-ship kills are no longer crimes),
+    missions.rs; (6) notoriety moves from the commander to the ship --
+    EDDA holds no notoriety today (grep: none), so nothing breaks, but a
+    ship-notoriety field may appear in Loadout/Status; (7) stolen cargo
+    sells on the open market in criminal systems -- the sell-hold search
+    may want a "criminal system" flag; (8) fines no longer escalate on
+    their own -- no EDDA logic depends on it. Nothing to code until the
+    journal documents the events; the inventory is the preparation.
+
 - **Code-sign the Windows binary** (2026-10-07, launch night; open).
   One of the first downloaders put `edda.exe` on VirusTotal at
   18:47Z: 1 of 48 engines flagged it, Trapmine's "Malicious.moderate.

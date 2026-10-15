@@ -89,8 +89,8 @@
   const blueprintsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length > 0);
   const experimentalsFor = (type) => (bpOptions[type] ?? []).filter((b) => b.grades.length === 0);
   const gradesFor = (row) => (blueprintsFor(row.module_type).find((b) => b.name === row.blueprint)?.grades ?? [1, 2, 3, 4, 5]).filter((g) => g > row.from_grade);
-  const candidatesFor = (slot) => slots.find((s) => s.slot === slot)?.candidates ?? [];
-  const canEmpty = (slot) => slots.find((s) => s.slot === slot)?.can_empty ?? false;
+  const candidatesFor = (slot) => (slots ?? []).find((s) => s.slot === slot)?.candidates ?? [];
+  const canEmpty = (slot) => (slots ?? []).find((s) => s.slot === slot)?.can_empty ?? false;
   // Candidates grouped by kind for the swap dropdown ("Pulse Laser" → its sizes, ratings and mounts).
   const kindsFor = (slot) => {
     const groups = new Map();
@@ -127,9 +127,19 @@
     else { selectedHull = null; selectedId = Number(key); }
     build = null; slots = []; msg = ""; planReport = null; planMsg = ""; imported = null; perf = null; rows = [];
     try {
-      const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
-      build = b; slots = s;
+      build = await shipModules(target.shipId, target.hull);
     } catch (e) { msg = String(e); return; }
+    // A hull the slot table does not know yet (a ship released this week,
+    // flown before the table learned it -- the Anaconda Mk II, 2026-10-20):
+    // the planner still works per fitted module, without swaps or empty
+    // slots, and says why. The Loadout is the source for the table entry
+    // (docs/benches/knobs/new_hull_from_loadout.py).
+    try {
+      slots = await slotOptions(target.shipId, target.hull);
+    } catch (e) {
+      slots = null;
+      msg = `${e} — planning the fitted modules only; swaps and empty slots need the slot table.`;
+    }
     setRows(planRows(build.modules, readKey(planKey(), {}, { json: true }) ?? {}, slots));
     refreshPerformance();
   }
@@ -225,7 +235,8 @@
     if (!build || planBusy || refreshing) return;
     refreshing = true;
     try {
-      const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slotOptions(target.shipId, target.hull)]);
+      // No slot table for this hull: keep planning per module (see select()).
+      const [b, s] = await Promise.all([shipModules(target.shipId, target.hull), slots === null ? Promise.resolve(null) : slotOptions(target.shipId, target.hull)]);
       if (JSON.stringify(b.modules) !== JSON.stringify(build.modules)) {
         build = b; slots = s;
         setRows(refit(rows, b.modules, s));
