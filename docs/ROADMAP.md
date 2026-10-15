@@ -704,6 +704,36 @@ verdicts live in the CSV headers under `docs/benches/`.
   (`build_plan` target) so the next "why this engineer" is read from the
   log, not guessed. Pinned in `frontend/src/test/buildplan.test.js`.
 
+- **Technology-broker data pinned against Inara** (the boss, 2026-10-14:
+  "we seem to be missing some data, here it is" + the Inara techbroker
+  page, "look at those other tabs for any other missing info as well").
+  Inara refuses server fetches (503 to curl and WebFetch), so the three
+  tabs (Human, Guardian modules, Guardian weapons; 60 recipes) were read
+  in the boss's browser and pinned as
+  `docs/benches/2026-10-14-techbroker-inara-dump.txt` (his own stock
+  counts stripped); `docs/benches/knobs/techbroker_inara.py` diffs it
+  against `blueprints.json`, record in `2026-10-14-techbroker-inara.csv`.
+  Result: 56 of 60 recipes identical. MISSING and now added: the Azimuth
+  Modified Enhanced AX Multi-Cannon (gimballed 2E and 3C) -- Coriolis
+  already carried both pre-engineered rows (G5 Overcharged + Auto
+  Loader) but the file had no recipe, so the preset read "AX MC (OC,
+  Auto-Load)", broker unknown, and a swap to it could not be broken
+  down; recipes from the wiki's module page and Inara, which agree
+  (medium 9 Iron / 11 Zirconium / 6 Bio-Mechanical Conduits / 7
+  Wreckage Components / 14 Weapon Parts; large 11 / 16 / 9 / 12 / 17 +
+  6 Ship Systems Data). Not added: the Thargoid Bobblehead (a
+  cosmetic, no slot). OPEN: Inara says 18 and 20 Guardian Power
+  Conduit for the Guardian Plasma Charger (Fixed, Medium) and
+  (Turreted, Large) where EDDA and the wiki say 19 and 26 -- two
+  sources against one, EDDA's figures kept until a journal
+  TechnologyBroker receipt decides. OPEN: the Azimuth variant's damage
+  ratio, Coriolis 0.65 vs the wiki's +10% (Coriolis's kept, as the
+  generator's rule says); its thermal load (+300%) comes from the wiki
+  alone. Receipts: the boss's own TechnologyBroker events (2026-09-29)
+  confirm the Sirius heat sink recipe exactly. The preset generator
+  (`gen_preengineered.py`) is now idempotent -- it used to append its
+  Coriolis path to the SCO drives' source line on every run.
+
 - **Code-sign the Windows binary** (2026-10-07, launch night; open).
   One of the first downloaders put `edda.exe` on VirusTotal at
   18:47Z: 1 of 48 engines flagged it, Trapmine's "Malicious.moderate.

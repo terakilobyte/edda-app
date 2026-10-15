@@ -637,6 +637,17 @@ mod tests {
         assert_eq!(sirius.len(), 1);
         assert_eq!(sirius[0].unlock.as_deref(), Some("Sirius Modified Heat Sink Launcher"));
         assert!(sirius[0].per_unit && sirius[0].broker == "human");
+        // The Azimuth multi-cannons (2026-10-14): Coriolis's rows now carry
+        // the human broker's recipe, so a swap to one breaks down into its
+        // unlock instead of "unknown".
+        for symbol in ["hpt_atmulticannon_gimbal_medium", "hpt_atmulticannon_gimbal_large"] {
+            let az = s.presets_for(symbol);
+            assert_eq!(az.len(), 1, "{symbol}: {az:?}");
+            assert!(az[0].unlock.as_deref().is_some_and(|u| u.starts_with("Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, ")), "{:?}", az[0].unlock);
+            assert!(az[0].per_unit && az[0].broker == "human", "{:?}", az[0]);
+            assert_eq!(az[0].experimental.as_deref(), Some("special_auto_loader"));
+            assert!((az[0].modifiers["PowerDraw"] - 1.75).abs() < 1e-3, "{:?}", az[0].modifiers);
+        }
         // The SCO drives keep their journal-measured figures and ids.
         let sco = s.preset("sco_v1_4").expect("the size 4 SCO V1 keeps its id");
         assert!((sco.modifiers["FSDOptimalMass"] - 1.7).abs() < 1e-6);

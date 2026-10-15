@@ -16,6 +16,12 @@ Sources, in the order they win:
      MediaWiki API; URLs in WIKI below): ratios only where Coriolis carries
      none, and the purchase rule ("must be unlocked repeatedly ... a
      purchase in exchange for materials, aka a Barter, not an unlock").
+     The Azimuth Modified Enhanced AX Multi-Cannon (2026-10-14, "we seem
+     to be missing some data"): Coriolis carries both rows (G5 Overcharged
+     + Auto Loader) but the file had no recipe for them, so the planner
+     could not break the swap down; the recipe is now in blueprints.json
+     (wiki + Inara agree) and the wiki's prose ratios sit beside
+     Coriolis's as OPEN where they differ.
   4. The recipe names: crates/ed-engineering/data/blueprints.json, pinned
      against the wiki by tech_broker_pin.py (2026-09-27: every per-unit
      recipe there agrees with its module page; the broker page's own
@@ -88,7 +94,19 @@ WIKI = {
         "Integrity": 0.5, "Damage": 0.95, "PowerDraw": 0.5, "DistributorDraw": 0.5, "ThermalLoad": 0.51, "MaximumRange": 5.0, "DamageFalloffRange": 8.33}),
     ("hpt_heatsinklauncher_turret_tiny", ("Misc_HeatSinkCapacity",)): ("https://elite-dangerous.fandom.com/wiki/Heatsink_Launcher#Sirius_Heatsink_Launcher", {
         "AmmoMaximum": 5 / 3, "ReloadTime": 1.75}),
+    # The wiki's prose: "+10% damage and the Auto Loader experimental, at the
+    # cost of +75% power draw and +300% thermal load" (2026-10-14).
+    ("hpt_atmulticannon_gimbal_medium", ("Weapon_Overcharged",)): ("https://elite-dangerous.fandom.com/wiki/Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon", {
+        "Damage": 1.1, "PowerDraw": 1.75, "ThermalLoad": 4.0}),
+    ("hpt_atmulticannon_gimbal_large", ("Weapon_Overcharged",)): ("https://elite-dangerous.fandom.com/wiki/Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon", {
+        "Damage": 1.1, "PowerDraw": 1.75, "ThermalLoad": 4.0}),
 }
+
+
+RECIPES.update({
+    ("hpt_atmulticannon_gimbal_medium", ("Weapon_Overcharged",)): "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Medium)",
+    ("hpt_atmulticannon_gimbal_large", ("Weapon_Overcharged",)): "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Large)",
+})
 
 
 def edcd_names():
@@ -169,7 +187,10 @@ def main():
         pid = prev["id"] if prev and prev.get("id", "").startswith("sco_v1_") else f"pe:{symbol}:{'+'.join(b.lower() for b in blueprints)}:{grade}"
         if prev and prev.get("modifiers") and "journal" in str(prev.get("source", "journal")):
             modifiers = dict(prev["modifiers"])
-            sources.insert(0, prev.get("source") or "journal: a real Loadout")
+            # The previous source line already names its Coriolis path: keep
+            # it as it is, so a rerun reproduces the file byte for byte.
+            prev_source = prev.get("source") or "journal: a real Loadout"
+            sources = [prev_source] + [s for s in sources if s not in prev_source]
         plain, _mount = names.get(symbol, (symbol, ""))
         # Short: the recipe's name with the module's class and rating in
         # place of its "(Fixed, Medium)", else Coriolis's label; the

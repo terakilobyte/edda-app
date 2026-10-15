@@ -691,6 +691,14 @@ mod tests {
         assert_eq!(lib.unlock_recipe("Enzyme Missile Rack (fixed, medium)").map(|b| b.module_type.as_str()), Some("Human"));
         assert!(lib.unlock_recipe("Pulse Laser (fixed, small)").is_none());
         assert_eq!(lib.unlock_recipe("Remote Release Flechette Launcher (Fixed, Medium)").map(|b| b.name.as_str()), Some("Remote Release Flechette Launcher (Fixed)"));
+        // The Azimuth variant (2026-10-14, Inara and the wiki agree on the
+        // cost) is a recipe of its own; the plain Enhanced AX Multi-Cannon
+        // it is built on is bought at any outfitter and has none.
+        let azimuth = lib.unlock_recipe("Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Medium)").expect("the Azimuth recipe");
+        assert_eq!(azimuth.module_type, "Human");
+        assert_eq!(azimuth.ingredients.iter().map(|i| (i.name.as_str(), i.quantity)).collect::<Vec<_>>(), [("Iron", 9), ("Zirconium", 11), ("Bio-Mechanical Conduits", 6), ("Wreckage Components", 7), ("Weapon Parts", 14)]);
+        assert!(lib.unlock_recipe("Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Large)").is_some_and(|b| b.ingredients.iter().any(|i| i.name == "Ship Systems Data" && i.quantity == 6)));
+        assert!(lib.unlock_recipe("Enhanced AX Multi-Cannon 2E (gimballed)").is_none());
     }
 
     #[test]
