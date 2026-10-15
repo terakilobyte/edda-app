@@ -44910,5 +44910,75 @@
     "Grade": null,
     "CoriolisGuid": "",
     "Source": "wiki Frame_Shift_Drive#Pre-Engineered_FSD_(SCO)_V1, 2026-09-27; class 4 confirmed by the maintainer's TechnologyBroker event 2026-08-23"
-  }
+  },
+    {
+        "Type": "Human",
+        "Name": "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Medium)",
+        "Engineers": [
+            "@Technology"
+        ],
+        "Ingredients": [
+            {
+                "Name": "Iron",
+                "Size": 9
+            },
+            {
+                "Name": "Zirconium",
+                "Size": 11
+            },
+            {
+                "Name": "Bio-Mechanical Conduits",
+                "Size": 6
+            },
+            {
+                "Name": "Wreckage Components",
+                "Size": 7
+            },
+            {
+                "Name": "Weapon Parts",
+                "Size": 14
+            }
+        ],
+        "Effects": [],
+        "Grade": null,
+        "CoriolisGuid": "",
+        "Source": "wiki Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon (api.php, 2026-10-14) and Inara techbroker (2026-10-14) agree; no journal receipt yet"
+    },
+    {
+        "Type": "Human",
+        "Name": "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Large)",
+        "Engineers": [
+            "@Technology"
+        ],
+        "Ingredients": [
+            {
+                "Name": "Iron",
+                "Size": 11
+            },
+            {
+                "Name": "Zirconium",
+                "Size": 16
+            },
+            {
+                "Name": "Bio-Mechanical Conduits",
+                "Size": 9
+            },
+            {
+                "Name": "Wreckage Components",
+                "Size": 12
+            },
+            {
+                "Name": "Weapon Parts",
+                "Size": 17
+            },
+            {
+                "Name": "Ship Systems Data",
+                "Size": 6
+            }
+        ],
+        "Effects": [],
+        "Grade": null,
+        "CoriolisGuid": "",
+        "Source": "wiki Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon (api.php, 2026-10-14) and Inara techbroker (2026-10-14) agree; no journal receipt yet"
+    }
 ]

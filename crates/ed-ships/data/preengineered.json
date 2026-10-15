@@ -58,9 +58,9 @@
  {
   "id": "pe:hpt_atmulticannon_gimbal_large:weapon_overcharged:5",
   "item": "hpt_atmulticannon_gimbal_large",
-  "name": "AX MC (OC, Auto-Load) · pre-engineered Enhanced AX Multi-Cannon 3C (gimballed)",
+  "name": "Azimuth Modified Enhanced AX Multi-Cannon 3C (gimballed) · pre-engineered Enhanced AX Multi-Cannon 3C (gimballed)",
   "description": "Grade 5 Overcharged modifications and Auto-Loader experimental",
-  "broker": "unknown",
+  "broker": "human",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
    "Weapon_Overcharged"
@@ -70,18 +70,19 @@
   "experimental": "special_auto_loader",
   "modifiers": {
    "Damage": 0.645238,
-   "PowerDraw": 1.75
+   "PowerDraw": 1.75,
+   "ThermalLoad": 4.0
   },
-  "unlock": null,
+  "unlock": "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Large)",
   "per_unit": true,
-  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json"
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json; wiki https://elite-dangerous.fandom.com/wiki/Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon; OPEN: Damage: coriolis 0.6452 vs wiki 1.1"
  },
  {
   "id": "pe:hpt_atmulticannon_gimbal_medium:weapon_overcharged:5",
   "item": "hpt_atmulticannon_gimbal_medium",
-  "name": "AX MC (OC, Auto-Load) · pre-engineered Enhanced AX Multi-Cannon 2E (gimballed)",
+  "name": "Azimuth Modified Enhanced AX Multi-Cannon 2E (gimballed) · pre-engineered Enhanced AX Multi-Cannon 2E (gimballed)",
   "description": "Grade 5 Overcharged modifications and Auto-Loader experimental",
-  "broker": "unknown",
+  "broker": "human",
   "blueprint": "Weapon_Overcharged",
   "blueprints": [
    "Weapon_Overcharged"
@@ -91,11 +92,12 @@
   "experimental": "special_auto_loader",
   "modifiers": {
    "Damage": 0.648649,
-   "PowerDraw": 1.75
+   "PowerDraw": 1.75,
+   "ThermalLoad": 4.0
   },
-  "unlock": null,
+  "unlock": "Azimuth Modified Enhanced AX Multi-Cannon (Gimballed, Medium)",
   "per_unit": true,
-  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json"
+  "source": "coriolis-data crates/ed-ships/data/coriolis/modules/hardpoints/ax_multi_cannon_enhanced.json; wiki https://elite-dangerous.fandom.com/wiki/Enhanced_AX_Multi-cannon#Azimuth_Modified_Enhanced_AX_Multi-cannon; OPEN: Damage: coriolis 0.6486 vs wiki 1.1"
  },
  {
   "id": "pe:hpt_basicmissilerack_fixed_medium:weapon_highcapacity+weapon_lightweight:5",

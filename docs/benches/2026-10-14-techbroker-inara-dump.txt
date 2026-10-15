@@ -1,0 +1,470 @@
+HUMAN
+Purchasable
+SIRIUS AX MISSILE RACK [FIXED LARGE] [3C]
+20︎ Mechanical Equipment
+9︎ Heat Dispersion Plate
+13︎ Vanadium
+10︎ High Density Composites
+10︎ Military Supercapacitors
+3︎ Technetium
+
+Purchasable
+SIRIUS AX MISSILE RACK [FIXED MEDIUM] [2E]
+12︎ Mechanical Equipment
+6︎ Heat Dispersion Plate
+8︎ Vanadium
+5︎ High Density Composites
+5︎ Military Supercapacitors
+
+Purchasable
+AZIMUTH ENHANCED AX MULTI-CANNON [GIMBALLED LARGE] [3C]
+11︎ Iron
+16︎ Zirconium
+9︎ Bio-Mechanical Conduits
+12︎ Wreckage Components
+17︎ Weapon Parts
+6︎ Ship Systems Data
+
+Purchasable
+AZIMUTH ENHANCED AX MULTI-CANNON [GIMBALLED MEDIUM] [2E]
+9︎ Iron
+11︎ Zirconium
+6︎ Bio-Mechanical Conduits
+7︎ Wreckage Components
+14︎ Weapon Parts
+
+LOCKED
+BOBBLEHEAD [1I]
+10Meta-Alloys
+1Thargoid Heart
+
+LOCKED
+CORROSION RESISTANT CARGO RACK [4E]
+16Meta-Alloys
+22Radiation Baffle
+12Neofabric Insulation
+26︎ Iron
+18︎ Chemical Manipulators
+
+Purchasable
+ENGINEERED DETAILED SURFACE SCANNER [1I]
+26︎ Mechanical Scrap
+22︎ Germanium
+28︎ Mechanical Components
+24︎ Niobium
+
+LOCKED
+ENZYME MISSILE RACK [FIXED MEDIUM] [2B]
+6Radiation Baffle
+16︎ Thargoid Energy Cell
+18︎ Thargoid Organic Circuitry
+16︎ Molybdenum
+15︎ Tungsten
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE [5A]
+26︎ Tellurium
+26︎ Electrochemical Arrays
+28︎ Chemical Processors
+18︎ Datamined Wake Exceptions
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [7A]
+1Titan Drive Component
+16︎ Datamined Wake Exceptions
+28︎ Tellurium
+14︎ Electrochemical Arrays
+18︎ Chemical Processors
+12︎ Propulsion Elements
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [6A]
+1Titan Drive Component
+15︎ Datamined Wake Exceptions
+28︎ Tellurium
+12︎ Electrochemical Arrays
+16︎ Chemical Processors
+8︎ Propulsion Elements
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [5A]
+1Titan Drive Component
+15︎ Datamined Wake Exceptions
+24︎ Tellurium
+12︎ Electrochemical Arrays
+14︎ Chemical Processors
+7︎ Propulsion Elements
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [4A]
+1Titan Drive Component
+13︎ Datamined Wake Exceptions
+20︎ Tellurium
+9︎ Electrochemical Arrays
+13︎ Chemical Processors
+6︎ Propulsion Elements
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [3A]
+1Titan Drive Component
+12︎ Datamined Wake Exceptions
+16︎ Tellurium
+9︎ Electrochemical Arrays
+11︎ Chemical Processors
+5︎ Propulsion Elements
+
+Purchasable
+ENGINEERED FRAME SHIFT DRIVE (SCO) [2A]
+1Titan Drive Component
+10︎ Datamined Wake Exceptions
+14︎ Tellurium
+6︎ Electrochemical Arrays
+9︎ Chemical Processors
+4︎ Propulsion Elements
+
+Purchasable
+SIRIUS HEAT SINK LAUNCHER [3C]
+8︎ Mechanical Scrap
+6︎ Niobium
+6︎ Vanadium
+5︎ Mechanical Components
+
+LOCKED
+META ALLOY HULL REINFORCEMENT [1E]
+16Meta-Alloys
+12Reinforced Mounting Plate
+25︎ Focus Crystals
+22︎ Aberrant Shield Pattern Analysis
+20︎ Configurable Components
+
+Purchasable
+MODIFIED MINING LASER [FIXED SMALL] [1A]
+16Osmium
+20︎ Arsenic
+24︎ Rhenium
+28︎ Phosphorus
+
+LOCKED
+REMOTE RELEASE FLECHETTE LAUNCHER [FIXED MEDIUM] [2A]
+8CMM Composite
+30︎ Iron
+24︎ Molybdenum
+22︎ Rhenium
+26︎ Germanium
+
+UNLOCKED
+REMOTE RELEASE FLECHETTE LAUNCHER [TURRETED MEDIUM] [2A]
+10Articulation Motors
+28︎ Iron
+28︎ Molybdenum
+20︎ Rhenium
+24︎ Germanium
+
+Purchasable
+ENGINEERED SEEKER MISSILE RACK [FIXED MEDIUM] [2B]
+10Osmium
+24︎ Conductive Ceramics
+26︎ Hybrid Capacitors
+28︎ Phosphorus
+16︎ Proto Radiolic Alloys
+
+LOCKED
+SHOCK CANNON [FIXED LARGE] [3C]
+8Power Converter
+28︎ Vanadium
+26︎ Tungsten
+24︎ Rhenium
+26︎ Technetium
+
+LOCKED
+SHOCK CANNON [FIXED MEDIUM] [2D]
+6Ion Distributor
+24︎ Vanadium
+26︎ Tungsten
+20︎ Rhenium
+28︎ Technetium
+
+LOCKED
+SHOCK CANNON [FIXED SMALL] [1D]
+4Power Converter
+8︎ Vanadium
+10︎ Tungsten
+8︎ Rhenium
+12︎ Technetium
+
+LOCKED
+SHOCK CANNON [TURRETED LARGE] [3D]
+10Ion Distributor
+26︎ Vanadium
+28︎ Tungsten
+22︎ Rhenium
+24︎ Technetium
+
+LOCKED
+SHOCK CANNON [TURRETED MEDIUM] [2E]
+8Power Transfer Bus
+24︎ Vanadium
+22︎ Tungsten
+20︎ Rhenium
+28︎ Technetium
+
+LOCKED
+SHOCK CANNON [TURRETED SMALL] [1F]
+4Ion Distributor
+8︎ Vanadium
+12︎ Tungsten
+10︎ Rhenium
+10︎ Technetium
+
+LOCKED
+SHOCK CANNON [GIMBALLED LARGE] [3C]
+12Power Transfer Bus
+28︎ Vanadium
+24︎ Tungsten
+24︎ Rhenium
+22︎ Technetium
+
+LOCKED
+SHOCK CANNON [GIMBALLED MEDIUM] [2D]
+10Power Converter
+24︎ Vanadium
+22︎ Tungsten
+20︎ Rhenium
+28︎ Technetium
+
+LOCKED
+SHOCK CANNON [GIMBALLED SMALL] [1E]
+4Power Transfer Bus
+10︎ Vanadium
+11︎ Tungsten
+8︎ Rhenium
+10︎ Technetium
+
+GUARDIAN MODULES
+LOCKED
+GUARDIAN FSD BOOSTER [1H]
+8HN Shock Mount
+1︎ Guardian Module Blueprint Fragment
+21︎ Guardian Power Cell
+21︎ Guardian Technology Component
+24︎ Focus Crystals
+
+LOCKED
+GUARDIAN HULL REINFORCEMENT [1E]
+12Reinforced Mounting Plate
+1︎ Guardian Module Blueprint Fragment
+21︎ Guardian Wreckage Components
+16︎ Pattern Beta Obelisk Data
+16︎ Pattern Gamma Obelisk Data
+
+LOCKED
+GUARDIAN HYBRID POWER DISTRIBUTOR [1A]
+6Heatsink Interlink
+1︎ Guardian Module Blueprint Fragment
+20︎ Pattern Alpha Obelisk Data
+24︎ Guardian Power Cell
+18︎ Phase Alloys
+
+LOCKED
+GUARDIAN MODULE REINFORCEMENT [1E]
+9Reinforced Mounting Plate
+1︎ Guardian Module Blueprint Fragment
+18︎ Guardian Wreckage Components
+15︎ Pattern Epsilon Obelisk Data
+20︎ Guardian Power Conduit
+
+LOCKED
+GUARDIAN POWER PLANT [2A]
+10Energy Grid Assembly
+1︎ Guardian Module Blueprint Fragment
+18︎ Guardian Power Conduit
+21︎ Pattern Epsilon Obelisk Data
+15︎ Heat Resistant Ceramics
+
+LOCKED
+GUARDIAN SHIELD REINFORCEMENT [1E]
+8Hardware Diagnostic Sensor
+1︎ Guardian Module Blueprint Fragment
+17︎ Guardian Power Cell
+20︎ Guardian Technology Component
+24︎ Pattern Delta Obelisk Data
+
+LOCKED
+XG7 TRIDENT GUARDIAN SHIP LAUNCHED FIGHTER
+1︎ Guardian Vessel Blueprint Fragment
+25︎ Guardian Power Cell
+26︎ Pattern Epsilon Obelisk Data
+18︎ Pattern Beta Obelisk Data
+25︎ Guardian Technology Component
+
+LOCKED
+XG8 JAVELIN GUARDIAN SHIP LAUNCHED FIGHTER
+1︎ Guardian Vessel Blueprint Fragment
+25︎ Guardian Power Cell
+26︎ Pattern Epsilon Obelisk Data
+18︎ Guardian Wreckage Components
+25︎ Guardian Technology Component
+
+LOCKED
+XG9 LANCE GUARDIAN SHIP LAUNCHED FIGHTER
+1︎ Guardian Vessel Blueprint Fragment
+25︎ Guardian Power Cell
+26︎ Pattern Epsilon Obelisk Data
+18︎ Guardian Sentinel Weapon Parts
+25︎ Guardian Technology Component
+
+GUARDIAN WEAPONS
+Purchasable
+MODIFIED GUARDIAN GAUSS CANNON [FIXED MEDIUM] [2B]
+2Thermal Cooling Units
+5︎ Guardian Power Cell
+5︎ Guardian Technology Component
+4︎ Niobium
+1︎ Guardian Weapon Blueprint Fragment
+
+LOCKED
+GUARDIAN GAUSS CANNON [FIXED MEDIUM] [2B]
+6Magnetic Emitter Coil
+1︎ Guardian Weapon Blueprint Fragment
+18︎ Guardian Power Cell
+20︎ Guardian Technology Component
+15︎ Manganese
+
+LOCKED
+GUARDIAN GAUSS CANNON [FIXED SMALL] [1D]
+1︎ Guardian Weapon Blueprint Fragment
+12︎ Guardian Power Conduit
+12︎ Guardian Wreckage Components
+15︎ Guardian Sentinel Weapon Parts
+
+Purchasable
+MODIFIED GUARDIAN GAUSS CANNON [FIXED SMALL] [1D]
+3︎ Guardian Power Conduit
+3︎ Guardian Wreckage Components
+4︎ Guardian Sentinel Weapon Parts
+2︎ Niobium
+1︎ Guardian Weapon Blueprint Fragment
+
+LOCKED
+GUARDIAN PLASMA CHARGER [FIXED LARGE] [3C]
+10Micro-weave Cooling Hoses
+1︎ Guardian Weapon Blueprint Fragment
+28︎ Guardian Power Conduit
+20︎ Guardian Sentinel Weapon Parts
+28︎ Chromium
+
+LOCKED
+GUARDIAN PLASMA CHARGER [FIXED MEDIUM] [2B]
+8Micro-weave Cooling Hoses
+1︎ Guardian Weapon Blueprint Fragment
+18︎ Guardian Power Conduit
+16︎ Guardian Sentinel Weapon Parts
+14︎ Chromium
+
+Purchasable
+MODIFIED GUARDIAN PLASMA CHARGER [FIXED MEDIUM] [2B]
+2Power Transfer Bus
+1︎ Guardian Weapon Blueprint Fragment
+5︎ Guardian Power Conduit
+5︎ Guardian Sentinel Weapon Parts
+4︎ Arsenic
+
+LOCKED
+GUARDIAN PLASMA CHARGER [FIXED SMALL] [1D]
+1︎ Guardian Weapon Blueprint Fragment
+12︎ Guardian Power Cell
+12︎ Guardian Sentinel Weapon Parts
+15︎ Guardian Technology Component
+
+Purchasable
+MODIFIED GUARDIAN PLASMA CHARGER [FIXED SMALL] [1D]
+1︎ Guardian Weapon Blueprint Fragment
+3︎ Guardian Power Cell
+3︎ Guardian Sentinel Weapon Parts
+4︎ Guardian Technology Component
+2︎ Arsenic
+
+LOCKED
+GUARDIAN PLASMA CHARGER [TURRETED LARGE] [3D]
+10Articulation Motors
+2︎ Guardian Weapon Blueprint Fragment
+20︎ Guardian Power Conduit
+24︎ Guardian Sentinel Weapon Parts
+26︎ Chromium
+
+LOCKED
+GUARDIAN PLASMA CHARGER [TURRETED MEDIUM] [2E]
+8Articulation Motors
+2︎ Guardian Weapon Blueprint Fragment
+21︎ Guardian Power Conduit
+20︎ Guardian Sentinel Weapon Parts
+16︎ Chromium
+
+LOCKED
+GUARDIAN PLASMA CHARGER [TURRETED SMALL] [1F]
+1︎ Guardian Weapon Blueprint Fragment
+12︎ Guardian Power Cell
+12︎ Guardian Technology Component
+15︎ Guardian Sentinel Weapon Parts
+
+LOCKED
+GUARDIAN SHARD CANNON [FIXED LARGE] [3C]
+18Micro Controllers
+1︎ Guardian Weapon Blueprint Fragment
+20︎ Guardian Wreckage Components
+28︎ Guardian Technology Component
+20︎ Carbon
+
+Purchasable
+MODIFIED GUARDIAN SHARD CANNON [FIXED MEDIUM] [2A]
+2Power Converter
+5︎ Guardian Wreckage Components
+5︎ Guardian Technology Component
+4︎ Germanium
+1︎ Guardian Weapon Blueprint Fragment
+
+LOCKED
+GUARDIAN SHARD CANNON [FIXED MEDIUM] [2A]
+12Power Transfer Bus
+1︎ Guardian Weapon Blueprint Fragment
+20︎ Guardian Wreckage Components
+18︎ Guardian Technology Component
+14︎ Carbon
+
+Purchasable
+MODIFIED GUARDIAN SHARD CANNON [FIXED SMALL] [1D]
+3︎ Guardian Power Conduit
+3︎ Guardian Wreckage Components
+4︎ Guardian Sentinel Weapon Parts
+2︎ Germanium
+1︎ Guardian Weapon Blueprint Fragment
+
+LOCKED
+GUARDIAN SHARD CANNON [FIXED SMALL] [1D]
+1︎ Guardian Weapon Blueprint Fragment
+12︎ Guardian Power Conduit
+12︎ Guardian Technology Component
+15︎ Guardian Sentinel Weapon Parts
+
+LOCKED
+GUARDIAN SHARD CANNON [TURRETED LARGE] [3D]
+12Micro Controllers
+2︎ Guardian Weapon Blueprint Fragment
+20︎ Guardian Wreckage Components
+26︎ Guardian Technology Component
+28︎ Carbon
+
+LOCKED
+GUARDIAN SHARD CANNON [TURRETED MEDIUM] [2A]
+12Micro Controllers
+2︎ Guardian Weapon Blueprint Fragment
+16︎ Guardian Wreckage Components
+20︎ Guardian Technology Component
+15︎ Carbon
+
+LOCKED
+GUARDIAN SHARD CANNON [TURRETED SMALL] [1F]
+1︎ Guardian Weapon Blueprint Fragment
+12︎ Guardian Power Conduit
+15︎ Guardian Technology Component
+12︎ Guardian Sentinel Weapon Parts
