@@ -277,20 +277,34 @@ pub async fn listen_config_set(app: AppHandle, state: State<'_, AppState>, confi
     state.voice.audio().set_output_device(config.output_device.clone());
     // Re-register the PTT source; restart the listener if it is running.
     register_ptt_source(&app, &config.ptt_source())?;
-    match listener_action(listen(&state).run, config.enabled) {
-        ListenerAction::Stop => {
-            stop_listening(&state);
-            listen(&state).release_models();
-            tracing::info!(private_mb = crate::health::private_mb(), "voice input off; speech models released");
-        }
+    match switch_listener(&state, config.enabled) {
         ListenerAction::Restart => {
             stop_listening(&state);
             start_listening(app.clone())?;
         }
         ListenerAction::Start => start_listening(app.clone())?,
-        ListenerAction::Nothing => {}
+        ListenerAction::Stop | ListenerAction::Nothing => {}
     }
     Ok(config)
+}
+
+/// Decide what the saved config means for the listener and perform the
+/// part that needs no app handle: stopping it and releasing the models.
+/// The lock is taken once and dropped before anything else locks it (the
+/// first version held the guard across the match and deadlocked the save
+/// on the way to `stop_listening`; the maintainer saw the box unchecked and
+/// the memory unchanged).
+fn switch_listener(state: &AppState, enabled: bool) -> ListenerAction {
+    let running = listen(state).run;
+    let action = listener_action(running, enabled);
+    if action == ListenerAction::Stop {
+        let mut l = listen(state);
+        l.stop();
+        l.release_models();
+        drop(l);
+        tracing::info!(private_mb = crate::health::private_mb(), "voice input off; speech models released");
+    }
+    action
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -713,9 +727,10 @@ fn start_listening(app: AppHandle) -> Result<(), String> {
 }
 
 fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_gen: u64) -> anyhow::Result<()> {
+    let before = crate::health::private_mb();
     let engine = ed_listen::Engine::load(lib, model)?;
     let mic = ed_listen::open_mic_named(cfg.mic_device.as_deref())?;
-    tracing::info!(model = %model.display(), private_mb = crate::health::private_mb(), "speech model");
+    tracing::info!(model = %model.display(), private_mb_before = before, private_mb = crate::health::private_mb(), "speech model");
     let wake = cfg.wake_word.trim().to_lowercase();
     let mut wake_rec = if wake.is_empty() { None } else { Some(engine.grammar_recognizer(&[wake.as_str()])?) };
     let mut free_rec = engine.recognizer()?;
@@ -1105,6 +1120,23 @@ fn direct_order(t: &str) -> Option<Order> {
 
 #[cfg(test)]
 mod tests {
+    /// The decision and the stop share one lock; a second take of it on
+    /// the way to the stop is a deadlock the test turns into a timeout.
+    #[test]
+    fn switching_off_stops_and_releases_without_deadlocking_on_its_own_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(crate::state::test_state(dir.path()));
+        super::listen(&state).begin_loop();
+        assert!(super::listen(&state).run);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let st = state.clone();
+        std::thread::spawn(move || { let _ = tx.send(super::switch_listener(&st, false)); });
+        let action = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("switch_listener must return, not hold its own lock");
+        assert_eq!(action, super::ListenerAction::Stop);
+        let l = super::listen(&state);
+        assert!(!l.run && l.parakeet.is_none(), "stopped and released");
+    }
+
     #[test]
     fn switching_voice_input_off_stops_the_listener_instead_of_restarting_it() {
         use super::{listener_action, ListenerAction};
