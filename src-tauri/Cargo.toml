@@ -79,7 +79,7 @@ metrics-exporter-prometheus = { version = "0.18.3", default-features = false }
 # silently compiles its in-memory mock and API keys vanish at exit.
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_System_ProcessStatus"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }

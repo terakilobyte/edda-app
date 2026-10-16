@@ -123,6 +123,14 @@ impl ListenState {
         self.run = false;
     }
 
+    /// Let go of the speech models kept across restarts. Called when the
+    /// commander switches voice input off (2026-10-16: with listening
+    /// disabled the app still held Parakeet's ~700 MB, because the loop
+    /// kept it for the next start and "off" restarted the loop anyway).
+    pub fn release_models(&mut self) {
+        self.parakeet = None;
+    }
+
     /// Does the loop that owns `gen` still own the microphone?
     pub fn is_current(&self, gen: u64) -> bool {
         self.gen == gen
@@ -269,13 +277,35 @@ pub async fn listen_config_set(app: AppHandle, state: State<'_, AppState>, confi
     state.voice.audio().set_output_device(config.output_device.clone());
     // Re-register the PTT source; restart the listener if it is running.
     register_ptt_source(&app, &config.ptt_source())?;
-    if listen(&state).run {
-        stop_listening(&state);
-        start_listening(app.clone())?;
-    } else if config.enabled {
-        start_listening(app.clone())?;
+    match listener_action(listen(&state).run, config.enabled) {
+        ListenerAction::Stop => {
+            stop_listening(&state);
+            listen(&state).release_models();
+            tracing::info!(private_mb = crate::health::private_mb(), "voice input off; speech models released");
+        }
+        ListenerAction::Restart => {
+            stop_listening(&state);
+            start_listening(app.clone())?;
+        }
+        ListenerAction::Start => start_listening(app.clone())?,
+        ListenerAction::Nothing => {}
     }
     Ok(config)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ListenerAction { Stop, Restart, Start, Nothing }
+
+/// What a saved voice-input config means for the running listener. Until
+/// 2026-10-16 a running listener was restarted whatever `enabled` said, so
+/// switching voice input off switched it straight back on.
+fn listener_action(running: bool, enabled: bool) -> ListenerAction {
+    match (running, enabled) {
+        (true, false) => ListenerAction::Stop,
+        (true, true) => ListenerAction::Restart,
+        (false, true) => ListenerAction::Start,
+        (false, false) => ListenerAction::Nothing,
+    }
 }
 
 /// Download and unpack the model and library. Progress on `listen-setup`.
@@ -445,6 +475,8 @@ pub async fn listen_start(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn listen_stop(state: State<'_, AppState>) -> Result<(), String> {
     stop_listening(&state);
+    listen(&state).release_models();
+    tracing::info!(private_mb = crate::health::private_mb(), "voice input stopped; speech models released");
     Ok(())
 }
 
@@ -683,7 +715,7 @@ fn start_listening(app: AppHandle) -> Result<(), String> {
 fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_gen: u64) -> anyhow::Result<()> {
     let engine = ed_listen::Engine::load(lib, model)?;
     let mic = ed_listen::open_mic_named(cfg.mic_device.as_deref())?;
-    tracing::info!(model = %model.display(), "speech model");
+    tracing::info!(model = %model.display(), private_mb = crate::health::private_mb(), "speech model");
     let wake = cfg.wake_word.trim().to_lowercase();
     let mut wake_rec = if wake.is_empty() { None } else { Some(engine.grammar_recognizer(&[wake.as_str()])?) };
     let mut free_rec = engine.recognizer()?;
@@ -696,8 +728,13 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
             // Loaded outside the lock: it takes seconds, and push-to-talk
             // must not wait on it.
             None => match ed_listen::parakeet::find_lib(&dir) {
-                Some(lib_dir) => match ed_listen::parakeet::Parakeet::load(&lib_dir, &dir.join(PARAKEET_DIR), std::thread::available_parallelism().map(|n| n.get() / 2).unwrap_or(4)) {
+                Some(lib_dir) => {
+                    let before = crate::health::private_mb();
+                    let started = std::time::Instant::now();
+                    match ed_listen::parakeet::Parakeet::load(&lib_dir, &dir.join(PARAKEET_DIR), std::thread::available_parallelism().map(|n| n.get() / 2).unwrap_or(4)) {
                     Ok(p) => {
+                        let after = crate::health::private_mb();
+                        tracing::info!(ms = started.elapsed().as_millis(), private_mb_before = before, private_mb_after = after, "Parakeet loaded");
                         let p = std::sync::Arc::new(p);
                         listen(&st).parakeet = Some(p.clone());
                         Some(p)
@@ -706,7 +743,8 @@ fn listen_loop(app: &AppHandle, lib: &Path, model: &Path, cfg: ListenConfig, my_
                         tracing::warn!(error = %e, "Parakeet not loaded; dictation falls back to Vosk");
                         None
                     }
-                },
+                }
+                }
                 None => {
                     tracing::warn!("sherpa-onnx library missing; dictation falls back to Vosk");
                     None
@@ -1067,6 +1105,15 @@ fn direct_order(t: &str) -> Option<Order> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn switching_voice_input_off_stops_the_listener_instead_of_restarting_it() {
+        use super::{listener_action, ListenerAction};
+        assert_eq!(listener_action(true, false), ListenerAction::Stop, "2026-10-16: off used to restart");
+        assert_eq!(listener_action(true, true), ListenerAction::Restart);
+        assert_eq!(listener_action(false, true), ListenerAction::Start);
+        assert_eq!(listener_action(false, false), ListenerAction::Nothing);
+    }
+
     use super::*;
 
     /// Nothing is bound until the commander provides a control: a fresh
