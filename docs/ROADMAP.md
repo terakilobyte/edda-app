@@ -623,6 +623,32 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **The dev app ran out of handles: a joystick poll on a vanished WinMM
+  id** (2026-10-16; the boss, mid-fight: "sadge: unable to open database
+  file" -- that line was a knob's argument bug, but the look it prompted
+  found his app at 16,711,680 kernel handles, the per-process ceiling,
+  since 00:09Z: `read_dir` on the journal folder failing every 5 s
+  ("journal sync failed" x3003, no cause printed), audio output, the
+  piper sidecar and HTTPS all dead, while events still trickled in
+  through the open journal file). Census from outside the process
+  (`docs/benches/2026-10-16-handle-leak-census.csv`): 16.7 M registry
+  Keys named `...\DirectInput\VID_xxxx&PID_xxxx\Calibration\N` for
+  every HID device on the machine, i.e. WinMM joystick enumeration. His
+  config bound push-to-talk and the next-system trigger to WinMM device
+  id 2; the stick had moved to ids 3 and 4 after a re-plug, and two 50 Hz
+  loops had polled id 2 for ~41 h (so the PTT button and hat trigger were
+  dead that whole time too). Fix: `ed_input::joy::Poller` -- a poller
+  whose device stops answering pauses, re-resolves the saved binding by
+  name (and enough buttons) on a 2 s doubling to 60 s backoff, and
+  resumes on the new id; both loops use it. Measurable: `health.rs` logs
+  the process handle count every minute (info on a quarter move, warn
+  above 20,000, which reaches telemetry as a warn callsite); the sync
+  warning prints its cause chain. OPEN: the leak did not reproduce in a
+  fresh process (0 handles over 2,000 calls on present and absent ids,
+  with `joyConfigChanged` between calls); the leaking path is WinMM's
+  "known, now unplugged" state and needs a re-plug to show -- the
+  handle-count line is the instrument that catches it next time.
+
 - **Engineers: the rank gates the grade; a craft is on the ship at once**
   (2026-10-14, the boss: "why are we recommending this when I have
   felicity farseer fully unlocked?" -- the build plan offered Elvira
