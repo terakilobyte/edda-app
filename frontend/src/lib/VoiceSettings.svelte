@@ -6,10 +6,23 @@
   import {
     voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, voiceUseNone, voicesInstalled, voicesRemoveAll, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
     calloutsGet, calloutsSet,
-    listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices,
+    listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices, listenModelsInstalled, listenModelsRemove,
   } from "./api.js";
   import { useListeners } from "./lifecycle.svelte.js";
   import VoiceEngineChoice from "./VoiceEngineChoice.svelte";
+  import ConfirmModal from "./ConfirmModal.svelte";
+
+  // Every confirmation goes through the app's own modal (maintainer,
+  // 2026-10-16: "no window alerts, ever"). `pending` holds the question and
+  // the work to run on yes.
+  let pending = $state(null);
+  const ask = (q) => { pending = { confirmLabel: "Remove", cancelLabel: "Keep", danger: true, busy: false, ...q }; };
+  async function confirmPending() {
+    if (!pending) return;
+    pending.busy = true;
+    try { await pending.run(); } finally { pending = null; }
+  }
+  const sizeOf = (bytes) => (bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1048576))} MB`);
 
   const listeners = useListeners();
   let voice = $state(null);
@@ -23,15 +36,18 @@
   let removing = $state(false);
   async function loadInstalled() { try { installed = await voicesInstalled(); } catch { installed = []; } }
   onMount(loadInstalled);
-  const describeInstalled = () => installed.map((v) => `${v.label} (${v.bytes >= 1024 ** 3 ? `${(v.bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(v.bytes / 1048576))} MB`})`).join(", ");
-  async function removeAllVoices() {
-    if (!installed.length || !confirm(`Remove every installed voice from EDDA's data folder?\n${describeInstalled()}\nVoice input models stay.`)) return;
+  const describeInstalled = () => installed.map((v) => `${v.label} (${sizeOf(v.bytes)})`).join(", ");
+  async function doRemoveAllVoices() {
     removing = true;
     try {
       const freed = await voicesRemoveAll();
       models = await voiceModels(); chosen = ""; voice = await voiceStatus(); await loadVoiceServer(); await loadInstalled();
-      vsMsg = `Installed voices removed · ${(freed / 1048576).toFixed(0)} MB freed.`;
+      vsMsg = `Installed voices removed · ${sizeOf(freed)} freed.`;
     } catch (e) { vsMsg = String(e); } finally { removing = false; }
+  }
+  function removeAllVoices() {
+    if (!installed.length) return;
+    ask({ title: "Remove every installed voice?", lines: [`Deleted from EDDA's data folder: ${describeInstalled()}.`, "Voice input models stay."], confirmLabel: "Remove voices", run: doRemoveAllVoices });
   }
 
   // Speech server (Kokoro and other OpenAI-compatible providers).
@@ -111,6 +127,19 @@
   async function loadListen() { try { lst = await listenStatus(); lcfg = { ...lst.config }; modelChoice = lcfg.model ?? "small"; pttFromConfig(lcfg); if (pttKind === "joystick") joys = await joyDevices(); audio = await audioDevices(); } catch (e) { lMsg = String(e); } }
   async function saveListen() { try { lcfg = await listenConfigSet({ ...lcfg, ptt: pttToConfig(), model: modelChoice }); lMsg = "Saved."; await loadListen(); } catch (e) { lMsg = String(e); } }
   let audio = $state(null); let modelChoice = $state("small");
+  // Voice input is entirely optional (2026-10-16): what it downloaded is
+  // listed with its size and removable in one press, like the voices.
+  let inputModels = $state([]);
+  async function loadInputModels() { try { inputModels = await listenModelsInstalled(); } catch { inputModels = []; } }
+  onMount(loadInputModels);
+  const inputTotal = $derived(inputModels.reduce((n, v) => n + v.bytes, 0));
+  function removeInputModels() {
+    if (!inputModels.length) return;
+    ask({ title: "Remove the voice input models?", lines: [`Deleted from EDDA's data folder: ${inputModels.map((v) => `${v.label} (${sizeOf(v.bytes)})`).join(", ")}.`, "Listening stops and nothing loads until you download a model again. Your voices and controls are kept."], confirmLabel: "Remove models", run: async () => {
+      try { const freed = await listenModelsRemove(); lMsg = `Voice input models removed · ${sizeOf(freed)} freed.`; await loadListen(); await loadInputModels(); }
+      catch (e) { lMsg = String(e); }
+    } });
+  }
   const modelDir = (m) => (m === "parakeet" ? "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8" : "vosk-model-small-en-us-0.15");
   async function setupListen() { try { lSetupJobs = {}; lSetup = { phase: "model", status: "downloading" }; await listenSetup(modelChoice); } catch (e) { lMsg = String(e); } }
   onMount(async () => {
@@ -119,7 +148,7 @@
     listeners.add(onListenHeard((e) => (lHeard = e.payload.text || (e.payload.note ? `(${e.payload.note}${e.payload.peak != null ? `, mic peak ${e.payload.peak}` : ""})` : ""))));
     listeners.add(onListenPartial((e) => (lHeard = `… ${e.payload.text} (mic peak ${e.payload.peak})`)));
     listeners.add(onListenReply((e) => (lReply = e.payload.text)));
-    listeners.add(onListenSetup(async (e) => { lSetup = e.payload; if (e.payload.phase !== "done") lSetupJobs = { ...lSetupJobs, [e.payload.phase]: e.payload }; if (e.payload.phase === "done") { lMsg = e.payload.status === "ok" ? "Voice models installed." : `Setup failed: ${e.payload.error}`; await loadListen(); } }));
+    listeners.add(onListenSetup(async (e) => { lSetup = e.payload; if (e.payload.phase !== "done") lSetupJobs = { ...lSetupJobs, [e.payload.phase]: e.payload }; if (e.payload.phase === "done") { lMsg = e.payload.status === "ok" ? "Voice models installed." : `Setup failed: ${e.payload.error}`; await loadListen(); await loadInputModels(); } }));
   });
 
   let personaList = $state([]);
@@ -155,10 +184,12 @@
       voice = await voiceStatus();
     } catch (err) { msg = String(err); }
   }
-  async function removeChosenVoice() {
-    if (!chosen || !confirm(`Remove ${voiceName(chosen)} from EDDA's data folder?`)) return;
-    try { models = await voiceRemove(chosen); chosen = models.find((m) => voice.model && m.startsWith(voice.model)) ?? ""; vsMsg = "Voice removed."; }
-    catch (e) { vsMsg = String(e); }
+  function removeChosenVoice() {
+    if (!chosen) return;
+    ask({ title: `Remove ${voiceName(chosen)}?`, lines: ["The model is deleted from EDDA's data folder. You can download it again from this tab."], run: async () => {
+      try { models = await voiceRemove(chosen); chosen = models.find((m) => voice.model && m.startsWith(voice.model)) ?? ""; vsMsg = "Voice removed."; await loadInstalled(); }
+      catch (e) { vsMsg = String(e); }
+    } });
   }
 
   // The engine the panel offers, by name (maintainer, 2026-09-09: "why
@@ -175,7 +206,7 @@
         vsEngine = "builtin";
         vsMsg = "No voice. All callouts are muted; pick another engine to hear EDDA again.";
         await loadInstalled();
-        if (installed.length && confirm(`Remove the installed voices too?\n${describeInstalled()}\nVoice input models stay.`)) await removeAllVoices();
+        if (installed.length) ask({ title: "Remove the installed voices too?", lines: [`Nothing will speak until you pick an engine again. Installed now: ${describeInstalled()}.`, "Voice input models stay."], confirmLabel: "Remove voices", cancelLabel: "Keep them", run: doRemoveAllVoices });
         return;
       }
       if (which === "server") {
@@ -288,7 +319,7 @@
 
 <section class="panel">
   <h2>Voice input <span class="sub">activation word and/or push-to-talk</span></h2>
-  <p class="muted small">Optional and not bundled. Choose one model below; EDDA downloads it only when you press Download.</p>
+  <p class="muted small">Entirely optional and not bundled. Nothing is loaded and no key or joystick is watched while it is off. Choose one model below; EDDA downloads it only when you press Download. Parakeet costs about 680 MB of memory while listening, the Small model about 420 MB.</p>
   {#if lst}
     <dl class="kv">
       <dt>Engine</dt>
@@ -303,6 +334,13 @@
       <dt>Microphone</dt><dd><select bind:value={lcfg.mic_device} onchange={saveListen}><option value={null}>system default</option>{#each audio?.inputs ?? [] as d}<option value={d}>{d}</option>{/each}</select></dd>
       <dt>Speech output</dt><dd><select bind:value={lcfg.output_device} onchange={saveListen}><option value={null}>system default</option>{#each audio?.outputs ?? [] as d}<option value={d}>{d}</option>{/each}</select></dd>
       <dt>Enabled</dt><dd><label><input type="checkbox" bind:checked={lcfg.enabled} onchange={saveListen} /> open the microphone and listen</label></dd>
+      {#if inputModels.length}
+      <dt>Installed</dt>
+      <dd class="row" style="flex-wrap:wrap">
+        <span class="muted small">{inputModels.map((v) => `${v.label} ${sizeOf(v.bytes)}`).join(" · ")}</span>
+        <button class="ghost" onclick={removeInputModels} title="Deletes every downloaded recognition model and runtime from EDDA's data folder. Voices and controls stay.">Remove voice input models ({sizeOf(inputTotal)})</button>
+      </dd>
+      {/if}
       <dt>Activation word</dt><dd class="row"><input bind:value={lcfg.wake_word} onchange={saveListen} placeholder="hey edda (blank = off)" style="min-width:14rem" /><span class="muted small">then speak within {lcfg.window_secs} s</span></dd>
       <dt>Push-to-talk</dt>
       <dd>
@@ -333,6 +371,10 @@
     {#if lMsg}<p class="muted small" style="margin:0.3rem 0 0">{lMsg}</p>{/if}
   {/if}
 </section>
+
+{#if pending}
+  <ConfirmModal title={pending.title} lines={pending.lines} confirmLabel={pending.confirmLabel} cancelLabel={pending.cancelLabel} danger={pending.danger} busy={pending.busy} onConfirm={confirmPending} onCancel={() => (pending = null)} />
+{/if}
 
 <style>
   .personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; }

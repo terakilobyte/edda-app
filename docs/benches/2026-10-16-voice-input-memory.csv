@@ -1,0 +1,16 @@
+# Voice input memory, 2026-10-16, the maintainer's dev app (Windows 11, every output voice removed, listen model = parakeet).
+# Instrument: health::memory_mb (K32GetProcessMemoryInfo) logged at the listener's phase boundaries and once a minute; an external poller (Get-Process every 2 s) agrees to the MB.
+# VERDICT: the app itself is ~15 MB private at start and ~53 MB settled; voice input was the whole footprint: the Vosk engine + Small model + recognizer 419 MB, Parakeet 675 MB (1.9 s to load), total 1,113 MB.
+# VERDICT: with voice input off nothing loads: 53 MB private / 99 MB working set one minute in (was 1,114 / 904). Unchecking the box used to restart the listener and keep Parakeet cached; fixed the same day (listener_action, release_models).
+# Parakeet int8 is 631 MB on disk -> 675 MB resident (x1.07); use that ratio to estimate other int8 onnx models until measured.
+stage,ts_utc,pid,private_mb,ws_mb,source
+process up,2026-10-16T20:31:41Z,24668,15,44,health line
+before Vosk engine load,2026-10-16T20:31:42Z,24668,16,,listen "speech model" private_mb_before
+after Vosk engine + Small model + mic,2026-10-16T20:31:42Z,24668,435,,listen "speech model" private_mb
+before Parakeet,2026-10-16T20:31:42Z,24668,438,,listen "Parakeet loaded" private_mb_before
+after Parakeet (1904 ms),2026-10-16T20:31:44Z,24668,1113,,listen "Parakeet loaded" private_mb_after
+listening one minute in,2026-10-16T20:32:41Z,24668,1113,899,health line
+listening ten minutes in,2026-10-16T20:42:34Z,24668,1114,904,poller
+voice input off: process up,2026-10-16T20:44:43Z,10228,15,44,health line
+voice input off: one minute in,2026-10-16T20:45:43Z,10228,53,99,health line
+voice input off: settled,2026-10-16T20:49:08Z,30532,55,97,poller

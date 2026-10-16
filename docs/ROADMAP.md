@@ -623,6 +623,35 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Voice input was the whole memory footprint, and "off" did not turn it
+  off** (2026-10-16, the boss, with every output voice removed: "still
+  using 837.9mb of ram dude"; then "voice input needs to be entirely
+  optional too"). Measured first (`docs/benches/2026-10-16-voice-input-memory.csv`,
+  `health::memory_mb` at the listener's phase boundaries): the app is 15 MB
+  private at start and ~53 MB settled; the Vosk engine with the Small model
+  and its recognizer is 419 MB, Parakeet int8 675 MB (631 MB on disk, 1.9 s
+  to load) -- 1,113 MB in all. Two bugs kept it resident: `listen_config_set`
+  restarted a running listener whatever `enabled` said, and the Parakeet
+  `Arc` lived in `ListenState` for the process lifetime. Fix:
+  `listener_action` (off = stop, pinned), `release_models`, and nothing
+  polls or loads while voice input is off (the push-to-talk key and
+  joystick are registered only when it is on). The first fix held the
+  listener lock across the match and deadlocked the save (box unchecked,
+  memory unchanged, listener stuck); a test now turns that into a timeout.
+  Result on his machine: 1,114 MB -> 53 MB private. Also: "Remove voice
+  input models" in Settings lists Parakeet, the command model and the
+  runtimes with their sizes (`listen_models_installed`) and frees them;
+  the process memory line joins the handle count in the minute health log.
+  OPEN: the Vosk Small model at 419 MB resident is the next cost to
+  understand (68 MB on disk); dictation models smaller than Parakeet
+  (Moonshine tiny/base, Whisper tiny.en, all ~120-270 MB on disk and
+  already in the sherpa-onnx config the wrapper carries) are the tunable
+  the boss asked for, unmeasured until downloaded.
+- **No browser dialogs** (2026-10-16, the boss: "no window alerts, ever.
+  Actually buttons and modals plz"): `ConfirmModal.svelte` is the one
+  confirmation path; a test sweeps `frontend/src/lib` for
+  `confirm(`/`alert(`/`prompt(` and fails on any.
+
 - **Switching away from Kokoro left 2.8 GB resident; "no voice" and
   one-button voice removal** (2026-10-16, the boss: "if I switch voice
   providers memory doesn't seem to drop?"; "we need another voice option,
