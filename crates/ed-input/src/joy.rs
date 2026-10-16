@@ -122,16 +122,19 @@ pub fn probe(id: u32, button: u32) -> Option<bool> {
 }
 
 /// The device a saved binding means today. The saved id while its name
-/// still matches (generic names like "Microsoft PC-joystick driver" cover
-/// several sticks); else the first device with that name and enough
-/// buttons, because WinMM ids move when a stick is re-plugged.
+/// still matches and answers for the button (generic names like
+/// "Microsoft PC-joystick driver" cover several sticks); else the first
+/// device with that name that answers for it -- a hat lives on one of two
+/// same-named sticks, a button 20 needs a stick with 20 buttons -- because
+/// WinMM ids move when a stick is re-plugged (2026-10-16: the saved id 2
+/// had become 3 for the buttons and 4 for the hat).
 pub fn resolve(id: u32, button: u32, name: &str) -> Option<u32> {
     let devs = devices();
     let same = |d: &&JoyDevice| !d.name.is_empty() && name.starts_with(&d.name);
-    let enough = |d: &&JoyDevice| button > HAT_BASE || d.buttons >= button;
+    let answers = |d: &&JoyDevice| probe(d.id, button).is_some();
     devs.iter()
-        .find(|d| d.id == id && same(d))
-        .or_else(|| devs.iter().find(|d| same(d) && enough(d)))
+        .find(|d| d.id == id && same(d) && answers(d))
+        .or_else(|| devs.iter().find(|d| same(d) && answers(d)))
         .or_else(|| devs.iter().find(same))
         .map(|d| d.id)
 }
