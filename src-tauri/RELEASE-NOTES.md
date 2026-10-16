@@ -7,6 +7,82 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.6
+
+The Engineers tab now plans a visit, not just a shopping list: the build
+plan orders the engineers from where you are, you follow it like a
+multi-stop trade route, and each engineer drops off the tour as their
+work is done. The plan respects the rank you actually hold with each
+engineer, sees a craft the moment the journal reports it, and treats an
+experimental effect as a job of its own. The Combat tab gains a record by
+ship: sessions, time to kill and kills per hour measured from your
+journal. Voice gains a "no voice" choice and one button that removes
+every installed voice, and switching away from Kokoro now frees its
+memory. A joystick that changes device id after a re-plug no longer
+silences push-to-talk and the next-system trigger.
+
+Full notes:
+
+- **Engineer tour.** The build plan's itinerary is ordered from your
+  current system by the fewest jumps and followed client-side like a
+  trade route: the next engineer is targeted for you, a visited engineer
+  leaves the tour when the journal shows their work done, and the tour
+  ends with the plan. Stop following from the Build Planner itself, not
+  the Trade tab.
+- **The rank gates the grade.** An engineer applies no grade above the
+  rank you hold with them, so the plan no longer sends you to a stranger
+  for a roll a fully unlocked engineer can do. An `EngineerCraft` updates
+  the stored ship at once, and every journal refresh lays your choices
+  over the fitted grades and experimentals, so an effect already on the
+  module is done and an engineer already visited no longer stays on the
+  itinerary.
+- **Experimentals are jobs.** An experimental effect is its own job for
+  the engineers who offer it: applied where its blueprint is rolled when
+  that engineer offers it, else at a stop already on the itinerary, else
+  at the nearest engineer who does. Jobs are grouped by module type as
+  well as by job (Deep Plating on the bulkheads is not Deep Plating on
+  four hull reinforcement packages).
+- **Grade caps on every row.** A module whose blueprint stops short of
+  grade 5 (the pre-engineered heat sink launcher's Ammo Capacity) is
+  capped the moment it lands in a row, not only when the planner runs.
+- **Tech broker data completed** from Inara's broker tabs, including the
+  Azimuth Modified Enhanced AX Multi-Cannon's unlock recipe, so its
+  pre-engineered presets carry the human broker and break down.
+- **Combat record by ship.** One session is one normal-space instance
+  with a fight in it. For every ship that fought: sessions, time,
+  kills, kills per hour, median and 90th-percentile time to kill (first
+  lock on the pilot to the kill; the fighter's and the turrets' kills
+  count for the rate, never for the time), credits per hour, hull hits
+  and deaths. Click a ship for its sessions; the latest kills show their
+  time to kill.
+- **No voice.** A fourth engine next to Windows voice, Piper and the
+  speech server: nothing is spoken, every callout is muted and still
+  shows on the HUD, the speech server is off and a running Kokoro is
+  stopped. Picking any engine again turns the voice back on. Choosing it
+  offers once to remove the installed voices.
+- **Remove installed voices.** Settings lists what EDDA installed
+  (Kokoro, each Piper voice, the Piper engine) with their sizes measured
+  from disk and removes them all in one press; voice input models stay.
+  No more hunting for the folder.
+- **Switching away from Kokoro frees its memory.** The helper (uv,
+  Python, torch, about 2.8 GB) used to stay resident until EDDA exited;
+  it now stops the moment it is no longer the selected engine, and every
+  engine switch is logged. A Windows-voice or no-voice choice made before
+  anything was installed is now remembered across launches.
+- **Push-to-talk and the next-system trigger survive a re-plug.** A
+  joystick that stops answering on its saved device id pauses the poller,
+  which re-finds the stick by name and resumes on the new id, instead of
+  polling a dead id fifty times a second (which, over two days, exhausted
+  the process's handles and stopped the journal sync, the voice and the
+  updater). The handle count is logged every minute so it is visible
+  next time.
+- **Routing.** The first-route deadline is off by default (equal to the
+  budget) after the server delivered a route with no first route at all.
+- **Prepared for the October dev log:** the Anaconda Mk II day-one knob
+  (slot table from the first Loadout, diffed against the published
+  specs) and a build planner that plans a hull the slot table has never
+  seen.
+
 ## 0.4.5
 
 Plots to the galaxy's rim answer in milliseconds instead of two minutes,
