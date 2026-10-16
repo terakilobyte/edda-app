@@ -27,6 +27,13 @@ unmaintained = "workspace"
 db-path = "$CARGO_HOME/advisory-dbs"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
+ignore = [
+    # 2026-10-16: zip's maintainers yanked every release below 9.0.3. Our
+    # own zip moved to 9; tauri-plugin-updater (2.14.0, the newest 2.x)
+    # still requires ^4, every 4.x of which is yanked, so the lock cannot
+    # move it. Drop this the day the updater is on zip 9.
+    { crate = "zip@4.6.1", reason = "transitive under tauri-plugin-updater; no unyanked 4.x exists" },
+]
 
 [licenses]
 # Every expression in the workspace graph resolves to one of these; `OR`
