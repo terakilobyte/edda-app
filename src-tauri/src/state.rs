@@ -52,6 +52,11 @@ pub struct AppConfig {
     /// route. Off by default: the clipboard is instant and never misfires.
     #[serde(default)]
     pub target_macro_enabled: bool,
+    /// On arrival at a hop of a followed route, put the next system's name
+    /// on the clipboard unasked (2026-10-16: some commanders open the
+    /// galaxy map and paste by hand, and want nothing else). Off by default.
+    #[serde(default)]
+    pub follow_clipboard_on_arrival: bool,
     #[serde(default = "default_game_route_ly")]
     pub game_route_max_ly: u32,
     /// Voice input: wake word, push-to-talk key, enabled.

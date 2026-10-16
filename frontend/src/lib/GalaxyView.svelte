@@ -30,6 +30,7 @@
 
   let host = $state(null);
   let renderer, scene, camera, controls, raf, ro;
+  let destroyed = false;
   let mapInteractionActive = false, lastMapInteraction = 0;
   let routeGroup = null, focusMarker = null;
   let backdrop = null, populated = null;
@@ -73,7 +74,35 @@
   // right-handed with y up, so z is negated to keep east on the right.
   const toScene = (p) => new THREE.Vector3(p[0], p[1], -p[2]);
 
+  // One decoded star field per layer for the whole window (2026-10-16): the
+  // Route tab and the Galaxy tab each mount their own map, and each used to
+  // fetch and decode the two files again. The arrays are shared; every map
+  // still owns its geometry (and so its GPU copy) and disposes only that.
+  const STAR_ARRAYS = new Map();
+  function starArrays(url, dim, popSpan, hidePopulated, populatedLayer) {
+    const key = [url, dim, popSpan, hidePopulated, populatedLayer].join("|");
+    let p = STAR_ARRAYS.get(key);
+    if (!p) {
+      p = decodeStars(url, dim, popSpan, hidePopulated, populatedLayer);
+      STAR_ARRAYS.set(key, p);
+      p.catch(() => STAR_ARRAYS.delete(key));
+    }
+    return p;
+  }
   async function loadStars(url, size, dim, popSpan = 0, opacity = 0.7, { hidePopulated = false, populatedLayer = false } = {}) {
+    const { pos, col } = await starArrays(url, dim, popSpan, hidePopulated, populatedLayer);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    // Additive: dense regions pile up towards white, so the per-point
+    // contribution has to stay small where thousands of points overlap.
+    const mat = new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: false, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });
+    // The layer's designed opacity; the star-brightness control scales
+    // relative to it, so full slider = the normal look.
+    mat.userData.baseOpacity = opacity;
+    return new THREE.Points(geo, mat);
+  }
+  async function decodeStars(url, dim, popSpan, hidePopulated, populatedLayer) {
     const buf = await (await fetch(url)).arrayBuffer();
     const n = Math.floor(buf.byteLength / 16);
     const view = new DataView(buf);
@@ -107,16 +136,7 @@
       c.multiplyScalar((dim + popSpan * pop) * exploredScale);
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    // Additive: dense regions pile up towards white, so the per-point
-    // contribution has to stay small where thousands of points overlap.
-    const mat = new THREE.PointsMaterial({ size, vertexColors: true, sizeAttenuation: false, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });
-    // The layer's designed opacity; the star-brightness control scales
-    // relative to it, so full slider = the normal look.
-    mat.userData.baseOpacity = opacity;
-    return new THREE.Points(geo, mat);
+    return { pos, col, n };
   }
 
   // Maintainer (2026-09-04, live-activity feedback): the star layers dim under
@@ -382,6 +402,7 @@
     if (focus?.pos) showFocus(); else frameRoute();
     let tick = 0, previousFrame = performance.now();
     const loop = (now = performance.now()) => {
+      if (destroyed) return;
       // Hidden (its tab is not showing): no render, look again shortly.
       // Tabs stay mounted between visits, so this is the common state.
       if (host && host.offsetParent === null) {
@@ -417,12 +438,19 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     ro?.disconnect();
     cancelAnimationFrame(raf);
     clearTimeout(raf);
     controls?.dispose();
-    renderer?.dispose();
     scene?.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+    renderer?.dispose();
+    // dispose() frees three.js's objects; the WebGL context and its
+    // framebuffers stay until the browser collects them (measured
+    // 2026-10-16: unmounting returned nothing until the context was lost).
+    renderer?.forceContextLoss?.();
+    renderer?.domElement?.remove();
+    renderer = null; scene = null; camera = null; controls = null;
   });
 
   // Rebuild when the route or the follow cursor changes.

@@ -73,6 +73,14 @@ Full notes:
   420 MB). It now stops and lets the models go. Settings lists what voice
   input downloaded, with sizes, and removes it in one press.
 - **No more browser dialogs.** Every confirmation is EDDA's own modal.
+- **The Galaxy tab's map is optional**, with the same "show map" box the
+  Route tab has. The map costs about 95 MB while mounted; hidden behind
+  another tab it stops rendering, and unchecked it is torn down and the
+  memory comes back. Two maps now share one copy of the star field.
+- **Copy the next system on arrival.** For commanders who open the galaxy
+  map and paste by hand: an option in Settings puts the next system's
+  name on the clipboard the moment a jump arrives, and sends nothing to
+  the game. Off by default.
 - **Switching away from Kokoro frees its memory.** The helper (uv,
   Python, torch, about 2.8 GB) used to stay resident until EDDA exited;
   it now stops the moment it is no longer the selected engine, and every

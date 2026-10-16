@@ -158,6 +158,9 @@
   }
 
   const padLabel = (p) => (p ? p[0].toUpperCase() : "?");
+  // The 3D map is optional here as on the Route tab (2026-10-16): unchecked
+  // unmounts it, which disposes the WebGL context and the star field.
+  const showMap = persisted(KEYS.galaxyMap, true);
 </script>
 
 <section class="panel">
@@ -188,11 +191,12 @@
     {#if mode !== "activity"}<label><input type="checkbox" bind:checked={carriers} /> carriers</label>{/if}
     {#if mode === "system"}<label><input type="checkbox" bind:checked={minor} /> settlements</label>{/if}
     {#if mode !== "activity"}<button onclick={run} disabled={loading}>{loading ? "…" : "Look up"}</button>{/if}
+    <label style="margin-left:auto"><input type="checkbox" bind:checked={showMap.value} /> show map</label>
     <label title="Background star brightness"><span class="muted small">stars</span> <input type="range" min="0" max="100" bind:value={starDim.value} style="width:7rem;vertical-align:middle" /></label>
     <label style="margin-left:auto"><input type="checkbox" bind:checked={suspendAnimations.value} /> suspend animations</label>
   </div>
 
-  <div style="margin-bottom:0.8rem"><GalaxyView focus={mode === "activity" ? null : mapFocus} height={440} idleRotate={!suspendAnimations.value} heat={mode === "activity" ? heat : null} identify={mode !== "activity"} starBrightness={starDim.value / 100} /></div>
+  {#if showMap.value}<div style="margin-bottom:0.8rem"><GalaxyView focus={mode === "activity" ? null : mapFocus} height={440} idleRotate={!suspendAnimations.value} heat={mode === "activity" ? heat : null} identify={mode !== "activity"} starBrightness={starDim.value / 100} /></div>{/if}
 
   {#if mode === "activity"}
     <div class="row muted small" style="margin-bottom:0.8rem">

@@ -657,6 +657,8 @@ pub fn run() {
             follow::route_active_get,
             follow::target_macro_enabled_get,
             follow::target_macro_enabled_set,
+            follow::follow_clipboard_get,
+            follow::follow_clipboard_set,
             follow::game_route_max_get,
             follow::game_route_max_set,
             follow::target_macro_set,

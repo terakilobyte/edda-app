@@ -3,7 +3,7 @@
   // the galaxy-map macro taught from four clicked places.
   import { onMount } from "svelte";
   import {
-    targetMacroEnabledGet, targetMacroEnabledSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest, mapPointCapture, mapPointsGet, mapPointsClear, mapDelaySet, targetKeyStatus, targetTriggerCapture, targetTriggerClear, macroRecordStart, macroRecordStop, gameRouteMaxGet, gameRouteMaxSet,
+    targetMacroEnabledGet, targetMacroEnabledSet, followClipboardGet, followClipboardSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest, mapPointCapture, mapPointsGet, mapPointsClear, mapDelaySet, targetKeyStatus, targetTriggerCapture, targetTriggerClear, macroRecordStart, macroRecordStop, gameRouteMaxGet, gameRouteMaxSet,
   } from "./api.js";
 
   // Route coverage distance, previously reachable only in setup (maintainer,
@@ -67,6 +67,11 @@
   onMount(loadMacro);
   let macroOn = $state(false);
   onMount(async () => { try { macroOn = await targetMacroEnabledGet(); } catch {} });
+  // Arrival clipboard (2026-10-16): the next system's name lands on the
+  // clipboard the moment a jump arrives; the commander pastes it into the
+  // galaxy map by hand. An option, off by default.
+  let clipOn = $state(false);
+  onMount(async () => { try { clipOn = await followClipboardGet(); } catch {} });
 </script>
 
 <section class="panel">
@@ -88,6 +93,7 @@
       {#if targetKeys.trigger}<button class="ghost" onclick={clearTrigger}>Forget</button>{/if}
     </li>
   </ul>
+  <label class="small" title="Nothing is sent to the game. On every arrival the next system's name is put on the clipboard; open the galaxy map, paste it into the search, select the target."><input type="checkbox" bind:checked={clipOn} onchange={async (e) => { try { clipOn = await followClipboardSet(e.target.checked); } catch {} }} /> Copy the next system to the clipboard when I arrive (paste it into the galaxy map yourself)</label>
   <label class="small"><input type="checkbox" bind:checked={macroOn} onchange={(e) => targetMacroEnabledSet(e.target.checked)} /> Enable EDDA routing control</label>
   {#if macroOn}
     <p class="small" style="margin:0.5rem 0 0.3rem">Teach it four places once. Target handles an EDDA route hop; Plot route asks Elite to calculate the full in-game route for nearer destinations.</p>
