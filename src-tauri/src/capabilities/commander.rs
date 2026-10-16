@@ -39,6 +39,31 @@ pub fn combat_summary(state: &AppState, req: &CombatRequest) -> CapResult<query:
     state.with_read(|s| Ok(query::combat_summary(s.conn(), req.since.as_deref())?))
 }
 
+/// Ships that fought in the window, most kills first (2026-10-16 spec).
+pub fn combat_by_ship(state: &AppState, req: &CombatRequest) -> CapResult<Vec<ed_store::combat::ShipCombat>> {
+    state.with_read(|s| Ok(ed_store::combat::by_ship(s.conn(), req.since.as_deref())?))
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct CombatSessionsRequest {
+    /// One ship's sessions, or every ship's when absent.
+    pub ship_id: Option<i64>,
+    pub since: Option<String>,
+    pub limit: usize,
+}
+
+impl Default for CombatSessionsRequest {
+    fn default() -> Self {
+        CombatSessionsRequest { ship_id: None, since: None, limit: 50 }
+    }
+}
+
+/// Combat sessions newest first, the open one first.
+pub fn combat_sessions(state: &AppState, req: &CombatSessionsRequest) -> CapResult<Vec<ed_store::combat::SessionRow>> {
+    state.with_read(|s| Ok(ed_store::combat::sessions(s.conn(), req.ship_id, req.since.as_deref(), req.limit)?))
+}
+
 pub fn combat_timeline(state: &AppState, req: &CombatRequest) -> CapResult<Vec<ed_store::session::CombatBucket>> {
     state.with_read(|s| Ok(ed_store::session::combat_timeline(s.conn(), req.since.as_deref(), &req.bucket)?))
 }

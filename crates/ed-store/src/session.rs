@@ -320,12 +320,16 @@ pub struct KillRow {
     pub faction: Option<String>,
     pub reward: Option<i64>,
     pub system_name: Option<String>,
+    /// Seconds from the first lock on the pilot to the kill; `None` for a
+    /// kill never locked (the fighter's, the turrets'). See combat.rs.
+    pub ttk_s: Option<i64>,
+    pub fighter_out: bool,
 }
 
 /// Most recent kills, newest first.
 pub fn recent_kills(conn: &Connection, limit: usize) -> Result<Vec<KillRow>> {
     let mut stmt = conn.prepare(
-        "SELECT ts, kind, target_ship, pilot_name, faction, reward, system_name
+        "SELECT ts, kind, target_ship, pilot_name, faction, reward, system_name, ttk_s, COALESCE(fighter_out, 0)
          FROM combat_kills ORDER BY ts DESC LIMIT ?1",
     )?;
     let rows = stmt.query_map([limit as i64], |r| {
@@ -337,6 +341,8 @@ pub fn recent_kills(conn: &Connection, limit: usize) -> Result<Vec<KillRow>> {
             faction: r.get(4)?,
             reward: r.get(5)?,
             system_name: r.get(6)?,
+                ttk_s: r.get(7)?,
+                fighter_out: r.get::<_, i64>(8)? != 0,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)

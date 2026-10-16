@@ -562,6 +562,8 @@ pub fn run() {
             commands::ai_reset,
             commands::combat_summary,
             commands::combat_timeline,
+            commands::combat_by_ship,
+            commands::combat_sessions,
             commands::recent_kills,
             commands::merit_timeline,
             commands::mining_search,
