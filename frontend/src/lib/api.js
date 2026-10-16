@@ -208,6 +208,8 @@ export const COMMANDS = {
   combatSummary: ["combat_summary", ["since"]],
   combatTimeline: ["combat_timeline", ["since", "bucket"], { bucket: "day" }],
   recentKills: ["recent_kills", ["limit"], { limit: 30 }],
+  combatByShip: ["combat_by_ship", ["since"]],
+  combatSessions: ["combat_sessions", ["shipId", "since", "limit"], { shipId: null, since: null, limit: 50 }],
   // Missions
   missions: ["missions", ["activeOnly"], { activeOnly: true }],
   missionStack: ["mission_stack"],
@@ -303,7 +305,7 @@ export const {
   targetMacroEnabledGet, targetMacroEnabledSet, gameRouteMaxGet, gameRouteMaxSet, targetMacroGet, targetMacroSet, targetMacroCheck, targetMacroPresets, targetMacroTest,
   routePlotTest, mapSetupTest, mapSetupSay, mapSetupCancel, mapSetupTarget, routePlotInGame, targetKeyStatus, targetTriggerCapture, targetTriggerClear, mapPointCapture, mapPointsGet, mapDelaySet, mapPointsClear, macroRecordStart, macroRecordStop,
   galaxyNear, nameComplete, serviceOptions,
-  powerplaySeen, meritTimeline, combatSummary, combatTimeline, recentKills, missions, missionStack, missionsHere,
+  powerplaySeen, meritTimeline, combatSummary, combatTimeline, combatByShip, combatSessions, recentKills, missions, missionStack, missionsHere,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setupCompleted, setPersona, setVoice, voiceServerGet,
   calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
   getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, materialTradesSince, setOverlayInteractive, overlayVisible, aiAsk, aiReset,

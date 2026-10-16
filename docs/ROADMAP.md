@@ -623,6 +623,42 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Combat record by ship: sessions, time to kill, kills per hour from
+  the journal** (2026-10-16, the boss: "next feature to work on.... ship
+  efficiency for combat"; "average time from start of combat to kill for
+  each ship a player has, how long the total combat session lasted";
+  "some ships are not 'active combat' ships so I don't care"). Measured
+  before built: `knobs/combat_sessions.py` replayed his full event log
+  under pre-registered definitions
+  (`docs/superpowers/specs/2026-10-16-combat-sessions-design.md`),
+  pinned in `docs/benches/2026-10-16-combat-sessions-per-ship.csv`. What
+  the data forced: time to kill needs a lock (1,214 of the Type-10's
+  2,880 kills were locked first; 2,209 came with the fighter out, so the
+  rest are the fighter's and the turrets' and are counted, never timed);
+  a gap-based "session" is a tunable with no right value (3 min: 66.7
+  Type-10 hours; 10 min: 93 h), so a session is one normal-space
+  instance with a fight in it (208 sessions, 119 h); lock-only runs are
+  not fights (274 of 737, median 4 s); shields dropping alone is power
+  management, not a fight; idle after the last combat event is capped at
+  10 min (one "session" ran 21 h: a crash with no closer until the next
+  LoadGame); a fighter cannot follow the ship into supercruise, so its
+  flag resets at every closer (found by the incremental-vs-rebuild
+  test). `Music` tracks are unusable: his journal only started writing
+  them on 2026-10-15. Store: `combat_sessions` table + `session_id`,
+  `ttk_s`, `interval_s`, `fighter_out` on `combat_kills`
+  (`ed-store/src/combat.rs`), rederived from the last closed session on
+  every sync; `combat_by_ship` / `combat_sessions` commands; the Combat
+  tab's "By ship" section (`CombatByShip.svelte`, SSR-rendered in tests
+  with the fixture day's rows) and a TTK column on the latest kills.
+  Pin: one real day of his journal
+  (`ed-store/tests/fixtures/combat-2026-10-05.jsonl`, names scrubbed)
+  must give the knob's figures to the second, incrementally and rebuilt.
+  Numbers on the record (all time, session hours): Type-10 24.2
+  kills/h, median TTK 29 s; Mamba 20.2/h, 68 s; Anaconda 15.6/h, 72 s;
+  Python Mk II 19.7/h, 63 s. OPEN: a crash inside an instance still
+  counts up to 10 min of idle; `Scanned` (475 in one RES day) is not
+  read; the open session is shown but not spoken.
+
 - **The dev app ran out of handles: a joystick poll on a vanished WinMM
   id** (2026-10-16; the boss, mid-fight: "sadge: unable to open database
   file" -- that line was a knob's argument bug, but the look it prompted

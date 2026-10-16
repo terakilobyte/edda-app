@@ -2011,6 +2011,22 @@ pub async fn combat_timeline(
 }
 
 #[tauri::command]
+pub async fn combat_by_ship(state: State<'_, AppState>, since: Option<String>) -> Result<Vec<ed_store::combat::ShipCombat>, CapError> {
+    commander::combat_by_ship(&state, &combat_request(since, None))
+}
+
+#[tauri::command]
+pub async fn combat_sessions(
+    state: State<'_, AppState>,
+    ship_id: Option<i64>,
+    since: Option<String>,
+    limit: Option<usize>,
+) -> Result<Vec<ed_store::combat::SessionRow>, CapError> {
+    let d = commander::CombatSessionsRequest::default();
+    commander::combat_sessions(&state, &commander::CombatSessionsRequest { ship_id, since, limit: limit.unwrap_or(d.limit) })
+}
+
+#[tauri::command]
 pub async fn recent_kills(state: State<'_, AppState>, limit: Option<usize>) -> Result<Vec<ed_store::session::KillRow>, CapError> {
     let d = commander::RecentKillsRequest::default();
     commander::recent_kills(&state, &commander::RecentKillsRequest { limit: limit.unwrap_or(d.limit) })

@@ -13,6 +13,15 @@ export const fmtCrShort = (n) => {
 export const fmtLy = (n) => (n == null ? "—" : `${n.toFixed(1)} ly`);
 export const fmtLs = (n) => (n == null ? "—" : `${Math.round(n).toLocaleString()} ls`);
 export const fmtMin = (seconds) => (seconds == null ? "—" : `${Math.round(seconds / 60)} min`);
+/** Seconds as `1 h 23 min`, `12 min`, or `45 s`. */
+export const fmtDur = (seconds) => {
+  if (seconds == null) return "—";
+  const s = Math.round(seconds);
+  if (s < 60) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+};
 export const fmtAge = (hours) => {
   if (hours == null || !isFinite(hours)) return "unknown";
   if (hours < 1) return `${Math.round(hours * 60)} min`;

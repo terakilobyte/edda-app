@@ -1,8 +1,9 @@
 <script>
   // Combat record: totals for a window, a timeline chart, and the last kills.
-  import { combatSummary, combatTimeline, recentKills } from "./api.js";
+  import { combatByShip, combatSessions, combatSummary, combatTimeline, recentKills } from "./api.js";
   import { fmtCr, fmtCrShort, fmtInt, fmtTs } from "./format.js";
   import { journalResource } from "./lifecycle.svelte.js";
+  import CombatByShip from "./CombatByShip.svelte";
 
   const windows = [
     ["24h", 1],
@@ -15,6 +16,11 @@
   let summary = $state(null);
   let timeline = $state([]);
   let kills = $state([]);
+  // By ship (2026-10-16): the ships that fought in the window and the
+  // sessions of the one picked (every ship's until one is).
+  let ships = $state([]);
+  let sessions = $state([]);
+  let selected = $state(null);
 
   function sinceIso() {
     if (win == null) return null;
@@ -24,12 +30,18 @@
   const res = journalResource(async () => {
     const since = sinceIso();
     const b = win === 1 ? "hour" : win === null ? "week" : bucket;
-    [summary, timeline, kills] = await Promise.all([
+    [summary, timeline, kills, ships, sessions] = await Promise.all([
       combatSummary(since),
       combatTimeline(since, b),
       recentKills(25),
+      combatByShip(since),
+      combatSessions(selected, since, selected == null ? 12 : 50),
     ]);
   });
+  async function pick(shipId) {
+    selected = shipId;
+    try { sessions = await combatSessions(shipId, sinceIso(), shipId == null ? 12 : 50); } catch { sessions = []; }
+  }
   const refresh = res.refresh;
   const error = $derived(res.error);
 
@@ -120,11 +132,13 @@
     </div>
   {/if}
 
+  <CombatByShip {ships} {sessions} {selected} onPick={pick} />
+
   {#if kills.length}
     <h3>Latest kills</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>When</th><th>Target</th><th>Pilot</th><th>Faction</th><th class="r">Reward</th><th>System</th></tr></thead>
+        <thead><tr><th>When</th><th>Target</th><th>Pilot</th><th>Faction</th><th class="r">Reward</th><th class="r" title="first lock to kill; blank for the fighter's and the turrets' kills">TTK</th><th>System</th></tr></thead>
         <tbody>
           {#each kills as k}
             <tr>
@@ -133,6 +147,7 @@
               <td class="small">{k.pilot_name ?? "—"}</td>
               <td class="small">{k.faction ?? "—"}</td>
               <td class="r num">{fmtCr(k.reward)}</td>
+              <td class="r num">{k.ttk_s != null ? `${k.ttk_s} s` : k.fighter_out ? "fighter" : "—"}</td>
               <td class="small">{k.system_name ?? "—"}</td>
             </tr>
           {/each}

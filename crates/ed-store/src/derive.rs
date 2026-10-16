@@ -223,7 +223,10 @@ pub fn derive_all(conn: &Connection) -> Result<DeriveStats> {
         "DELETE FROM meta WHERE key IN ('derived_file','derived_offset')",
         [],
     )?;
-    derive_from(conn, None)
+    let stats = derive_from(conn, None)?;
+    conn.execute("DELETE FROM combat_sessions", [])?;
+    crate::combat::derive_sessions(conn)?;
+    Ok(stats)
 }
 
 /// Derive only what has arrived since the last pass.
@@ -234,7 +237,10 @@ pub fn derive_all(conn: &Connection) -> Result<DeriveStats> {
 /// with playtime, and the journal writes every few seconds.
 pub fn derive_incremental(conn: &Connection) -> Result<DeriveStats> {
     let mark = watermark(conn);
-    derive_from(conn, mark)
+    let stats = derive_from(conn, mark)?;
+    // Sessions replay their own open tail from the last closed one.
+    crate::combat::derive_sessions(conn)?;
+    Ok(stats)
 }
 
 fn derive_from(conn: &Connection, after: Option<(String, String, i64)>) -> Result<DeriveStats> {

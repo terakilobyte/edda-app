@@ -97,6 +97,16 @@ export const topics = [
     tabs: [["missions", "Open the Missions tab"]],
   },
   {
+    id: "combat-record",
+    title: "Combat record",
+    body: [
+      "Kills, bounties and bonds over a window, a timeline, and since 0.4.6 the record by ship: every ship that fought, ranked by kills, with its sessions, time in combat, kills per hour, time to kill, credits per hour, hull hits and deaths. Pick a ship for its sessions. Ships that never fought are not listed.",
+      "A session is one normal-space instance with a fight in it: from the supercruise drop (or undocking) to the climb, the jump, the dock or the quit; a lock on a passing ship is not a fight. Idle time after your last shot is capped at ten minutes, so a crash or walking away does not count as combat.",
+      "Time to kill runs from your first target lock on that pilot to the kill. Kills with no lock, which is what the fighter and the turrets do, count for the rate and the credits but never for time to kill; the table shows how many kills were timed and how many came with the fighter out.",
+    ],
+    tabs: [["combat", "Open the Combat tab"]],
+  },
+  {
     id: "ships",
     title: "Ships",
     body: [

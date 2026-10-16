@@ -221,6 +221,39 @@ CREATE TABLE IF NOT EXISTS combat_incidents (
 
 CREATE INDEX IF NOT EXISTS idx_incidents_ts ON combat_incidents(ts);
 
+-- One normal-space instance with a fight in it (combat.rs; definitions in
+-- docs/superpowers/specs/2026-10-16-combat-sessions-design.md). The open
+-- tail is rederived on every sync from the last closed row.
+CREATE TABLE IF NOT EXISTS combat_sessions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    ship_id        INTEGER,
+    ship           TEXT    NOT NULL,
+    ship_name      TEXT    NOT NULL DEFAULT '',
+    entered_ts     TEXT    NOT NULL,  -- the instance: drop, undock, lift-off or load
+    start_ts       TEXT    NOT NULL,  -- first combat event
+    end_ts         TEXT    NOT NULL,  -- last combat event
+    left_ts        TEXT,              -- NULL while the instance is open
+    left_file      TEXT,
+    left_offset    INTEGER,
+    closed_by      TEXT,              -- supercruiseentry | fsdjump | docked | shutdown | loadgame | died | loadout
+    secs           INTEGER NOT NULL,  -- left - entered, idle after end_ts capped
+    fighting_secs  INTEGER NOT NULL,  -- end - start
+    kills          INTEGER NOT NULL,
+    kills_timed    INTEGER NOT NULL,  -- kills with a time to kill (locked first)
+    kills_fighter  INTEGER NOT NULL,  -- kills while the fighter was out
+    credits        INTEGER NOT NULL,
+    under_attack   INTEGER NOT NULL,
+    hull_hits      INTEGER NOT NULL,
+    shields_down   INTEGER NOT NULL,
+    died           INTEGER NOT NULL,
+    system_name    TEXT,
+    start_file     TEXT    NOT NULL,
+    start_offset   INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_ship ON combat_sessions(ship_id, entered_ts);
+CREATE INDEX IF NOT EXISTS idx_sessions_entered ON combat_sessions(entered_ts);
+
 -- The route the commander is following (plotted here or imported), with
 -- the cursor the watcher advances on each FSDJump. One at a time.
 CREATE TABLE IF NOT EXISTS active_route (
@@ -1136,6 +1169,11 @@ pub fn migrate(conn: &Connection) -> Result<()> {
         ("user_marks", "station", "TEXT"),
         ("user_marks", "latitude", "REAL"),
         ("user_marks", "longitude", "REAL"),
+        // Per-kill timing from combat.rs (2026-10-16).
+        ("combat_kills", "session_id", "INTEGER"),
+        ("combat_kills", "ttk_s", "INTEGER"),
+        ("combat_kills", "interval_s", "INTEGER"),
+        ("combat_kills", "fighter_out", "INTEGER"),
     ] {
         let has_col: bool = conn
             .prepare(&format!(
