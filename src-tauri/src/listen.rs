@@ -275,8 +275,9 @@ pub async fn listen_config_set(app: AppHandle, state: State<'_, AppState>, confi
         cfg.save(&state.data_dir).map_err(|e| e.to_string())?;
     }
     state.voice.audio().set_output_device(config.output_device.clone());
-    // Re-register the PTT source; restart the listener if it is running.
-    register_ptt_source(&app, &config.ptt_source())?;
+    // Re-register the PTT source (none while voice input is off); restart
+    // the listener if it is running.
+    register_ptt_source(&app, &if config.enabled { config.ptt_source() } else { PttSource::None })?;
     match switch_listener(&state, config.enabled) {
         ListenerAction::Restart => {
             stop_listening(&state);
@@ -423,18 +424,60 @@ pub async fn listen_setup(app: AppHandle, state: State<'_, AppState>, model: Opt
 
 /// Remove only EDDA-managed speech-recognition runtimes and models. Voice
 /// output models live elsewhere and are deliberately unaffected.
+/// What voice input has on disk, measured: Parakeet, each command model,
+/// and the recognition runtimes (Vosk and sherpa-onnx libraries) as one
+/// line. The same shape as the output voices' listing.
+pub fn installed_input_models(state: &AppState) -> Vec<crate::speech_engines::InstalledVoice> {
+    use crate::speech_engines::{dir_bytes, InstalledVoice};
+    let dir = tools_dir(state);
+    let mut out = Vec::new();
+    let mut runtimes = 0u64;
+    let Ok(rd) = std::fs::read_dir(&dir) else { return out };
+    let mut entries: Vec<_> = rd.flatten().map(|e| e.path()).collect();
+    entries.sort();
+    for p in entries {
+        let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        if name == PARAKEET_DIR {
+            out.push(InstalledVoice { engine: "parakeet".into(), label: "Parakeet (dictation)".into(), bytes: dir_bytes(&p) });
+        } else if is_model(&p) {
+            out.push(InstalledVoice { engine: "vosk".into(), label: format!("Command model {name}"), bytes: dir_bytes(&p) });
+        } else if p.is_dir() {
+            runtimes += dir_bytes(&p);
+        } else {
+            runtimes += std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
+        }
+    }
+    if runtimes > 0 {
+        out.push(InstalledVoice { engine: "runtime".into(), label: "Recognition runtimes".into(), bytes: runtimes });
+    }
+    out
+}
+
 #[tauri::command]
-pub async fn listen_models_remove(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn listen_models_installed(state: State<'_, AppState>) -> Result<Vec<crate::speech_engines::InstalledVoice>, String> {
+    Ok(installed_input_models(&state))
+}
+
+/// Remove everything voice input downloaded. Returns the bytes freed,
+/// measured before deleting; the listener is stopped and its models let go.
+#[tauri::command]
+pub async fn listen_models_remove(state: State<'_, AppState>) -> Result<u64, String> {
     if listen(&state).setup_running {
         return Err("wait for the current voice-model setup to finish".into());
     }
-    stop_listening(&state);
-    listen(&state).parakeet = None;
+    let before: u64 = installed_input_models(&state).iter().map(|v| v.bytes).sum();
+    {
+        let mut l = listen(&state);
+        l.stop();
+        l.release_models();
+    }
     let dir = tools_dir(&state);
     tauri::async_runtime::spawn_blocking(move || {
         if dir.exists() { std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?; }
         Ok::<(), String>(())
-    }).await.map_err(|e| e.to_string())?
+    }).await.map_err(|e| e.to_string())??;
+    tracing::info!(bytes = before, private_mb = crate::health::private_mb(), "voice input models removed");
+    Ok(before)
 }
 
 fn untar_bz2_to(file: &Path, dir: &Path) -> anyhow::Result<()> {
@@ -691,7 +734,10 @@ pub fn setup(app: &AppHandle) {
     let state = app.state::<AppState>();
     let cfg = config_of(&state);
     state.voice.audio().set_output_device(cfg.output_device.clone());
-    if let Err(e) = register_ptt_source(app, &cfg.ptt_source()) {
+    // Voice input is entirely optional (2026-10-16): while it is off no
+    // model loads and no push-to-talk key or joystick is watched.
+    let ptt = if cfg.enabled { cfg.ptt_source() } else { PttSource::None };
+    if let Err(e) = register_ptt_source(app, &ptt) {
         tracing::warn!(error = %e, "push-to-talk source");
     }
     if cfg.enabled {
@@ -1135,6 +1181,31 @@ mod tests {
         assert_eq!(action, super::ListenerAction::Stop);
         let l = super::listen(&state);
         assert!(!l.run && l.parakeet.is_none(), "stopped and released");
+    }
+
+    #[test]
+    fn installed_input_models_are_measured_from_disk_by_kind() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        assert!(super::installed_input_models(&state).is_empty());
+        let tools = super::tools_dir(&state);
+        let parakeet = tools.join(super::PARAKEET_DIR);
+        std::fs::create_dir_all(&parakeet).unwrap();
+        std::fs::write(parakeet.join("encoder.int8.onnx"), vec![0u8; 4096]).unwrap();
+        let vosk = tools.join("vosk-model-small-en-us-0.15");
+        std::fs::create_dir_all(vosk.join("conf")).unwrap();
+        std::fs::create_dir_all(vosk.join("am")).unwrap();
+        std::fs::write(vosk.join("am").join("final.mdl"), vec![0u8; 2048]).unwrap();
+        let runtime = tools.join("vosk-win64-0.3.45");
+        std::fs::create_dir_all(&runtime).unwrap();
+        std::fs::write(runtime.join("libvosk.dll"), vec![0u8; 1024]).unwrap();
+        std::fs::write(tools.join("leftover.tar.bz2"), vec![0u8; 512]).unwrap();
+        let listed: Vec<(String, u64)> = super::installed_input_models(&state).into_iter().map(|v| (v.label, v.bytes)).collect();
+        assert_eq!(listed, vec![
+            ("Parakeet (dictation)".to_string(), 4096),
+            ("Command model vosk-model-small-en-us-0.15".to_string(), 2048),
+            ("Recognition runtimes".to_string(), 1024 + 512),
+        ]);
     }
 
     #[test]

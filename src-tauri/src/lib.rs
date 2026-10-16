@@ -682,6 +682,7 @@ pub fn run() {
             game::game_state,
             listen::listen_status,
             listen::listen_config_set,
+            listen::listen_models_installed,
             listen::listen_setup,
             listen::listen_models_remove,
             listen::listen_start,

@@ -363,7 +363,7 @@ pub struct InstalledVoice {
     pub bytes: u64,
 }
 
-fn dir_bytes(path: &Path) -> u64 {
+pub(crate) fn dir_bytes(path: &Path) -> u64 {
     let Ok(rd) = std::fs::read_dir(path) else { return 0 };
     rd.flatten()
         .map(|e| match e.metadata() {

@@ -64,6 +64,15 @@ Full notes:
   (Kokoro, each Piper voice, the Piper engine) with their sizes measured
   from disk and removes them all in one press; voice input models stay.
   No more hunting for the folder.
+- **Voice input is entirely optional, and off means off.** Nothing is
+  loaded and no key or joystick is watched while voice input is off.
+  Unchecking "open the microphone and listen" used to restart the
+  listener and keep the Parakeet model resident; on the maintainer's
+  machine that was 1,114 MB of memory for an app that otherwise uses
+  about 53 MB (Parakeet 675 MB, the Vosk engine with the Small model
+  420 MB). It now stops and lets the models go. Settings lists what voice
+  input downloaded, with sizes, and removes it in one press.
+- **No more browser dialogs.** Every confirmation is EDDA's own modal.
 - **Switching away from Kokoro frees its memory.** The helper (uv,
   Python, torch, about 2.8 GB) used to stay resident until EDDA exited;
   it now stops the moment it is no longer the selected engine, and every
