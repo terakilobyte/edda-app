@@ -452,7 +452,7 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                             }
                             deliver(&app, out);
                         }
-                        Err(e) => tracing::warn!(error = %e, "journal sync failed"),
+                        Err(e) => tracing::warn!(error = format!("{e:#}"), "journal sync failed"),
                     }
                 }
             }

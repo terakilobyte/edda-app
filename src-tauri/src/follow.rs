@@ -1653,22 +1653,14 @@ pub fn watch_game_target_key(app: AppHandle) {
             button,
             name,
         }) => {
-            // The saved id while its name still matches (generic names like
-            // "Microsoft PC-joystick driver" can cover several sticks); else
-            // the first device with that name, in case the ids moved.
-            let devs = ed_input::joy::devices();
-            let same =
-                |d: &&ed_input::joy::JoyDevice| !d.name.is_empty() && name.starts_with(&d.name);
-            let id = devs
-                .iter()
-                .find(|d| d.id == device && same(d))
-                .or_else(|| devs.iter().find(same))
-                .map(|d| d.id)
-                .unwrap_or(device);
+            // The watch resolves the saved id by name (ids move when a
+            // stick is re-plugged) and pauses while the device is gone.
+            let id = ed_input::joy::resolve(device, button, &name).unwrap_or(device);
             let tx2 = tx.clone();
             ed_input::joy::watch(
                 id,
                 button,
+                &name,
                 Box::new(move || {
                     let _ = tx2.send(());
                 }),

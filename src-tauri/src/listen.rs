@@ -103,8 +103,9 @@ pub struct ListenState {
     /// Parakeet, loaded once (a few seconds) and kept across listener restarts.
     pub parakeet: Option<std::sync::Arc<ed_listen::parakeet::Parakeet>>,
     pub ptt_shortcut: Option<Shortcut>,
-    /// (device id, 1-based button) polled by the joystick thread.
-    pub joy_src: Option<(u32, u32)>,
+    /// The saved joystick binding polled by the joystick thread; it
+    /// re-finds the stick by name when WinMM moves its id.
+    pub joy_src: Option<ed_input::joy::Poller>,
     pub joy_thread: bool,
 }
 
@@ -490,9 +491,9 @@ fn register_ptt_source(app: &AppHandle, src: &PttSource) -> Result<(), String> {
             register_ptt(app, hotkey)?;
             listen(&app.state::<AppState>()).joy_src = None;
         }
-        PttSource::Joystick { device, button, .. } => {
+        PttSource::Joystick { device, button, name } => {
             register_ptt(app, "")?;
-            listen(&app.state::<AppState>()).joy_src = Some((*device, *button));
+            listen(&app.state::<AppState>()).joy_src = Some(ed_input::joy::Poller::new(*device, *button, name));
             start_joy_thread(app.clone());
         }
     }
@@ -513,12 +514,17 @@ fn start_joy_thread(app: AppHandle) {
         let mut was = false;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(20));
-            let src = listen(&app.state::<AppState>()).joy_src;
-            let Some((dev, btn)) = src else {
-                was = false;
-                continue;
+            let now = {
+                let state = app.state::<AppState>();
+                let mut l = listen(&state);
+                match l.joy_src.as_mut() {
+                    Some(poller) => poller.is_down(),
+                    None => {
+                        was = false;
+                        continue;
+                    }
+                }
             };
-            let now = ed_input::joy::is_down(dev, btn);
             if now != was {
                 was = now;
                 ptt_set(&app, now);

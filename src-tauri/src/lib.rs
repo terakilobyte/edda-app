@@ -16,6 +16,7 @@ mod events;
 mod exchange;
 mod feed;
 mod follow;
+mod health;
 mod heatmap;
 mod telemetry;
 mod mission_route;
@@ -365,6 +366,7 @@ pub fn run() {
             // EDDA_NO_UPDATE: a smoke launch (CI) must not go looking for a release.
             if std::env::var("EDDA_NO_UPDATE").is_err() {
                 app_update::spawn_update_watch(handle.clone());
+                health::spawn_handle_watch();
             } else {
                 tracing::info!("app update check disabled by EDDA_NO_UPDATE");
             }
