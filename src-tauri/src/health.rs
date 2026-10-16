@@ -108,8 +108,10 @@ mod tests {
         let (private, ws) = super::memory_mb().expect("the platform reports memory");
         assert!(private > 0 && ws > 0, "{private} MB private, {ws} MB working set");
         let block = vec![1u8; 64 * 1_048_576];
-        let (after, _) = super::memory_mb().unwrap();
-        assert!(after >= private + 60, "64 MB allocated: {private} -> {after} MB private");
-        drop(block);
+        let (after, ws_after) = super::memory_mb().unwrap();
+        // Touched pages show in the working set everywhere; the private
+        // figure follows on Windows and on Linux's VmData for an mmap'd block.
+        assert!(after >= private + 60 || ws_after >= ws + 60, "64 MB allocated: {private}/{ws} -> {after}/{ws_after} MB (private/working set)");
+        assert_eq!(block[block.len() - 1], 1);
     }
 }
