@@ -645,7 +645,10 @@ verdicts live in the CSV headers under `docs/benches/`.
   Settings regardless of engine (`voices_installed` measures Kokoro, each
   Piper voice and the Piper engine from disk; `voices_remove_all` stops
   Kokoro, deletes them and the WAV cache, forgets the server, logs the
-  bytes freed). Found on the way: the Windows/no-voice sentinel was never
+  bytes freed). Measured on his machine the same hour: the Kokoro install
+  plus the Piper voices came to 9,178,522,781 bytes (9.2 GB; the panel
+  had estimated Kokoro at 2.8 GB, which is the download, not the install
+  with its uv cache and Python). Found on the way: the Windows/no-voice sentinel was never
   written when `voices/` did not exist yet (nothing installed), so the
   choice was lost at relaunch. Tests: a sleeping helper registered as
   `speech:kokoro` must be gone after the selection moves; a fake Kokoro
