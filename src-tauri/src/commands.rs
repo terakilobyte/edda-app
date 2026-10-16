@@ -2448,6 +2448,8 @@ pub async fn voice_models(state: State<'_, AppState>) -> Result<Vec<String>, Str
 
 #[tauri::command]
 pub async fn voice_use_windows(state: State<'_, AppState>) -> Result<VoiceStatus, String> {
+    let from = state.voice.backend();
+    leave_no_voice(&state);
     {
         let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.voice_server_enabled = false;
@@ -2455,9 +2457,50 @@ pub async fn voice_use_windows(state: State<'_, AppState>) -> Result<VoiceStatus
     }
     state.voice.audio().set_server(None);
     state.voice.use_windows();
+    crate::speech_engines::retire_unselected(&state);
+    engine_switched(from, "windows");
     crate::telemetry::set_voice_engine("voice_windows");
     state.voice.say_unthrottled("Windows voice selected.");
     voice_status(state).await
+}
+
+/// "No voice" (2026-10-16, the boss: "the same thing as mute all callouts"):
+/// nothing is synthesised, the speech server is off, a running Kokoro is
+/// stopped, and the mute is on. Picking any engine again lifts the mute.
+pub(crate) fn set_no_voice(state: &AppState) -> Result<(), String> {
+    let from = state.voice.backend();
+    {
+        let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+        cfg.voice_server_enabled = false;
+        cfg.save(&state.data_dir).map_err(err)?;
+    }
+    state.voice.audio().set_server(None);
+    state.voice.use_none();
+    set_voice_muted(state, true);
+    crate::speech_engines::retire_unselected(state);
+    engine_switched(from, "none");
+    crate::telemetry::set_voice_engine("voice_none");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn voice_use_none(state: State<'_, AppState>) -> Result<VoiceStatus, String> {
+    set_no_voice(&state)?;
+    voice_status(state).await
+}
+
+/// Picking an engine after "no voice" lifts the mute that came with it;
+/// a mute the commander set on a speaking engine is theirs and stays.
+fn leave_no_voice(state: &AppState) {
+    if state.voice.backend() == ed_voice::Backend::Silent && state.voice.is_muted() {
+        set_voice_muted(state, false);
+    }
+}
+
+/// The one line every engine switch writes (2026-10-16: a Kokoro -> Piper
+/// switch that left 2.8 GB resident logged nothing at all).
+fn engine_switched(from: ed_voice::Backend, to: &str) {
+    tracing::info!(from = ?from, to, "voice engine changed");
 }
 
 #[derive(Clone, Copy)]
@@ -2641,6 +2684,8 @@ pub async fn voice_server_set(
     enabled: bool,
     config: ed_voice::ServerConfig,
 ) -> Result<VoiceServerView, String> {
+    let from = state.voice.backend();
+    if enabled { leave_no_voice(&state); }
     let saved = {
         let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
         let mut c = config;
@@ -2654,6 +2699,10 @@ pub async fn voice_server_set(
         state.voice.audio().set_server(if enabled { Some(c.clone()) } else { None });
         c
     };
+    // A server switched off, or another server chosen, retires the
+    // managed Kokoro (its tree is not freed by forgetting its URL).
+    crate::speech_engines::retire_unselected(&state);
+    engine_switched(from, if enabled { "server" } else { "local" });
     state.voice.say_unthrottled("Hello, Commander. All systems online.");
     let audio = state.voice.audio().clone();
     tauri::async_runtime::spawn_blocking(move || voice_server_view(&audio, enabled, saved, enabled))
@@ -2783,7 +2832,10 @@ pub async fn set_voice(state: State<'_, AppState>, model: String) -> Result<Stri
     {
         return Err(format!("no such voice model: {model}"));
     }
+    let from = state.voice.backend();
+    leave_no_voice(&state);
     state.voice.set_model(&model);
+    engine_switched(from, "piper");
     // A Piper model selection only wins when no server is configured;
     // report what will actually speak.
     crate::telemetry::set_voice_engine(match state.voice.backend() {

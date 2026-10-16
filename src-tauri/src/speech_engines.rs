@@ -342,6 +342,108 @@ pub fn start_configured(state: &AppState) -> Result<bool, String> {
     Ok(false)
 }
 
+/// Stop the managed Kokoro when it is no longer the engine that speaks.
+/// Every engine switch calls this (2026-10-16: switching Kokoro -> Piper
+/// left the uv/Python/torch tree, ~2.8 GB, resident until EDDA exited;
+/// the switch logged nothing). Returns whether a process was stopped.
+pub fn retire_unselected(state: &AppState) -> bool {
+    if managed_kokoro_selected(state) || !state.helpers.running("speech:kokoro") {
+        return false;
+    }
+    state.helpers.stop("speech:kokoro");
+    tracing::info!(engine = "kokoro", "speech engine stopped: no longer the selected voice");
+    true
+}
+
+/// One installed voice asset and its size on disk.
+#[derive(Debug, Serialize, PartialEq)]
+pub struct InstalledVoice {
+    pub engine: String,
+    pub label: String,
+    pub bytes: u64,
+}
+
+fn dir_bytes(path: &Path) -> u64 {
+    let Ok(rd) = std::fs::read_dir(path) else { return 0 };
+    rd.flatten()
+        .map(|e| match e.metadata() {
+            Ok(m) if m.is_dir() => dir_bytes(&e.path()),
+            Ok(m) => m.len(),
+            Err(_) => 0,
+        })
+        .sum()
+}
+
+/// What "Remove installed voices" would delete, measured from disk:
+/// the Kokoro install, each Piper model, and the Piper sidecar. Voice
+/// input models are not voices and are listed by `listen`, not here.
+pub fn installed_voices(state: &AppState) -> Vec<InstalledVoice> {
+    let mut out = Vec::new();
+    let kokoro = engine_root(&state.data_dir, "kokoro");
+    if kokoro.is_dir() {
+        out.push(InstalledVoice { engine: "kokoro".into(), label: "Kokoro".into(), bytes: dir_bytes(&kokoro) });
+    }
+    let voices = state.data_dir.join("voices");
+    for model in ed_voice::list_models(&state.data_dir) {
+        let bytes = [voices.join(&model), voices.join(format!("{model}.json"))]
+            .iter()
+            .filter_map(|p| std::fs::metadata(p).ok())
+            .map(|m| m.len())
+            .sum();
+        out.push(InstalledVoice { engine: "piper".into(), label: format!("Piper voice {}", model.trim_end_matches(".onnx")), bytes });
+    }
+    let piper = voices.join("piper");
+    if piper.is_dir() {
+        out.push(InstalledVoice { engine: "piper".into(), label: "Piper engine".into(), bytes: dir_bytes(&piper) });
+    }
+    out
+}
+
+/// Delete every installed voice (2026-10-16, the boss: "if someone doesn't
+/// want kokoro anymore they have to figure out where it installed and
+/// delete it"): stop Kokoro, remove its install, every Piper model, the
+/// Piper sidecar and the WAV cache, forget the speech server, and
+/// rediscover what is left (the Windows voice, or nothing). Returns the
+/// bytes freed, measured before deleting.
+pub fn remove_all_voices(state: &AppState) -> Result<u64, String> {
+    let before: u64 = installed_voices(state).iter().map(|v| v.bytes).sum();
+    state.helpers.stop("speech:kokoro");
+    let kokoro = engine_root(&state.data_dir, "kokoro");
+    if kokoro.is_dir() {
+        std::fs::remove_dir_all(&kokoro).map_err(|e| format!("removing {}: {e}", kokoro.display()))?;
+    }
+    let voices = state.data_dir.join("voices");
+    for model in ed_voice::list_models(&state.data_dir) {
+        for p in [voices.join(&model), voices.join(format!("{model}.json"))] {
+            if p.is_file() { std::fs::remove_file(&p).map_err(|e| format!("removing {}: {e}", p.display()))?; }
+        }
+    }
+    for sub in ["piper", "cache"] {
+        let p = voices.join(sub);
+        if p.is_dir() { std::fs::remove_dir_all(&p).map_err(|e| format!("removing {}: {e}", p.display()))?; }
+    }
+    {
+        let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+        cfg.voice_server = None;
+        cfg.voice_server_enabled = false;
+        cfg.save(&state.data_dir).map_err(|e| e.to_string())?;
+    }
+    state.voice.audio().set_server(None);
+    state.voice.reload(&state.data_dir);
+    tracing::info!(bytes = before, "installed voices removed");
+    Ok(before)
+}
+
+#[tauri::command]
+pub async fn voices_installed(state: State<'_, AppState>) -> Result<Vec<InstalledVoice>, String> {
+    Ok(installed_voices(&state))
+}
+
+#[tauri::command]
+pub async fn voices_remove_all(state: State<'_, AppState>) -> Result<u64, String> {
+    remove_all_voices(&state)
+}
+
 #[tauri::command]
 pub async fn speech_engine_stop(state: State<'_, AppState>, engine: String) -> Result<SpeechEngineStatus, String> {
     if engine != "kokoro" { return Err(format!("Unknown managed speech engine: {engine}")) }
@@ -365,6 +467,84 @@ pub async fn speech_engine_remove(state: State<'_, AppState>, engine: String) ->
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// A process that lives long enough to be found running, on either CI runner.
+    fn sleeper() -> Command {
+        if cfg!(windows) {
+            let mut c = Command::new("powershell");
+            c.args(["-NoProfile", "-Command", "Start-Sleep -Seconds 30"]);
+            c
+        } else {
+            let mut c = Command::new("sleep");
+            c.arg("30");
+            c
+        }
+    }
+
+    fn fake_kokoro_install(state: &AppState) {
+        let root = engine_root(&state.data_dir, "kokoro");
+        std::fs::create_dir_all(root.join("python")).unwrap();
+        std::fs::write(root.join("installed.ok"), b"").unwrap();
+        std::fs::write(root.join("python").join("torch.dll"), vec![0u8; 4096]).unwrap();
+    }
+
+    fn fake_piper_voice(state: &AppState) {
+        let voices = state.data_dir.join("voices");
+        std::fs::create_dir_all(voices.join("piper")).unwrap();
+        std::fs::write(voices.join("piper").join("piper.exe"), vec![0u8; 1024]).unwrap();
+        std::fs::write(voices.join("en_US-lessac-high.onnx"), vec![0u8; 2048]).unwrap();
+        std::fs::write(voices.join("en_US-lessac-high.onnx.json"), b"{}").unwrap();
+    }
+
+    /// 2026-10-16: the boss switched Kokoro -> Piper and his memory did not
+    /// drop; the helper tree stayed until exit. Switching away must stop it.
+    #[test]
+    fn a_running_kokoro_is_stopped_once_it_is_not_the_selected_engine() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        fake_kokoro_install(&state);
+        {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.voice_server = Some(ed_voice::ServerConfig { url: "http://127.0.0.1:1".into(), model: "kokoro".into(), ..Default::default() });
+            cfg.voice_server_enabled = true;
+        }
+        state.helpers.spawn("speech:kokoro", &mut sleeper()).unwrap();
+        assert!(state.helpers.running("speech:kokoro"));
+        assert!(!retire_unselected(&state), "still selected: left alone");
+        assert!(state.helpers.running("speech:kokoro"));
+        state.config.lock().unwrap().voice_server_enabled = false;
+        assert!(retire_unselected(&state));
+        assert!(!state.helpers.running("speech:kokoro"), "the tree is gone with the selection");
+        assert!(!retire_unselected(&state), "nothing left to stop");
+    }
+
+    #[test]
+    fn installed_voices_are_measured_from_disk_and_remove_all_frees_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = crate::state::test_state(dir.path());
+        assert!(installed_voices(&state).is_empty(), "a fresh install has nothing to remove");
+        fake_kokoro_install(&state);
+        fake_piper_voice(&state);
+        {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.voice_server = Some(ed_voice::ServerConfig { url: "http://127.0.0.1:1".into(), model: "kokoro".into(), ..Default::default() });
+            cfg.voice_server_enabled = true;
+        }
+        state.voice.audio().set_server(Some(ed_voice::ServerConfig { url: "http://127.0.0.1:1".into(), ..Default::default() }));
+        let listed = installed_voices(&state);
+        let by_label: Vec<(&str, u64)> = listed.iter().map(|v| (v.label.as_str(), v.bytes)).collect();
+        assert_eq!(by_label, vec![("Kokoro", 4096), ("Piper voice en_US-lessac-high", 2050), ("Piper engine", 1024)]);
+        let freed = remove_all_voices(&state).unwrap();
+        assert_eq!(freed, 4096 + 2050 + 1024);
+        assert!(installed_voices(&state).is_empty());
+        assert!(!engine_root(&state.data_dir, "kokoro").exists());
+        assert!(ed_voice::list_models(&state.data_dir).is_empty());
+        let cfg = state.config.lock().unwrap();
+        assert!(cfg.voice_server.is_none() && !cfg.voice_server_enabled, "the server is forgotten with the engine");
+        assert_ne!(state.voice.backend(), ed_voice::Backend::Server);
+    }
+
     /// Item 36: the startup failure line names the disease — early death
     /// with an empty log indicts the spawn path and offers the console
     /// hatch; early death with content points at the log; a timeout is

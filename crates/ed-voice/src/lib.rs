@@ -42,6 +42,10 @@ pub struct Voice {
     model: Option<PathBuf>,
     espeak_data: Option<PathBuf>,
     out_dir: PathBuf,
+    /// The commander chose "no voice" (2026-10-16): nothing is synthesised
+    /// whatever is installed, and the choice outlives the launch through
+    /// the `none` sentinel in the selected-voice file.
+    silent: bool,
     /// Speech server, output device, interrupt generation: shared with
     /// whoever owns this voice, never process-global.
     audio: Arc<Audio>,
@@ -135,8 +139,21 @@ impl Audio {
 /// staged models; Alan is the British one.
 const PREFERRED_MODELS: &[&str] = &["en_US-lessac-high.onnx", "en_GB-alan-medium.onnx"];
 
-/// Where the Settings choice is remembered, inside the voices directory.
+/// Where the Settings choice is remembered, inside the voices directory:
+/// a model file name, `windows`, or `none`.
 const SELECTED_FILE: &str = "selected.txt";
+const SELECTED_WINDOWS: &str = "windows";
+const SELECTED_NONE: &str = "none";
+
+/// Remember the Settings choice for the next launch. The voices directory
+/// may not exist yet (nothing installed: exactly the commander who picks
+/// the Windows voice or no voice), so it is created first; until
+/// 2026-10-16 the write failed silently and the choice was lost.
+fn remember_choice(voices: &Path, choice: &str) {
+    if let Err(error) = std::fs::create_dir_all(voices).and_then(|_| std::fs::write(voices.join(SELECTED_FILE), choice)) {
+        tracing::warn!(%error, choice, "voice choice not remembered");
+    }
+}
 
 /// Model files available under `data_dir/voices/`, by file name, sorted.
 pub fn list_models(data_dir: &Path) -> Vec<String> {
@@ -175,7 +192,8 @@ impl Voice {
             );
         }
         self.model = Some(path);
-        let _ = std::fs::write(voices.join(SELECTED_FILE), file_name);
+        self.silent = false;
+        remember_choice(&voices, file_name);
         let _ = std::fs::remove_dir_all(&self.out_dir);
         tracing::info!(model = file_name, "voice model changed");
         Ok(())
@@ -186,7 +204,18 @@ impl Voice {
     pub fn use_windows_voice(&mut self) {
         let voices = self.out_dir.parent().map(Path::to_path_buf).unwrap_or_default();
         self.model = None;
-        let _ = std::fs::write(voices.join(SELECTED_FILE), "windows");
+        self.silent = false;
+        remember_choice(&voices, SELECTED_WINDOWS);
+        let _ = std::fs::remove_dir_all(&self.out_dir);
+    }
+
+    /// No voice at all: nothing is synthesised, whatever is installed. The
+    /// sentinel is remembered across launches like the Windows choice.
+    pub fn use_no_voice(&mut self) {
+        let voices = self.out_dir.parent().map(Path::to_path_buf).unwrap_or_default();
+        self.model = None;
+        self.silent = true;
+        remember_choice(&voices, SELECTED_NONE);
         let _ = std::fs::remove_dir_all(&self.out_dir);
     }
 }
@@ -210,22 +239,29 @@ impl Voice {
 
         // Precedence: explicit env override, then the voice chosen in
         // Settings last time, then the first preferred model present.
-        let model = std::env::var_os("EDDA_VOICE")
-            .map(PathBuf::from)
-            .filter(|p| p.is_file())
-            .or_else(|| {
-                std::fs::read_to_string(voices.join(SELECTED_FILE))
-                    .ok()
-                    .filter(|s| s.trim() != "windows")
-                    .map(|s| voices.join(s.trim()))
-                    .filter(|p| p.is_file())
-            })
-            .or_else(|| {
-                PREFERRED_MODELS
-                    .iter()
-                    .map(|m| voices.join(m))
-                    .find(|p| p.is_file())
-            });
+        // "No voice" chosen last time wins over every installed model.
+        let selected = std::fs::read_to_string(voices.join(SELECTED_FILE)).ok().map(|s| s.trim().to_string());
+        let silent = selected.as_deref() == Some(SELECTED_NONE) && std::env::var_os("EDDA_VOICE").is_none();
+        let model = if silent {
+            None
+        } else {
+            std::env::var_os("EDDA_VOICE")
+                .map(PathBuf::from)
+                .filter(|p| p.is_file())
+                .or_else(|| {
+                    selected
+                        .as_deref()
+                        .filter(|s| *s != SELECTED_WINDOWS)
+                        .map(|s| voices.join(s))
+                        .filter(|p| p.is_file())
+                })
+                .or_else(|| {
+                    PREFERRED_MODELS
+                        .iter()
+                        .map(|m| voices.join(m))
+                        .find(|p| p.is_file())
+                })
+        };
 
         let espeak = piper_dir.join("espeak-ng-data");
         let espeak_data = espeak.is_dir().then_some(espeak);
@@ -237,6 +273,7 @@ impl Voice {
             model,
             espeak_data,
             out_dir,
+            silent,
             audio,
         };
         tracing::info!(backend = ?v.backend(), model = ?v.model, "voice discovered");
@@ -252,6 +289,9 @@ impl Voice {
 
     /// The engine on this machine, ignoring any speech server.
     fn local_backend(&self) -> Backend {
+        if self.silent {
+            return Backend::Silent;
+        }
         match (&self.piper, &self.model) {
             (Some(_), Some(_)) => Backend::Piper,
             _ if cfg!(windows) => Backend::Sapi,
@@ -656,6 +696,42 @@ mod tests {
         assert_eq!(bumped, queued_at + 1);
         assert_eq!(a.audio().generation(), bumped, "every holder sees the same generation");
         assert!(queued_at < b.audio().generation(), "a line queued before the interrupt is stale");
+    }
+
+    /// "No voice" (2026-10-16) is a choice, not an absence: on a machine
+    /// with the Windows voice and a model installed it still speaks nothing,
+    /// and it survives a relaunch through the selected-voice file.
+    #[test]
+    fn no_voice_is_remembered_and_outranks_what_is_installed() {
+        let dir = tempfile::tempdir().unwrap();
+        let voices = dir.path().join("voices");
+        std::fs::create_dir_all(&voices).unwrap();
+        std::fs::write(voices.join("en_US-lessac-high.onnx"), b"model").unwrap();
+        std::fs::write(voices.join("en_US-lessac-high.onnx.json"), b"{}").unwrap();
+        let mut v = Voice::discover(dir.path());
+        assert_ne!(v.backend(), Backend::Silent, "with a model present something speaks");
+        v.use_no_voice();
+        assert_eq!(v.backend(), Backend::Silent);
+        assert_eq!(v.model_name(), None);
+        let relaunched = Voice::discover(dir.path());
+        assert_eq!(relaunched.backend(), Backend::Silent, "the choice outlives the launch");
+        let mut back = relaunched;
+        back.use_windows_voice();
+        assert_ne!(back.backend(), Backend::Silent, "picking an engine again leaves silence");
+        back.set_model("en_US-lessac-high.onnx").unwrap();
+        assert_eq!(back.model_name().as_deref(), Some("en_US-lessac-high"));
+        assert_eq!(std::fs::read_to_string(voices.join(SELECTED_FILE)).unwrap(), "en_US-lessac-high.onnx");
+    }
+
+    /// Nothing installed, no voices directory yet: the commander who picks
+    /// "no voice" must not be greeted in Windows voice on the next launch.
+    #[test]
+    fn no_voice_is_remembered_even_before_anything_is_installed() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut v = Voice::discover(dir.path());
+        v.use_no_voice();
+        assert_eq!(v.backend(), Backend::Silent);
+        assert_eq!(Voice::discover(dir.path()).backend(), Backend::Silent);
     }
 
     #[test]

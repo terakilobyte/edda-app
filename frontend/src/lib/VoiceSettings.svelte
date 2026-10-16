@@ -4,11 +4,12 @@
   import { onMount } from "svelte";
   import { voiceName, serverVoiceName } from "./voices.js";
   import {
-    voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
+    voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, voiceUseNone, voicesInstalled, voicesRemoveAll, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
     calloutsGet, calloutsSet,
     listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices,
   } from "./api.js";
   import { useListeners } from "./lifecycle.svelte.js";
+  import VoiceEngineChoice from "./VoiceEngineChoice.svelte";
 
   const listeners = useListeners();
   let voice = $state(null);
@@ -16,6 +17,22 @@
   let voiceInstalling = $state(false);
   let chosen = $state("");
   let msg = $state("");
+  // Every installed voice with its size (2026-10-16): shown under the
+  // engine choice and removable in one go.
+  let installed = $state([]);
+  let removing = $state(false);
+  async function loadInstalled() { try { installed = await voicesInstalled(); } catch { installed = []; } }
+  onMount(loadInstalled);
+  const describeInstalled = () => installed.map((v) => `${v.label} (${v.bytes >= 1024 ** 3 ? `${(v.bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(v.bytes / 1048576))} MB`})`).join(", ");
+  async function removeAllVoices() {
+    if (!installed.length || !confirm(`Remove every installed voice from EDDA's data folder?\n${describeInstalled()}\nVoice input models stay.`)) return;
+    removing = true;
+    try {
+      const freed = await voicesRemoveAll();
+      models = await voiceModels(); chosen = ""; voice = await voiceStatus(); await loadVoiceServer(); await loadInstalled();
+      vsMsg = `Installed voices removed · ${(freed / 1048576).toFixed(0)} MB freed.`;
+    } catch (e) { vsMsg = String(e); } finally { removing = false; }
+  }
 
   // Speech server (Kokoro and other OpenAI-compatible providers).
   let vs = $state(null); let vsEngine = $state("builtin"); let vsUrl = $state("http://localhost:8880"); let vsModel = $state("kokoro"); let vsVoice = $state("af_heart"); let vsKey = $state(""); let vsMsg = $state(""); let vsVoices = $state([]); let vsPreset = $state("kokoro"); let vsBusy = $state(false);
@@ -147,10 +164,20 @@
   // The engine the panel offers, by name (maintainer, 2026-09-09: "why
   // isn't piper there?" — it hid under "built-in" with the Windows
   // voice). Three choices; the pill still says what is actually speaking.
-  const engineChoice = $derived(vsEngine === "server" ? "server" : voice?.backend === "sapi" ? "windows" : "piper");
+  const engineChoice = $derived(vsEngine === "server" ? "server" : voice?.backend === "silent" ? "none" : voice?.backend === "sapi" ? "windows" : "piper");
   async function pickEngine(which) {
     vsMsg = "";
     try {
+      if (which === "none") {
+        // "No voice" (2026-10-16): the same as mute all, with the server off
+        // and Kokoro stopped; then one offer to free the installed voices.
+        voice = await voiceUseNone();
+        vsEngine = "builtin";
+        vsMsg = "No voice. All callouts are muted; pick another engine to hear EDDA again.";
+        await loadInstalled();
+        if (installed.length && confirm(`Remove the installed voices too?\n${describeInstalled()}\nVoice input models stay.`)) await removeAllVoices();
+        return;
+      }
       if (which === "server") {
         vsEngine = "server";
         if (vsVoices.length) await saveVoiceServer(); else await connectSpeech();
@@ -162,7 +189,7 @@
         vsMsg = "Windows voice selected. No local model or helper process is required.";
       } else {
         const model = chosen || models[0];
-        if (!model) { vsMsg = "No Piper voice is installed yet — install one below."; return; }
+        if (!model) { vsMsg = "No Piper voice is installed yet — install one below."; voice = await voiceStatus(); return; }
         await setVoice(model);
         chosen = model;
         voice = await voiceStatus();
@@ -181,7 +208,7 @@
       chosen = model;
       vsMsg = "Neural voice installed and selected.";
     } catch (e) { vsMsg = String(e); }
-    finally { voiceInstalling = false; }
+    finally { voiceInstalling = false; await loadInstalled(); }
   }
 </script>
 
@@ -205,13 +232,7 @@
     <dl class="kv">
       <dt>Engine</dt>
       <dd>
-        <div class="row">
-          <label><input type="radio" name="voice-engine" value="windows" checked={engineChoice === "windows"} onchange={() => pickEngine("windows")} /> Windows voice</label>
-          <label><input type="radio" name="voice-engine" value="piper" checked={engineChoice === "piper"} onchange={() => pickEngine("piper")} /> Piper (neural, inside EDDA)</label>
-          <label><input type="radio" name="voice-engine" value="server" checked={engineChoice === "server"} onchange={() => pickEngine("server")} /> speech server (Kokoro or compatible)</label>
-          <span class="pill {voice.backend === 'server' ? 'cyan' : voice.backend === 'piper' ? 'ok' : voice.backend === 'sapi' ? 'warn' : 'bad'}">{voice.backend === "server" ? "speech server" : voice.backend === "piper" ? "Piper neural" : voice.backend === "sapi" ? "Windows voice" : "no voice"}</span>
-          {#if vsEngine === "server" && voice.backend !== "server"}<span class="pill warn" title="The configured speech server is not answering; EDDA fell back to the next voice. Retry the server or pick another engine.">server configured, not running — using {voice.backend === "piper" ? "Piper" : voice.backend === "sapi" ? "Windows voice" : "no voice"}</span>{/if}
-        </div>
+        <VoiceEngineChoice engine={engineChoice} backend={voice.backend} serverConfigured={vsEngine === "server"} {installed} {removing} onPick={pickEngine} onRemoveAll={removeAllVoices} />
         {#if vsEngine === "server"}
           <div class="row" style="margin-top:0.4rem">
             <select bind:value={vsPreset} onchange={applySpeechPreset}>{#each SPEECH_PRESETS as p}<option value={p.id}>{p.label}</option>{/each}</select>

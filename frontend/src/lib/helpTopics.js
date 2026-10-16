@@ -122,7 +122,7 @@ export const topics = [
     id: "voice",
     title: "Voice",
     body: [
-      "No neural voice model is bundled. Windows voice works immediately; if you choose a local neural voice, EDDA downloads Piper or Kokoro into your selected data folder. You can also connect another OpenAI-compatible speech server on the Voice tab.",
+      "No neural voice model is bundled. Windows voice works immediately; if you choose a local neural voice, EDDA downloads Piper or Kokoro into your selected data folder. You can also connect another OpenAI-compatible speech server on the Voice tab, or pick no voice at all: nothing is spoken, every callout is muted and still shows on the HUD. Remove installed voices (Kokoro, the Piper voices and engine, with their sizes) from the same place; EDDA stops a running Kokoro the moment it is no longer the selected engine.",
     ],
     tabs: [["voice", "Voice settings"]],
   },

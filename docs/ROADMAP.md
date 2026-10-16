@@ -623,6 +623,36 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Switching away from Kokoro left 2.8 GB resident; "no voice" and
+  one-button voice removal** (2026-10-16, the boss: "if I switch voice
+  providers memory doesn't seem to drop?"; "we need another voice option,
+  'no voice' ... and we need that ability in general, for edda to remove
+  installed voices. If someone doesn't want kokoro anymore they have to
+  figure out where it installed and delete it"). Root cause from the code
+  path and his log: the managed Kokoro is a helper tree (uv, Python,
+  torch) under a kill-on-close Job; `voice_server_set`, `voice_use_windows`
+  and `set_voice` switched the engine without stopping it, so the tree
+  stayed until EDDA exited (kokoro.log: the greeting at 19:55:27Z when he
+  picked Piper, the tree dead only with the app at 19:56:49Z; the switch
+  itself logged nothing). Piper and the Windows voice spawn a process per
+  utterance, so nothing in-process to free. Fix: `retire_unselected` on
+  every engine switch stops Kokoro when it is no longer the selected
+  engine; every switch logs `voice engine changed` from/to. New: a fourth
+  engine, "no voice" (`Backend::Silent` chosen, not merely found: the
+  `none` sentinel in `voices/selected.txt`, mute-all on, server off,
+  Kokoro stopped; picking an engine again lifts the mute), with one offer
+  to remove the installed voices; and "Remove installed voices" in
+  Settings regardless of engine (`voices_installed` measures Kokoro, each
+  Piper voice and the Piper engine from disk; `voices_remove_all` stops
+  Kokoro, deletes them and the WAV cache, forgets the server, logs the
+  bytes freed). Found on the way: the Windows/no-voice sentinel was never
+  written when `voices/` did not exist yet (nothing installed), so the
+  choice was lost at relaunch. Tests: a sleeping helper registered as
+  `speech:kokoro` must be gone after the selection moves; a fake Kokoro
+  and Piper install are measured byte-exact and freed; the picker renders
+  all four engines with the measured sizes. Voice input models (Parakeet,
+  Vosk) are not voices and stay.
+
 - **Combat record by ship: sessions, time to kill, kills per hour from
   the journal** (2026-10-16, the boss: "next feature to work on.... ship
   efficiency for combat"; "average time from start of combat to kill for
