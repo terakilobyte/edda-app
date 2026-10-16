@@ -1669,12 +1669,13 @@ dependencies = [
  "rodio",
  "serde",
  "serde_json",
+ "tempfile",
  "tracing",
 ]
 
 [[package]]
 name = "edda"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "arboard",

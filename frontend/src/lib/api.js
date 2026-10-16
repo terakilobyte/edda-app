@@ -218,6 +218,9 @@ export const COMMANDS = {
   voiceStatus: ["voice_status"],
   voiceModels: ["voice_models"],
   voiceUseWindows: ["voice_use_windows"],
+  voiceUseNone: ["voice_use_none"],
+  voicesInstalled: ["voices_installed"],
+  voicesRemoveAll: ["voices_remove_all"],
   voiceCatalog: ["voice_catalog"],
   voiceInstall: ["voice_install", ["model"]],
   voiceRemove: ["voice_remove", ["model"]],
@@ -307,7 +310,7 @@ export const {
   galaxyNear, nameComplete, serviceOptions,
   powerplaySeen, meritTimeline, combatSummary, combatTimeline, combatByShip, combatSessions, recentKills, missions, missionStack, missionsHere,
   voiceStatus, voiceModels, voiceUseWindows, voiceCatalog, voiceInstall, voiceRemove, voiceInstallDefault, personas, setupCompleted, setPersona, setVoice, voiceServerGet,
-  calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart,
+  calloutsGet, calloutsSet, signalWatchGet, signalWatchSet, voiceServerProbe, voiceServerSet, speechEngineStatus, speechEngineInstall, speechEngineStart, voiceUseNone, voicesInstalled, voicesRemoveAll,
   getAiConfig, aiEval, say, sayNow, voiceInterrupt, setMuted, recentCallouts, materialTradesSince, setOverlayInteractive, overlayVisible, aiAsk, aiReset,
 } = wrapped;
 

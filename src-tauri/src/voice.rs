@@ -24,6 +24,7 @@ enum Msg {
     SayWait(String, u64, std::sync::mpsc::SyncSender<()>),
     SetModel(String),
     UseWindows,
+    UseNone,
     Reload(std::path::PathBuf),
     Pause(bool),
 }
@@ -152,6 +153,14 @@ impl VoiceHandle {
         self.send(Msg::UseWindows);
     }
 
+    /// "No voice" (2026-10-16): nothing is synthesised whatever is
+    /// installed, and the choice is remembered across launches.
+    pub fn use_none(&self) {
+        *self.model.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self.backend.lock().unwrap_or_else(|e| e.into_inner()) = ed_voice::Backend::Silent;
+        self.send(Msg::UseNone);
+    }
+
     pub fn model(&self) -> Option<String> {
         self.model.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
@@ -228,6 +237,7 @@ fn run(mut voice: ed_voice::Voice, rx: Receiver<Msg>, audio: Arc<ed_voice::Audio
                 }
             }
             Msg::UseWindows => voice.use_windows_voice(),
+            Msg::UseNone => voice.use_no_voice(),
             Msg::Reload(data_dir) => voice = ed_voice::Voice::discover_with(&data_dir, audio.clone()),
             Msg::Pause(value) => {
                 paused = value;
@@ -261,6 +271,22 @@ mod tests {
         let rediscovered = ed_voice::Voice::discover_with(dir.path(), handle.audio().clone());
         assert_eq!(rediscovered.audio().generation(), before + 2);
         assert!(Arc::ptr_eq(rediscovered.audio(), handle.audio()));
+    }
+
+    #[test]
+    fn no_voice_is_a_backend_the_handle_reports_and_discovery_keeps() {
+        let dir = tempfile::tempdir().unwrap();
+        let handle = VoiceHandle::spawn(dir.path(), "EDDA/test");
+        handle.use_none();
+        assert_eq!(handle.backend(), ed_voice::Backend::Silent);
+        assert_eq!(handle.model(), None);
+        // The thread wrote the sentinel; a relaunch discovers silence.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !dir.path().join("voices").join("selected.txt").is_file() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let again = VoiceHandle::spawn(dir.path(), "EDDA/test");
+        assert_eq!(again.backend(), ed_voice::Backend::Silent);
     }
 
     #[test]
