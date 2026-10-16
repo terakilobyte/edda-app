@@ -705,11 +705,15 @@ mod tests {
     fn no_voice_is_remembered_and_outranks_what_is_installed() {
         let dir = tempfile::tempdir().unwrap();
         let voices = dir.path().join("voices");
-        std::fs::create_dir_all(&voices).unwrap();
+        // A Piper install on every platform: the sidecar (both spellings)
+        // and one model, so "something speaks" does not depend on SAPI.
+        std::fs::create_dir_all(voices.join("piper")).unwrap();
+        std::fs::write(voices.join("piper").join("piper.exe"), b"exe").unwrap();
+        std::fs::write(voices.join("piper").join("piper"), b"elf").unwrap();
         std::fs::write(voices.join("en_US-lessac-high.onnx"), b"model").unwrap();
         std::fs::write(voices.join("en_US-lessac-high.onnx.json"), b"{}").unwrap();
         let mut v = Voice::discover(dir.path());
-        assert_ne!(v.backend(), Backend::Silent, "with a model present something speaks");
+        assert_eq!(v.backend(), Backend::Piper, "with a model present something speaks");
         v.use_no_voice();
         assert_eq!(v.backend(), Backend::Silent);
         assert_eq!(v.model_name(), None);
@@ -717,8 +721,12 @@ mod tests {
         assert_eq!(relaunched.backend(), Backend::Silent, "the choice outlives the launch");
         let mut back = relaunched;
         back.use_windows_voice();
-        assert_ne!(back.backend(), Backend::Silent, "picking an engine again leaves silence");
+        assert_eq!(std::fs::read_to_string(voices.join(SELECTED_FILE)).unwrap(), SELECTED_WINDOWS, "picking an engine again leaves silence");
+        if cfg!(windows) {
+            assert_eq!(back.backend(), Backend::Sapi);
+        }
         back.set_model("en_US-lessac-high.onnx").unwrap();
+        assert_eq!(back.backend(), Backend::Piper);
         assert_eq!(back.model_name().as_deref(), Some("en_US-lessac-high"));
         assert_eq!(std::fs::read_to_string(voices.join(SELECTED_FILE)).unwrap(), "en_US-lessac-high.onnx");
     }
