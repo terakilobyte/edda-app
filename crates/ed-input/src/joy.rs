@@ -40,19 +40,22 @@ mod imp {
         out
     }
 
-    /// The first hat's angle in hundredths of a degree (0 = up, 9000 =
-    /// right), or `None` when centred or absent.
-    pub fn pov(id: u32) -> Option<u32> {
+    /// The first hat's raw reading: an angle in hundredths of a degree
+    /// (0 = up, 9000 = right), 65535 when centred; `None` only when the
+    /// device did not answer.
+    pub fn pov_raw(id: u32) -> Option<u32> {
         // SAFETY: as above.
         unsafe {
             let mut info: JOYINFOEX = std::mem::zeroed();
             info.dwSize = std::mem::size_of::<JOYINFOEX>() as u32;
             info.dwFlags = JOY_RETURNPOV as u32;
-            if joyGetPosEx(id, &mut info) != JOYERR_NOERROR {
-                return None;
-            }
-            (info.dwPOV < 36000).then_some(info.dwPOV)
+            (joyGetPosEx(id, &mut info) == JOYERR_NOERROR).then_some(info.dwPOV)
         }
+    }
+
+    /// The first hat's angle, or `None` when centred or absent.
+    pub fn pov(id: u32) -> Option<u32> {
+        pov_raw(id).filter(|p| *p < 36000)
     }
 
     /// Bitmask of pressed buttons for a device (bit n = button n+1).
@@ -79,9 +82,12 @@ mod imp {
     pub fn pov(_id: u32) -> Option<u32> {
         None
     }
+    pub fn pov_raw(_id: u32) -> Option<u32> {
+        None
+    }
 }
 
-pub use imp::{buttons, devices, pov};
+pub use imp::{buttons, devices, pov, pov_raw};
 
 /// Hat directions are pseudo-buttons above this: HAT_BASE + 1 = up,
 /// then clockwise in 45-degree steps to 8 = up-left.
@@ -116,7 +122,8 @@ pub fn is_down(id: u32, button: u32) -> bool {
 /// a device that answers `None` (see [`Poller`]).
 pub fn probe(id: u32, button: u32) -> Option<bool> {
     if button > HAT_BASE {
-        return pov(id).map(|p| hat_dir(p) == button - HAT_BASE);
+        // A centred hat (65535) is an answer: "not pressed", not "gone".
+        return pov_raw(id).map(|p| p < 36000 && hat_dir(p) == button - HAT_BASE);
     }
     (button >= 1).then(|| buttons(id).map(|m| m & (1u32 << (button - 1)) != 0)).flatten()
 }
