@@ -21,6 +21,7 @@ export const KEYS = Object.freeze({
   plotTryHard: "edda.plotTryHard",                  // route plotter: absolute fewest jumps, whatever the search costs (opt-in)
   plotEffort: "edda.plotEffort",                    // route plotter: "high" | "medium" | "low"
   routeMap: "edda.routeMap",                        // route tab: show the map
+  galaxyMap: "edda.galaxy.map",                     // galaxy tab: show the map (unchecked = not mounted, nothing held)
   speak: "edda.speak",                              // ship computer: speak replies
   galaxySuspendAnimations: "edda.galaxy.suspendAnimations",
   galaxyStarBrightness: "edda.galaxy.starBrightness",   // 0-100, all modes

@@ -623,6 +623,25 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **The 3D map, measured; the Galaxy tab can drop it; the arrival
+  clipboard option** (2026-10-16, the boss: "if we hide the map it's not
+  rendered, right? ... I'm not sure how heavyweight our 3d map is";
+  "some users would prefer if edda only copied the next system in a route
+  to the clipboard ... This should be an option, not the default"). Bench
+  `docs/benches/2026-10-16-galaxy-map-memory.csv` (knob
+  `galaxy_map_memory.mjs`, Playwright Chromium on the fake transport,
+  Chromium's process list by CDP, OS private bytes): the map costs ~95 MB
+  mounted (renderer +39, GPU +46); hidden it renders nothing and frees
+  nothing; unmounting returned nothing until `onDestroy` also forced the
+  WebGL context lost and removed the canvas, after which 394 -> 369 MB
+  (the rest is the star-field arrays, now one decoded copy shared by the
+  Route and Galaxy maps instead of two). The Galaxy tab has the Route
+  tab's "show map" checkbox (`edda.galaxy.map`). Following: a
+  `follow_clipboard_on_arrival` option (off) puts the next hop's name on
+  the clipboard the moment `on_jump` moves the cursor and sends nothing to
+  the game; `arrival_clipboard` is pure and pinned (off = nothing,
+  complete = nothing).
+
 - **Voice input was the whole memory footprint, and "off" did not turn it
   off** (2026-10-16, the boss, with every output voice removed: "still
   using 837.9mb of ram dude"; then "voice input needs to be entirely

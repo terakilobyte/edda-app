@@ -850,6 +850,16 @@ fn chrono_now() -> String {
     ed_store::session::iso_from_epoch(secs as i64)
 }
 
+/// What the arrival-clipboard option copies after the cursor moved: the
+/// next system's name while the option is on and a hop remains; nothing
+/// otherwise. Pure, so the rule is pinned without a clipboard.
+pub fn arrival_clipboard(ar: &ActiveRoute, enabled: bool) -> Option<&str> {
+    if !enabled {
+        return None;
+    }
+    ar.route.hops.get(ar.next).map(|h| h.name.as_str())
+}
+
 pub fn advance_text(ar: &ActiveRoute) -> String {
     let n = ar.route.hops.len();
     let left = n.saturating_sub(ar.next);
@@ -1424,6 +1434,15 @@ pub fn on_jump(
         return Some(advance_text(&ar));
     }
     let _ = app.emit(crate::events::ROUTE_FOLLOW, view(Some(&ar)));
+    // The arrival-clipboard option: the next name is on the clipboard the
+    // moment the cursor moves, and nothing is sent to the game.
+    let copy_on_arrival = app.state::<AppState>().config.lock().unwrap_or_else(|e| e.into_inner()).follow_clipboard_on_arrival;
+    if let Some(name) = arrival_clipboard(&ar, copy_on_arrival) {
+        match set_clipboard(name) {
+            Ok(()) => tracing::info!(next = %name, "next system on the clipboard on arrival"),
+            Err(error) => tracing::warn!(%error, "arrival clipboard not set"),
+        }
+    }
     let mut text = advance_text(&ar);
     // Swapped ships mid-route: the plan is for the other one.
     if let (Some(planned), Some(now)) = (ar.route.ship_id, crate::routing::current_ship_id(conn)) {
@@ -2823,6 +2842,20 @@ pub async fn target_macro_enabled_set(
 }
 
 #[tauri::command]
+pub async fn follow_clipboard_set(state: State<'_, AppState>, enabled: bool) -> Result<bool, String> {
+    let mut cfg = state.config.lock().unwrap_or_else(|e| e.into_inner());
+    cfg.follow_clipboard_on_arrival = enabled;
+    cfg.save(&state.data_dir).map_err(|e| e.to_string())?;
+    tracing::info!(enabled, "arrival clipboard option");
+    Ok(enabled)
+}
+
+#[tauri::command]
+pub async fn follow_clipboard_get(state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(state.config.lock().unwrap_or_else(|e| e.into_inner()).follow_clipboard_on_arrival)
+}
+
+#[tauri::command]
 pub async fn target_macro_enabled_get(state: State<'_, AppState>) -> Result<bool, String> {
     Ok(state
         .config
@@ -3046,6 +3079,32 @@ mod macro_tests {
         let err = run_macro_with(&mut rec, &mut NeverOpens, &steps, "Sol", 0.0).unwrap_err();
         assert!(err.contains("galaxy map didn't open"), "{err}");
         assert!(rec.events.is_empty(), "nothing typed after the guard fails: {:?}", rec.events);
+    }
+}
+
+#[cfg(test)]
+mod arrival_clipboard_tests {
+    fn route(names: &[&str]) -> ed_galaxy::router::Route {
+        let hops: Vec<_> = names.iter().enumerate().map(|(i, n)| serde_json::json!({
+            "idx": i, "id64": i + 1, "name": n, "pos": [0.0, 0.0, 0.0], "class": "unknown", "scoopable": false,
+            "distance_ly": 10.0, "boosted": false, "total_ly": 10.0 * (i + 1) as f32, "fuel_after": null, "refuel": false,
+        })).collect();
+        serde_json::from_value(serde_json::json!({
+            "range_ly": 30.0, "hops": hops, "jumps": names.len() - 1, "total_ly": 30.0, "straight_ly": 25.0,
+            "boosted_jumps": 0, "expansions": 0, "elapsed_ms": 0, "refuel_stops": 0,
+        })).unwrap()
+    }
+
+    /// 2026-10-16: an option, not the default. On, it names the next hop
+    /// after the cursor moved; off, or with the route complete, nothing.
+    #[test]
+    fn the_arrival_clipboard_names_the_next_hop_only_when_asked() {
+        let r = route(&["Alpha", "Beta", "Gamma"]);
+        let after_first_jump = super::ActiveRoute { route: r.clone(), next: 2, source: "plot".into() };
+        assert_eq!(super::arrival_clipboard(&after_first_jump, false), None, "off by default");
+        assert_eq!(super::arrival_clipboard(&after_first_jump, true), Some("Gamma"));
+        let complete = super::ActiveRoute { route: r, next: 3, source: "plot".into() };
+        assert_eq!(super::arrival_clipboard(&complete, true), None, "nothing left to copy");
     }
 }
 

@@ -1,0 +1,16 @@
+# Galaxy 3D map memory, 2026-10-16 (the boss: "I'm not sure how heavyweight our 3d map is"). Knob: docs/benches/knobs/galaxy_map_memory.mjs -- Playwright Chromium (stands in for WebView2, same engine) on the fake transport, Chromium's own process list over CDP, private MB from the OS, 6 s settle per state, two runs.
+# VERDICT: the map costs ~95 MB mounted (renderer +39, GPU +46); hidden on another tab it renders nothing and frees nothing (same figures); unmounting ALONE returned nothing in run 1 (renderer.dispose() leaves the WebGL context and its framebuffers to the browser); with forceContextLoss() + canvas removal on destroy (run 2) the GPU side dropped at once and the renderer side after a collection: 394 -> 369 MB, i.e. ~75 of the ~95 MB back, the rest is the shared star-field arrays (~15 MB, kept on purpose for the Route tab's map) and heap slack.
+# VERDICT: the Galaxy tab now has the Route tab's "show map" checkbox (persisted edda.galaxy.map); unchecked = unmounted. Two mounted maps share one decoded star field (STAR_ARRAYS) instead of fetching and decoding 10 MB twice.
+# Baseline before the Galaxy tab is ~300 MB for the whole Chromium (browser + renderer + GPU + utilities), not attributable to the map.
+run,state,renderer_mb,gpu_mb,all_mb
+1 (dispose only),trade tab; galaxy never opened,133,96,309
+1 (dispose only),galaxy tab shown; map mounted and rendering,171,139,400
+1 (dispose only),trade tab; galaxy map mounted hidden (not rendering),171,141,403
+1 (dispose only),galaxy tab; show map unchecked (unmounted),171,145,407
+1 (dispose only),galaxy tab; show map checked again (remounted),190,186,467
+2 (forceContextLoss),trade tab; galaxy never opened,126,91,299
+2 (forceContextLoss),galaxy tab shown; map mounted and rendering,165,137,394
+2 (forceContextLoss),trade tab; galaxy map mounted hidden (not rendering),164,141,398
+2 (forceContextLoss),galaxy tab; show map unchecked (unmounted),164,132,389
+2 (forceContextLoss),galaxy tab; unmounted after a forced garbage collection,144,132,369
+2 (forceContextLoss),galaxy tab; show map checked again (remounted),183,139,415
