@@ -1,0 +1,24 @@
+# Verdict: the dev app (pid 33996, started 2026-10-14 20:00 -07, branch engineers at cb3a98d) held 16,711,680 kernel handles at 2026-10-16 13:30Z, the Windows per-process ceiling; 16,710,850 (sampled 1 in 50) were registry Keys, named from outside the process (DuplicateHandle + NtQueryObject, 90 sampled) as HKCU\...\MediaProperties\PrivateProperties\DirectInput\VID_xxxx&PID_xxxx\Calibration\N for every HID device on the machine: WinMM joystick enumeration. The app's config bound push-to-talk and the next-system trigger to WinMM device id 2; at the census the stick answered at ids 3 and 4 and id 2 returned JOYERR_PARMS (165). Two 50 Hz loops polled id 2 for ~41 h: ceiling reached 2026-10-16 00:09Z, after which read_dir on the journal folder ("journal sync failed" x3003), audio output, the piper sidecar and HTTPS all failed. In a fresh process joyGetPosEx/joyGetDevCapsW on ids 0-15 (present, absent, with joyConfigChanged between calls) leaked 0 handles over 2000 calls: the leaking path is WinMM's "known, now unplugged" state, reproducible only with a re-plug. Fix: ed_input::joy::Poller stops polling a device that does not answer and re-resolves the saved binding by name on a 2-60 s backoff; health.rs logs the handle count every minute (warn above 20,000); the sync warning prints its cause chain.
+# Census method: scratchpad handle_types.py / handle_names.py (NtQuerySystemInformation SystemExtendedHandleInformation; read-only).
+measure,value,note
+process_handles,16711680,Get-Process edda; unchanged over 20 s (pinned at the ceiling)
+threads,108,steady
+system_handles,16891938,all processes
+handles_sampled_step50,334233,of this pid
+key_handles_est,16710850,type Key (index 50)
+etw_registration_est,200,
+process_est,150,
+event_est,150,
+file_est,100,
+irtimer_est,100,
+named_sample,90,all DirectInput\VID_*&PID_*\Calibration\N or HIDCLASS&COLnn\Calibration\0
+vid_pid_seen,"05AC:029F,03F0:0391,1532:0067,1532:0528,0BDA:4027,0D8C:0005,HIDCLASS&COL01,HIDCLASS&COL02",every HID device, not just the stick
+joyGetNumDevs,16,
+stick_ids_now,"3,4",Microsoft PC-joystick driver
+config_device_id,2,listen.ptt.device and target_trigger.device
+id2_rc_now,165,JOYERR_PARMS: no such device in a fresh process
+fresh_process_leak_2000_calls,0,"ids 2,3,9; flags POV/BUTTONS/ALL; with joyConfigChanged(0) between calls"
+first_sync_failure,2026-10-16T00:09:34Z,"journal sync failed" every 5 s from here; 3003 by 13:12Z
+app_started,2026-10-14T20:00:45-07:00,
+poll_rate_per_s,100,2 threads x 50 Hz x 1 joyGetPosEx (is_down)
+implied_leak_per_s,113,16.7M over 41 h
