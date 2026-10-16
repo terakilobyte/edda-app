@@ -51,7 +51,7 @@ ed-domain = { path = "../crates/ed-domain" }
 ed-journal = { path = "../crates/ed-journal" }
 ed-input = { path = "../crates/ed-input" }
 ed-listen = { path = "../crates/ed-listen" }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 arboard = { version = "3", default-features = false }
 ed-engineering = { path = "../crates/ed-engineering" }
 ed-store = { version = "0.1.0", path = "../crates/ed-store" }
