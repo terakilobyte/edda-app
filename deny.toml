@@ -33,13 +33,16 @@ ignore = [
     # still requires ^4, every 4.x of which is yanked, so the lock cannot
     # move it. Drop this the day the updater is on zip 9.
     { crate = "zip@4.6.1", reason = "transitive under tauri-plugin-updater; no unyanked 4.x exists" },
-    # 2026-10-17: RUSTSEC-2026-0369 (published 2026-10-10) on the same
-    # zip 4.6.1: extract() applies Unix permissions through a symlink that
-    # escapes the destination. Patched only in zip >= 9; every
+    # 2026-10-17: three advisories published 2026-10-10 on the same zip
+    # 4.6.1, all in extraction on Unix: SUID/SGID bits kept (0367), symlink
+    # targets outside the destination (0368), permissions applied through
+    # such a symlink (0369). Patched only in zip >= 9; every
     # tauri-plugin-updater release, 3.0.0-alpha.3 included, still requires
     # ^4. The only archive the updater ever extracts is EDDA's own update
     # bundle, whose signature it checks before it opens it, and the
     # Windows installer path extracts nothing. Drop with the entry above.
+    { id = "RUSTSEC-2026-0367", reason = "zip 4.6.1 under tauri-plugin-updater; only our own signed bundle is ever extracted; no updater release is on zip 9" },
+    { id = "RUSTSEC-2026-0368", reason = "zip 4.6.1 under tauri-plugin-updater; only our own signed bundle is ever extracted; no updater release is on zip 9" },
     { id = "RUSTSEC-2026-0369", reason = "zip 4.6.1 under tauri-plugin-updater; only our own signed bundle is ever extracted; no updater release is on zip 9" },
 ]
 
