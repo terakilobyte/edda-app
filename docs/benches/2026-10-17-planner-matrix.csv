@@ -34,6 +34,21 @@
 # Colonia -> Spase 47.5 -> 41.9 / 28.2 s, Sgr A* -> Sol 6.3 -> 1.8 s. The
 # knob stays at 0; the core-only win says the thinning belongs in R4's
 # degree-bounded highway graph, not in the shipped scan.
+# VERDICT R1 (arm r1 = branch planner/r0-r1 at 17770e5, same day, warm,
+# table in 2026-10-17-planner-matrix-r1-table.md): 4 better, 24 same, 0
+# worse of 28 against the shipped planner. Better: Jongou XM-W -> Byoi
+# CQ-G 402 -> 401 jumps (both at the budget cut), Sgr A* -> Sol 6.3 -> 3.0 s,
+# Sol / Wongi -> Beagle Point 77-80 -> 18 s (the shipped binary's wave
+# policy ran a third wave that bought nothing; r1's order lets the second
+# wave settle it). Same: everything else to the jump and the stop, with
+# three wall rows re-measured in the same session (Beagle pair, Colonia ->
+# Spase: 52.4 / 58.0 s shipped vs 59.1 / 50.6 s r1, one noise band). What
+# R1 did NOT change: the four routes lost in 100 s (both rim directions,
+# both reverse Jongou) and the crossings answered at the cut; those are
+# R2-R4's. Against the external reference (same ship, its 60 s): fewer
+# jumps on 15 routes, equal on 2, more on 7 (by 1-6: Spase -> Wongi 102 vs
+# 96, Sgr A* -> Sol 73 vs 70, Colonia -> Spase 91 vs 90), no route on 4
+# where it answers in 61 s with 451-591 jumps.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -91,3 +106,31 @@ r0,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,26100,100036,101.3,
 r0,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.3,no route in budget
 r0,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.4,no route in budget
 r0,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.3,no route in budget
+r1,Wongi,Spase AA-A a108-0,38200,101,6,6780,102,0.6,
+r1,Spase AA-A a108-0,Wongi,38200,102,5,6720,72,0.2,
+r1,Sol,Byoomao AA-A c1,24621,64,3,4200,57,0.5,
+r1,Byoomao AA-A c1,Sol,24621,62,3,4080,31,0.6,
+r1,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2340,32,0.4,
+r1,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2280,21,0.3,
+r1,Wongi,Plielou RN-R d5-27,12117,37,2,2460,54,0.5,
+r1,Plielou RN-R d5-27,Wongi,12117,36,1,2280,33,0.2,
+r1,Wongi,Colonia,21939,58,2,3720,84,1.3,
+r1,Colonia,Wongi,21939,54,2,3480,57,0.8,
+r1,Sol,Sagittarius A*,25900,70,3,4560,131,0.9,
+r1,Sagittarius A*,Sol,25900,73,3,4740,924,3.0,
+r1,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2400,141,1.0,
+r1,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2280,34,0.2,
+r1,Wongi,Beagle Point,65182,191,10,12660,268,18.7,
+r1,Beagle Point,Wongi,65182,196,10,12960,68,0.6,
+r1,Colonia,Spase AA-A a108-0,31440,91,4,5940,1423,50.6,same-day best of two (59.1 / 50.6 s) against the shipped planner's 52.4 / 58.0 s: the same route inside the day's noise band
+r1,Spase AA-A a108-0,Colonia,31440,87,5,5820,1689,6.5,
+r1,Sol,Colonia,22000,58,3,3840,75,1.0,
+r1,Colonia,Sol,22000,55,2,3540,32,0.8,
+r1,Sol,Beagle Point,65279,191,10,12660,292,18.4,
+r1,Beagle Point,Sol,65279,197,9,12900,72,0.5,
+r1,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,25800,1423,100.3,
+r1,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,100.3,no route in budget
+r1,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,26100,100062,101.1,
+r1,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.3,no route in budget
+r1,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.3,no route in budget
+r1,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.3,no route in budget

@@ -184,7 +184,29 @@ verdicts live in the CSV headers under `docs/benches/`.
   tab sends none, so from the early answer (#198) until now every served
   route was ranked by jump count alone while bench and app judged pilot
   seconds; the default is 1.0 and the early-answer / best-so-far pickers
-  call the planner's judge (`route_score_public`).
+  call the planner's judge (`route_score_public`). **R0-R1 landed (same
+  day, `docs/benches/2026-10-17-planner-matrix.csv`, 28 routes, same
+  ship, same budget, warm): 4 better, 24 same, 0 worse** -- per-variant
+  outcomes and phase / first-found / CPU-proxy metrics on the server; a
+  per-plot leg memo (fuel-monotone, the variant's reserve in the key,
+  re-plans from the real tank bypass it: the first memo turned Beagle
+  Point -> Sol into no route); variants start in the measured
+  first-to-answer order with a head stage of one per worker (greedy single
+  answers first on 10 of 25 routes, scan twins on the hard ones;
+  `2026-10-17-variant-first-found.csv`); the long lane gets 3 planner
+  threads per plot on the 8-core box. Measured and NOT shipped, each behind
+  a knob with its numbers in the CSV: fail-fast on a far stall, gateway on
+  stall, a reversed approach leg (Beagle Point -> Sol no route), the
+  widen rescan empty-only or once per cell (+9 jumps Sol -> Beagle Point),
+  sector k-best thinning (worse on 11-15 routes), the lazy injected pass
+  (+1 jump on both Jongou pairs at the budget cut). Instrument findings:
+  the widen rescan is the coarse millisecond (`2026-10-17-coarse-timers.csv`,
+  half of all expansions in dense regions); the wave policy is a timing
+  knife-edge (18 vs 77 s, same binary, same route; the third wave bought
+  nothing); a cold page cache quadruples a plot; routes answered at the
+  budget cut move by a jump with expansion order. Against the external
+  reference R1 has fewer jumps on 15 of 28, more on 7, no route on 4: the
+  four lost routes and the crossings at the cut are R2-R4's.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
