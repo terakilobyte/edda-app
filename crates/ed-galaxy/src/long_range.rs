@@ -186,7 +186,19 @@ fn edge_cost_max(d: f32, range: f32, boost: f32, max_bridge: u32) -> Option<(f32
 
 /// One hop leaving a star with `boost`, in plain-jump units.
 fn hop_units(boost: f32) -> f32 {
-    if boost > 1.0 { BOOST_UNITS } else { 1.0 }
+    if boost > 1.0 && units_knob(&COARSE_UNITS, "ED_UNITS_COARSE") { BOOST_UNITS } else { 1.0 }
+}
+
+/// R2 Task 3 ablation knobs (study only; the defaults are the one
+/// currency): ED_UNITS_COARSE=0 prices coarse edges and the coarse
+/// heuristic in boosted hops as before R2, ED_UNITS_VIA=0 prices the
+/// coarse scoop-stop edge at the old 2.0, ED_UNITS_EXACT=0 keeps the exact
+/// planner's old 0.01-a-boost surcharge. Read once per process.
+static COARSE_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+static VIA_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+pub(crate) static EXACT_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+pub(crate) fn units_knob(cell: &std::sync::OnceLock<bool>, var: &str) -> bool {
+    *cell.get_or_init(|| std::env::var(var).map_or(true, |v| v != "0"))
 }
 
 /// Whether a hop of `d` ly leaving a star with `boost` is flown
@@ -2181,7 +2193,7 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     // Plain-jump units per light-year (R2): the cheaper of a plain jump
     // per `full_range` and a supercharged hop at BOOST_UNITS per
     // `full_range x boost`.
-    let unit_per_ly = (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost));
+    let unit_per_ly = if units_knob(&COARSE_UNITS, "ED_UNITS_COARSE") { (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost)) } else { 1.0 / (full_range * neutron_boost) };
     let h_of = |p: [f32; 3], target_side: usize| -> f32 {
         let mut d = dist(p, ends[target_side]);
         let mut cell = None;
@@ -2961,7 +2973,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     // Plain-jump units per light-year (R2): the cheaper of a plain jump
     // per `full_range` and a supercharged hop at BOOST_UNITS per
     // `full_range x boost`.
-    let unit_per_ly = (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost));
+    let unit_per_ly = if units_knob(&COARSE_UNITS, "ED_UNITS_COARSE") { (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost)) } else { 1.0 / (full_range * neutron_boost) };
     let h = |p: [f32; 3]| {
         let mut d = dist(p, goal_pos);
         let cell = (alt.is_some() || field.is_some()).then(|| cell_of_cached(p)).flatten();
@@ -3250,7 +3262,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                     let via = if can_reach_scoop && d <= range_here * boost + full_range {
                         let onward = (d - range_here * boost).max(0.0).min(full_range);
                         let after = m.capacity - m.fuel_for(onward.max(full_range * 0.5), m.capacity, 1.0);
-                        (hop_units(boost) + 1.0 + STOP_UNITS * req.stop_weight, after, true)
+                        (if units_knob(&VIA_UNITS, "ED_UNITS_VIA") { hop_units(boost) + 1.0 + STOP_UNITS * req.stop_weight } else { 2.0 }, after, true)
                     } else {
                         (f32::NAN, 0.0, true)
                     };
