@@ -1706,7 +1706,7 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
                 p.1.push(route.clone());
             }
         };
-        let ctl = Control { cancelled: &cancelled, progress: &progress, stage: &stage, found: &found, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &cancelled, progress: &progress, stage: &stage, found: &found, variant: &|_| {}, trace: &|_, _, _| {} };
         let started = std::time::Instant::now();
         // `plan_best` decides: long routes go neutron-first (coarse plan
         // over neutron stars, legs refined exactly; the exact search alone

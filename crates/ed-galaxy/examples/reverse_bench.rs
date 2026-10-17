@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     let boost = BoostProfile { white_dwarf: 1.0, ..boost };
     let a = g.find(from).ok_or_else(|| anyhow::anyhow!("unknown {from}"))?;
     let b = g.find(to).ok_or_else(|| anyhow::anyhow!("unknown {to}"))?;
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
     let req = |from: u32, to: u32| RouteRequest {
         from, to,
         range_ly: model.range_at(model.capacity),

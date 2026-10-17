@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     }
     eprintln!("{} systems in index; planning {} -> {} at {} ly", g.count, args[1], args[2], req.range_ly);
     let progress = |n: u64, rem: f32| eprintln!("  {n} expansions, best remaining {rem:.0} ly");
-    let ctl = Control { cancelled: &|| false, progress: &progress, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control { cancelled: &|| false, progress: &progress, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
     let r = plan(&g, &req, &ctl)?;
     println!(
         "{} jumps, {:.1} ly flown ({:.1} ly straight), {} boosted, {} expansions, {} ms",

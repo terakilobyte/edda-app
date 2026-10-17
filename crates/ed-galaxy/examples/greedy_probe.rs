@@ -180,7 +180,7 @@ fn main() -> anyhow::Result<()> {
     println!("cones  : {}", named.join(", "));
 
     // --- the reference plot ---
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
     let req = RouteRequest {
         from: a,
         to: b_main,
