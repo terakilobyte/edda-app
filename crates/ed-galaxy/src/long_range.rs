@@ -1098,9 +1098,14 @@ fn run_variants<T: Send>(
 }
 
 /// The order a wave starts its variants in: by family, the measured
-/// quick finders first (the matrix's per-variant outcomes, R0), the deep
-/// diggers last. Within a family, index order.
-const KIND_ORDER: &[&str] = &["greedy single", "scan-twin", "single", "greedy bidi", "bidi", "offramp", "corridor", "retro"];
+/// first-to-answer families first, the deep diggers last; within a
+/// family, index order. From the r1 matrix arm's per-variant outcomes
+/// (2026-10-17, 28 routes, this PC; `knobs/variant_first_found.py`):
+/// first to answer on a route -- greedy single 10, scan-twin 5, greedy
+/// bidi 4, single 2, offramp 2, bidi 2; median ms to a route -- offramp
+/// 31, greedy single 31, single 32, greedy bidi 123, bidi 125, scan-twin
+/// 241 (scan twins are slow on easy routes and first on the hard ones).
+const KIND_ORDER: &[&str] = &["greedy single", "scan-twin", "greedy bidi", "single", "offramp", "bidi", "corridor", "retro"];
 
 #[allow(clippy::too_many_arguments)]
 fn variant_order(total: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool) -> Vec<usize> {
