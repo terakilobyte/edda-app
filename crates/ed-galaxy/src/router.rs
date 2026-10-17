@@ -526,8 +526,21 @@ pub fn boost_at(g: &Galaxy, req: &RouteRequest, idx: u32, class: StarClass) -> f
     boost_source(g, req, idx, class).0
 }
 
+thread_local! {
+    /// Candidates the last exact plan on this thread looked at (every star a
+    /// scan pass visited): the instrument behind the lazy injected pass
+    /// (R1, 2026-10-17). Read with [`last_exact_scans`].
+    static EXACT_SCANS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many candidates the last `plan()` on this thread scanned.
+pub fn last_exact_scans() -> u64 {
+    EXACT_SCANS.with(|c| c.get())
+}
+
 pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
     let started = std::time::Instant::now();
+    EXACT_SCANS.with(|c| c.set(0));
     let goal = g.record(req.to).pos();
     let start_rec = g.record(req.from);
     let straight = dist(start_rec.pos(), goal);
@@ -650,11 +663,16 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             Some((mult, _, max)) if cur.inj < max => Some(reach / boost.max(1.0) * mult),
             _ => None,
         };
+        // The injected pass is a last resort in effort as well as in price
+        // (R1, 2026-10-17): it runs only when the plain pass pushed nothing
+        // closer to the goal. An island exit still opens (nothing plain
+        // progresses there); a plain chain never pays for the 8x sphere.
+        let mut progressed = false;
         for pass in 0..2 {
             let (scan, injected) = match pass {
                 0 => (reach, false),
                 _ => match injected_reach {
-                    Some(r) if r > reach => (r, true),
+                    Some(r) if r > reach && !progressed => (r, true),
                     _ => break,
                 },
             };
@@ -665,6 +683,7 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             // ahead, so a fuel stop is never thinned away) get an edge.
             cands.clear();
             g.for_each_within_toward(here, scan, toward, |n_idx, d| {
+                EXACT_SCANS.with(|c| c.set(c.get() + 1));
                 if n_idx == cur.idx || (injected && d <= reach) {
                     return;
                 }
@@ -710,6 +729,9 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
                 }
                 best_g.insert(nk, rank);
                 parent.insert(nk, (cur_key, boosted, d, n_fuel, refuel, injected));
+                if !injected && dist(g.pos_of(n_idx), goal) < remaining {
+                    progressed = true;
+                }
                 open.push(Open { f: cost(ng + ninj * INJECTION_PENALTY, nb, nl) + h(g.pos_of(n_idx)), g: ng, ly: nl, boosts: nb, idx: n_idx, dry, fuel: n_fuel, inj: ninj });
             }
         }
@@ -1059,6 +1081,35 @@ mod tests {
         assert_eq!(route.hops[1].injection.as_deref(), Some("basic"));
         assert_eq!(route.injections, 1, "one injection: off the island, then the chain");
         assert_eq!(route.hops.last().unwrap().name, "Goal");
+    }
+
+    /// R1 (2026-10-17): injections are a last resort in search effort too.
+    /// Where the plain pass pushes a star closer to the goal, the injected
+    /// sphere (8x the volume) is not scanned at all; the island exit above
+    /// still opens because there the plain pass pushes nothing.
+    #[test]
+    fn no_injection_is_searched_where_a_plain_hop_progresses() {
+        let stars = [("S0", 0.0), ("S1", 60.0), ("S2", 120.0), ("S3", 180.0)];
+        let mut lines = vec!["[".to_string()];
+        for (i, (name, x)) in stars.iter().enumerate() {
+            lines.push(format!(
+                r#"{{"id64":{},"name":"{name}","coords":{{"x":{x},"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}}]}}{}"#,
+                i + 1,
+                if i + 1 < stars.len() { "," } else { "" }
+            ));
+        }
+        lines.push("]".into());
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let plain = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S3").unwrap(), range_ly: 72.0, supercharge: false, thorough: false, ..Default::default() };
+        let r0 = plan(&g, &plain, &Control::none()).unwrap();
+        let scans_plain = last_exact_scans();
+        let r1 = plan(&g, &RouteRequest { injection: Some((2.0, "premium", 2)), ..plain.clone() }, &Control::none()).unwrap();
+        let scans_injected = last_exact_scans();
+        assert_eq!(r1.injections, 0, "a plain chain never spends an injection");
+        assert_eq!(r1.jumps, r0.jumps);
+        assert_eq!(scans_injected, scans_plain, "the injected sphere was scanned although every plain pass progressed");
     }
 
     /// The lean rewrite on a run the tank can only just fly: Start, two
