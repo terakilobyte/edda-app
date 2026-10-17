@@ -2221,16 +2221,17 @@ verdicts live in the CSV headers under `docs/benches/`.
 - **cargo-deny in CI** (2026-09-09): the job is in `ci.yml`; the first
   run on a pull request is the online check of the Windows and Linux
   dependency graphs.
-- **zip 4.6.1 under tauri-plugin-updater: yanked, then RUSTSEC-2026-0369**
+- **zip 4.6.1 under tauri-plugin-updater: yanked, then three advisories**
   (2026-10-16 / 2026-10-17). zip's maintainers yanked every release below
-  9.0.3 and then published the advisory (extract() follows a symlink out
-  of the destination when applying Unix permissions; patched in 9). Our
-  own zip is on 9; the updater plugin requires ^4 in every release,
-  3.0.0-alpha.3 included, so the lock cannot move it. Both are ignored in
-  `deny.toml` with the reason recorded there: the updater extracts only
-  EDDA's own signed bundle, after checking the signature, and the Windows
-  installer path extracts nothing. OPEN: drop both entries the day a
-  tauri-plugin-updater release depends on zip 9 (check with
+  9.0.3 and published RUSTSEC-2026-0367, 0368 and 0369 (extraction on
+  Unix: SUID/SGID bits kept, symlink targets outside the destination,
+  permissions applied through such a symlink; all patched in 9). Our own
+  zip is on 9; the updater plugin requires ^4 in every release,
+  3.0.0-alpha.3 included, so the lock cannot move it. All four are
+  ignored in `deny.toml` with the reason recorded there: the updater
+  extracts only EDDA's own signed bundle, after checking the signature,
+  and the Windows installer path extracts nothing. OPEN: drop the entries
+  the day a tauri-plugin-updater release depends on zip 9 (check with
   `cargo deny check advisories` after `cargo update -p tauri-plugin-updater`).
 - **Community data with no licence file** (FDevIDs, two engineering
   guides): reproduced with attribution; replaced on request.
