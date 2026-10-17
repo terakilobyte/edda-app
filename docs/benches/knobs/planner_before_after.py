@@ -9,8 +9,10 @@ total_ly, straight_ly, first_found_ms, wall_s, or error).
 
 Pilot seconds use the bench judge: 60 s per jump + 120 s per stop.
 Verdicts: WORSE = more jumps, more stops, a route lost, or the same jumps
-at more than +10 % wall; better = fewer jumps or stops or wall under 90 %;
-same otherwise. With --ref the external reference's jumps and seconds are
+at more than +10 % AND +1 s wall; better = fewer jumps or stops, or wall
+under 90 % and more than 1 s faster; same otherwise. Runs must not share
+the machine with compiles (the r0 arm did, and three sub-second routes
+moved by tenths). With --ref the external reference's jumps and seconds are
 shown for the eye; they are not part of the verdict.
 """
 import json
@@ -48,9 +50,11 @@ def verdict(b, a):
         return "better"
     if a["jumps"] > b["jumps"] or (a.get("stops") or 0) > (b.get("stops") or 0):
         return "WORSE"
-    if a["wall_s"] > b["wall_s"] * 1.10 and a["jumps"] == b["jumps"]:
+    # Wall time has a noise floor: single runs under a few seconds move by
+    # tenths with page cache and scheduling; a verdict needs +10 % AND +1 s.
+    if a["wall_s"] > b["wall_s"] * 1.10 and a["wall_s"] > b["wall_s"] + 1.0 and a["jumps"] == b["jumps"]:
         return "WORSE"
-    if a["jumps"] < b["jumps"] or (a.get("stops") or 0) < (b.get("stops") or 0) or a["wall_s"] < b["wall_s"] * 0.9:
+    if a["jumps"] < b["jumps"] or (a.get("stops") or 0) < (b.get("stops") or 0) or (a["wall_s"] < b["wall_s"] * 0.9 and a["wall_s"] + 1.0 < b["wall_s"]):
         return "better"
     return "same"
 

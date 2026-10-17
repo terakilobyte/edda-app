@@ -1,0 +1,28 @@
+{"from": "Wongi", "to": "Spase AA-A a108-0", "jumps": 104, "neutron": 92, "refuels": 5, "injections": 0, "total_ly": 40301, "straight_ly": 38200, "ref_s": 61.0}
+{"from": "Spase AA-A a108-0", "to": "Wongi", "jumps": 96, "neutron": 94, "refuels": 4, "injections": 0, "total_ly": 40171, "straight_ly": 38200, "ref_s": 4.0}
+{"from": "Sol", "to": "Byoomao AA-A c1", "jumps": 74, "neutron": 65, "refuels": 3, "injections": 0, "total_ly": 27952, "straight_ly": 24621, "ref_s": 61.0}
+{"from": "Byoomao AA-A c1", "to": "Sol", "jumps": 61, "neutron": 60, "refuels": 3, "injections": 0, "total_ly": 25946, "straight_ly": 24621, "ref_s": 2.0}
+{"from": "Pheia Auscs AA-A d0", "to": "Spase AA-A a108-0", "jumps": 38, "neutron": 37, "refuels": 1, "injections": 0, "total_ly": 15068, "straight_ly": 13439, "ref_s": 1.0}
+{"from": "Spase AA-A a108-0", "to": "Pheia Auscs AA-A d0", "jumps": 38, "neutron": 37, "refuels": 1, "injections": 0, "total_ly": 14939, "straight_ly": 13439, "ref_s": 2.0}
+{"from": "Wongi", "to": "Plielou RN-R d5-27", "jumps": 36, "neutron": 33, "refuels": 1, "injections": 0, "total_ly": 13917, "straight_ly": 12117, "ref_s": 47.0}
+{"from": "Plielou RN-R d5-27", "to": "Wongi", "jumps": 36, "neutron": 34, "refuels": 1, "injections": 0, "total_ly": 13891, "straight_ly": 12117, "ref_s": 3.0}
+{"from": "Wongi", "to": "Colonia", "jumps": 59, "neutron": 53, "refuels": 2, "injections": 0, "total_ly": 23173, "straight_ly": 21939, "ref_s": 61.0}
+{"from": "Colonia", "to": "Wongi", "jumps": 54, "neutron": 53, "refuels": 2, "injections": 0, "total_ly": 22990, "straight_ly": 21939, "ref_s": 16.0}
+{"from": "Sol", "to": "Sagittarius A*", "jumps": 78, "neutron": 63, "refuels": 3, "injections": 0, "total_ly": 28009, "straight_ly": 25900, "ref_s": 60.0}
+{"from": "Sagittarius A*", "to": "Sol", "jumps": 70, "neutron": 63, "refuels": 3, "injections": 0, "total_ly": 27873, "straight_ly": 25900, "ref_s": 38.0}
+{"from": "Wongi", "to": "Blaa Hypai AA-A a96-19", "jumps": 52, "neutron": 37, "refuels": 2, "injections": 0, "total_ly": 15806, "straight_ly": 12712, "ref_s": 61.0}
+{"from": "Blaa Hypai AA-A a96-19", "to": "Wongi", "jumps": 37, "neutron": 34, "refuels": 1, "injections": 0, "total_ly": 14053, "straight_ly": 12712, "ref_s": 10.0}
+{"from": "Wongi", "to": "Beagle Point", "jumps": 213, "neutron": 170, "refuels": 10, "injections": 0, "total_ly": 74015, "straight_ly": 65182, "ref_s": 61.0}
+{"from": "Beagle Point", "to": "Wongi", "jumps": 198, "neutron": 156, "refuels": 9, "injections": 0, "total_ly": 70214, "straight_ly": 65182, "ref_s": 28.0}
+{"from": "Colonia", "to": "Spase AA-A a108-0", "jumps": 90, "neutron": 82, "refuels": 4, "injections": 0, "total_ly": 35706, "straight_ly": 31440, "ref_s": 61.0}
+{"from": "Spase AA-A a108-0", "to": "Colonia", "jumps": 85, "neutron": 78, "refuels": 4, "injections": 0, "total_ly": 33833, "straight_ly": 31440, "ref_s": 61.0}
+{"from": "Sol", "to": "Colonia", "jumps": 60, "neutron": 54, "refuels": 2, "injections": 0, "total_ly": 23443, "straight_ly": 22000, "ref_s": 38.0}
+{"from": "Colonia", "to": "Sol", "jumps": 54, "neutron": 53, "refuels": 2, "injections": 0, "total_ly": 22987, "straight_ly": 22000, "ref_s": 15.0}
+{"from": "Sol", "to": "Beagle Point", "jumps": 205, "neutron": 168, "refuels": 9, "injections": 0, "total_ly": 73051, "straight_ly": 65279, "ref_s": 61.0}
+{"from": "Beagle Point", "to": "Sol", "jumps": 198, "neutron": 156, "refuels": 9, "injections": 0, "total_ly": 70184, "straight_ly": 65279, "ref_s": 29.0}
+{"from": "Jongou AA-A d0", "to": "Byoi Fraae AT-U d2-1", "jumps": 492, "neutron": 232, "refuels": 21, "injections": 12, "total_ly": 111617, "straight_ly": 85526, "ref_s": 62.0}
+{"from": "Byoi Fraae AT-U d2-1", "to": "Jongou AA-A d0", "jumps": 477, "neutron": 246, "refuels": 20, "injections": 2, "total_ly": 113292, "straight_ly": 85526, "ref_s": 61.0}
+{"from": "Jongou XM-W d1-0", "to": "Byoi Fraae CQ-G d10-0", "jumps": 530, "neutron": 236, "refuels": 22, "injections": 40, "total_ly": 116505, "straight_ly": 87012, "ref_s": 61.0}
+{"from": "Byoi Fraae CQ-G d10-0", "to": "Jongou XM-W d1-0", "jumps": 516, "neutron": 230, "refuels": 22, "injections": 18, "total_ly": 112374, "straight_ly": 87012, "ref_s": 61.0}
+{"from": "Ood Fleau ZJ-I d9-0", "to": "Sphiesi HX-L d7-0", "jumps": 451, "neutron": 251, "refuels": 19, "injections": 22, "total_ly": 114615, "straight_ly": 84599, "ref_s": 61.0}
+{"from": "Sphiesi HX-L d7-0", "to": "Ood Fleau ZJ-I d9-0", "jumps": 591, "neutron": 206, "refuels": 26, "injections": 7, "total_ly": 111141, "straight_ly": 84599, "ref_s": 61.0}

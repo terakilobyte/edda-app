@@ -55,3 +55,31 @@ before,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,402,17,26160,100035,108.9,
 before,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.2,no route in budget
 before,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.3,no route in budget
 before,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.2,no route in budget
+r0,Wongi,Spase AA-A a108-0,38200,101,6,6780,69,0.5,
+r0,Spase AA-A a108-0,Wongi,38200,102,5,6720,40,0.3,
+r0,Sol,Byoomao AA-A c1,24621,64,3,4200,65,0.5,
+r0,Byoomao AA-A c1,Sol,24621,62,3,4080,25,0.6,
+r0,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2340,16,0.4,
+r0,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2280,15,0.3,
+r0,Wongi,Plielou RN-R d5-27,12117,37,2,2460,44,0.5,
+r0,Plielou RN-R d5-27,Wongi,12117,36,1,2280,23,0.2,
+r0,Wongi,Colonia,21939,58,2,3720,109,1.7,
+r0,Colonia,Wongi,21939,54,2,3480,119,1.1,
+r0,Sol,Sagittarius A*,25900,70,3,4560,206,1.2,
+r0,Sagittarius A*,Sol,25900,73,3,4740,1222,3.9,
+r0,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2400,162,1.0,
+r0,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2280,32,0.2,
+r0,Wongi,Beagle Point,65182,191,10,12660,313,19.5,
+r0,Beagle Point,Wongi,65182,196,10,12960,63,0.5,
+r0,Colonia,Spase AA-A a108-0,31440,91,4,5940,1362,46.2,re-measured quietly: the first r0 run (63.4 s) shared the machine with compiles
+r0,Spase AA-A a108-0,Colonia,31440,87,5,5820,1649,6.4,
+r0,Sol,Colonia,22000,58,3,3840,82,1.0,
+r0,Colonia,Sol,22000,55,2,3540,29,0.8,
+r0,Sol,Beagle Point,65279,191,10,12660,265,18.2,
+r0,Beagle Point,Sol,65279,197,9,12900,73,0.5,
+r0,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,25800,1778,100.3,
+r0,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,100.3,no route in budget
+r0,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,26100,100036,101.3,
+r0,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.3,no route in budget
+r0,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.4,no route in budget
+r0,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.3,no route in budget
