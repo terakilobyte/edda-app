@@ -325,6 +325,31 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
     true
 }
 
+/// What one variant's coarse search did, written by the search and read
+/// by the variant that owns it: expansions, how far from the goal it
+/// settled (0 = reached), widen rescans. Per variant on the stack, not a
+/// thread-local -- a rayon worker blocked in a variant's leg refinement
+/// steals and runs other variants, which would overwrite a thread-local
+/// (review, 2026-10-17). Variants without a coarse stage leave zeros.
+#[derive(Debug, Default)]
+pub struct CoarseStats {
+    pub expansions: std::sync::atomic::AtomicU64,
+    stall_ly_bits: std::sync::atomic::AtomicU32,
+    pub widens: std::sync::atomic::AtomicU64,
+}
+
+impl CoarseStats {
+    pub fn record(&self, expansions: u64, stall_ly: f32, widens: u64) {
+        use std::sync::atomic::Ordering::Relaxed;
+        self.expansions.store(expansions, Relaxed);
+        self.stall_ly_bits.store(stall_ly.to_bits(), Relaxed);
+        self.widens.store(widens, Relaxed);
+    }
+    pub fn stall_ly(&self) -> f32 {
+        f32::from_bits(self.stall_ly_bits.load(std::sync::atomic::Ordering::Relaxed))
+    }
+}
+
 /// What one portfolio variant did (planner unification R0, 2026-10-17):
 /// the server counts these per kind and the matrix learns which variant
 /// answers first on which route class. `kind` is the variant family
@@ -370,11 +395,13 @@ impl LegKey {
 }
 
 /// Legs planned once per plot and reused by every variant that asks for
-/// the same leg from the same tank bucket: on the rim-to-rim stress route
-/// six variants each spent 68 s on one identical hand-off leg
-/// (2026-10-17). `for_plot()` remembers; the shared [`NO_LEG_MEMO`] never
-/// does, so a `Control::none()` cannot leak legs between plots of
-/// different ships.
+/// the same leg from a tank at least as full: on the rim-to-rim stress
+/// route six variants each spent 68 s on one identical hand-off leg
+/// (2026-10-17). A hit is a CANDIDATE: the settle rounds re-fly every leg
+/// from the real tank and re-plan the ones that do not fly (a fuller tank
+/// is heavier and jumps a hair shorter, so "more fuel" is not a proof).
+/// `for_plot()` remembers; the shared [`NO_LEG_MEMO`] never does, so a
+/// `Control::none()` cannot leak legs between plots of different ships.
 pub struct LegMemo {
     remembers: bool,
     /// Per leg, the plans made so far with the tank each was planned from.
@@ -405,8 +432,11 @@ impl LegMemo {
         }
         plans.iter().find(|(f, r)| r.is_err() && *f >= fuel - 0.01).map(|(_, r)| Err(r.as_ref().err().map(|e| e.clone_err()).unwrap_or(RouteError::NoRoute)))
     }
+    /// Remember a plan. A route is a fact about the leg from that tank; so
+    /// is `NoRoute`. `Budget` is a fact about the clock and `Cancelled`
+    /// about the variant, and neither is kept (review, 2026-10-17).
     pub fn put(&self, key: LegKey, fuel: f32, leg: Result<Route, RouteError>) {
-        if !self.remembers {
+        if !self.remembers || matches!(leg, Err(RouteError::Budget) | Err(RouteError::Cancelled)) {
             return;
         }
         let mut legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
@@ -1104,8 +1134,39 @@ mod tests {
     /// where the plain pass pushed nothing closer) halves the scan work on
     /// a plain line, and cost one jump on both Jongou rim pairs at the
     /// budget cut; it is an opt-in knob. Both behaviours are pinned.
+    /// Tests that set process environment take this lock (the planner reads
+    /// knobs from the environment; sibling tests run in parallel).
+    pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// The island opener under the lazy knob: nothing plain progresses from
+    /// an island, so the injected pass still runs there.
+    #[test]
+    fn an_island_origin_still_opens_with_an_injection_under_the_lazy_knob() {
+        let stars = [("Origin", 0.0), ("Step", 80.0), ("Goal", 150.0)];
+        let mut lines = vec!["[".to_string()];
+        for (i, (name, x)) in stars.iter().enumerate() {
+            lines.push(format!(
+                r#"{{"id64":{},"name":"{name}","coords":{{"x":{x},"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"K (Yellow-Orange) Star","mainStar":true}}]}}{}"#,
+                i + 1,
+                if i + 1 < stars.len() { "," } else { "" }
+            ));
+        }
+        lines.push("]".into());
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let req = RouteRequest { from: g.find("Origin").unwrap(), to: g.find("Goal").unwrap(), range_ly: 72.0, supercharge: false, thorough: false, injection: Some((2.0, "premium", 2)), ..Default::default() };
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("ED_LAZY_INJECTION", "1");
+        let r = plan(&g, &req, &Control::none());
+        std::env::remove_var("ED_LAZY_INJECTION");
+        let r = r.expect("the injected hop opens the island");
+        assert_eq!(r.injections, 1, "{:?}", r.hops.iter().map(|h| &h.name).collect::<Vec<_>>());
+    }
+
     #[test]
     fn the_injected_pass_is_lazy_only_by_the_knob() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let stars = [("S0", 0.0), ("S1", 60.0), ("S2", 120.0), ("S3", 180.0)];
         let mut lines = vec!["[".to_string()];
         for (i, (name, x)) in stars.iter().enumerate() {

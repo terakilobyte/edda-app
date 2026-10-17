@@ -1010,19 +1010,10 @@ impl RouteService {
                 }
             };
             let found_both = |r: &Route| { found_at(r); found(r) };
-            let phase: Mutex<Option<(&'static str, Instant)>> = Mutex::new(None);
-            let stage = |name: &'static str, _i: u32, _n: u32| {
-                let mut p = phase.lock().unwrap_or_else(|e| e.into_inner());
-                match *p {
-                    Some((cur, _)) if cur == name => {}
-                    _ => {
-                        if let Some((prev, since)) = p.take() {
-                            metrics::histogram!("edda_route_phase_seconds", "lane" => lane_name, "phase" => prev).record(since.elapsed().as_secs_f64());
-                        }
-                        *p = Some((name, Instant::now()));
-                    }
-                }
-            };
+            // No phase histogram: `stage` is called by every variant
+            // concurrently, so one span per plot measured whoever spoke last
+            // (review, 2026-10-17). Per-variant seconds carry the phase
+            // information that is attributable.
             let variant = |o: ed_galaxy::router::VariantOutcome| {
                 let outcome = if o.ok { "route" } else if o.stall_remaining_ly > 0.0 { "stalled" } else { "none" };
                 metrics::counter!("edda_route_variant_total", "lane" => lane_name, "kind" => o.kind, "outcome" => outcome).increment(1);
@@ -1030,7 +1021,7 @@ impl RouteService {
                 tracing::info!(lane = lane_name, key, wave = o.wave, kind = o.kind, index = o.index, ok = o.ok, jumps = o.jumps, stops = o.stops, ms = o.ms, coarse_expansions = o.coarse_expansions, stall_remaining_ly = o.stall_remaining_ly, "variant outcome");
             };
             let none = Control::none();
-            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: &stage, found: &found_both, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &variant, trace: none.trace };
+            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found_both, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &variant, trace: none.trace };
             // One search (the boss, 2026-10-09: "can we fold it into one?").
             // The planner already prices an injected jump at three plain
             // ones (INJECTION_PENALTY, and the wave's twin), so a route
@@ -1041,9 +1032,6 @@ impl RouteService {
             // the whole 100 s and starved the injected pass, which plots
             // the pair in 48 s on its own (371 jumps).
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
-            if let Some((prev, since)) = phase.lock().unwrap_or_else(|e| e.into_inner()).take() {
-                metrics::histogram!("edda_route_phase_seconds", "lane" => lane_name, "phase" => prev).record(since.elapsed().as_secs_f64());
-            }
             // A final route the tank cannot fly is no answer (see
             // LeanStops::feasible): an early answer stands as the finished
             // one, otherwise the plot has no route. OPEN in the ledger: the

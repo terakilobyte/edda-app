@@ -14,7 +14,7 @@
 //! refined with the exact planner, which finds the actual scoop star.
 
 use crate::format::{dist, Galaxy};
-use crate::router::{plan, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, NO_LEG_MEMO};
+use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, NO_LEG_MEMO};
 use crate::star::StarClassCode as _;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap as HashMap;
@@ -24,13 +24,9 @@ use std::collections::BinaryHeap;
 pub const LONG_ROUTE_LY: f32 = 1_500.0;
 
 thread_local! {
-    /// What the last coarse search on this thread did: (expansions,
-    /// stall distance in ly, 0 when it reached the goal). A variant runs
-    /// its coarse search on the thread that reports its outcome, so the
-    /// outcome can carry these without threading them through every
-    /// return type (planner unification R0).
-    static LAST_COARSE: std::cell::Cell<(u64, f32)> = const { std::cell::Cell::new((0, 0.0)) };
-    /// Widen rescans the last coarse search on this thread fired.
+    /// Widen rescans the last coarse search on this thread fired (an
+    /// instrument for the widen rule's unit test, which calls the search
+    /// directly on one thread; the portfolio reads [`CoarseStats`]).
     static LAST_WIDENS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
@@ -464,8 +460,10 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
         }
     }
     let planned = refine_leg_uncached(g, req, ctl, leg_of, from, to, fuel);
-    // A cancellation is this variant's, not the leg's: never remembered.
-    if !matches!(planned, Err(RouteError::Cancelled)) {
+    // Remembered for the first pass only; a re-plan from the real tank is
+    // a repair of a leg the memo already holds (the memo keeps routes and
+    // NoRoute, never Budget or Cancelled).
+    if memo_on {
         ctl.legs.put(key, fuel, match &planned { Ok(r) => Ok(r.clone()), Err(e) => Err(e.clone_err()) });
     }
     planned
@@ -1016,7 +1014,7 @@ fn variant_kind(i: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usiz
         "bidi"
     } else if retro && i == total - 1 {
         "retro"
-    } else if i == nb + b {
+    } else if greedy_slots >= 1 && i == nb + b {
         "greedy single"
     } else if greedy_slots > 1 && i == nb + b + 1 {
         "greedy bidi"
@@ -1045,7 +1043,7 @@ fn run_variants<T: Send>(
     run: impl Fn(usize, &(dyn Fn() -> bool + Sync)) -> (Result<T, RouteError>, bool) + Sync,
     order: &[usize],
     head: usize,
-) -> (Vec<Result<T, RouteError>>, u32) {
+) -> (Vec<Result<T, RouteError>>, u32, u32) {
     use rayon::prelude::*;
     let wave_started = std::time::Instant::now();
     let clock: std::sync::Mutex<GraceClock> = std::sync::Mutex::new(GraceClock::new(seed));
@@ -1092,9 +1090,10 @@ fn run_variants<T: Send>(
             }
         }
     }
+    let started = slots.iter().filter(|r| r.is_some()).count() as u32;
     let results: Vec<Result<T, RouteError>> = slots.into_iter().map(|r| r.unwrap_or(Err(RouteError::Cancelled))).collect();
     let finished = results.iter().filter(|r| r.is_ok()).count() as u32;
-    (results, finished)
+    (results, finished, started)
 }
 
 /// The order a wave starts its variants in: by family, the measured
@@ -1397,9 +1396,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         // The head stage is one variant per worker of the pool this plot
         // runs on (the box: a few; the PC: the whole wave).
         let head = std::env::var("ED_VARIANT_HEAD").ok().and_then(|v| v.parse().ok()).unwrap_or_else(rayon::current_num_threads);
-        let (results, finished) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
+        let (results, finished, launched) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
             let variant_started = std::time::Instant::now();
-            LAST_COARSE.with(|c| c.set((0, 0.0)));
+            let coarse = CoarseStats::default();
             let ctl = Control { cancelled: check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: &legs, variant: ctl.variant, trace: ctl.trace };
             let nb = variants.len();
             let greedy_single = nb + usize::from(bidi);
@@ -1411,22 +1410,22 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     return (Err(RouteError::Cancelled), false);
                 }
                 let (w, r, b) = variants[i];
-                (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, fields[1]), 0)
+                (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1]), 0)
             } else if bidi && i == nb {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, lean_base, fields), 1)
             } else if greedy_slots > 0 && i == greedy_single {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, fields[1]), 2)
+                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1]), 2)
             } else if greedy_slots > 1 && i == greedy_single + 1 {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, true, lean_base, fields), 2)
             } else if offramp_slots > 0 && i == greedy_single + greedy_slots {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, fields[1]), 4)
+                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1]), 4)
             } else if offramp_slots > 1 && i == greedy_single + greedy_slots + 1 {
-                (plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, fields[1]), 4)
+                (plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1]), 4)
             } else if scan_twins > 0 && i >= greedy_single + greedy_slots + offramp_slots && i < greedy_single + greedy_slots + offramp_slots + scan_twins {
                 let s = i - greedy_single - greedy_slots - offramp_slots;
                 if s < 5 {
                     let (w, r, b) = twin_cfg[s];
-                    (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, fields[1]), 6)
+                    (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1]), 6)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, !lean_base, fields), 6)
                 }
@@ -1463,7 +1462,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             if let Ok(route) = &res {
                 (ctl.found)(route);
             }
-            let (coarse_expansions, stall_remaining_ly) = LAST_COARSE.with(|c| c.get());
+            let (coarse_expansions, stall_remaining_ly) = (coarse.expansions.load(std::sync::atomic::Ordering::Relaxed), coarse.stall_ly());
             if debug {
                 eprintln!("    variant outcome: wave x{cap_mult} #{i} {} {} {} ms, coarse {coarse_expansions} expansions, stall {stall_remaining_ly:.0} ly", variant_kind(i, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total), if res.is_ok() { "route" } else { "none" }, variant_started.elapsed().as_millis());
             }
@@ -1480,7 +1479,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             });
             (res, arms)
         }, &order, head);
-        variants_run += total as u32;
+        variants_run += launched;
         variants_finished += finished;
         // A variant the grace rule cancelled is not the user's Stop.
         any_cancelled |= finished == 0 && results.iter().any(|r| matches!(r, Err(RouteError::Cancelled)));
@@ -2619,7 +2618,7 @@ fn plan_long_retro(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Cont
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, field_back)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back)?;
     let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
     let req = &RouteRequest { fuel: fuel_model, ..req.clone() };
     let start_fuel = fuel_model.map(|m| req.start_fuel.clamp(0.0, m.capacity)).unwrap_or(0.0);
@@ -2702,7 +2701,7 @@ fn plan_long_corridor(
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, fields[0])?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0])?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -2745,7 +2744,7 @@ fn plan_long_corridor(
         let sreq = RouteRequest { from: at, to: pin, start_fuel: fuel, ..req.clone() };
         // Segments run field-less: the plot's goal field prices toward
         // the FINAL goal and would poison a segment's heuristic.
-        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, None)?;
+        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None)?;
         fuel = leg.hops.last().and_then(|h| h.fuel_after).unwrap_or(full_tank);
         at = pin;
         whole = Some(match whole {
@@ -2767,7 +2766,7 @@ fn plan_long_corridor(
     Ok(route)
 }
 
-fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, field: Option<&crate::cgraph::GoalField>) -> Result<Route, RouteError> {
+fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>) -> Result<Route, RouteError> {
 
     let started = std::time::Instant::now();
     // Keep a hop's worth of fuel in hand: a route may never arrive at a
@@ -3504,7 +3503,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         if timers && widened > 0 { t_widen += t_mark.elapsed(); t_mark = std::time::Instant::now(); }
         widens += widened;
     }
-    LAST_COARSE.with(|c| c.set((expansions, stall_at)));
+    stats.record(expansions, stall_at, widens);
     LAST_WIDENS.with(|c| c.set(widens));
     let Some(gk) = goal_key else { return Err(RouteError::NoRoute) };
     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
@@ -4036,15 +4035,15 @@ mod tests {
         let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
         let ran = std::sync::Mutex::new(Vec::new());
         // No grace: the head {3, 0} runs first, then the whole tail.
-        let (results, finished) = run_variants(6, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4], 2);
-        assert_eq!(finished, 6);
+        let (results, finished, started) = run_variants(6, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4], 2);
+        assert_eq!((finished, started), (6, 6));
         assert!(results.iter().all(|r| r.is_ok()));
         let ran = ran.into_inner().unwrap();
         let head: std::collections::BTreeSet<usize> = ran[..2].iter().copied().collect();
         assert_eq!(head, [0usize, 3].into_iter().collect(), "the head stage runs first: {ran:?}");
         // A zero grace with a head that answers: the tail never starts.
-        let (results, finished) = run_variants(4, Some(std::time::Duration::from_millis(0)), None, &|| false, |_: &Route| 0, |_, _| (Ok(dummy()), true), &[0, 1, 2, 3], 2);
-        assert_eq!(finished, 2, "only the head ran");
+        let (results, finished, started) = run_variants(4, Some(std::time::Duration::from_millis(0)), None, &|| false, |_: &Route| 0, |_, _| (Ok(dummy()), true), &[0, 1, 2, 3], 2);
+        assert_eq!((finished, started), (2, 2), "only the head ran, and only the head counts as run");
         assert!(matches!(results[2], Err(RouteError::Cancelled)) && matches!(results[3], Err(RouteError::Cancelled)), "the tail is reported as not run");
     }
 
@@ -4056,7 +4055,7 @@ mod tests {
     fn a_slow_variant_is_cancelled_once_another_has_a_route() {
         let dummy = || Route { highway_pending: false, range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
         let started = std::time::Instant::now();
-        let (results, finished) = run_variants(3, Some(std::time::Duration::from_millis(50)), None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
+        let (results, finished, _) = run_variants(3, Some(std::time::Duration::from_millis(50)), None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
             if i == 1 {
                 while !check() {
                     std::thread::sleep(std::time::Duration::from_millis(5));
@@ -4071,7 +4070,7 @@ mod tests {
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
         // Without a grace period every variant is waited for; the user's
         // own cancel still reaches them.
-        let (results, finished) = run_variants(2, None, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[], 0);
+        let (results, finished, _) = run_variants(2, None, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[], 0);
         assert_eq!(finished, 0);
         assert!(results.iter().all(|r| matches!(r, Err(RouteError::Cancelled))));
     }
@@ -4541,7 +4540,9 @@ mod tests {
         let five: Route = serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":5,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap();
         memo.put(LegKey::new(1, 2, 22, 5.1), 120.0, Ok(five.clone()));
         assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 120.0).unwrap().unwrap().jumps, 5, "the same tank: a hit");
-        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 128.0).unwrap().unwrap().jumps, 5, "more fuel: the leg still flies, a hit");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 128.0).unwrap().unwrap().jumps, 5, "more fuel: a candidate the settle rounds verify, a hit");
+        memo.put(LegKey::new(7, 8, 22, 5.1), 100.0, Err(RouteError::Budget));
+        assert!(memo.get(&LegKey::new(7, 8, 22, 5.1), 90.0).is_none(), "a budget failure is the clock's, not the leg's: not kept");
         assert!(memo.get(&LegKey::new(1, 2, 22, 5.1), 119.0).is_none(), "less fuel: not the same leg");
         assert!(memo.get(&LegKey::new(1, 2, 21, 5.1), 128.0).is_none(), "injections left are part of the leg");
         assert!(memo.get(&LegKey::new(1, 3, 22, 5.1), 128.0).is_none(), "another destination");
@@ -4811,7 +4812,7 @@ mod tests {
         let hw = highway();
         let r = req(&hw, "K0", "K3000", 60.0);
         let none = std::sync::atomic::AtomicBool::new(false);
-        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, None).unwrap();
+        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None).unwrap();
         let both = plan_long_bidi(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "K0");
         assert_eq!(both.hops.last().unwrap().name, "K3000");
@@ -4840,7 +4841,7 @@ mod tests {
         stars.push(star("Goal", 4_200.0, 0.0, 90.0, K));
         let fan = build(&stars);
         let rf = req(&fan, "Start", "Goal", 70.0);
-        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, None).unwrap();
+        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None).unwrap();
         let both = plan_long_bidi(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "Start");
         assert_eq!(both.hops.last().unwrap().name, "Goal");

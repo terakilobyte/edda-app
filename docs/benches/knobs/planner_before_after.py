@@ -43,6 +43,16 @@ def fmt(v, nd=0):
     return f"{v:.{nd}f}" if isinstance(v, float) else str(v)
 
 
+def wall(r, other):
+    # A same-day re-measurement, when a row carries one, is what the wall
+    # verdict compares (the planner's wave policy makes some routes bimodal
+    # in time: 18 s or 77 s for the same binary and route, 2026-10-17);
+    # the original figure stays in the row.
+    if "wall_s_sameday" in r or "wall_s_sameday" in other:
+        return r.get("wall_s_sameday", r["wall_s"])
+    return r["wall_s"]
+
+
 def verdict(b, a):
     if a.get("jumps") is None:
         return "WORSE" if b.get("jumps") is not None else "same"
@@ -52,9 +62,10 @@ def verdict(b, a):
         return "WORSE"
     # Wall time has a noise floor: single runs under a few seconds move by
     # tenths with page cache and scheduling; a verdict needs +10 % AND +1 s.
-    if a["wall_s"] > b["wall_s"] * 1.10 and a["wall_s"] > b["wall_s"] + 1.0 and a["jumps"] == b["jumps"]:
+    wa, wb = wall(a, b), wall(b, a)
+    if wa > wb * 1.10 and wa > wb + 1.0 and a["jumps"] == b["jumps"]:
         return "WORSE"
-    if a["jumps"] < b["jumps"] or (a.get("stops") or 0) < (b.get("stops") or 0) or (a["wall_s"] < b["wall_s"] * 0.9 and a["wall_s"] + 1.0 < b["wall_s"]):
+    if a["jumps"] < b["jumps"] or (a.get("stops") or 0) < (b.get("stops") or 0) or (wa < wb * 0.9 and wa + 1.0 < wb):
         return "better"
     return "same"
 
@@ -80,7 +91,7 @@ def main(argv):
             f"{fmt(b.get('stops'))} / {fmt(a.get('stops'))}",
             f"{fmt(seconds(b))} / {fmt(seconds(a))}",
             f"{fmt((b.get('first_found_ms') or 0) / 1000, 1)} / {fmt((a.get('first_found_ms') or 0) / 1000, 1)}",
-            f"{fmt(b.get('wall_s'), 1)} / {fmt(a.get('wall_s'), 1)}",
+            f"{fmt(wall(b, a), 1)} / {fmt(wall(a, b), 1)}" + (" (same-day)" if "wall_s_sameday" in b or "wall_s_sameday" in a else ""),
         ]
         if ref:
             r = ref.get(key, {})
