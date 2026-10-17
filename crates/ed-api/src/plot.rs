@@ -993,8 +993,38 @@ impl RouteService {
                     tracing::info!(lane = lane_name, key, jumps = r.jumps, boosted = r.boosted_jumps, "route refining: a better route so far");
                 }
             };
+            // R0 observability (planner unification, 2026-10-17): per-variant
+            // outcomes, per-phase seconds and the first-found time, so the
+            // box's own numbers say which variant answers first on which
+            // route class and where a plot's seconds go.
+            let first_found = std::sync::atomic::AtomicBool::new(false);
+            let found_at = |_: &Route| {
+                if !first_found.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                    metrics::histogram!("edda_route_first_found_seconds", "lane" => lane_name).record(plot_started.elapsed().as_secs_f64());
+                }
+            };
+            let found_both = |r: &Route| { found_at(r); found(r) };
+            let phase: Mutex<Option<(&'static str, Instant)>> = Mutex::new(None);
+            let stage = |name: &'static str, _i: u32, _n: u32| {
+                let mut p = phase.lock().unwrap_or_else(|e| e.into_inner());
+                match *p {
+                    Some((cur, _)) if cur == name => {}
+                    _ => {
+                        if let Some((prev, since)) = p.take() {
+                            metrics::histogram!("edda_route_phase_seconds", "lane" => lane_name, "phase" => prev).record(since.elapsed().as_secs_f64());
+                        }
+                        *p = Some((name, Instant::now()));
+                    }
+                }
+            };
+            let variant = |o: ed_galaxy::router::VariantOutcome| {
+                let outcome = if o.ok { "route" } else if o.stall_remaining_ly > 0.0 { "stalled" } else { "none" };
+                metrics::counter!("edda_route_variant_total", "lane" => lane_name, "kind" => o.kind, "outcome" => outcome).increment(1);
+                metrics::histogram!("edda_route_variant_seconds", "lane" => lane_name, "kind" => o.kind).record(o.ms as f64 / 1000.0);
+                tracing::info!(lane = lane_name, key, wave = o.wave, kind = o.kind, index = o.index, ok = o.ok, jumps = o.jumps, stops = o.stops, ms = o.ms, coarse_expansions = o.coarse_expansions, stall_remaining_ly = o.stall_remaining_ly, "variant outcome");
+            };
             let none = Control::none();
-            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found, trace: none.trace };
+            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: &stage, found: &found_both, variant: &variant, trace: none.trace };
             // One search (the boss, 2026-10-09: "can we fold it into one?").
             // The planner already prices an injected jump at three plain
             // ones (INJECTION_PENALTY, and the wave's twin), so a route
@@ -1005,6 +1035,9 @@ impl RouteService {
             // the whole 100 s and starved the injected pass, which plots
             // the pair in 48 s on its own (371 jumps).
             let r = pool.install(|| ed_galaxy::long_range::plan_best(&galaxy, neutrons.as_deref(), &req, &ctl));
+            if let Some((prev, since)) = phase.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                metrics::histogram!("edda_route_phase_seconds", "lane" => lane_name, "phase" => prev).record(since.elapsed().as_secs_f64());
+            }
             // A final route the tank cannot fly is no answer (see
             // LeanStops::feasible): an early answer stands as the finished
             // one, otherwise the plot has no route. OPEN in the ledger: the
@@ -1056,7 +1089,7 @@ impl RouteService {
                                 tracing::info!(lane = lane_name, key, injections = route.injections, jumps = route.jumps, "route needs FSD injections");
                             }
                         }
-                        None => tracing::info!(lane = lane_name, key, jumps = route.jumps, planner_ms, storable, "route planned"),
+                        None => tracing::info!(lane = lane_name, key, jumps = route.jumps, planner_ms, storable, variants_run = route.variants_run, variants_finished = route.variants_finished, "route planned"),
                     }
                 }
                 Err(e) => tracing::info!(lane = lane_name, key, planner_ms, early = early.is_some(), error = ?e, "route plot ended without a route"),
@@ -1714,7 +1747,7 @@ mod endpoint_tests {
         req.time_budget_ms = 10_000;
         let cancelled = || gone.load(std::sync::atomic::Ordering::Relaxed);
         let none = Control::none();
-        let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, trace: none.trace };
+        let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, variant: none.variant, trace: none.trace };
         let r = ed_galaxy::long_range::plan_best(&g, None, &req, &ctl);
         assert!(matches!(r, Err(RouteError::Cancelled)), "a plot whose request is gone stops: {r:?}");
     }

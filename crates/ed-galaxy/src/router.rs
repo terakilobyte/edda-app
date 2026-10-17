@@ -325,6 +325,25 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
     true
 }
 
+/// What one portfolio variant did (planner unification R0, 2026-10-17):
+/// the server counts these per kind and the matrix learns which variant
+/// answers first on which route class. `kind` is the variant family
+/// ("single", "bidi", "greedy single", "greedy bidi", "offramp",
+/// "scan-twin", "corridor", "retro"); `stall_remaining_ly` is how far
+/// from the goal its coarse search settled (0 when it reached the goal).
+#[derive(Debug, Clone, Copy)]
+pub struct VariantOutcome {
+    pub wave: u64,
+    pub kind: &'static str,
+    pub index: usize,
+    pub ok: bool,
+    pub jumps: u32,
+    pub stops: u32,
+    pub ms: u64,
+    pub coarse_expansions: u64,
+    pub stall_remaining_ly: f32,
+}
+
 /// Cooperative hooks: cancel check and `(expansions, best_remaining_ly)`.
 pub struct Control<'a> {
     pub cancelled: &'a (dyn Fn() -> bool + Sync),
@@ -339,11 +358,13 @@ pub struct Control<'a> {
     /// `"chain"`: a coarse waypoint, value = its index; `"leg"`: a hop of
     /// a refined leg, value = the leg index. Cheap when it is a no-op.
     pub trace: &'a (dyn Fn(&'static str, [f32; 3], f32) + Sync),
+    /// One portfolio variant finished (route or not); see [`VariantOutcome`].
+    pub variant: &'a (dyn Fn(VariantOutcome) + Sync),
 }
 
 impl Control<'_> {
     pub fn none() -> Control<'static> {
-        Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} }
+        Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {}, variant: &|_| {} }
     }
 }
 
@@ -920,7 +941,7 @@ mod tests {
     fn cancellation_is_honoured() {
         let (_d, g) = galaxy();
         let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), range_ly: 25.0, ..Default::default() };
-        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
         // Tiny graph: may finish before the first cancel check; either way it must not panic.
         let _ = plan(&g, &req, &ctl);
     }
