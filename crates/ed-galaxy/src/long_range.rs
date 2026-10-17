@@ -14,7 +14,7 @@
 //! refined with the exact planner, which finds the actual scoop star.
 
 use crate::format::{dist, Galaxy};
-use crate::router::{plan, Control, Route, RouteError, RouteRequest, VariantOutcome};
+use crate::router::{plan, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, NO_LEG_MEMO};
 use crate::star::StarClassCode as _;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap as HashMap;
@@ -434,6 +434,21 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
 /// Cheapest way to refine one leg: direct hop, scoop hop, bridged hop with
 /// a short tail search, and only then the full exact search.
 fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
+    // Once per plot: the same leg from the same tank bucket with the same
+    // injections left is the same answer for every variant (R1 leg memo).
+    let key = LegKey::new(from, to, fuel, req.fuel.map(|m| m.capacity).unwrap_or(0.0), req.injection.map(|(_, _, n)| n).unwrap_or(0));
+    if let Some(known) = ctl.legs.get(&key) {
+        return known;
+    }
+    let planned = refine_leg_uncached(g, req, ctl, leg_of, from, to, fuel);
+    // A cancellation is this variant's, not the leg's: never remembered.
+    if !matches!(planned, Err(RouteError::Cancelled)) {
+        ctl.legs.put(key, match &planned { Ok(r) => Ok(r.clone()), Err(e) => Err(e.clone_err()) });
+    }
+    planned
+}
+
+fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
     if let Some(l) = direct_leg(g, req, from, to, fuel) {
         return Ok(l);
     }
@@ -997,7 +1012,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     let deadline = (req.time_budget_ms > 0).then(|| started + std::time::Duration::from_millis(req.time_budget_ms));
     let user_cancelled = ctl.cancelled;
     let cancelled = move || user_cancelled() || deadline.is_some_and(|d| std::time::Instant::now() > d);
-    let ctl = &Control { cancelled: &cancelled, progress: ctl.progress, stage: ctl.stage, found: ctl.found, variant: ctl.variant, trace: ctl.trace };
+    let ctl = &Control { cancelled: &cancelled, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     // Item 16: per-plot goal fields -- jumps-to-goal over the cell graph,
     // desert crossings priced at plain jumps (the number euclid and even
@@ -1085,6 +1100,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     // at the allowance thousands of ly short; the later waves are what
     // the time budget is for.
     let mut cap_mult: u64 = 1;
+    // Legs refined once per plot, shared by every variant and every wave.
+    let legs = LegMemo::for_plot();
     let grace = (req.grace_ms > 0).then(|| std::time::Duration::from_millis(req.grace_ms));
     let (mut variants_run, mut variants_finished) = (0u32, 0u32);
     loop {
@@ -1249,7 +1266,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         let (results, finished) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
             let variant_started = std::time::Instant::now();
             LAST_COARSE.with(|c| c.set((0, 0.0)));
-            let ctl = Control { cancelled: check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, variant: ctl.variant, trace: ctl.trace };
+            let ctl = Control { cancelled: check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: &legs, variant: ctl.variant, trace: ctl.trace };
             let nb = variants.len();
             let greedy_single = nb + usize::from(bidi);
             // (kind: 0 = baseline single, 1 = bidi, 2 = greedy twin)
@@ -1686,8 +1703,8 @@ fn plan_best_inner(g: &Galaxy, neutrons: Option<&Galaxy>, req: &RouteRequest, ct
             (ctl.progress)(n, remaining);
         }
     };
-    let exact_ctl = Control { cancelled: &stop, progress: ctl.progress, stage: ctl.stage, found: ctl.found, variant: ctl.variant, trace: ctl.trace };
-    let neutron_ctl = Control { cancelled: &stop, progress: &quiet_progress, stage: &|_, _, _| {}, found: ctl.found, variant: ctl.variant, trace: ctl.trace };
+    let exact_ctl = Control { cancelled: &stop, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
+    let neutron_ctl = Control { cancelled: &stop, progress: &quiet_progress, stage: &|_, _, _| {}, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
     // The exact search gets a thread of its own: the neutron-first planner
     // fans its variants and leg refinements over the rayon pool, and an
     // exact search queued behind them (measured: 44 ms alone, 290 ms
@@ -3905,7 +3922,7 @@ mod tests {
                 chain.lock().unwrap().push(pos);
             }
         };
-        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &trace };
+        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &trace };
         let route = plan_long(&with_wd.g, &with_wd.neutrons, &r, &ctl).unwrap();
         let chain = chain.into_inner().unwrap();
         assert!(chain.iter().any(|p| (p[0] - 40.0).abs() < 0.01), "WD is a coarse waypoint: {chain:?}");
@@ -4047,7 +4064,7 @@ mod tests {
                 chain.lock().unwrap().push(pos);
             }
         };
-        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &trace };
+        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &trace };
         let route = plan_long(&f.g, &f.neutrons, &no_wd, &ctl).unwrap();
         let chain = chain.into_inner().unwrap();
         assert!(!chain.iter().any(|p| (p[0] - 40.0).abs() < 0.01), "WD must not be a coarse waypoint at x1.0: {chain:?}");
@@ -4190,7 +4207,7 @@ mod tests {
         let progress = |_: u64, _: f32| {
             progress_calls.fetch_add(1, AtomicOrdering::Relaxed);
         };
-        let ctl = Control { cancelled: &|| true, progress: &progress, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &|| true, progress: &progress, stage: &|_, _, _| {}, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &|_, _, _| {} };
         // The island is unreachable: without cancellation the answer would
         // be NoRoute; the user's Stop must win over that.
         assert!(matches!(plan_long(&f.g, &f.neutrons, &r, &ctl), Err(RouteError::Cancelled)));
@@ -4229,7 +4246,7 @@ mod tests {
         let stage = |_: &str, _: u32, _: u32| {
             stage_calls.fetch_add(1, AtomicOrdering::Relaxed);
         };
-        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &stage, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &stage, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &|_, _, _| {} };
         let route = plan_long(&f.g, &f.neutrons, &r, &ctl).unwrap();
         assert_contiguous(&route, &r);
         // By hand: K0 -> N0 (51 ly), twelve 230 ly neutron hops, N12 -> K3000 (190.3 ly).
@@ -4292,6 +4309,27 @@ mod tests {
         build(&stars)
     }
 
+    /// R1 leg memo (2026-10-17): six variants recomputed one 68 s hand-off
+    /// leg on the rim-to-rim route. A leg is the same leg only from the
+    /// same tank bucket with the same injections left.
+    #[test]
+    fn the_leg_memo_keys_on_the_fuel_bucket() {
+        let memo = LegMemo::for_plot();
+        let k_full = LegKey::new(1, 2, 128.0, 128.0, 22);
+        let k_low = LegKey::new(1, 2, 10.0, 128.0, 22);
+        assert_ne!(k_full, k_low, "a leg from a dry tank is a different leg");
+        assert_eq!(LegKey::new(1, 2, 127.0, 128.0, 22), k_full, "within a bucket it is the same leg");
+        assert_ne!(LegKey::new(1, 2, 128.0, 128.0, 21), k_full, "injections left are part of the leg");
+        let five: Route = serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":5,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap();
+        memo.put(k_full.clone(), Ok(five));
+        assert_eq!(memo.get(&k_full).unwrap().unwrap().jumps, 5);
+        assert!(memo.get(&k_low).is_none());
+        // The shared "no memo" never remembers: tests and examples that use
+        // Control::none() must not leak legs between plots of different ships.
+        NO_LEG_MEMO.put(k_full.clone(), Err(RouteError::NoRoute));
+        assert!(NO_LEG_MEMO.get(&k_full).is_none());
+    }
+
     /// R0 observability (2026-10-17): every portfolio variant reports what
     /// it did, so the server can count outcomes per kind and the matrix can
     /// say which variant answered first on which route class.
@@ -4301,7 +4339,7 @@ mod tests {
         let r = req(&f, "K0", "K3000", 60.0);
         let seen = std::sync::Mutex::new(Vec::<VariantOutcome>::new());
         let none = Control::none();
-        let ctl = Control { variant: &|o: VariantOutcome| seen.lock().unwrap().push(o), ..none };
+        let ctl = Control { legs: &NO_LEG_MEMO, variant: &|o: VariantOutcome| seen.lock().unwrap().push(o), ..none };
         let route = plan_best(&f.g, Some(&f.neutrons), &r, &ctl).unwrap();
         let seen = seen.into_inner().unwrap();
         assert!(!seen.is_empty(), "the portfolio ran and said nothing");
@@ -4385,7 +4423,7 @@ mod tests {
         let f = mid_highway();
         let r = req(&f, "K0", "K1000", 60.0);
         assert!(wants_neutron_variant(&f.g, &f.neutrons, &r));
-        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &|_, _, _| {} };
         // Both searches are tiny here; either returns Cancelled or finishes
         // before its first check -- a finished route must never be dropped
         // for a cancel that came after it.

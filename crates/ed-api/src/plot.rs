@@ -1024,7 +1024,7 @@ impl RouteService {
                 tracing::info!(lane = lane_name, key, wave = o.wave, kind = o.kind, index = o.index, ok = o.ok, jumps = o.jumps, stops = o.stops, ms = o.ms, coarse_expansions = o.coarse_expansions, stall_remaining_ly = o.stall_remaining_ly, "variant outcome");
             };
             let none = Control::none();
-            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: &stage, found: &found_both, variant: &variant, trace: none.trace };
+            let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: &stage, found: &found_both, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &variant, trace: none.trace };
             // One search (the boss, 2026-10-09: "can we fold it into one?").
             // The planner already prices an injected jump at three plain
             // ones (INJECTION_PENALTY, and the wave's twin), so a route
@@ -1747,7 +1747,7 @@ mod endpoint_tests {
         req.time_budget_ms = 10_000;
         let cancelled = || gone.load(std::sync::atomic::Ordering::Relaxed);
         let none = Control::none();
-        let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, variant: none.variant, trace: none.trace };
+        let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: none.found, legs: none.legs, variant: none.variant, trace: none.trace };
         let r = ed_galaxy::long_range::plan_best(&g, None, &req, &ctl);
         assert!(matches!(r, Err(RouteError::Cancelled)), "a plot whose request is gone stops: {r:?}");
     }
