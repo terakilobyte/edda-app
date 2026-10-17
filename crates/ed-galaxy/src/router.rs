@@ -345,24 +345,27 @@ pub struct VariantOutcome {
 }
 
 /// One refined leg's identity within a plot (planner unification R1,
-/// 2026-10-17): endpoints, the tank at departure in 1/32 of capacity, and
-/// the injections still allowed. Everything else a leg depends on (ship,
-/// boost, weight, injection grade) is fixed for the plot the memo serves.
+/// 2026-10-17): endpoints and the injections still allowed. The tank at
+/// departure is not part of the key but of the lookup: a leg planned from
+/// F tonnes serves any departure with at least F (more fuel never breaks a
+/// leg; less may). Everything else a leg depends on (ship, boost, weight,
+/// injection grade) is fixed for the plot the memo serves.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LegKey {
     pub from: u32,
     pub to: u32,
-    pub fuel_bucket: u8,
     pub inj_left: u32,
+    /// The fuel model's reserve in tenths of a tonne: the portfolio's
+    /// variants plan the same leg under different reserves (0.4 and 0.75 of
+    /// a max-fuel jump), and a leg that flies under one does not fly under
+    /// the other (the first memo shared them and Beagle Point -> Sol became
+    /// no route, 2026-10-17).
+    pub reserve_dt: u32,
 }
 
 impl LegKey {
-    pub fn new(from: u32, to: u32, fuel: f32, capacity: f32, inj_left: u32) -> LegKey {
-        // Nearest of 33 levels (0 = dry, 32 = full): a tank within 2 t of
-        // a level shares its legs; floor would put 127 t and 128 t in
-        // different legs for no reason.
-        let bucket = if capacity > 0.0 { ((fuel / capacity) * 32.0).round().clamp(0.0, 32.0) as u8 } else { 0 };
-        LegKey { from, to, fuel_bucket: bucket, inj_left }
+    pub fn new(from: u32, to: u32, inj_left: u32, reserve_t: f32) -> LegKey {
+        LegKey { from, to, inj_left, reserve_dt: (reserve_t.max(0.0) * 10.0).round() as u32 }
     }
 }
 
@@ -374,7 +377,8 @@ impl LegKey {
 /// different ships.
 pub struct LegMemo {
     remembers: bool,
-    legs: std::sync::Mutex<Option<rustc_hash::FxHashMap<LegKey, Result<Route, RouteError>>>>,
+    /// Per leg, the plans made so far with the tank each was planned from.
+    legs: std::sync::Mutex<Option<rustc_hash::FxHashMap<LegKey, Vec<(f32, Result<Route, RouteError>)>>>>,
 }
 
 /// The memo that remembers nothing: for `Control::none()`.
@@ -384,23 +388,30 @@ impl LegMemo {
     pub fn for_plot() -> LegMemo {
         LegMemo { remembers: true, legs: std::sync::Mutex::new(Some(rustc_hash::FxHashMap::default())) }
     }
-    pub fn get(&self, key: &LegKey) -> Option<Result<Route, RouteError>> {
+    /// The plan for this leg that `fuel` can trust: a ROUTE planned from the
+    /// highest tank not above `fuel` (more fuel still flies it), else a
+    /// FAILURE planned from a tank not below `fuel` (less fuel fails it too).
+    /// A failure from less fuel says nothing about more, and a route from
+    /// more fuel nothing about less: those are misses (the first memo got
+    /// this wrong and Beagle Point -> Sol became no route, 2026-10-17).
+    pub fn get(&self, key: &LegKey, fuel: f32) -> Option<Result<Route, RouteError>> {
         if !self.remembers {
             return None;
         }
         let legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
-        legs.as_ref().and_then(|m| m.get(key)).map(|r| match r {
-            Ok(route) => Ok(route.clone()),
-            Err(e) => Err(e.clone_err()),
-        })
+        let plans = legs.as_ref()?.get(key)?;
+        if let Some((_, Ok(route))) = plans.iter().filter(|(f, r)| r.is_ok() && *f <= fuel + 0.01).max_by(|a, b| a.0.total_cmp(&b.0)) {
+            return Some(Ok(route.clone()));
+        }
+        plans.iter().find(|(f, r)| r.is_err() && *f >= fuel - 0.01).map(|(_, r)| Err(r.as_ref().err().map(|e| e.clone_err()).unwrap_or(RouteError::NoRoute)))
     }
-    pub fn put(&self, key: LegKey, leg: Result<Route, RouteError>) {
+    pub fn put(&self, key: LegKey, fuel: f32, leg: Result<Route, RouteError>) {
         if !self.remembers {
             return;
         }
         let mut legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(m) = legs.as_mut() {
-            m.insert(key, leg);
+            m.entry(key).or_default().push((fuel, leg));
         }
     }
 }
@@ -668,11 +679,13 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
         // closer to the goal. An island exit still opens (nothing plain
         // progresses there); a plain chain never pays for the 8x sphere.
         let mut progressed = false;
+        // ED_LAZY_INJECTION=0: bisect knob (R1 A/B) -- the old rule, both passes always.
+        let lazy = std::env::var("ED_LAZY_INJECTION").ok().as_deref() != Some("0");
         for pass in 0..2 {
             let (scan, injected) = match pass {
                 0 => (reach, false),
                 _ => match injected_reach {
-                    Some(r) if r > reach && !progressed => (r, true),
+                    Some(r) if r > reach && !(lazy && progressed) => (r, true),
                     _ => break,
                 },
             };
