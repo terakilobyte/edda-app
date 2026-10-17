@@ -5,11 +5,13 @@
   import { voiceName, serverVoiceName } from "./voices.js";
   import {
     voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, voiceUseNone, voicesInstalled, voicesRemoveAll, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
+    speechEngineStatus, speechEngineInstall, speechEngineStart, onSpeechEngineProgress,
     calloutsGet, calloutsSet,
     listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices, listenModelsInstalled, listenModelsRemove,
   } from "./api.js";
-  import { useListeners } from "./lifecycle.svelte.js";
+  import { useListeners, useTabActive } from "./lifecycle.svelte.js";
   import VoiceEngineChoice from "./VoiceEngineChoice.svelte";
+  import ManagedEngine from "./ManagedEngine.svelte";
   import ConfirmModal from "./ConfirmModal.svelte";
 
   // Every confirmation goes through the app's own modal (maintainer,
@@ -35,13 +37,12 @@
   let installed = $state([]);
   let removing = $state(false);
   async function loadInstalled() { try { installed = await voicesInstalled(); } catch { installed = []; } }
-  onMount(loadInstalled);
   const describeInstalled = () => installed.map((v) => `${v.label} (${sizeOf(v.bytes)})`).join(", ");
   async function doRemoveAllVoices() {
     removing = true;
     try {
       const freed = await voicesRemoveAll();
-      models = await voiceModels(); chosen = ""; voice = await voiceStatus(); await loadVoiceServer(); await loadInstalled();
+      models = await voiceModels(); chosen = ""; voice = await voiceStatus(); await loadVoiceServer(); await loadInstalled(); await loadEngine();
       vsMsg = `Installed voices removed · ${sizeOf(freed)} freed.`;
     } catch (e) { vsMsg = String(e); } finally { removing = false; }
   }
@@ -53,7 +54,7 @@
   // Speech server (Kokoro and other OpenAI-compatible providers).
   let vs = $state(null); let vsEngine = $state("builtin"); let vsUrl = $state("http://localhost:8880"); let vsModel = $state("kokoro"); let vsVoice = $state("af_heart"); let vsKey = $state(""); let vsMsg = $state(""); let vsVoices = $state([]); let vsPreset = $state("kokoro"); let vsBusy = $state(false);
   const SPEECH_PRESETS = [
-    { id: "kokoro", label: "Kokoro (on this machine)", url: "http://localhost:8880", model: "kokoro", voices: [] },
+    { id: "kokoro", label: "Kokoro (on this machine)", url: null, model: "kokoro", voices: [] },
     { id: "openai", label: "OpenAI", url: "https://api.openai.com", model: "gpt-4o-mini-tts", voices: ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"] },
     { id: "other", label: "Other", url: "", model: "", voices: [] },
   ];
@@ -64,10 +65,58 @@
     if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url.trim()) && (model || "kokoro") === "kokoro") return "kokoro";
     return SPEECH_PRESETS.find((p) => p.url && url.startsWith(p.url))?.id ?? "other";
   }
-  function applySpeechPreset() { const p = SPEECH_PRESETS.find((x) => x.id === vsPreset); if (p && p.id !== "other") { vsUrl = p.url; vsModel = p.model; vsVoices = p.voices; if (p.voices.length) vsVoice = p.voices[0]; } }
-  async function connectSpeech() {
+  function applySpeechPreset() { const p = SPEECH_PRESETS.find((x) => x.id === vsPreset); if (p && p.id !== "other") { vsUrl = p.url ?? engine?.url ?? ""; vsModel = p.model; vsVoices = p.voices; if (p.voices.length) vsVoice = p.voices[0]; } }
+
+  // EDDA's managed Kokoro (2026-10-17). The page used to probe a fixed
+  // http://localhost:8880 for it, an address EDDA never listens on: every
+  // launch takes a fresh loopback port and writes it to the config, which
+  // this page read once, on first show. Removing Kokoro here and installing
+  // it from setup left the page holding the empty config's fallback, and
+  // "Kokoro" then failed to connect to an engine that was answering
+  // (maintainer, 2026-10-17). Now the engine's live status drives the page:
+  // not installed offers the install, installed-but-stopped offers the
+  // start, running connects to the port it is actually on.
+  let engine = $state(null);
+  let engineProgress = $state(null);
+  async function loadEngine() {
+    try { engine = (await speechEngineStatus()).find((e) => e.engine === "kokoro") ?? null; } catch { engine = null; }
+    return engine;
+  }
+  async function connectKokoro(autoStart) {
+    const st = await loadEngine();
+    if (!st) { vsMsg = "Kokoro's status could not be read."; return false; }
+    // Not installed: the engine line says so and offers the install; no second line.
+    if (!st.installed) { vsVoices = []; return false; }
+    if (!st.running) { if (autoStart) await startKokoro(); else vsMsg = "Kokoro did not stay running; see logs/kokoro.log in the EDDA data folder."; return false; }
+    if (st.url) vsUrl = st.url;
+    return true;
+  }
+  async function installKokoro() {
+    vsBusy = true; engineProgress = null; vsMsg = "Installing Kokoro in your EDDA data folder…";
+    try {
+      await speechEngineInstall("kokoro");
+      vsEngine = "server";
+      await loadEngine(); await loadVoiceServer(); await loadInstalled();
+      await connectSpeech(false);
+      if (vsVoices.length) vsMsg = `Kokoro installed, running, and selected · ${vsVoices.length} voices`;
+    } catch (e) { vsMsg = String(e); } finally { vsBusy = false; }
+  }
+  async function startKokoro() {
+    vsBusy = true; vsMsg = "Starting Kokoro — about a minute the first time.";
+    try {
+      await speechEngineStart("kokoro");
+      vsEngine = "server";
+      await loadEngine(); await loadVoiceServer();
+      await connectSpeech(false);
+      if (vsVoices.length) vsMsg = `Kokoro running and selected · ${vsVoices.length} voices`;
+    } catch (e) { vsMsg = String(e); } finally { vsBusy = false; }
+  }
+  // `autoStart`: an installed, stopped Kokoro is started on the way (the
+  // start path itself passes false, so a start that did not take cannot loop).
+  async function connectSpeech(autoStart = true) {
     vsBusy = true; vsMsg = "";
     try {
+      if (vsPreset === "kokoro" && !(await connectKokoro(autoStart))) return;
       const v = await voiceServerProbe({ url: vsUrl.trim(), model: vsModel.trim(), voice: vsVoice.trim(), api_key: vsKey ? vsKey : (vs?.config?.api_key ?? null) });
       vsVoices = v.length ? v : (SPEECH_PRESETS.find((x) => x.id === vsPreset)?.voices ?? []);
       if (vsVoices.length && !vsVoices.includes(vsVoice)) vsVoice = vsVoices.includes("af_heart") ? "af_heart" : vsVoices[0];
@@ -88,7 +137,14 @@
       vsKey = ""; voice = await voiceStatus(); vsMsg = "";
     } catch (e) { vsMsg = String(e); }
   }
-  onMount(loadVoiceServer);
+  const active = useTabActive();
+  async function refreshVoicePage() {
+    await Promise.all([loadVoiceServer(), loadInstalled(), loadEngine()]);
+    try { voice = await voiceStatus(); models = await voiceModels(); chosen = models.find((m) => voice.model && m.startsWith(voice.model)) ?? ""; } catch (e) { msg = String(e); }
+  }
+  // Runs on mount and again every time the tab comes back into view.
+  $effect(() => { if (active()) refreshVoicePage(); });
+  onMount(() => { listeners.add(onSpeechEngineProgress((e) => { engineProgress = e.payload; if (e.payload.phase === "error") vsMsg = e.payload.detail; })); });
 
   // Signal watch and callout kinds on/off.
   let signals = $state([]);
@@ -169,11 +225,6 @@
       personaList = pv.personas;
       persona = pv.selected;
     } catch (e) { msg = String(e); }
-    try {
-      voice = await voiceStatus();
-      models = await voiceModels();
-      chosen = models.find((m) => voice.model && m.startsWith(voice.model)) ?? "";
-    } catch (e) { msg = String(e); }
   });
 
   async function changeVoice(e) {
@@ -211,7 +262,8 @@
       }
       if (which === "server") {
         vsEngine = "server";
-        if (vsVoices.length) await saveVoiceServer(); else await connectSpeech();
+        // The Kokoro preset always goes through the engine's live status.
+        if (vsPreset !== "kokoro" && vsVoices.length) await saveVoiceServer(); else await connectSpeech();
         return;
       }
       if (vsEngine === "server") { vsEngine = "builtin"; await saveVoiceServer(); }
@@ -269,15 +321,18 @@
             <select bind:value={vsPreset} onchange={applySpeechPreset}>{#each SPEECH_PRESETS as p}<option value={p.id}>{p.label}</option>{/each}</select>
             {#if vsPreset !== "kokoro"}<input placeholder="address" bind:value={vsUrl} style="min-width:16rem" /><input placeholder="model" bind:value={vsModel} style="min-width:8rem" />{/if}
             {#if vsPreset !== "kokoro"}<input type="password" placeholder={vs?.config?.api_key ? "key set" : "API key (if any)"} bind:value={vsKey} style="min-width:10rem" autocomplete="off" />{/if}
-            <button class="quiet" onclick={connectSpeech} disabled={vsBusy}>{vsBusy ? "Connecting…" : vsVoices.length ? "Reconnect" : "Connect"}</button>
+            {#if vsPreset !== "kokoro" || engine?.running}<button class="quiet" onclick={connectSpeech} disabled={vsBusy}>{vsBusy ? "Connecting…" : vsVoices.length ? "Reconnect" : "Connect"}</button>{/if}
             {#if vsVoices.length && voice.backend === "server"}<span class="pill ok">connected · {vsVoices.length} voices</span>{/if}
           </div>
+          {#if vsPreset === "kokoro"}
+            <ManagedEngine status={engine} progress={engineProgress} busy={vsBusy} onInstall={installKokoro} onStart={startKokoro} />
+          {/if}
           <div class="row" style="margin-top:0.4rem">
             <span class="muted small">Voice</span>
             {#if vsVoices.length}
               <select bind:value={vsVoice} onchange={saveVoiceServer}>{#each vsVoices as v}<option value={v}>{serverVoiceName(v)}</option>{/each}</select>
             {:else}
-              <span class="muted small">press Connect to list the voices</span>
+              <span class="muted small">{vsPreset === "kokoro" && !engine?.running ? "listed once Kokoro is running" : "press Connect to list the voices"}</span>
             {/if}
           </div>
         {/if}
