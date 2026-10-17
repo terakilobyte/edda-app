@@ -19,6 +19,13 @@ export function browserTransport() {
     release_notes_get: async () => ({ sections: [], unseen: false, latest: null }),
     frontend_log: async () => null,
     setup_completed: async () => null,
+    // The Voice tab after "Remove installed voices" (2026-10-17): nothing
+    // speaks, no server is configured, Kokoro is not installed. The status
+    // shape is speech_engine_status's, figures as it reports them.
+    voice_status: async () => ({ backend: "silent", model: null, muted: true }),
+    voice_server_get: async () => ({ enabled: false, config: { url: "", model: "", voice: "", api_key: null }, voices: [] }),
+    speech_engine_status: async () => [{ engine: "kokoro", installed: false, running: false, ready: false, url: null, approximate_mb: 2800, available: true, note: "Natural local speech. EDDA downloads an isolated Python runtime, dependencies, and Kokoro model." }],
+    voices_installed: async () => [],
   };
   return {
     async invoke(name, args) {
