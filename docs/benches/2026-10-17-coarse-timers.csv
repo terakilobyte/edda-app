@@ -1,0 +1,28 @@
+# Coarse-search section timers (ED_COARSE_TIMERS=1, the instrument that
+# existed and had never been run), one variant's line per route, this PC,
+# the Caspian, premium injections 22, budget 100 s, the R0 build.
+# VERDICT: the millisecond is not relax and not scan. It is the WIDEN: the
+# rescan at three times the reach that fires whenever an expansion pushed
+# nothing -- and in a dense region an expansion pushes nothing because
+# every candidate is already known (dominated), not because the sphere is
+# empty. Half of all expansions fired it: 22,700 of 44,000 pops on the
+# rim-to-rim pair (6.3-6.7 s of ~9 s), 21,000 of 31,000 on Colonia ->
+# Spase (32-36 s of ~46 s), 16,500 of 25,200 on Sol -> Beagle Point
+# (1.1 of 1.6 s). Relax is 1.5-2 s / 7-8 s / 0.35 s on the same routes,
+# scan 0.6 s / 2.3-6 s / 0.2 s. Open sets peak at 220k / 520-580k / 150-180k.
+# Decision: the widen fires only when the scan found no candidate at all
+# (a true void), knob ED_COARSE_WIDEN_ON_DOMINATED=1 restores today's rule
+# for A/B; measured on the 28-route matrix as arm r1.
+route,variant_line,scan_ms,thin_ms,relax_ms,pop_ms,widen_ms,widens,pops,stale_pops,max_open
+Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0,1,600.9,415.3,1545.4,38.7,6303.4,22739,43999,13998,221871
+Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0,2,597.9,438.2,1842.4,37.8,6536.7,23039,43990,13989,219091
+Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0,3,609.6,456.8,2011.2,38.2,6735.4,22822,43960,13959,224681
+Sol -> Beagle Point,1,192.0,0.7,345.8,14.5,1060.7,16572,25241,3882,180793
+Sol -> Beagle Point,2,204.1,54.4,329.7,15.7,1142.4,16527,25199,3872,150964
+Sol -> Beagle Point,3,213.7,55.7,354.6,15.4,1200.8,16544,25208,3866,169482
+Colonia -> Spase AA-A a108-0,1,2563.1,2071.4,8019.1,74.7,33149.0,21033,31060,1059,507464
+Colonia -> Spase AA-A a108-0,2,6049.5,1851.6,7016.4,3.2,31890.1,19652,30300,299,521930
+Colonia -> Spase AA-A a108-0,3,2291.5,2170.1,7737.3,78.4,35944.4,20630,30665,664,578266
+Wongi -> Colonia,1,19.9,4.9,8.2,0.1,23.6,2,67,0,27616
+Wongi -> Colonia,2,77.6,24.1,108.8,0.4,24.2,3,131,0,85082
+Wongi -> Colonia,3,110.1,41.7,113.1,0.8,21.0,1,163,0,81605
