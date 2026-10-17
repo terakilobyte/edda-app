@@ -49,6 +49,15 @@
 # jumps on 15 routes, equal on 2, more on 7 (by 1-6: Spase -> Wongi 102 vs
 # 96, Sgr A* -> Sol 73 vs 70, Colonia -> Spase 91 vs 90), no route on 4
 # where it answers in 61 s with 451-591 jumps.
+# Staged head with the tail SKIPPED once the head had a route and the grace
+# had fired (arm r1-head3-skip = ED_VARIANT_HEAD=3 on the review-fix build,
+# rows in 2026-10-17-planner-matrix-r1-head3-skip.jsonl): NEGATIVE against
+# r1 -- Jongou AA-A -> Byoi AT-U 396 -> 455 jumps / 17 -> 20 stops at 27.6 s,
+# Colonia -> Spase 50.6 -> 86.1 s, Spase -> Colonia 6.5 -> 41.9 s, Wongi ->
+# Blaa Hypai 1.0 -> 59.6 s, Wongi -> Beagle Point 18.7 -> 30.6 s, Sgr A* ->
+# Sol 3.0 -> 4.2 s; 22 same. The quick families answer first and the
+# thorough ones answer best; the tail now always runs and only the start
+# order ships (arm r1-head3 below measures order alone).
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
