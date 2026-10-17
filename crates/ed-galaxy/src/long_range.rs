@@ -1028,9 +1028,10 @@ fn variant_kind(i: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usiz
 }
 
 /// Run the wave's variants, starting them in `order` (a permutation of
-/// `0..n`; empty = index order) as workers come free: on the box a long
-/// plot has three threads, so the first three families in the order start
-/// first and each freed thread takes the next (R1, 2026-10-17). No stage
+/// `0..n`) as workers come free, or, with no order, in rayon's range
+/// split as every wave did before R1 -- the default, see
+/// `declared_order_on`. On the box a long plot has three threads, so the
+/// first three variants started decide the first route. No stage
 /// boundary: a head stage whose `collect` had to finish before the tail
 /// could start measured as a loss on the matrix (arm r1-head3: Sol ->
 /// Beagle Point 18 -> 101 s, Wongi -> Blaa Hypai 1 -> 60 s, same routes),
@@ -1054,8 +1055,6 @@ fn run_variants<T: Send>(
             .unwrap_or_else(|e| e.into_inner())
             .expired(std::time::Instant::now(), grace)
     };
-    let identity: Vec<usize> = (0..n).collect();
-    let order: &[usize] = if order.len() == n { order } else { &identity };
     let one = |i: usize| -> Result<T, RouteError> {
         let check = || cancelled() || grace.is_some_and(stop);
         // `arms`: whether this finish may start the grace countdown.
@@ -1075,7 +1074,11 @@ fn run_variants<T: Send>(
         res
     };
     let mut slots: Vec<Option<Result<T, RouteError>>> = (0..n).map(|_| None).collect();
-    let done: Vec<(usize, Result<T, RouteError>)> = order.iter().copied().par_bridge().map(|i| (i, one(i))).collect();
+    let done: Vec<(usize, Result<T, RouteError>)> = if order.len() == n {
+        order.iter().copied().par_bridge().map(|i| (i, one(i))).collect()
+    } else {
+        (0..n).into_par_iter().map(|i| (i, one(i))).collect()
+    };
     for (i, r) in done {
         slots[i] = Some(r);
     }
@@ -1083,6 +1086,23 @@ fn run_variants<T: Send>(
     let results: Vec<Result<T, RouteError>> = slots.into_iter().map(|r| r.unwrap_or(Err(RouteError::Cancelled))).collect();
     let finished = results.iter().filter(|r| r.is_ok()).count() as u32;
     (results, finished, started)
+}
+
+/// Whether a wave starts its variants in the declared `variant_order`
+/// (ED_VARIANT_ORDER=1) or in rayon's range split, the default. The
+/// declared order (R1) measured NEGATIVE where it is visible at all --
+/// the box's three planner threads (arm r1-3 against before3, 2026-10-17,
+/// docs/benches/2026-10-17-planner-matrix.csv): 8 of 28 routes worse,
+/// Colonia <-> Spase first route 0.8 -> 25.6 s and the plot ran to the
+/// budget, Sol -> Beagle Point first 0.13 -> 1.3 s and 50 -> 100 s wall,
+/// Jongou AA-A 396 -> 455 jumps at the cut. The variant that finds those
+/// routes in under a second sits late in the family order, and rayon's
+/// split happens to start it among the first three. On the PC (24
+/// threads, 17 variants) the order is moot. Making that start intentional
+/// is R3's tabulation of which family wins which route class; until it
+/// is measured, the split order stands.
+fn declared_order_on(knob: Option<&str>) -> bool {
+    knob == Some("1")
 }
 
 /// The order a wave starts its variants in: by family, the measured
@@ -1381,7 +1401,11 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             route_score(r, scoop_rate, req)
         };
         let seed = (cap_mult > 1).then(|| best.as_ref().map(&judge)).flatten();
-        let order = variant_order(total, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot);
+        let order = if declared_order_on(std::env::var("ED_VARIANT_ORDER").ok().as_deref()) {
+            variant_order(total, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot)
+        } else {
+            Vec::new()
+        };
         let (results, finished, launched) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
             let variant_started = std::time::Instant::now();
             let coarse = CoarseStats::default();
@@ -4027,6 +4051,24 @@ mod tests {
         // Results come back by variant index whatever the start order.
         let (results, _, _) = pool.install(|| run_variants(3, None, None, &|| false, |r: &Route| r.jumps as u64, |i, _| (Ok(Route { jumps: i + 10, ..dummy() }), true), &[2, 0, 1]));
         assert_eq!(results.iter().map(|r| r.as_ref().unwrap().jumps).collect::<Vec<_>>(), vec![10, 11, 12]);
+    }
+
+    /// The declared start order is a knob, off by default (2026-10-17, the
+    /// three-thread box emulation: arm r1-3 lost 8 of 28 routes to the
+    /// shipped split order). Off, the wave starts in rayon's range order,
+    /// exactly as before R1.
+    #[test]
+    fn the_declared_start_order_is_a_knob_off_by_default() {
+        assert!(!declared_order_on(None));
+        assert!(!declared_order_on(Some("0")));
+        assert!(declared_order_on(Some("1")));
+        let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
+        let ran = std::sync::Mutex::new(Vec::new());
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+        let (results, finished, started) = pool.install(|| run_variants(5, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[]));
+        assert_eq!((finished, started), (5, 5));
+        assert!(results.iter().all(|r| r.is_ok()));
+        assert_eq!(ran.into_inner().unwrap(), vec![0, 1, 2, 3, 4], "no order given: the range, as rayon splits it (one worker: in index order)");
     }
 
     /// Once one variant has a route the others get the grace period and are
