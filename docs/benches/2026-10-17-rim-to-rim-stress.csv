@@ -3,10 +3,13 @@
 # 84,599 ly straight, both ends F stars whose nearest neighbour is 80-83 ly
 # away (a premium injection opens each end). Ship: the boss's Caspian
 # Explorer (77.81 ly max, 72.2 full-tank, 128 t, 6.8 t cap, +10.5 booster,
-# x6 SCO), premium injections allowed (22, what Spansh used), min-fuel.
+# x6 SCO), premium injections allowed (22, what the external reference used), min-fuel.
 # VERDICT: prod refuses it (504 budget / no_first_route at 100.7 s, three
 # times in the app and once replayed by hand) and the PC cannot plot it in
-# 600 s on 24 threads, so this is structure, not the box's two cores. Where
+# 600 s on 24 threads, so this is structure, not the box's cores (the box is
+# 8 vCPU / 15 GB, read as root on 2026-10-17; "2 vCPU" in earlier headers
+# was a sizing target, not a measurement -- each long plot gets 2 planner
+# threads by lane configuration, plot.rs). Where
 # the time goes: every portfolio variant's coarse neutron search hits its
 # 30,000-expansion cap 43-45k ly short of Sphiesi, roughly at the core,
 # and hands the remainder to the exact planner as ONE 45,000 ly leg, which
@@ -19,22 +22,27 @@
 # the same way. With NEUTRON ends 1.5k ly inside each rim (Byiae Aick
 # ON-B d13-0 -> Hypoe Groa NN-Q d6-0, 82.6k ly) the forward variants DO
 # finish: first route at 73 s, 626 jumps / 101,751 ly served at 100.1 s
-# (Spansh: 453 jumps / 114,668 ly in 61 s, never nearer than 13,277 ly to
+# (the external reference: 453 jumps / 114,668 ly in 61 s, never nearer than 13,277 ly to
 # Sgr A*, 16 plain runs longer than the coarse graph's 4-jump mid-route
 # bridge, max 24). The bidirectional variant dies after 2 expansions when
 # an end needs an injection ("no meet after 2 expansions, 1 node each
 # side"). The neutron sub-index is NOT empty on the straight line (100-123
 # occupied 250 ly cells per 4,230 ly band from 25% to 80% of the way, 65
-# neutrons/cell at the core); Spansh's detour is the sparser corridor.
+# neutrons/cell at the core); the external reference's detour is the sparser corridor.
 # OPEN: why the forward coarse search crosses the core from a neutron start
 # in 73 s but not from an injection-opened F-star start; whether the x4
 # wave would cross if the stalled variant failed fast instead of
 # exact-planning 45k ly; the bidi seeding at injection ends. Reproduce:
 # docs/benches/knobs/stress_route.sh (prod) and stress_pc.sh /
 # stress_halves.sh (PC, index D:\galos\index-boost-secondary, bench.exe
-# with ED_PLOT_DEBUG=1).
+# with ED_PLOT_DEBUG=1). Coarse-weight sweep (default/2/2.5/3 on nine pins
+# + both rim directions, budget 100 s): 2026-10-17-coarse-weight-sweep.jsonl
+# from knobs/coarse_w_sweep.sh -- weight is a speed knob with a 1-5 % jump
+# tax on the 20-65k ly pins and non-monotone on crossings (2.5 loses Jongou
+# XM-W that 2.0 finds in 13 s); both rim directions fail at every weight in
+# 100 s on the PC. Design: superpowers/specs/2026-10-17-planner-unification-design.md.
 where,case,from,to,budget_s,outcome,wall_s,jumps,boosted,injections,refuels,total_ly,note
-spansh,exact plotter 60 s,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,60,route,61,453,251,22,19,114668,optimistic algo; closest approach to Sgr A* 13277 ly; plain runs >4 jumps: 16 (max 24)
+reference,exact plotter 60 s,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,60,route,61,453,251,22,19,114668,optimistic algo; closest approach to Sgr A* 13277 ly; plain runs >4 jumps: 16 (max 24)
 prod,no injection (canary body range 72.06),Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,100,422 island,0.6,,,,,,nearest 80.3 ly beyond reach 72.06
 prod,no injection,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,100,422 island,0.6,,,,,,nearest 82.7 ly
 prod,app (Caspian + injections),Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,100,504 budget no_first_route,100.5,,,,,,13:55:41Z and 14:00:12Z in the boss's app log
@@ -48,5 +56,11 @@ pc,half 2,Leamuae YV-T d4-2760,Sphiesi HX-L d7-0,100,no route,100,,,,,,45406 ly;
 pc,neutron ends,Byiae Aick ON-B d13-0,Hypoe Groa NN-Q d6-0,100,route,103,626,,0,31,101751,82565 ly; first found 768 j at 73.2 s; single w1.5 r0.75 b0.5 752 j at 94.9 s; 10/14 variants
 pc,reverse,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,100,no route,100,,,,,,stalled 40.2-40.4k ly out; bidi: no meet after 2 expansions
 probe,neutron cells within 375 ly of the straight line per 5% band,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,,,,"bands 25-80%: 100-123 cells, 258-7189 neutrons; 85%: 49 cells; 90-95%: 7-9 cells"
-probe,same along Spansh's detour leg 1,Ood Fleau ZJ-I d9-0,Blaa Eaec HR-D d12-232,,,,,,,,,"bands 10-15%: 0 cells; 25-65%: 13-41 cells at 1.0-3.5 neutrons/cell"
-probe,same along Spansh's detour leg 2,Blaa Eaec HR-D d12-232,Sphiesi HX-L d7-0,,,,,,,,,"bands 50-95%: 1-13 cells, 1.0-1.8 neutrons/cell"
+probe,same along the external reference's detour leg 1,Ood Fleau ZJ-I d9-0,Blaa Eaec HR-D d12-232,,,,,,,,,"bands 10-15%: 0 cells; 25-65%: 13-41 cells at 1.0-3.5 neutrons/cell"
+probe,same along the external reference's detour leg 2,Blaa Eaec HR-D d12-232,Sphiesi HX-L d7-0,,,,,,,,,"bands 50-95%: 1-13 cells, 1.0-1.8 neutrons/cell"
+pc,fail-fast at 20 reaches (ED_STALL_HANDOFF_REACHES) + bidi sentinel widen,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,100,no route,100,,,,,,12 singles fail fast in ~10 s; bidi no longer dies but floods the core (open 840k; 3 ms/expansion) and the wave cannot end; NEGATIVE as a default
+pc,fail-fast at 20 reaches,Jongou AA-A d0,Byoi Fraae AT-U d2-1,100,no route,100,,,,,,shipped code plots it (2026-10-12: 387 j); the 44k-ly hand-off to a neutron IS finishable (60-85 s); fail-fast default OFF
+pc,ED_COARSE_W=3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,300,route,115,415,231,6,18,104765,first found 111 s; coarse to 5303 ly out at 32-39 s; the stall hand-off leg (5303 ly) 1.13M expansions / 68 s computed 6x; beats the external reference 453 j / 114668 ly
+pc,ED_COARSE_W=3 + gateway inserted on stall,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,120,no route,120,,,,,,hand-off to the gateway finishes (540-630 plain jumps in 57-84 s) but arrives at 0 t and Hypoe Groa -> Sphiesi then fails NoRoute; NEGATIVE; reverted
+pc,standalone final approach,Hypoe Groa NN-Q d6-0,Sphiesi HX-L d7-0,120,route,0.8,18,,,0,1613,8591 expansions; the reverse direction 282 expansions / 0.1 s
+box,facts (root 2026-10-17),,,,,,,,,,,"edda-api-server: AMD EPYC Genoa 8 vCPU 2.0 GHz, 15 GB RAM (14 GB page cache), load 0.23 idle, ed-api RSS 2.0 GB / 21 threads, no CPU quota; planner pool 6, long lane 2 threads per plot"

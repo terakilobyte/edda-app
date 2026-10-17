@@ -142,12 +142,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   HX-L d7-0** (the boss, 2026-10-17: "the longest possible route in the
   game that I know of"; `docs/benches/2026-10-17-rim-to-rim-stress.csv`).
   84,599 ly straight, both ends F stars 80-83 ly from their nearest
-  neighbour, so a premium injection opens each end. Spansh's exact plotter
+  neighbour, so a premium injection opens each end. the external reference plotter
   answers in 61 s: 453 jumps, 251 boosted, 22 injections, 114,668 ly flown,
   never nearer than 13,277 ly to Sgr A*. Prod answers "budget /
   no_first_route" at 100.7 s (three times in the app, once replayed by hand
   with the Caspian's fuel model and premium 22), and the PC cannot plot it
-  in 600 s on 24 threads -- structure, not the box's two cores. Measured
+  in 600 s on 24 threads -- structure, not the box's cores (8 vCPU / 15 GB,
+  read as root the same day; each long plot gets 2 planner threads by lane
+  configuration). Measured
   where the time goes: every portfolio variant's coarse neutron search hits
   its 30,000-expansion cap 43-45k ly short of Sphiesi, about at the core,
   and hands the remainder to the exact planner as one 45,000 ly leg, which
@@ -161,7 +163,7 @@ verdicts live in the CSV headers under `docs/benches/`.
   at 73 s, 626 jumps served at 100.1 s. The bidirectional variant dies
   after 2 expansions whenever an end needs an injection ("no meet, 1 node
   each side"). The neutron sub-index is dense on the straight line (100-123
-  occupied cells per 4,230 ly band, 65 neutrons/cell at the core); Spansh's
+  occupied cells per 4,230 ly band, 65 neutrons/cell at the core); the external reference's
   detour is the sparser corridor, carried by 16 plain runs longer than the
   coarse graph's 4-jump mid-route bridge (max 24). Open questions, in the
   order to measure them: (1) why the forward coarse search crosses from a
@@ -170,7 +172,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   planner can take (instead of exact-planning 45k ly) lets the x4/x16 waves
   cross; (3) bidi seeding from the gateway neutrons at injection ends.
   Harness: `docs/benches/knobs/stress_route.sh` (prod), `stress_pc.sh` and
-  `stress_halves.sh` (PC, full index, per-leg debug).
+  `stress_halves.sh` (PC, full index, per-leg debug). **Design (same
+  day, five read-only audits + the weight sweep):**
+  `docs/superpowers/specs/2026-10-17-planner-unification-design.md` -- one
+  pilot-seconds currency in judge and search, one anytime search over a
+  highway graph that can express long plain corridors, fuel out of the
+  coarse state, the server running the cheapest variant first; rungs R0-R4
+  each gated by the matrix under one judge. The maintainer's ruling: "the
+  fastest router for any route, period".
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

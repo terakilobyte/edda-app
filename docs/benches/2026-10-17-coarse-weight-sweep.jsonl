@@ -1,0 +1,44 @@
+{"from": "Sol", "to": "Colonia", "arm": "default", "wall_s": 1.0, "first_found_ms": 78, "jumps": 58, "stops": 3, "injections": null, "total_ly": 23204, "elapsed_ms": 762, "variants_finished": 13}
+{"from": "Sol", "to": "Colonia", "arm": "2.0", "wall_s": 0.7, "first_found_ms": 65, "jumps": 58, "stops": 3, "injections": null, "total_ly": 23081, "elapsed_ms": 498, "variants_finished": 17}
+{"from": "Sol", "to": "Colonia", "arm": "2.5", "wall_s": 0.6, "first_found_ms": 113, "jumps": 58, "stops": 3, "injections": null, "total_ly": 23180, "elapsed_ms": 411, "variants_finished": 16}
+{"from": "Sol", "to": "Colonia", "arm": "3.0", "wall_s": 0.6, "first_found_ms": 90, "jumps": 58, "stops": 3, "injections": null, "total_ly": 23146, "elapsed_ms": 424, "variants_finished": 9}
+{"from": "Sol", "to": "Beagle Point", "arm": "default", "wall_s": 17.9, "first_found_ms": 275, "jumps": 191, "stops": 10, "injections": null, "total_ly": 71182, "elapsed_ms": 17457, "variants_finished": 32}
+{"from": "Sol", "to": "Beagle Point", "arm": "2.0", "wall_s": 10.0, "first_found_ms": 212, "jumps": 193, "stops": 10, "injections": null, "total_ly": 71419, "elapsed_ms": 9587, "variants_finished": 34}
+{"from": "Sol", "to": "Beagle Point", "arm": "2.5", "wall_s": 0.7, "first_found_ms": 215, "jumps": 202, "stops": 10, "injections": null, "total_ly": 71788, "elapsed_ms": 337, "variants_finished": 17}
+{"from": "Sol", "to": "Beagle Point", "arm": "3.0", "wall_s": 0.4, "first_found_ms": 122, "jumps": 198, "stops": 10, "injections": null, "total_ly": 71269, "elapsed_ms": 265, "variants_finished": 12}
+{"from": "Wongi", "to": "Colonia", "arm": "default", "wall_s": 1.3, "first_found_ms": 71, "jumps": 58, "stops": 2, "injections": null, "total_ly": 23060, "elapsed_ms": 1074, "variants_finished": 14}
+{"from": "Wongi", "to": "Colonia", "arm": "2.0", "wall_s": 0.8, "first_found_ms": 78, "jumps": 58, "stops": 2, "injections": null, "total_ly": 23060, "elapsed_ms": 584, "variants_finished": 17}
+{"from": "Wongi", "to": "Colonia", "arm": "2.5", "wall_s": 0.7, "first_found_ms": 108, "jumps": 58, "stops": 2, "injections": null, "total_ly": 23060, "elapsed_ms": 519, "variants_finished": 16}
+{"from": "Wongi", "to": "Colonia", "arm": "3.0", "wall_s": 0.7, "first_found_ms": 87, "jumps": 58, "stops": 2, "injections": null, "total_ly": 23060, "elapsed_ms": 545, "variants_finished": 9}
+{"from": "Wongi", "to": "Beagle Point", "arm": "default", "wall_s": 18.2, "first_found_ms": 254, "jumps": 191, "stops": 10, "injections": null, "total_ly": 71190, "elapsed_ms": 17685, "variants_finished": 34}
+{"from": "Wongi", "to": "Beagle Point", "arm": "2.0", "wall_s": 9.8, "first_found_ms": 262, "jumps": 193, "stops": 10, "injections": null, "total_ly": 71427, "elapsed_ms": 9395, "variants_finished": 34}
+{"from": "Wongi", "to": "Beagle Point", "arm": "2.5", "wall_s": 0.7, "first_found_ms": 184, "jumps": 202, "stops": 10, "injections": null, "total_ly": 71797, "elapsed_ms": 325, "variants_finished": 17}
+{"from": "Wongi", "to": "Beagle Point", "arm": "3.0", "wall_s": 0.5, "first_found_ms": 179, "jumps": 198, "stops": 10, "injections": null, "total_ly": 71277, "elapsed_ms": 331, "variants_finished": 12}
+{"from": "Sol", "to": "Sagittarius A*", "arm": "default", "wall_s": 0.9, "first_found_ms": 125, "jumps": 70, "stops": 3, "injections": null, "total_ly": 27438, "elapsed_ms": 649, "variants_finished": 13}
+{"from": "Sol", "to": "Sagittarius A*", "arm": "2.0", "wall_s": 0.5, "first_found_ms": 118, "jumps": 70, "stops": 3, "injections": null, "total_ly": 27410, "elapsed_ms": 271, "variants_finished": 17}
+{"from": "Sol", "to": "Sagittarius A*", "arm": "2.5", "wall_s": 0.5, "first_found_ms": 161, "jumps": 71, "stops": 3, "injections": null, "total_ly": 27577, "elapsed_ms": 281, "variants_finished": 17}
+{"from": "Sol", "to": "Sagittarius A*", "arm": "3.0", "wall_s": 0.6, "first_found_ms": 79, "jumps": 70, "stops": 3, "injections": null, "total_ly": 27774, "elapsed_ms": 330, "variants_finished": 17}
+{"from": "Colonia", "to": "Spase AA-A a108-0", "arm": "default", "wall_s": 54.0, "first_found_ms": 1427, "jumps": 91, "stops": 4, "injections": null, "total_ly": 33177, "elapsed_ms": 50875, "variants_finished": 11}
+{"from": "Colonia", "to": "Spase AA-A a108-0", "arm": "2.0", "wall_s": 47.2, "first_found_ms": 1258, "jumps": 91, "stops": 4, "injections": null, "total_ly": 33177, "elapsed_ms": 44045, "variants_finished": 10}
+{"from": "Colonia", "to": "Spase AA-A a108-0", "arm": "2.5", "wall_s": 43.2, "first_found_ms": 1530, "jumps": 91, "stops": 4, "injections": null, "total_ly": 33177, "elapsed_ms": 40094, "variants_finished": 8}
+{"from": "Colonia", "to": "Spase AA-A a108-0", "arm": "3.0", "wall_s": 22.6, "first_found_ms": 1556, "jumps": 91, "stops": 4, "injections": null, "total_ly": 33177, "elapsed_ms": 19453, "variants_finished": 7}
+{"from": "Wongi", "to": "Spase AA-A a108-0", "arm": "default", "wall_s": 0.5, "first_found_ms": 69, "jumps": 101, "stops": 6, "injections": null, "total_ly": 40736, "elapsed_ms": 147, "variants_finished": 17}
+{"from": "Wongi", "to": "Spase AA-A a108-0", "arm": "2.0", "wall_s": 0.5, "first_found_ms": 76, "jumps": 101, "stops": 6, "injections": null, "total_ly": 40736, "elapsed_ms": 154, "variants_finished": 17}
+{"from": "Wongi", "to": "Spase AA-A a108-0", "arm": "2.5", "wall_s": 0.5, "first_found_ms": 74, "jumps": 101, "stops": 6, "injections": null, "total_ly": 40736, "elapsed_ms": 153, "variants_finished": 17}
+{"from": "Wongi", "to": "Spase AA-A a108-0", "arm": "3.0", "wall_s": 0.5, "first_found_ms": 81, "jumps": 104, "stops": 5, "injections": null, "total_ly": 40801, "elapsed_ms": 149, "variants_finished": 17}
+{"from": "Jongou XM-W d1-0", "to": "Byoi Fraae CQ-G d10-0", "arm": "default", "wall_s": 101.2, "first_found_ms": 2791, "jumps": 401, "stops": 17, "injections": null, "total_ly": 112994, "elapsed_ms": 100051, "variants_finished": 3}
+{"from": "Jongou XM-W d1-0", "to": "Byoi Fraae CQ-G d10-0", "arm": "2.0", "wall_s": 13.1, "first_found_ms": 6841, "jumps": 399, "stops": 17, "injections": null, "total_ly": 112265, "elapsed_ms": 11916, "variants_finished": 14}
+{"from":"Jongou XM-W d1-0","to":"Byoi Fraae CQ-G d10-0","arm":"2.5","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from": "Jongou XM-W d1-0", "to": "Byoi Fraae CQ-G d10-0", "arm": "3.0", "wall_s": 48.4, "first_found_ms": 43663, "jumps": 434, "stops": 18, "injections": null, "total_ly": 115556, "elapsed_ms": 48275, "variants_finished": 14}
+{"from":"Jongou AA-A d0","to":"Byoi Fraae AT-U d2-1","arm":"default","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Jongou AA-A d0","to":"Byoi Fraae AT-U d2-1","arm":"2.0","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Jongou AA-A d0","to":"Byoi Fraae AT-U d2-1","arm":"2.5","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from": "Jongou AA-A d0", "to": "Byoi Fraae AT-U d2-1", "arm": "3.0", "wall_s": 42.1, "first_found_ms": 37425, "jumps": 406, "stops": 17, "injections": null, "total_ly": 113940, "elapsed_ms": 41916, "variants_finished": 14}
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0","arm":"default","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0","arm":"2.0","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0","arm":"2.5","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0","arm":"3.0","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Sphiesi HX-L d7-0","to":"Ood Fleau ZJ-I d9-0","arm":"default","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Sphiesi HX-L d7-0","to":"Ood Fleau ZJ-I d9-0","arm":"2.0","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Sphiesi HX-L d7-0","to":"Ood Fleau ZJ-I d9-0","arm":"2.5","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
+{"from":"Sphiesi HX-L d7-0","to":"Ood Fleau ZJ-I d9-0","arm":"3.0","wall_s":100.2,"error":"Error: Sorry, no route found within the search limit."}
