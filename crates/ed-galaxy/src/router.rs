@@ -344,6 +344,67 @@ pub struct VariantOutcome {
     pub stall_remaining_ly: f32,
 }
 
+/// One refined leg's identity within a plot (planner unification R1,
+/// 2026-10-17): endpoints, the tank at departure in 1/32 of capacity, and
+/// the injections still allowed. Everything else a leg depends on (ship,
+/// boost, weight, injection grade) is fixed for the plot the memo serves.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LegKey {
+    pub from: u32,
+    pub to: u32,
+    pub fuel_bucket: u8,
+    pub inj_left: u32,
+}
+
+impl LegKey {
+    pub fn new(from: u32, to: u32, fuel: f32, capacity: f32, inj_left: u32) -> LegKey {
+        // Nearest of 33 levels (0 = dry, 32 = full): a tank within 2 t of
+        // a level shares its legs; floor would put 127 t and 128 t in
+        // different legs for no reason.
+        let bucket = if capacity > 0.0 { ((fuel / capacity) * 32.0).round().clamp(0.0, 32.0) as u8 } else { 0 };
+        LegKey { from, to, fuel_bucket: bucket, inj_left }
+    }
+}
+
+/// Legs planned once per plot and reused by every variant that asks for
+/// the same leg from the same tank bucket: on the rim-to-rim stress route
+/// six variants each spent 68 s on one identical hand-off leg
+/// (2026-10-17). `for_plot()` remembers; the shared [`NO_LEG_MEMO`] never
+/// does, so a `Control::none()` cannot leak legs between plots of
+/// different ships.
+pub struct LegMemo {
+    remembers: bool,
+    legs: std::sync::Mutex<Option<rustc_hash::FxHashMap<LegKey, Result<Route, RouteError>>>>,
+}
+
+/// The memo that remembers nothing: for `Control::none()`.
+pub static NO_LEG_MEMO: LegMemo = LegMemo { remembers: false, legs: std::sync::Mutex::new(None) };
+
+impl LegMemo {
+    pub fn for_plot() -> LegMemo {
+        LegMemo { remembers: true, legs: std::sync::Mutex::new(Some(rustc_hash::FxHashMap::default())) }
+    }
+    pub fn get(&self, key: &LegKey) -> Option<Result<Route, RouteError>> {
+        if !self.remembers {
+            return None;
+        }
+        let legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
+        legs.as_ref().and_then(|m| m.get(key)).map(|r| match r {
+            Ok(route) => Ok(route.clone()),
+            Err(e) => Err(e.clone_err()),
+        })
+    }
+    pub fn put(&self, key: LegKey, leg: Result<Route, RouteError>) {
+        if !self.remembers {
+            return;
+        }
+        let mut legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(m) = legs.as_mut() {
+            m.insert(key, leg);
+        }
+    }
+}
+
 /// Cooperative hooks: cancel check and `(expansions, best_remaining_ly)`.
 pub struct Control<'a> {
     pub cancelled: &'a (dyn Fn() -> bool + Sync),
@@ -360,11 +421,13 @@ pub struct Control<'a> {
     pub trace: &'a (dyn Fn(&'static str, [f32; 3], f32) + Sync),
     /// One portfolio variant finished (route or not); see [`VariantOutcome`].
     pub variant: &'a (dyn Fn(VariantOutcome) + Sync),
+    /// Legs already refined in this plot; see [`LegMemo`].
+    pub legs: &'a LegMemo,
 }
 
 impl Control<'_> {
     pub fn none() -> Control<'static> {
-        Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {}, variant: &|_| {} }
+        Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, trace: &|_, _, _| {}, variant: &|_| {}, legs: &NO_LEG_MEMO }
     }
 }
 
@@ -373,6 +436,16 @@ pub enum RouteError {
     Cancelled,
     NoRoute,
     Budget,
+}
+
+impl RouteError {
+    pub fn clone_err(&self) -> RouteError {
+        match self {
+            RouteError::Cancelled => RouteError::Cancelled,
+            RouteError::NoRoute => RouteError::NoRoute,
+            RouteError::Budget => RouteError::Budget,
+        }
+    }
 }
 
 impl std::fmt::Display for RouteError {
@@ -941,7 +1014,7 @@ mod tests {
     fn cancellation_is_honoured() {
         let (_d, g) = galaxy();
         let req = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S10").unwrap(), range_ly: 25.0, ..Default::default() };
-        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &|_, _, _| {} };
+        let ctl = Control { cancelled: &|| true, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &NO_LEG_MEMO, variant: &|_| {}, trace: &|_, _, _| {} };
         // Tiny graph: may finish before the first cancel check; either way it must not panic.
         let _ = plan(&g, &req, &ctl);
     }

@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     // by thread so the winning variant's trace can be picked out afterwards.
     let events: Mutex<Vec<(std::thread::ThreadId, &'static str, [f32; 3], f32)>> = Mutex::new(Vec::new());
     let trace = |phase: &'static str, pos: [f32; 3], v: f32| events.lock().unwrap().push((std::thread::current().id(), phase, pos, v));
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, variant: &|_| {}, trace: &trace };
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &|_| {}, trace: &trace };
     let route = plan_long(&g, &neutrons, &req, &ctl)?;
     eprintln!("{} jumps, {:.0} ly, {} boosted, {} refuels, {} ms", route.jumps, route.total_ly, route.boosted_jumps, route.refuel_stops, route.elapsed_ms);
     let all = events.into_inner().unwrap();

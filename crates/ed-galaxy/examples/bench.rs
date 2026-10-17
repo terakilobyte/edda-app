@@ -131,7 +131,7 @@ fn main() -> anyhow::Result<()> {
     let trace_census = |phase: &'static str, pos: [f32; 3], _: f32| census.lock().unwrap().push((phase, pos));
     let trace_off = |_: &'static str, _: [f32; 3], _: f32| {};
     let trace: &(dyn Fn(&'static str, [f32; 3], f32) + Sync) = if census_path.is_some() { &trace_census } else { &trace_off };
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &stage, found: &found, variant: &|_| {}, trace };
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &stage, found: &found, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &|_| {}, trace };
     let started = std::time::Instant::now();
     let r = if exact { plan(&g, &req, &ctl)? } else { plan_best(&g, Some(&neutrons), &req, &ctl)? };
     if let Some(path) = &census_path {
