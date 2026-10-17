@@ -39,6 +39,16 @@ const MAX_GOAL_BRIDGE_JUMPS: u32 = 12;
 /// Weighted A* for refinement legs (a few hundred ly), the Spansh trade.
 const LEG_WEIGHT: f32 = 1.3;
 
+/// A coarse search that settles for its closest neutron hands the rest to
+/// the exact planner only within this many boosted reaches of the goal;
+/// further out the variant fails fast so the next wave runs. Measured on
+/// 2026-10-17 (rim-to-rim stress route): at 20 reaches the waves it freed
+/// did not cross either, and it cost Jongou AA-A d0 -> Byoi Fraae AT-U d2-1
+/// its route (a 44,000 ly hand-off to a NEUTRON is a leg the exact planner
+/// finishes in 60-85 s). Default off; `ED_STALL_HANDOFF_REACHES` for the
+/// harness.
+const STALL_HANDOFF_REACHES: f32 = f32::INFINITY;
+
 /// Fuel quantisation for coarse states: about 4 t per level, so a 128 t
 /// tank gets 32 levels and a 32 t tank 8 -- one level per level of tank
 /// would multiply a small ship's states by four for nothing.
@@ -1852,6 +1862,10 @@ pub(crate) fn alt_line_is_nonuniform(
 /// job already). The fuel-aware single-direction variants stay in the
 /// portfolio beside this one; the tie-break keeps whichever is better.
 fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, cap_mult: u64, greedy: bool, lean_scan: bool, fields: [Option<&crate::cgraph::GoalField>; 2]) -> Result<Route, RouteError> {
+    // The harness weight override reaches bidi too (2026-10-17: the three
+    // bidi variants ran at 1.5 inside every ED_COARSE_W=3 A/B and flooded
+    // the core while the singles crossed).
+    let coarse_weight: f32 = std::env::var("ED_COARSE_W").ok().and_then(|v| v.parse().ok()).unwrap_or(coarse_weight);
 
     use crate::alt::ordered::F32;
     let started = std::time::Instant::now();
@@ -1998,6 +2012,12 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             if req.max_expansions > 0 && expansions > req.max_expansions {
                 return Err(RouteError::Budget);
             }
+        }
+        if expansions > 0 && expansions.is_multiple_of(2_000) && std::env::var_os("ED_PLOT_DEBUG").is_some() {
+            eprintln!(
+                "    bidi x{cap_mult} progress: {expansions} exps at {} ms; fwd {} exps within {:.0} ly of goal (open {}), bwd {} exps within {:.0} ly of start (open {})",
+                started.elapsed().as_millis(), exps[0], best_rem[0], open[0].len(), exps[1], best_rem[1], open[1].len()
+            );
         }
         // Expand whichever frontier's head is more promising -- but never
         // let one side starve: measured on Wongi -> Beagle, the pure
@@ -2241,10 +2261,19 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 }
             }
         }
-        if pushed == 0 && !sentinel {
+        if pushed == 0 {
             // Mirror of the single-direction widen: nothing pushable in
-            // the highway's reach, rescan a longer ordinary run.
-            let far = scan + full_range * (MAX_BRIDGE_JUMPS * 3) as f32;
+            // the highway's reach, rescan a longer ordinary run. At a
+            // sentinel the run is the END allowance, as the single search
+            // grants its first edge: the rim-to-rim stress route
+            // (2026-10-17, Ood Fleau -> Sphiesi) has its nearest neutron
+            // 1,498 ly from the start and 1,138 ly from the goal, and
+            // with the sentinels excluded here bidi died after one
+            // expansion per side ("no meet after 2 expansions") on the
+            // one crossing only it can solve. The scan stays cheap: it
+            // runs only when the short scan pushed nothing.
+            let far = if sentinel { full_range * depart_boost + full_range * MAX_END_BRIDGE_JUMPS as f32 } else { scan + full_range * (MAX_BRIDGE_JUMPS * 3) as f32 };
+            let widen_bridges = if sentinel { MAX_END_BRIDGE_JUMPS } else { MAX_BRIDGE_JUMPS * 6 };
             cands.clear();
             neutrons.for_each_within_toward(here, far, toward, |n_idx, d| {
                 if n_idx == cur || d <= scan || !highway_ok(n_idx) {
@@ -2254,9 +2283,9 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             });
             let mut widened = 0usize;
             for &(_, n_idx, n_pos, d) in cands.iter() {
-                widened += relax(n_idx, n_pos, d, &mut best_g, &mut parent, &mut open, &mut cell_nodes, MAX_BRIDGE_JUMPS * 6, &mut meet, &mut meet_seen_at, expansions, None) as usize;
+                widened += relax(n_idx, n_pos, d, &mut best_g, &mut parent, &mut open, &mut cell_nodes, widen_bridges, &mut meet, &mut meet_seen_at, expansions, None) as usize;
             }
-            if widened == 0 && cur != START && cur != GOAL {
+            if widened == 0 {
                 // 5.3-v2, the desert widen: even the widened scan found
                 // nothing -- this frontier stands at a highway void
                 // wider than any bridge allowance. Keep doubling the
@@ -3282,7 +3311,27 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     let mut waypoints: Vec<(u32, f32)> = chain.iter().filter_map(|&s| full_idx(s).map(|i| (i, fuel_of(s)))).collect();
     let stalled = goal_key != Some(key(GOAL, 0.0)) && (gk >> 8) as u32 != GOAL;
     if stalled {
-        // The chain ends at the closest neutron reached; the rest is exact.
+        // The chain ends at the closest neutron reached; the rest is exact
+        // -- when the rest is a leg the exact planner can take. A stall
+        // tens of thousands of ly out is not that: on the rim-to-rim
+        // stress route (2026-10-17) every variant capped out 45,000 ly
+        // short, the exact planner was handed 45,000 ly, never returned,
+        // and the x4 wave that exists for stalls never started (no route
+        // in 600 s on 24 threads). Past this many boosted reaches the
+        // variant fails fast instead, so the wave ends and the next one
+        // gets the allowance. ED_STALL_HANDOFF_REACHES tunes it.
+        let end = waypoints.last().map(|w| w.0).unwrap_or(req.from);
+        let remaining = dist(g.pos_of(end), true_goal_pos);
+        let handoff_reaches: f32 = std::env::var("ED_STALL_HANDOFF_REACHES").ok().and_then(|v| v.parse().ok()).unwrap_or(STALL_HANDOFF_REACHES);
+        if remaining > full_range * neutron_boost * handoff_reaches {
+            if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                eprintln!("    coarse stall {remaining:.0} ly out exceeds the exact hand-off ({handoff_reaches} reaches): variant fails fast");
+            }
+            return Err(RouteError::NoRoute);
+        }
+        // (Inserting the gateway neutron here was measured negative on
+        // 2026-10-17: the long hand-off leg arrives dry and the approach
+        // leg then fails from 0 t -- `docs/benches/2026-10-17-rim-to-rim-stress.csv`.)
         waypoints.push((req.to, 0.0));
     } else if gateway.is_some() {
         // Final approach: gateway -> destination, planned like any other leg
@@ -3355,12 +3404,18 @@ pub fn refine_waypoints(
     for (i, r) in plan_legs(&windows.iter().enumerate().map(|(i, _)| (i, assumed[i])).collect::<Vec<_>>()) {
         planned[i] = Some(r?);
     }
+    if debug {
+        eprintln!("    refine: {legs} legs planned at {} ms", started.elapsed().as_millis());
+    }
     // Fly the chain with real fuel. A leg planned from a tank estimate more
     // than a few tonnes off the truth (or that is no longer feasible) is
     // re-planned from the real figure, all such legs at once; a couple of
     // rounds settle it.
     if let Some(m) = fuel_model {
-        for _round in 0..8 {
+        for round in 0..8 {
+            if debug {
+                eprintln!("    refine: settle round {round} at {} ms", started.elapsed().as_millis());
+            }
             let mut f = start_fuel;
             let mut redo: Vec<(usize, f32)> = Vec::new();
             for i in 0..windows.len() {
@@ -3380,7 +3435,7 @@ pub fn refine_waypoints(
                 break;
             }
             if debug {
-                eprintln!("    fuel round {_round}: {} legs re-planned at {} ms", redo.len(), started.elapsed().as_millis());
+                eprintln!("    fuel round {round}: {} legs re-planned at {} ms", redo.len(), started.elapsed().as_millis());
             }
             for (i, r) in plan_legs(&redo) {
                 match r {
@@ -3399,6 +3454,9 @@ pub fn refine_waypoints(
         }
         // Final pass: consistent fuel figures along the whole route; a leg
         // that still does not fly is re-planned in order from the real tank.
+        if debug {
+            eprintln!("    refine: final pass at {} ms", started.elapsed().as_millis());
+        }
         let mut f = start_fuel;
         let mut prev_start = start_fuel;
         // Every leg was planned with the whole injection allowance; along
@@ -3418,6 +3476,9 @@ pub fn refine_waypoints(
             }
             inj_left = inj_left.saturating_sub(leg.hops.iter().filter(|h| h.injection.is_some()).count() as u32);
             if !refuel_hops(g, &m, req, leg, f) {
+                if debug {
+                    eprintln!("    refine: final pass re-plans leg {i} ({} -> {}, {:.0} ly, fuel {f:.0}) at {} ms", g.name(&g.record(windows[i][0].0)), g.name(&g.record(windows[i][1].0)), dist(g.pos_of(windows[i][0].0), g.pos_of(windows[i][1].0)), started.elapsed().as_millis());
+                }
                 let fresh = match refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, f) {
                     Ok(l) => l,
                     Err(_) if i > 0 && planned[i - 1].is_some() => {
@@ -3461,6 +3522,9 @@ pub fn refine_waypoints(
             }
             prev_start = leg_start;
         }
+    }
+    if debug {
+        eprintln!("    refine: stitch at {} ms", started.elapsed().as_millis());
     }
     let mut route: Option<Route> = None;
     let mut total_expansions = coarse_expansions;
