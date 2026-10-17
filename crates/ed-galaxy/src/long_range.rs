@@ -3939,6 +3939,75 @@ mod tests {
         );
     }
 
+    /// R2 (2026-10-17), one currency: the judge prices a plain jump at 53 s
+    /// and a boosted hop at 73 s, so a route with fewer jumps but many more
+    /// supercharged hops can lose: 10 plain + 10 boosted (1,260 s) beats
+    /// 4 plain + 15 boosted (1,307 s) although the second is a jump shorter.
+    #[test]
+    fn the_judge_prices_a_boosted_hop_above_a_plain_one() {
+        let req = RouteRequest { stop_weight: 1.0, ..Default::default() };
+        let a = synthetic_route(10, 10, &[]);
+        let b = synthetic_route(4, 15, &[]);
+        assert!(a.jumps > b.jumps);
+        let (sa, sb) = (route_score_public(&a, &req), route_score_public(&b, &req));
+        assert!(sa < sb, "fewer jumps is not fewer seconds: {sa} vs {sb} deciseconds");
+        assert_eq!(sa, 12_600, "deciseconds: 10 x 53 + 10 x 73");
+    }
+
+    /// A full stop costs its 120 s approach plus the tonnes over the scoop
+    /// rate (124.5 t at the Caspian's 1.245 t/s is 100 s), fitted or not.
+    #[test]
+    fn a_full_stop_costs_the_overhead_plus_the_tonnes() {
+        let mut m = FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        m.scoop_rate = 1.245;
+        let req = RouteRequest { stop_weight: 1.0, fuel: Some(m), ..Default::default() };
+        let dry = synthetic_route(10, 0, &[]);
+        let full = synthetic_route(10, 0, &[(5, 124.5, true)]);
+        let diff = route_score_public(&full, &req) as i64 - route_score_public(&dry, &req) as i64;
+        assert!((diff - 2_200).abs() <= 1, "deciseconds: 120 s + 100 s, got {diff}");
+    }
+
+    /// A top-up in passing (the tank rose at a star the plan did not mark
+    /// as a stop) costs 6 s plus its tonnes, not a stop's 120 s.
+    #[test]
+    fn a_passing_scoop_costs_six_seconds_plus_its_tonnes() {
+        let mut m = FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        m.scoop_rate = 1.245;
+        let req = RouteRequest { stop_weight: 1.0, fuel: Some(m), ..Default::default() };
+        let dry = synthetic_route(10, 0, &[]);
+        let sip = synthetic_route(10, 0, &[(5, 12.45, false)]);
+        let diff = route_score_public(&sip, &req) as i64 - route_score_public(&dry, &req) as i64;
+        assert!((diff - 160).abs() <= 1, "deciseconds: 6 s + 10 s, got {diff}");
+    }
+
+    /// `plain` plain hops then `boosted` boosted ones from the origin, with a
+    /// fuel ledger that starts full, burns 5 t a hop and, at each `(hop,
+    /// tonnes, stop)` in `scoops`, rises by `tonnes` (a marked stop when
+    /// `stop`). The judge reads only the fields the real planner fills.
+    fn synthetic_route(plain: usize, boosted: usize, scoops: &[(usize, f32, bool)]) -> Route {
+        let mut hops = Vec::new();
+        let mut fuel = 128.0f32;
+        for i in 0..=(plain + boosted) {
+            let scoop = scoops.iter().find(|s| s.0 == i);
+            if i > 0 {
+                fuel -= 5.0;
+            }
+            if let Some(&(_, t, _)) = scoop {
+                fuel += t;
+            }
+            hops.push(crate::router::Hop {
+                idx: i as u32, id64: i as u64, name: format!("S{i}"), pos: [i as f32 * 50.0, 0.0, 0.0], class: StarClass::K, scoopable: scoop.is_some(),
+                distance_ly: if i == 0 { 0.0 } else { 50.0 }, boosted: i > plain, total_ly: i as f32 * 50.0, fuel_after: Some(fuel),
+                refuel: scoop.is_some_and(|s| s.2), synthesized: false, fuel_optional: false, injection: None, via_secondary: None,
+            });
+        }
+        Route {
+            range_ly: 72.0, jumps: plain + boosted, total_ly: (plain + boosted) as f32 * 50.0, straight_ly: 0.0, boosted_jumps: boosted, expansions: 0, elapsed_ms: 0,
+            refuel_stops: scoops.iter().filter(|s| s.2).count(), injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0,
+            ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None, highway_pending: false, hops,
+        }
+    }
+
     /// Item 29 rank-agreement study: ED_JUDGE=fuel judges on
     /// replenished tonnes alone. The crafted pair pins the exact
     /// disagreement the study exists to measure: the seconds model

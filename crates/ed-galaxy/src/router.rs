@@ -1237,4 +1237,36 @@ mod tests {
         let last_tank = route.hops[n - 2].fuel_after.unwrap();
         assert!(last_tank > 0.0 && last_tank < m.max_fuel_per_jump, "the run ends thin, not dry: {last_tank:.1} t");
     }
+
+    /// R2 (2026-10-17), one currency: the exact planner prices a boosted
+    /// hop at 73 s against a plain jump's 53, so three white-dwarf hops
+    /// that save one jump (53 + 3 x 73 = 272 s) lose to five plain jumps
+    /// (265 s). Until then every search took the fewer jumps whatever the
+    /// supercharges cost in the chair. From the first white dwarf the
+    /// three hops save two jumps (219 s against 265) and are still taken.
+    #[test]
+    fn the_exact_planner_prefers_plain_jumps_when_the_seconds_say_so() {
+        // Range 26. K stars every 25 ly from 0 to 125: five plain jumps.
+        // White dwarfs at 20, 55 and 90: a plain hop, then three x1.5
+        // supercharged 35 ly hops to the goal -- one jump fewer.
+        let k = "K (Yellow-Orange) Star";
+        let wd = "White Dwarf (DA) Star";
+        let stars = [("Start", 0, k), ("K1", 25, k), ("K2", 50, k), ("K3", 75, k), ("K4", 100, k), ("Goal", 125, k), ("W1", 20, wd), ("W2", 55, wd), ("W3", 90, wd)];
+        let body: Vec<String> = stars
+            .iter()
+            .enumerate()
+            .map(|(i, (name, x, sub))| format!(r#"{{"id64":{},"name":"{name}","coords":{{"x":{x},"y":0,"z":0}},"bodies":[{{"type":"Star","subType":"{sub}","mainStar":true}}]}}"#, i + 1))
+            .collect();
+        let json = format!("[\n{}\n]", body.join(",\n"));
+        let dir = tempfile::tempdir().unwrap();
+        import_reader(Box::new(std::io::Cursor::new(json.into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        let g = Galaxy::open(dir.path()).unwrap();
+        let req = RouteRequest { from: g.find("Start").unwrap(), to: g.find("Goal").unwrap(), range_ly: 26.0, supercharge: true, thorough: true, ..Default::default() };
+        let route = plan(&g, &req, &Control::none()).unwrap();
+        let names: Vec<&str> = route.hops.iter().map(|h| h.name.as_str()).collect();
+        assert_eq!(route.boosted_jumps, 0, "three supercharges to save one jump cost 7 s more: {names:?}");
+        assert_eq!(names, vec!["Start", "K1", "K2", "K3", "K4", "Goal"]);
+        let from_w1 = plan(&g, &RouteRequest { from: g.find("W1").unwrap(), ..req.clone() }, &Control::none()).unwrap();
+        assert_eq!((from_w1.jumps, from_w1.boosted_jumps), (3, 3), "two jumps saved are worth three supercharges");
+    }
 }
