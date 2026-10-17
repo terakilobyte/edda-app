@@ -78,9 +78,11 @@ Full notes:
   another tab it stops rendering, and unchecked it is torn down and the
   memory comes back. Two maps now share one copy of the star field.
 - **Copy the next system on arrival.** For commanders who open the galaxy
-  map and paste by hand: an option in Settings puts the next system's
-  name on the clipboard the moment a jump arrives, and sends nothing to
-  the game. Off by default.
+  map and paste by hand: "Only copy to clipboard" (Settings → Route
+  control, or step 6 of setup) puts the next system's name on the
+  clipboard the moment a jump arrives and sends nothing to the game. It
+  covers following an EDDA route hop by hop; plotting a destination in
+  the game from EDDA still opens the map. Off by default.
 - **Switching away from Kokoro frees its memory.** The helper (uv,
   Python, torch, about 2.8 GB) used to stay resident until EDDA exited;
   it now stops the moment it is no longer the selected engine, and every

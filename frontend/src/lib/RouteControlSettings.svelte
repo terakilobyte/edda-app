@@ -93,7 +93,7 @@
       {#if targetKeys.trigger}<button class="ghost" onclick={clearTrigger}>Forget</button>{/if}
     </li>
   </ul>
-  <label class="small" title="Nothing is sent to the game. On every arrival the next system's name is put on the clipboard; open the galaxy map, paste it into the search, select the target."><input type="checkbox" bind:checked={clipOn} onchange={async (e) => { try { clipOn = await followClipboardSet(e.target.checked); } catch {} }} /> Copy the next system to the clipboard when I arrive (paste it into the galaxy map yourself)</label>
+  <label class="small" title="Nothing is sent to the game. On every arrival the next system's name is put on the clipboard; open the galaxy map, paste it into the search, select the target. Covers following an EDDA route hop by hop; plotting a destination in the game from EDDA still opens the map."><input type="checkbox" bind:checked={clipOn} onchange={async (e) => { try { clipOn = await followClipboardSet(e.target.checked); } catch {} }} /> Copy the next system to the clipboard when I arrive (paste it into the galaxy map yourself)</label>
   <label class="small"><input type="checkbox" bind:checked={macroOn} onchange={(e) => targetMacroEnabledSet(e.target.checked)} /> Enable EDDA routing control</label>
   {#if macroOn}
     <p class="small" style="margin:0.5rem 0 0.3rem">Teach it four places once. Target handles an EDDA route hop; Plot route asks Elite to calculate the full in-game route for nearer destinations.</p>
