@@ -1274,6 +1274,7 @@ mod tests {
     /// supercharges cost in the chair. From the first white dwarf the
     /// three hops save two jumps (219 s against 265) and are still taken.
     #[test]
+    #[ignore = "the exact surcharge is off by default (ED_UNITS_EXACT=1 turns it on; measured with the scoop-stop price: Beagle Point 18 -> 75 s wall, arm r2b-nocoarse); run with the knob set and --ignored"]
     fn the_exact_planner_prefers_plain_jumps_when_the_seconds_say_so() {
         // Range 26. K stars every 25 ly from 0 to 125: five plain jumps.
         // White dwarfs at 20, 55 and 90: a plain hop, then three x1.5
