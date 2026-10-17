@@ -4552,6 +4552,33 @@ mod tests {
         assert_eq!(kept.len(), 4);
     }
 
+    /// R2 (2026-10-17): scoop250.bin, the nearest scoopable star per
+    /// highway star, is optional at run time and built from the full index.
+    #[test]
+    fn a_sub_index_without_the_scoop_file_plans_as_before() {
+        let f = highway();
+        // The sub-index build writes the file; a sub-index from before R2 has none.
+        let _ = std::fs::remove_file(f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE));
+        let sub = Galaxy::open(&f.neutrons.dir).unwrap();
+        assert_eq!(sub.nearest_scoop_ly(0), None, "no file: unknown, the flag path answers");
+        let r = req(&f, "K0", "K3000", 60.0);
+        assert!(plan_best(&f.g, Some(&f.neutrons), &r, &Control::none()).is_ok());
+    }
+
+    #[test]
+    fn nearest_scoop_bytes_measure_the_full_index() {
+        // highway(): K stars every 50 ly on the line, neutrons 10 ly off it
+        // at x = 50 + 230 i: every neutron has a K star within ~10-27 ly.
+        let f = highway();
+        let bytes = crate::import::nearest_scoop_bytes(&f.g, &f.neutrons);
+        assert_eq!(bytes.len(), f.neutrons.count as usize);
+        assert!(bytes.iter().all(|&b| b <= 27), "{bytes:?}");
+        // Written beside the sub-index, the same figures come back by record index.
+        crate::scoop_side::write(&f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE), &bytes).unwrap();
+        let reopened = Galaxy::open(&f.neutrons.dir).unwrap();
+        assert_eq!(reopened.nearest_scoop_ly(0), Some(bytes[0]));
+    }
+
     /// R1 leg memo (2026-10-17): six variants recomputed one 68 s hand-off
     /// leg on the rim-to-rim route. A remembered leg serves a later request
     /// only when the tank at departure is at least what it was planned from
