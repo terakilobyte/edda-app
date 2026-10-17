@@ -570,7 +570,13 @@ impl Gate {
 /// 70 ms alone, took 70 s and 105 s beside a Beagle Point plot with two
 /// cores idle. The gates size admission; these size the work.
 pub const INTERACTIVE_THREADS: usize = 2;
-pub const LONG_THREADS: usize = 4;
+/// 6 since 2026-10-17 (planner unification R1): the box has 8 cores (read
+/// as root that day; the "cores - 2 = 6" above was sized for it), so the
+/// planner pools sum to the cores, 2 + 6, three threads per long plot
+/// instead of two. The portfolio now starts its variants quickest-first
+/// in a head stage of one per thread, so those three are the three most
+/// likely to answer first.
+pub const LONG_THREADS: usize = 6;
 
 /// A rayon pool per lane — and for the long lane, a pool PER SLOT.
 /// `install()` around the plot makes every `par_iter` inside the planner
