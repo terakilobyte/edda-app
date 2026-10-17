@@ -30,6 +30,14 @@ thread_local! {
     /// outcome can carry these without threading them through every
     /// return type (planner unification R0).
     static LAST_COARSE: std::cell::Cell<(u64, f32)> = const { std::cell::Cell::new((0, 0.0)) };
+    /// Widen rescans the last coarse search on this thread fired.
+    static LAST_WIDENS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Widen rescans of the last coarse search on this thread (an instrument;
+/// the R1 widen rule's test and the harness read it).
+pub fn last_coarse_widens() -> u64 {
+    LAST_WIDENS.with(|c| c.get())
 }
 
 /// Ordinary jumps a coarse edge may spend bridging to the next neutron.
@@ -983,6 +991,15 @@ impl GraceClock {
 /// are then told to stop through the cancel check handed to them; `None`
 /// waits for all. Returns every result in variant order and how many
 /// finished with a route.
+/// The coarse widen rule (R1, 2026-10-17): rescan at the long radius only
+/// when the ordinary scan pushed nothing AND saw nothing. Seeing candidates
+/// that were all already known is a dense region, not a void; the old rule
+/// (`pushed == 0` alone) fired on half of all expansions in the core.
+/// `on_dominated` is the A/B knob that restores it.
+fn widen_due(pushed: u64, scan_cands: usize, on_dominated: bool) -> bool {
+    pushed == 0 && (scan_cands == 0 || on_dominated)
+}
+
 /// Direction sector of `there` seen from `here`: each axis -1 / 0 / +1,
 /// a component under 30 % of the distance counting as 0 (26 sectors plus
 /// the impossible all-zero one).
@@ -3055,6 +3072,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     (ctl.stage)("coarse", 0, 0);
     // How far out the search settled, for the variant outcome (0 = goal).
     let mut stall_at: f32 = 0.0;
+    // Candidates the last scan produced before thinning (the widen rule).
+    let mut scan_cands: usize = 0;
+    let widen_on_dominated = std::env::var("ED_COARSE_WIDEN_ON_DOMINATED").ok().as_deref() == Some("1");
 
     let mut pops: u64 = 0;
     let mut stale_pops: u64 = 0;
@@ -3378,6 +3398,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             cands.push((to_goal - bonus, n_idx, n_pos, d));
         });
         last_scan_count = scanned - scanned_before;
+        scan_cands = cands.len();
         if timers { t_scan += t_mark.elapsed(); t_mark = std::time::Instant::now(); }
         // Thin clusters: of the neutrons sharing a cell, only the one that
         // makes the most progress gets an edge (a refuelling one always
@@ -3444,7 +3465,12 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         if timers { t_relax += t_mark.elapsed(); t_mark = std::time::Instant::now(); }
         } // !greedy_hit: the full scan/thin/relax machinery
         let mut widened: u64 = 0;
-        if pushed == 0 {
+        // A void is a scan that found NOTHING; an expansion whose candidates
+        // were all already known is not one. Until 2026-10-17 the rule was
+        // `pushed == 0` alone, and in dense regions half of all expansions
+        // paid the 3x-radius rescan for dominated neighbours (R0 timers:
+        // 22,700 of 44,000 pops on the rim-to-rim pair, 6.3 of 9 s).
+        if widen_due(pushed as u64, scan_cands, widen_on_dominated) {
             // Nothing in the highway's reach: widen to a longer ordinary run
             // (rim of the galaxy) rather than back the search up. In thin
             // topology these rescans dominate coarse time (70% on the
@@ -3509,6 +3535,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         widens += widened;
     }
     LAST_COARSE.with(|c| c.set((expansions, stall_at)));
+    LAST_WIDENS.with(|c| c.set(widens));
     let Some(gk) = goal_key else { return Err(RouteError::NoRoute) };
     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
         eprintln!("    coarse: {expansions} expansions, {} states, {} ms; {scanned} neutrons scanned, {relaxed} relaxed ({:.0}/{:.0} per expansion)", best_g.len(), started.elapsed().as_millis(), scanned as f64 / expansions.max(1) as f64, relaxed as f64 / expansions.max(1) as f64);
@@ -4507,6 +4534,20 @@ mod tests {
         assert_eq!(route.jumps, 4);
         assert!(route.hops.iter().all(|h| h.fuel_after.unwrap_or(0.0) >= 0.0));
         assert_contiguous(&route, &r);
+    }
+
+    /// R1 (2026-10-17, from the R0 timers): the widen rescan is for a true
+    /// void -- a scan that found nothing -- not for an expansion whose every
+    /// candidate was already known; half of all expansions on the rim pair
+    /// fired it for dominated neighbours. The synthetic fields are too
+    /// regular to reproduce domination, so the rule itself is pinned here
+    /// and the counts come from the timers CSV.
+    #[test]
+    fn the_widen_fires_on_an_empty_scan_not_on_dominated_candidates() {
+        assert!(widen_due(0, 0, false), "nothing seen: a void, widen");
+        assert!(!widen_due(0, 37, false), "candidates seen, all known: not a void");
+        assert!(!widen_due(3, 37, false), "something pushed: no widen");
+        assert!(widen_due(0, 37, true), "the A/B knob restores the old rule");
     }
 
     /// R1 sector thinning (2026-10-17): per direction sector the coarse
