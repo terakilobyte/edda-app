@@ -1027,16 +1027,15 @@ fn variant_kind(i: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usiz
     }
 }
 
-/// Run the wave's variants in `order` (a permutation of `0..n`; empty =
-/// index order): the first `head` of them start first, then the rest. On
-/// the box a long plot has three threads, so which variants start is
-/// which answer first (R1, 2026-10-17). The tail ALWAYS runs: skipping it
-/// once the head had a route and the grace had fired measured as a loss on
-/// the matrix (arm r1-head3-skip: Jongou AA-A d0 -> Byoi Fraae AT-U d2-1
-/// 396 -> 455 jumps, Wongi -> Blaa Hypai 1 -> 60 s) -- the quick families
-/// answer first, the thorough ones answer best, and the grace clock
-/// already ends the slow ones. `head` 0 = all at once.
-#[allow(clippy::too_many_arguments)]
+/// Run the wave's variants, starting them in `order` (a permutation of
+/// `0..n`; empty = index order) as workers come free: on the box a long
+/// plot has three threads, so the first three families in the order start
+/// first and each freed thread takes the next (R1, 2026-10-17). No stage
+/// boundary: a head stage whose `collect` had to finish before the tail
+/// could start measured as a loss on the matrix (arm r1-head3: Sol ->
+/// Beagle Point 18 -> 101 s, Wongi -> Blaa Hypai 1 -> 60 s, same routes),
+/// because one slow head variant held back every quick one behind it.
+/// `par_bridge` pulls the sequential order into whichever worker is idle.
 fn run_variants<T: Send>(
     n: usize,
     grace: Option<std::time::Duration>,
@@ -1045,7 +1044,6 @@ fn run_variants<T: Send>(
     score: impl Fn(&T) -> u64 + Sync,
     run: impl Fn(usize, &(dyn Fn() -> bool + Sync)) -> (Result<T, RouteError>, bool) + Sync,
     order: &[usize],
-    head: usize,
 ) -> (Vec<Result<T, RouteError>>, u32, u32) {
     use rayon::prelude::*;
     let wave_started = std::time::Instant::now();
@@ -1058,7 +1056,6 @@ fn run_variants<T: Send>(
     };
     let identity: Vec<usize> = (0..n).collect();
     let order: &[usize] = if order.len() == n { order } else { &identity };
-    let head = if head == 0 || head >= n { n } else { head };
     let one = |i: usize| -> Result<T, RouteError> {
         let check = || cancelled() || grace.is_some_and(stop);
         // `arms`: whether this finish may start the grace countdown.
@@ -1078,17 +1075,9 @@ fn run_variants<T: Send>(
         res
     };
     let mut slots: Vec<Option<Result<T, RouteError>>> = (0..n).map(|_| None).collect();
-    let head_results: Vec<(usize, Result<T, RouteError>)> = order[..head].par_iter().map(|&i| (i, one(i))).collect();
-    let head_found = head_results.iter().any(|(_, r)| r.is_ok());
-    for (i, r) in head_results {
+    let done: Vec<(usize, Result<T, RouteError>)> = order.iter().copied().par_bridge().map(|i| (i, one(i))).collect();
+    for (i, r) in done {
         slots[i] = Some(r);
-    }
-    if head < n && !cancelled() {
-        let _ = head_found;
-        let tail: Vec<(usize, Result<T, RouteError>)> = order[head..].par_iter().map(|&i| (i, one(i))).collect();
-        for (i, r) in tail {
-            slots[i] = Some(r);
-        }
     }
     let started = slots.iter().filter(|r| r.is_some()).count() as u32;
     let results: Vec<Result<T, RouteError>> = slots.into_iter().map(|r| r.unwrap_or(Err(RouteError::Cancelled))).collect();
@@ -1393,9 +1382,6 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         };
         let seed = (cap_mult > 1).then(|| best.as_ref().map(&judge)).flatten();
         let order = variant_order(total, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot);
-        // The head stage is one variant per worker of the pool this plot
-        // runs on (the box: a few; the PC: the whole wave).
-        let head = std::env::var("ED_VARIANT_HEAD").ok().and_then(|v| v.parse().ok()).unwrap_or_else(rayon::current_num_threads);
         let (results, finished, launched) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
             let variant_started = std::time::Instant::now();
             let coarse = CoarseStats::default();
@@ -1478,7 +1464,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 stall_remaining_ly,
             });
             (res, arms)
-        }, &order, head);
+        }, &order);
         variants_run += launched;
         variants_finished += finished;
         // A variant the grace rule cancelled is not the user's Stop.
@@ -4024,28 +4010,23 @@ mod tests {
         assert!(wave_one.expired(t0 + ms(1_000), grace));
     }
 
-    /// R1 (2026-10-17): the portfolio runs its variants in a declared order,
-    /// a head stage first; the tail runs only when the head found nothing
-    /// or the grace clock has not fired. On the box a long plot has a
-    /// handful of threads, so which variants start first is which answer
-    /// first; rayon's own order put the slow diggers ahead of the 1.2 s
-    /// finders (Jongou pair: 6 s on the PC, no first route in 100 s there).
+    /// R1 (2026-10-17): the portfolio starts its variants in a declared
+    /// order as workers come free. On one worker that is exactly the order;
+    /// on the box's three the first three families start first. Rayon's own
+    /// range splitting started the slow diggers ahead of the 1.2 s finders
+    /// (Jongou pair: 6 s on the PC, no first route in 100 s on the box).
     #[test]
-    fn variants_run_in_the_declared_order_and_the_tail_follows() {
+    fn variants_start_in_the_declared_order() {
         let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
         let ran = std::sync::Mutex::new(Vec::new());
-        // No grace: the head {3, 0} runs first, then the whole tail.
-        let (results, finished, started) = run_variants(6, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4], 2);
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+        let (results, finished, started) = pool.install(|| run_variants(6, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4]));
         assert_eq!((finished, started), (6, 6));
         assert!(results.iter().all(|r| r.is_ok()));
-        let ran = ran.into_inner().unwrap();
-        let head: std::collections::BTreeSet<usize> = ran[..2].iter().copied().collect();
-        assert_eq!(head, [0usize, 3].into_iter().collect(), "the head stage runs first: {ran:?}");
-        // A zero grace with a head that answers: the tail still runs (the
-        // grace clock cancels slow variants through `check`, not the stage).
-        let (results, finished, started) = run_variants(4, Some(std::time::Duration::from_millis(0)), None, &|| false, |_: &Route| 0, |_, _| (Ok(dummy()), true), &[0, 1, 2, 3], 2);
-        assert_eq!((finished, started), (4, 4), "the tail ran after the head");
-        assert!(results.iter().all(|r| r.is_ok()));
+        assert_eq!(ran.into_inner().unwrap(), vec![3, 0, 5, 1, 2, 4], "one worker: the declared order, nothing else");
+        // Results come back by variant index whatever the start order.
+        let (results, _, _) = pool.install(|| run_variants(3, None, None, &|| false, |r: &Route| r.jumps as u64, |i, _| (Ok(Route { jumps: i + 10, ..dummy() }), true), &[2, 0, 1]));
+        assert_eq!(results.iter().map(|r| r.as_ref().unwrap().jumps).collect::<Vec<_>>(), vec![10, 11, 12]);
     }
 
     /// Once one variant has a route the others get the grace period and are
@@ -4064,14 +4045,14 @@ mod tests {
                 return (Err(RouteError::Cancelled), false);
             }
             (Ok(dummy()), true)
-        }, &[], 0);
+        }, &[]);
         assert_eq!(finished, 2);
         assert!(matches!(results[1], Err(RouteError::Cancelled)));
         assert!(results[0].is_ok() && results[2].is_ok());
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
         // Without a grace period every variant is waited for; the user's
         // own cancel still reaches them.
-        let (results, finished, _) = run_variants(2, None, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[], 0);
+        let (results, finished, _) = run_variants(2, None, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[]);
         assert_eq!(finished, 0);
         assert!(results.iter().all(|r| matches!(r, Err(RouteError::Cancelled))));
     }
