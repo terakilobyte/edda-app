@@ -445,17 +445,28 @@ fn bridge_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, from: u32, to: u32,
 
 /// Cheapest way to refine one leg: direct hop, scoop hop, bridged hop with
 /// a short tail search, and only then the full exact search.
-fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
-    // Once per plot: the same leg from the same tank bucket with the same
-    // injections left is the same answer for every variant (R1 leg memo).
-    let key = LegKey::new(from, to, fuel, req.fuel.map(|m| m.capacity).unwrap_or(0.0), req.injection.map(|(_, _, n)| n).unwrap_or(0));
-    if let Some(known) = ctl.legs.get(&key) {
-        return known;
+/// `use_memo`: the first parallel pass over a chain takes a remembered leg;
+/// a re-plan from the real tank (settle rounds, final pass) never does --
+/// it exists because the remembered leg did not fly from that tank, and a
+/// fresh plan from the exact figure is what converges (2026-10-17: with
+/// the memo answering re-plans, eight settle rounds re-planned one leg
+/// and Beagle Point -> Sol became no route).
+fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32, use_memo: bool) -> Result<Route, RouteError> {
+    // Once per plot: the same leg from a tank the plan was made for, with
+    // the same injections left and reserve, is the same answer for every
+    // variant (R1 leg memo).
+    let key = LegKey::new(from, to, req.injection.map(|(_, _, n)| n).unwrap_or(0), req.fuel.map(|m| m.reserve).unwrap_or(0.0));
+    // ED_LEG_MEMO=0: bisect knob (R1 A/B).
+    let memo_on = use_memo && std::env::var("ED_LEG_MEMO").ok().as_deref() != Some("0");
+    if memo_on {
+        if let Some(known) = ctl.legs.get(&key, fuel) {
+            return known;
+        }
     }
     let planned = refine_leg_uncached(g, req, ctl, leg_of, from, to, fuel);
     // A cancellation is this variant's, not the leg's: never remembered.
     if !matches!(planned, Err(RouteError::Cancelled)) {
-        ctl.legs.put(key, match &planned { Ok(r) => Ok(r.clone()), Err(e) => Err(e.clone_err()) });
+        ctl.legs.put(key, fuel, match &planned { Ok(r) => Ok(r.clone()), Err(e) => Err(e.clone_err()) });
     }
     planned
 }
@@ -3581,11 +3592,11 @@ pub fn refine_waypoints(
     (ctl.stage)("refine", 0, legs);
     let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: 5_000_000, start_fuel, ..req.clone() };
     let windows: Vec<[(u32, f32); 2]> = waypoints.windows(2).map(|w| [w[0], w[1]]).collect();
-    let plan_legs = |jobs: &[(usize, f32)]| -> Vec<(usize, Result<Route, RouteError>)> {
+    let plan_legs = |jobs: &[(usize, f32)], use_memo: bool| -> Vec<(usize, Result<Route, RouteError>)> {
         jobs.par_iter()
             .map(|&(i, fuel)| {
                 let t = std::time::Instant::now();
-                let r = refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, fuel);
+                let r = refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, fuel, use_memo);
                 if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                     match &r {
                         Ok(r) => eprintln!("    leg {i:>2}: {} jumps {} expansions {} ms (fuel {fuel:.0})", r.jumps, r.expansions, t.elapsed().as_millis()),
@@ -3605,7 +3616,7 @@ pub fn refine_waypoints(
     };
     let mut assumed: Vec<f32> = windows.iter().enumerate().map(|(i, w)| if i == 0 { start_fuel } else { w[0].1 }).collect();
     let mut planned: Vec<Option<Route>> = vec![None; windows.len()];
-    for (i, r) in plan_legs(&windows.iter().enumerate().map(|(i, _)| (i, assumed[i])).collect::<Vec<_>>()) {
+    for (i, r) in plan_legs(&windows.iter().enumerate().map(|(i, _)| (i, assumed[i])).collect::<Vec<_>>(), true) {
         planned[i] = Some(r?);
     }
     if debug {
@@ -3641,7 +3652,7 @@ pub fn refine_waypoints(
             if debug {
                 eprintln!("    fuel round {round}: {} legs re-planned at {} ms", redo.len(), started.elapsed().as_millis());
             }
-            for (i, r) in plan_legs(&redo) {
+            for (i, r) in plan_legs(&redo, false) {
                 match r {
                     Ok(l) => planned[i] = Some(l),
                     // A leg that cannot be re-planned from the real tank
@@ -3683,7 +3694,7 @@ pub fn refine_waypoints(
                 if debug {
                     eprintln!("    refine: final pass re-plans leg {i} ({} -> {}, {:.0} ly, fuel {f:.0}) at {} ms", g.name(&g.record(windows[i][0].0)), g.name(&g.record(windows[i][1].0)), dist(g.pos_of(windows[i][0].0), g.pos_of(windows[i][1].0)), started.elapsed().as_millis());
                 }
-                let fresh = match refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, f) {
+                let fresh = match refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, f, false) {
                     Ok(l) => l,
                     Err(_) if i > 0 && planned[i - 1].is_some() => {
                         // Cannot be flown from what the previous leg left: merge
@@ -4498,24 +4509,34 @@ mod tests {
     }
 
     /// R1 leg memo (2026-10-17): six variants recomputed one 68 s hand-off
-    /// leg on the rim-to-rim route. A leg is the same leg only from the
-    /// same tank bucket with the same injections left.
+    /// leg on the rim-to-rim route. A remembered leg serves a later request
+    /// only when the tank at departure is at least what it was planned from
+    /// (more fuel never breaks a leg; less may). Bucketing by 4 t instead
+    /// made the settle rounds re-plan the same leg eight times and never
+    /// converge: Beagle Point -> Sol became no route (r1 arm).
     #[test]
-    fn the_leg_memo_keys_on_the_fuel_bucket() {
+    fn the_leg_memo_serves_a_leg_only_from_at_least_the_fuel_it_was_planned_from() {
         let memo = LegMemo::for_plot();
-        let k_full = LegKey::new(1, 2, 128.0, 128.0, 22);
-        let k_low = LegKey::new(1, 2, 10.0, 128.0, 22);
-        assert_ne!(k_full, k_low, "a leg from a dry tank is a different leg");
-        assert_eq!(LegKey::new(1, 2, 127.0, 128.0, 22), k_full, "within a bucket it is the same leg");
-        assert_ne!(LegKey::new(1, 2, 128.0, 128.0, 21), k_full, "injections left are part of the leg");
         let five: Route = serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":5,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap();
-        memo.put(k_full.clone(), Ok(five));
-        assert_eq!(memo.get(&k_full).unwrap().unwrap().jumps, 5);
-        assert!(memo.get(&k_low).is_none());
-        // The shared "no memo" never remembers: tests and examples that use
-        // Control::none() must not leak legs between plots of different ships.
-        NO_LEG_MEMO.put(k_full.clone(), Err(RouteError::NoRoute));
-        assert!(NO_LEG_MEMO.get(&k_full).is_none());
+        memo.put(LegKey::new(1, 2, 22, 5.1), 120.0, Ok(five.clone()));
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 120.0).unwrap().unwrap().jumps, 5, "the same tank: a hit");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 128.0).unwrap().unwrap().jumps, 5, "more fuel: the leg still flies, a hit");
+        assert!(memo.get(&LegKey::new(1, 2, 22, 5.1), 119.0).is_none(), "less fuel: not the same leg");
+        assert!(memo.get(&LegKey::new(1, 2, 21, 5.1), 128.0).is_none(), "injections left are part of the leg");
+        assert!(memo.get(&LegKey::new(1, 3, 22, 5.1), 128.0).is_none(), "another destination");
+        assert!(memo.get(&LegKey::new(1, 2, 22, 2.7), 128.0).is_none(), "another reserve is another variant's leg");
+        // A later, leaner plan replaces nothing: both are kept, the best fit answers.
+        let three: Route = Route { jumps: 3, ..five.clone() };
+        memo.put(LegKey::new(1, 2, 22, 5.1), 100.0, Ok(three));
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 110.0).unwrap().unwrap().jumps, 3, "the plan from the lower tank serves 110 t");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 125.0).unwrap().unwrap().jumps, 5, "the plan from the higher tank serves 125 t");
+        // A failure runs the other way: impossible from 100 t means impossible
+        // from 90 t, and says nothing about 128 t.
+        memo.put(LegKey::new(4, 5, 22, 5.1), 100.0, Err(RouteError::NoRoute));
+        assert!(matches!(memo.get(&LegKey::new(4, 5, 22, 5.1), 90.0), Some(Err(RouteError::NoRoute))), "less fuel: the failure stands");
+        assert!(memo.get(&LegKey::new(4, 5, 22, 5.1), 128.0).is_none(), "more fuel: not known to fail");
+        NO_LEG_MEMO.put(LegKey::new(1, 2, 22, 5.1), 128.0, Err(RouteError::NoRoute));
+        assert!(NO_LEG_MEMO.get(&LegKey::new(1, 2, 22, 5.1), 128.0).is_none(), "the shared no-memo never remembers");
     }
 
     /// R0 observability (2026-10-17): every portfolio variant reports what
