@@ -26,6 +26,14 @@
 # other route under 7.2 s. Direction asymmetries: Sgr A* -> Sol 6.3 s vs
 # 0.8 s back; Colonia -> Spase 52.5 s vs 7.2 s back; Beagle -> Wongi 1.6 s
 # vs 18.4 s there.
+# Sector k-best thinning (Task 6, arms r1-sector2 / r1-sector4 =
+# ED_COARSE_SECTOR_KEEP 2 / 4 with ED_COARSE_FANOUT 64): NEGATIVE. Against
+# the r1 arm it is worse on 15 / 11 of 28 routes by 1-6 jumps (Colonia ->
+# Sol 55 -> 61 / 60, Beagle Point -> Sol 197 -> 203 / 200, Sol -> Byoomao
+# 64 -> 67) and better on three: Jongou AA-A -> Byoi AT-U 397 -> 381 / 379,
+# Colonia -> Spase 47.5 -> 41.9 / 28.2 s, Sgr A* -> Sol 6.3 -> 1.8 s. The
+# knob stays at 0; the core-only win says the thinning belongs in R4's
+# degree-bounded highway graph, not in the shipped scan.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
