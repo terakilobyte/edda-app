@@ -1028,11 +1028,14 @@ fn variant_kind(i: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usiz
 }
 
 /// Run the wave's variants in `order` (a permutation of `0..n`; empty =
-/// index order), the first `head` of them first and the rest only when the
-/// head found nothing or the grace clock has not fired (R1, 2026-10-17:
-/// on the box a long plot has a few threads, so which variants start is
-/// which answer first). `head` 0 = all at once. Variants the stage rule
-/// never starts are reported as `Cancelled`.
+/// index order): the first `head` of them start first, then the rest. On
+/// the box a long plot has three threads, so which variants start is
+/// which answer first (R1, 2026-10-17). The tail ALWAYS runs: skipping it
+/// once the head had a route and the grace had fired measured as a loss on
+/// the matrix (arm r1-head3-skip: Jongou AA-A d0 -> Byoi Fraae AT-U d2-1
+/// 396 -> 455 jumps, Wongi -> Blaa Hypai 1 -> 60 s) -- the quick families
+/// answer first, the thorough ones answer best, and the grace clock
+/// already ends the slow ones. `head` 0 = all at once.
 #[allow(clippy::too_many_arguments)]
 fn run_variants<T: Send>(
     n: usize,
@@ -1080,14 +1083,11 @@ fn run_variants<T: Send>(
     for (i, r) in head_results {
         slots[i] = Some(r);
     }
-    if head < n {
-        // The tail earns its run: nothing yet, or time still on the clock.
-        let tail_runs = !cancelled() && (!head_found || !grace.is_some_and(stop));
-        if tail_runs {
-            let tail: Vec<(usize, Result<T, RouteError>)> = order[head..].par_iter().map(|&i| (i, one(i))).collect();
-            for (i, r) in tail {
-                slots[i] = Some(r);
-            }
+    if head < n && !cancelled() {
+        let _ = head_found;
+        let tail: Vec<(usize, Result<T, RouteError>)> = order[head..].par_iter().map(|&i| (i, one(i))).collect();
+        for (i, r) in tail {
+            slots[i] = Some(r);
         }
     }
     let started = slots.iter().filter(|r| r.is_some()).count() as u32;
@@ -4031,7 +4031,7 @@ mod tests {
     /// first; rayon's own order put the slow diggers ahead of the 1.2 s
     /// finders (Jongou pair: 6 s on the PC, no first route in 100 s there).
     #[test]
-    fn variants_run_in_the_declared_order_and_the_tail_waits() {
+    fn variants_run_in_the_declared_order_and_the_tail_follows() {
         let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
         let ran = std::sync::Mutex::new(Vec::new());
         // No grace: the head {3, 0} runs first, then the whole tail.
@@ -4041,10 +4041,11 @@ mod tests {
         let ran = ran.into_inner().unwrap();
         let head: std::collections::BTreeSet<usize> = ran[..2].iter().copied().collect();
         assert_eq!(head, [0usize, 3].into_iter().collect(), "the head stage runs first: {ran:?}");
-        // A zero grace with a head that answers: the tail never starts.
+        // A zero grace with a head that answers: the tail still runs (the
+        // grace clock cancels slow variants through `check`, not the stage).
         let (results, finished, started) = run_variants(4, Some(std::time::Duration::from_millis(0)), None, &|| false, |_: &Route| 0, |_, _| (Ok(dummy()), true), &[0, 1, 2, 3], 2);
-        assert_eq!((finished, started), (2, 2), "only the head ran, and only the head counts as run");
-        assert!(matches!(results[2], Err(RouteError::Cancelled)) && matches!(results[3], Err(RouteError::Cancelled)), "the tail is reported as not run");
+        assert_eq!((finished, started), (4, 4), "the tail ran after the head");
+        assert!(results.iter().all(|r| r.is_ok()));
     }
 
     /// Once one variant has a route the others get the grace period and are
