@@ -85,6 +85,10 @@ pub const NEUTRON_CELL_LY: f32 = 250.0;
 /// goal (and any that refuel) are worth an edge.
 const COARSE_FANOUT: usize = usize::MAX;
 
+/// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
+/// Shipped at 0 until the 28-route matrix blesses a value (R1, 2026-10-17).
+const COARSE_SECTOR_KEEP: usize = 0;
+
 /// Item 13: the greedy cone engages only after a full scan saw at least
 /// this many candidates in one expansion -- the "full shelf" that makes
 /// choice worthless. Calibrated against density_probe: dense-corridor
@@ -919,6 +923,53 @@ impl GraceClock {
 /// are then told to stop through the cancel check handed to them; `None`
 /// waits for all. Returns every result in variant order and how many
 /// finished with a route.
+/// Direction sector of `there` seen from `here`: each axis -1 / 0 / +1,
+/// a component under 30 % of the distance counting as 0 (26 sectors plus
+/// the impossible all-zero one).
+fn sector_of(here: [f32; 3], there: [f32; 3]) -> u8 {
+    let d = [there[0] - here[0], there[1] - here[1], there[2] - here[2]];
+    let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt().max(1e-6);
+    let mut s = 0u8;
+    for c in d {
+        let v = if c.abs() < 0.3 * len { 1 } else if c > 0.0 { 2 } else { 0 };
+        s = s * 3 + v;
+    }
+    s
+}
+
+/// Sector k-best thinning of a coarse scan (R1, 2026-10-17): per
+/// direction sector from `here`, keep the `keep` candidates with the most
+/// progress (lowest score), the nearest one (least fuel to get there) and
+/// the best-scoring refuel option. In the core a scan holds 500-1,700
+/// neutrons and the bucket thinning still relaxed 500-1,250 of them; the
+/// coarse plan cannot tell neighbours in one direction apart, so at most
+/// 26 x (keep + 2) survive. Order is not preserved. Candidates are
+/// (score, index, position, distance).
+pub(crate) fn thin_by_sector(cands: &mut Vec<(f32, u32, [f32; 3], f32)>, here: [f32; 3], refuels: &dyn Fn(u32) -> bool, keep: usize) {
+    let mut sectors: Vec<Vec<usize>> = vec![Vec::new(); 27];
+    for (i, c) in cands.iter().enumerate() {
+        sectors[sector_of(here, c.2) as usize].push(i);
+    }
+    let mut chosen: Vec<usize> = Vec::with_capacity(27 * (keep + 2));
+    for members in sectors.iter_mut() {
+        if members.is_empty() {
+            continue;
+        }
+        members.sort_by(|&a, &b| cands[a].0.total_cmp(&cands[b].0));
+        chosen.extend(members.iter().take(keep.max(1)));
+        if let Some(&near) = members.iter().min_by(|&&a, &&b| cands[a].3.total_cmp(&cands[b].3)) {
+            chosen.push(near);
+        }
+        if let Some(&fuel) = members.iter().find(|&&i| refuels(cands[i].1)) {
+            chosen.push(fuel);
+        }
+    }
+    chosen.sort_unstable();
+    chosen.dedup();
+    let kept: Vec<(f32, u32, [f32; 3], f32)> = chosen.into_iter().map(|i| cands[i]).collect();
+    *cands = kept;
+}
+
 /// The family a portfolio slot belongs to, by the same index arithmetic
 /// the dispatch and the debug label use.
 #[allow(clippy::too_many_arguments)]
@@ -2862,6 +2913,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     let mut t_mark = std::time::Instant::now();
     let mut cands: Vec<(f32, u32, [f32; 3], f32)> = Vec::with_capacity(4096);
     let bucket_ly: f32 = std::env::var("ED_COARSE_BUCKET_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(full_range * bucket_f);
+    // ED_COARSE_SECTOR_KEEP > 0 replaces the bucket thinning with sector
+    // k-best (R1 A/B knob; the matrix decides the default).
+    let sector_keep: usize = std::env::var("ED_COARSE_SECTOR_KEEP").ok().and_then(|v| v.parse().ok()).unwrap_or(COARSE_SECTOR_KEEP);
     let mut bucket: HashMap<u64, usize> = HashMap::default();
     let goal_run_bridge: f32 = std::env::var("ED_GOAL_RUN_BRIDGE").ok().and_then(|v| v.parse().ok()).unwrap_or(1.6);
     let fanout: usize = std::env::var("ED_COARSE_FANOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(COARSE_FANOUT);
@@ -3226,7 +3280,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // makes the most progress gets an edge (a refuelling one always
         // does). Neighbours a few ly apart are the same choice to the
         // coarse plan, and in the core they are most of the candidates.
-        if bucket_ly > 0.0 && cands.len() > 64 {
+        if sector_keep > 0 && cands.len() > 64 {
+            thin_by_sector(&mut cands, here, &|idx: u32| !lean_scan && neutrons.flags(idx) & crate::format::FLAG_SCOOP_NEARBY != 0, sector_keep);
+        } else if bucket_ly > 0.0 && cands.len() > 64 {
             bucket.clear();
             let mut keep: Vec<(f32, u32, [f32; 3], f32)> = Vec::with_capacity(cands.len() / 4);
             for &c in cands.iter() {
@@ -4307,6 +4363,31 @@ mod tests {
             stars.push(star(&format!("N{i}"), 50.0 + 230.0 * i as f32, 0.0, 10.0, N));
         }
         build(&stars)
+    }
+
+    /// R1 sector thinning (2026-10-17): per direction sector the coarse
+    /// scan keeps the candidates that make the most progress, the nearest
+    /// one (least fuel) and the best refuel option; everything else in the
+    /// same direction is the same choice to the coarse plan. Candidates are
+    /// (score = lower is more progress, index, position, distance).
+    #[test]
+    fn sector_thinning_keeps_a_refuel_candidate() {
+        let here = [0.0, 0.0, 0.0];
+        let mut cands: Vec<(f32, u32, [f32; 3], f32)> = vec![
+            (-400.0, 1, [400.0, 0.0, 0.0], 400.0),
+            (-350.0, 2, [350.0, 5.0, 0.0], 350.0),
+            (-300.0, 3, [300.0, -5.0, 0.0], 300.0),
+            (-200.0, 4, [200.0, 0.0, 0.0], 200.0),
+            (-90.0, 5, [0.0, 90.0, 0.0], 90.0),
+        ];
+        thin_by_sector(&mut cands, here, &|idx: u32| idx == 3, 1);
+        let kept: Vec<u32> = cands.iter().map(|c| c.1).collect();
+        assert!(kept.contains(&1), "the most progress in +x stays: {kept:?}");
+        assert!(kept.contains(&3), "the refuel option stays although it is third on progress: {kept:?}");
+        assert!(kept.contains(&4), "the nearest in +x stays (least fuel): {kept:?}");
+        assert!(kept.contains(&5), "the only candidate in +y stays: {kept:?}");
+        assert!(!kept.contains(&2), "the second-best plain +x candidate goes: {kept:?}");
+        assert_eq!(kept.len(), 4);
     }
 
     /// R1 leg memo (2026-10-17): six variants recomputed one 68 s hand-off
