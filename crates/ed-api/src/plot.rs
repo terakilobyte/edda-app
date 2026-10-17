@@ -464,7 +464,11 @@ pub fn resolve_endpoints(
         time_budget_ms: BUDGET_MS,
         grace_ms: 1_000,
         min_fuel: api.min_fuel.unwrap_or(true),
-        stop_weight: api.stop_weight.unwrap_or(0.0).clamp(0.0, 5.0),
+        // The doc on `stop_weight` always said 1.0; the Route tab sends
+        // none, so from the early answer (#198) to 2026-10-17 every served
+        // route was ranked by jump count alone while bench and app judged
+        // pilot seconds. One judge now (planner unification, R0).
+        stop_weight: api.stop_weight.unwrap_or(1.0).clamp(0.0, 5.0),
         prize_k: None,
         // The doc on RouteRequest anticipated exactly this caller: a
         // server that knows no commander uses conservative fleet times.
@@ -713,8 +717,12 @@ impl Drop for CancelOnDrop {
 pub const EARLY_GRACE_MS: u64 = 5_000;
 
 /// Pick the better of two candidates: fewer jumps, then fewer boosts.
-fn better<'a>(a: &'a Route, b: &'a Route) -> &'a Route {
-    if (b.jumps, b.boosted_jumps) < (a.jumps, a.boosted_jumps) { b } else { a }
+fn better<'a>(a: &'a Route, b: &'a Route, req: &RouteRequest) -> &'a Route {
+    // The planner's own judge (pilot seconds), ties by jumps then boosts:
+    // the early answer and the best-so-far pick what the portfolio ranks
+    // by, not a second opinion (2026-10-17 audit: the two disagreed).
+    let (sa, sb) = (ed_galaxy::long_range::route_score_public(a, req), ed_galaxy::long_range::route_score_public(b, req));
+    if (sb, b.jumps, b.boosted_jumps) < (sa, a.jumps, a.boosted_jumps) { b } else { a }
 }
 
 /// What the rest of the budget bought after an early answer: the label
@@ -945,6 +953,10 @@ impl RouteService {
         let plot_started = Instant::now();
         let cache_found = std::sync::Arc::clone(&cache);
         let served_early_found = std::sync::Arc::clone(&served_early_task);
+        // The request as the pickers judge it, on both sides of the task
+        // boundary; the planner's copy moves into the blocking task.
+        let judge_req = req.clone();
+        let judge_req_found = req.clone();
         let mut task = tokio::task::spawn_blocking(move || {
             // The lane's permits live and die with the planner, whatever
             // the handler did with the answer.
@@ -976,7 +988,7 @@ impl RouteService {
                 // key sees the numbers move (the boss, 2026-10-09:
                 // "stream just the numbers we show in the boxes").
                 let early = served_early_found.lock().unwrap_or_else(|e| e.into_inner()).is_some();
-                if early && keep_best_so_far(&cache_found, key, r) {
+                if early && keep_best_so_far(&cache_found, key, r, &judge_req_found) {
                     metrics::counter!("edda_route_best_so_far_total", "lane" => lane_name).increment(1);
                     tracing::info!(lane = lane_name, key, jumps = r.jumps, boosted = r.boosted_jumps, "route refining: a better route so far");
                 }
@@ -1064,7 +1076,7 @@ impl RouteService {
                 tokio::select! {
                     joined = &mut task => break Some(joined),
                     found = found_rx.recv() => match found {
-                        Some(r) => { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); }
+                        Some(r) => { best = Some(match best.take() { Some(b) => better(&b, &r, &judge_req).clone(), None => r }); }
                         None => break None, // the planner finished; the join lands next
                     },
                     _ = &mut first_deadline, if best.is_none() => {
@@ -1081,7 +1093,7 @@ impl RouteService {
                     let joined = loop {
                         tokio::select! {
                             joined = &mut task => break Some(joined),
-                            found = found_rx.recv() => { if let Some(r) = found { best = Some(match best.take() { Some(b) => better(&b, &r).clone(), None => r }); } }
+                            found = found_rx.recv() => { if let Some(r) = found { best = Some(match best.take() { Some(b) => better(&b, &r, &judge_req).clone(), None => r }); } }
                             _ = &mut deadline => break None,
                         }
                     };
@@ -1229,13 +1241,13 @@ pub fn spans(route: &Route, from: u32, to: u32) -> bool {
     matches!((route.hops.first(), route.hops.last()), (Some(a), Some(b)) if a.idx == from && b.idx == to)
 }
 
-fn keep_best_so_far(cache: &Cache, key: u64, candidate: &Route) -> bool {
+fn keep_best_so_far(cache: &Cache, key: u64, candidate: &Route, req: &RouteRequest) -> bool {
     let held = {
         let cache = cache.lock().unwrap_or_else(|e| e.into_inner());
         cache.get(&key).map(|(_, route, refining)| (std::sync::Arc::clone(route), *refining))
     };
     match held {
-        Some((held, true)) if std::ptr::eq(better(&held, candidate), candidate) => {
+        Some((held, true)) if std::ptr::eq(better(&held, candidate, req), candidate) => {
             store_in(cache, key, std::sync::Arc::new(candidate.clone()), true);
             true
         }
@@ -1591,12 +1603,23 @@ mod endpoint_tests {
     /// boosts — the first variant to finish can be the worst arm (the
     /// matrix: Wongi → Beagle found 199 first, finished 196).
     #[test]
-    fn the_early_answer_is_the_best_so_far_by_jumps_then_boosts() {
-        let mk = |jumps: usize, boosted: usize| Route { jumps, boosted_jumps: boosted, ..serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":0,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0})).unwrap() };
-        let (a, b, c) = (mk(233, 40), mk(199, 44), mk(199, 30));
-        assert_eq!(better(&a, &b).jumps, 199, "fewer jumps wins");
-        assert_eq!(better(&b, &c).boosted_jumps, 30, "equal jumps: fewer boosts wins");
-        assert_eq!(better(&c, &b).boosted_jumps, 30, "order does not matter");
+    fn a_missing_stop_weight_means_one_an_explicit_zero_stays_zero() {
+        let (_dir, g) = island_galaxy();
+        let api = RouteApiRequest { from: "Home".into(), to: "Far".into(), range_ly: Some(50.0), ..Default::default() };
+        assert_eq!(resolve(&g, &api).unwrap().stop_weight, 1.0, "the Route tab sends no stop_weight; the judge is seconds, not jumps");
+        let api = RouteApiRequest { stop_weight: Some(0.0), ..api };
+        assert_eq!(resolve(&g, &api).unwrap().stop_weight, 0.0, "an explicit zero is the caller's choice");
+    }
+
+    #[test]
+    fn the_early_answer_is_the_best_so_far_by_pilot_seconds() {
+        let mk = |jumps: usize, stops: usize| Route { jumps, refuel_stops: stops, ..serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":0,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
+        let req = RouteRequest { stop_weight: 1.0, t_jump_s: Some(60.0), stop_overhead_s: Some(120.0), ..Default::default() };
+        // 200 jumps / 2 stops = 12,240 s beats 199 jumps / 4 stops = 12,420 s.
+        assert_eq!(better(&mk(199, 4), &mk(200, 2), &req).jumps, 200, "fewer pilot seconds wins over fewer jumps");
+        assert_eq!(better(&mk(200, 2), &mk(199, 4), &req).jumps, 200, "order does not matter");
+        // Equal seconds (201 j + 1 stop = 12,180 = 199 j + 2 stops): fewer jumps.
+        assert_eq!(better(&mk(201, 1), &mk(199, 2), &req).jumps, 199, "a tie on seconds goes to fewer jumps");
     }
 
     /// The waiting count is plots admitted but not yet running.
@@ -2056,14 +2079,14 @@ mod endpoint_tests {
         let mut longer = (*route).clone();
         longer.jumps = route.jumps + 5;
         let key = 42;
-        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "nothing cached under the key: nothing to improve");
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter, &RouteRequest::default()), "nothing cached under the key: nothing to improve");
         store_in(&svc.cache, key, std::sync::Arc::clone(&route), true);
-        assert!(!keep_best_so_far(&svc.cache, key, &longer), "a worse variant does not move the entry");
-        assert!(keep_best_so_far(&svc.cache, key, &shorter), "a better one does");
+        assert!(!keep_best_so_far(&svc.cache, key, &longer, &RouteRequest::default()), "a worse variant does not move the entry");
+        assert!(keep_best_so_far(&svc.cache, key, &shorter, &RouteRequest::default()), "a better one does");
         let (held, refining) = svc.cached(key).unwrap();
         assert_eq!((held.jumps, refining), (shorter.jumps, true), "still refining: the client keeps polling");
         store_in(&svc.cache, key, std::sync::Arc::new(longer.clone()), false);
-        assert!(!keep_best_so_far(&svc.cache, key, &shorter), "a finished entry is never touched");
+        assert!(!keep_best_so_far(&svc.cache, key, &shorter, &RouteRequest::default()), "a finished entry is never touched");
         assert_eq!(svc.cached(key).unwrap().0.jumps, longer.jumps);
     }
 
