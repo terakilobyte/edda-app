@@ -674,13 +674,17 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             Some((mult, _, max)) if cur.inj < max => Some(reach / boost.max(1.0) * mult),
             _ => None,
         };
-        // The injected pass is a last resort in effort as well as in price
-        // (R1, 2026-10-17): it runs only when the plain pass pushed nothing
-        // closer to the goal. An island exit still opens (nothing plain
-        // progresses there); a plain chain never pays for the 8x sphere.
+        // The injected pass as a last resort in effort as well as in price
+        // -- run only when the plain pass pushed nothing closer -- is a
+        // KNOB, not the default (ED_LAZY_INJECTION=1). Measured 2026-10-17
+        // (planner unification R1): it halves the scan work on a plain
+        // line (19 -> 8 candidates) but costs one jump on both Jongou rim
+        // pairs at the budget cut, reproducibly (396 -> 397, 402 -> 403),
+        // because the order of expansions shifts what has finished by then.
+        // The maintainer's order is route first, so both passes run as
+        // before; R3's anytime search revisits the pass with its own gate.
         let mut progressed = false;
-        // ED_LAZY_INJECTION=0: bisect knob (R1 A/B) -- the old rule, both passes always.
-        let lazy = std::env::var("ED_LAZY_INJECTION").ok().as_deref() != Some("0");
+        let lazy = std::env::var("ED_LAZY_INJECTION").ok().as_deref() == Some("1");
         for pass in 0..2 {
             let (scan, injected) = match pass {
                 0 => (reach, false),
@@ -1096,12 +1100,12 @@ mod tests {
         assert_eq!(route.hops.last().unwrap().name, "Goal");
     }
 
-    /// R1 (2026-10-17): injections are a last resort in search effort too.
-    /// Where the plain pass pushes a star closer to the goal, the injected
-    /// sphere (8x the volume) is not scanned at all; the island exit above
-    /// still opens because there the plain pass pushes nothing.
+    /// R1 (2026-10-17): the lazy injected pass (scan the 8x sphere only
+    /// where the plain pass pushed nothing closer) halves the scan work on
+    /// a plain line, and cost one jump on both Jongou rim pairs at the
+    /// budget cut; it is an opt-in knob. Both behaviours are pinned.
     #[test]
-    fn no_injection_is_searched_where_a_plain_hop_progresses() {
+    fn the_injected_pass_is_lazy_only_by_the_knob() {
         let stars = [("S0", 0.0), ("S1", 60.0), ("S2", 120.0), ("S3", 180.0)];
         let mut lines = vec!["[".to_string()];
         for (i, (name, x)) in stars.iter().enumerate() {
@@ -1113,16 +1117,24 @@ mod tests {
         }
         lines.push("]".into());
         let dir = tempfile::tempdir().unwrap();
-        import_reader(Box::new(std::io::Cursor::new(lines.join("\n").into_bytes())), dir.path(), &mut |_| {}).unwrap();
+        import_reader(Box::new(std::io::Cursor::new(lines.join("
+").into_bytes())), dir.path(), &mut |_| {}).unwrap();
         let g = Galaxy::open(dir.path()).unwrap();
         let plain = RouteRequest { from: g.find("S0").unwrap(), to: g.find("S3").unwrap(), range_ly: 72.0, supercharge: false, thorough: false, ..Default::default() };
+        let injected = RouteRequest { injection: Some((2.0, "premium", 2)), ..plain.clone() };
         let r0 = plan(&g, &plain, &Control::none()).unwrap();
         let scans_plain = last_exact_scans();
-        let r1 = plan(&g, &RouteRequest { injection: Some((2.0, "premium", 2)), ..plain.clone() }, &Control::none()).unwrap();
-        let scans_injected = last_exact_scans();
-        assert_eq!(r1.injections, 0, "a plain chain never spends an injection");
-        assert_eq!(r1.jumps, r0.jumps);
-        assert_eq!(scans_injected, scans_plain, "the injected sphere was scanned although every plain pass progressed");
+        std::env::remove_var("ED_LAZY_INJECTION");
+        let r1 = plan(&g, &injected, &Control::none()).unwrap();
+        let scans_default = last_exact_scans();
+        std::env::set_var("ED_LAZY_INJECTION", "1");
+        let r2 = plan(&g, &injected, &Control::none()).unwrap();
+        let scans_lazy = last_exact_scans();
+        std::env::remove_var("ED_LAZY_INJECTION");
+        assert_eq!((r1.injections, r2.injections), (0, 0), "a plain chain never spends an injection");
+        assert_eq!((r1.jumps, r2.jumps), (r0.jumps, r0.jumps));
+        assert!(scans_default > scans_plain, "the shipped rule scans the injected sphere on every expansion ({scans_default} vs {scans_plain})");
+        assert_eq!(scans_lazy, scans_plain, "the knob skips it where the plain pass progressed");
     }
 
     /// The lean rewrite on a run the tank can only just fly: Start, two
