@@ -138,6 +138,39 @@ verdicts live in the CSV headers under `docs/benches/`.
   sentence, not a planner option -- a "leave light" plan would need the
   planner to pick the departure fuel, measure before building.
 
+- **OPEN -- the rim-to-rim stress route: Ood Fleau ZJ-I d9-0 <-> Sphiesi
+  HX-L d7-0** (the boss, 2026-10-17: "the longest possible route in the
+  game that I know of"; `docs/benches/2026-10-17-rim-to-rim-stress.csv`).
+  84,599 ly straight, both ends F stars 80-83 ly from their nearest
+  neighbour, so a premium injection opens each end. Spansh's exact plotter
+  answers in 61 s: 453 jumps, 251 boosted, 22 injections, 114,668 ly flown,
+  never nearer than 13,277 ly to Sgr A*. Prod answers "budget /
+  no_first_route" at 100.7 s (three times in the app, once replayed by hand
+  with the Caspian's fuel model and premium 22), and the PC cannot plot it
+  in 600 s on 24 threads -- structure, not the box's two cores. Measured
+  where the time goes: every portfolio variant's coarse neutron search hits
+  its 30,000-expansion cap 43-45k ly short of Sphiesi, about at the core,
+  and hands the remainder to the exact planner as one 45,000 ly leg, which
+  never returns (cancelled at the budget every run), so the x4 wave built
+  for stalls never starts; the other 1,813 legs of the 14 variants refined
+  in 585 ms. Raising the cap x4 (`ED_COARSE_CAP=120000`, ~150 s of coarse)
+  moved the stall from ~45.0k to ~43.3k ly remaining. Halves: rim -> core
+  (40.1k ly) plots in 1.9 s; core -> Sphiesi (45.4k ly) stalls the same
+  way. With neutron ends 1.5k ly inside each rim (Byiae Aick ON-B d13-0 ->
+  Hypoe Groa NN-Q d6-0, 82.6k ly) the forward variants finish: first route
+  at 73 s, 626 jumps served at 100.1 s. The bidirectional variant dies
+  after 2 expansions whenever an end needs an injection ("no meet, 1 node
+  each side"). The neutron sub-index is dense on the straight line (100-123
+  occupied cells per 4,230 ly band, 65 neutrons/cell at the core); Spansh's
+  detour is the sparser corridor, carried by 16 plain runs longer than the
+  coarse graph's 4-jump mid-route bridge (max 24). Open questions, in the
+  order to measure them: (1) why the forward coarse search crosses from a
+  neutron start in 73 s but not from an injection-opened start; (2) whether
+  a stalled variant failing fast when the remainder exceeds what the exact
+  planner can take (instead of exact-planning 45k ly) lets the x4/x16 waves
+  cross; (3) bidi seeding from the gateway neutrons at injection ends.
+  Harness: `docs/benches/knobs/stress_route.sh` (prod), `stress_pc.sh` and
+  `stress_halves.sh` (PC, full index, per-leg debug).
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

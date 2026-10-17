@@ -1,0 +1,5 @@
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0",
+ "fuel_model":{"unladen_mass":1324.44,"capacity":128.0,"max_fuel_per_jump":6.8,"power":2.5025,"multiplier":0.011,"optimal_mass":6864.9,"scoop_rate":0.0,"headroom_t":0.0,"booster":10.5,"reserve":0.0,"cargo":0.0},
+ "boost":{"neutron":6.0,"white_dwarf":3.0},
+ "start_fuel":128.0,"supercharge":true,"white_dwarfs":false,"min_fuel":true,
+ "injection":{"grade":"premium","max":22}}
