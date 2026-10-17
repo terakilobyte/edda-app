@@ -1,0 +1,57 @@
+# Planner matrix, the before/after record of the planner unification
+# (docs/superpowers/specs/2026-10-17-planner-unification-design.md; plan
+# docs/superpowers/plans/2026-10-17-planner-unification-r0-r1.md).
+# 14 pinned pairs, both directions (knobs/planner_matrix_routes.txt): the
+# September crossing matrix's nine, the canary's Sol pins, the two Jongou
+# rim pairs and the rim-to-rim stress pair. Ship: the maintainer's Caspian
+# (bench --ship explorer: 77.81 ly max, 72.2 full-tank, 128 t, 6.8 t cap,
+# +10.5 booster, x6 SCO), premium injections 22, --min-fuel, budget 100 s,
+# this PC (24 threads), index D:\galos\index-boost-secondary.
+# Arms: before = main 4b79562 (bench built into edda-target-baseline);
+# r0, r1-* = this branch after the named task. Rows per arm live in
+# docs/benches/2026-10-17-planner-matrix-<arm>.jsonl (edda_matrix.sh output);
+# the table is knobs/planner_before_after.py before after [--ref ref].
+# THE GATE (every task): no route with more jumps or more stops than the
+# before row, pilot seconds (60 s/jump + 120 s/stop) not higher, wall not
+# more than +10 % on any route, the planner tests green; the renderer exits
+# 1 on any WORSE row and the task does not ship.
+# The external reference's rows (its public plotter, same drive figures,
+# optimistic algorithm, 60 s) sit beside ours for the eye only.
+# VERDICT (before, 2026-10-17): 24 of 28 plotted. Lost in 100 s: Byoi
+# Fraae AT-U d2-1 -> Jongou AA-A d0, Byoi Fraae CQ-G d10-0 -> Jongou XM-W
+# d1-0, and both directions of Ood Fleau ZJ-I d9-0 <-> Sphiesi HX-L d7-0.
+# Slowest plotted: Jongou XM-W -> Byoi CQ-G 402 j at 108.9 s (first route at
+# the 100 s budget), Jongou AA-A -> Byoi AT-U 396 j at 100.2 s, Colonia ->
+# Spase 91 j at 52.5 s, Wongi/Sol -> Beagle Point 191 j at 18.4 s. Every
+# other route under 7.2 s. Direction asymmetries: Sgr A* -> Sol 6.3 s vs
+# 0.8 s back; Colonia -> Spase 52.5 s vs 7.2 s back; Beagle -> Wongi 1.6 s
+# vs 18.4 s there.
+arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
+before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
+before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
+before,Sol,Byoomao AA-A c1,24621,64,3,4200,209,0.6,
+before,Byoomao AA-A c1,Sol,24621,62,3,4080,64,0.6,
+before,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2340,108,0.4,
+before,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2280,24,0.3,
+before,Wongi,Plielou RN-R d5-27,12117,37,2,2460,135,0.6,
+before,Plielou RN-R d5-27,Wongi,12117,36,1,2280,68,0.2,
+before,Wongi,Colonia,21939,58,2,3720,81,1.4,
+before,Colonia,Wongi,21939,54,2,3480,446,1.2,
+before,Sol,Sagittarius A*,25900,70,3,4560,109,0.8,
+before,Sagittarius A*,Sol,25900,73,3,4740,1978,6.3,
+before,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2400,192,1.0,
+before,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2280,58,0.2,
+before,Wongi,Beagle Point,65182,191,10,12660,252,18.4,
+before,Beagle Point,Wongi,65182,196,10,12960,311,1.6,
+before,Colonia,Spase AA-A a108-0,31440,91,4,5940,1421,52.5,
+before,Spase AA-A a108-0,Colonia,31440,87,5,5820,1968,7.2,
+before,Sol,Colonia,22000,58,3,3840,81,1.0,
+before,Colonia,Sol,22000,55,2,3540,211,0.9,
+before,Sol,Beagle Point,65279,191,10,12660,301,18.3,
+before,Beagle Point,Sol,65279,197,9,12900,86,1.5,
+before,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,25800,1289,100.2,
+before,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,100.2,no route in budget
+before,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,402,17,26160,100035,108.9,
+before,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.2,no route in budget
+before,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.3,no route in budget
+before,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.2,no route in budget
