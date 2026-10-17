@@ -1,0 +1,11 @@
+# scoop250.bin on the PC's highway sub-index (D:\galos\index-boost-secondary,
+# Sep 11 build; 3,853,782 highway stars), built from the full index with
+# examples/scoop_side.rs in 1.0 s on 24 threads (widening rings 20 / 40 /
+# 80 / 120 / 180 / 254 ly; the median answer stops at the second ring).
+# VERDICT: the flag the coarse search read until now (FLAG_SCOOP_NEARBY, a
+# companion within 1,500 ls) marks 9.4 % of highway stars; one plain jump
+# reaches a scoopable star from 92.1 % of them, half within 30 ly, nine in
+# ten within 74 ly, and only 0.3 % have none within 254 ly. The byte is
+# the refuel signal from R2 Task 2 on.
+records,secs,within_20_pct,within_40_pct,within_60_pct,within_80_pct,within_100_pct,none_pct,p50_ly,p90_ly
+3853782,1.0,33.9,65.6,83.6,92.1,95.1,0.3,30,74

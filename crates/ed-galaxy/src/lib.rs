@@ -14,6 +14,7 @@
 pub mod agg;
 pub mod alt;
 pub mod boost_side;
+pub mod scoop_side;
 pub mod carrier;
 pub mod cgraph;
 pub mod fuel;

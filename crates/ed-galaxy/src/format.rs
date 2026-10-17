@@ -272,6 +272,9 @@ pub struct Galaxy {
     /// The secondary boost stars (`boost.bin`), opened on first use.
     /// `None` inside: absent -- [`Galaxy::boost_secondary`] is never Some.
     boost_side: std::sync::OnceLock<Option<crate::boost_side::BoostSide>>,
+    /// The nearest-scoopable bytes of a highway sub-index (`scoop250.bin`),
+    /// opened on first use. `None` inside: absent -- the flag path answers.
+    scoop_side: std::sync::OnceLock<Option<crate::scoop_side::ScoopSide>>,
 }
 
 impl Galaxy {
@@ -334,6 +337,7 @@ impl Galaxy {
             alt: Default::default(),
             cell_graph: Default::default(),
             boost_side: Default::default(),
+            scoop_side: Default::default(),
         })
     }
 
@@ -352,6 +356,17 @@ impl Galaxy {
             .as_ref()?;
         let e = side.lookup(self.record(idx).id64)?;
         Some((crate::StarClass::from_code(e.class), e.ls))
+    }
+
+    /// Nearest scoopable star of record `idx` in whole light years, from
+    /// `scoop250.bin` beside this (sub-)index: `Some(255)` for none within
+    /// 254 ly, `None` when the file is absent or short (planner unification
+    /// R2, 2026-10-17).
+    pub fn nearest_scoop_ly(&self, idx: u32) -> Option<u8> {
+        self.scoop_side
+            .get_or_init(|| crate::scoop_side::ScoopSide::open(&self.dir.join(crate::scoop_side::SCOOP_SIDE_FILE)).ok())
+            .as_ref()?
+            .get(idx)
     }
 
     /// The coarse cell graph, if `graph250.bin` was written beside the

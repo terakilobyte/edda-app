@@ -525,8 +525,50 @@ pub fn subset_cells_cancellable(
         if let Ok(aggregate) = crate::agg::build(&sub) {
             let _ = aggregate.write(&out_dir.join(crate::agg::AGG_FILE));
         }
+        // Each highway star's nearest scoopable neighbour (R2): best effort
+        // like the aggregate; a sub-index without it plans on the flag.
+        let bytes = nearest_scoop_bytes(g, &sub);
+        let _ = crate::scoop_side::write(&out_dir.join(crate::scoop_side::SCOOP_SIDE_FILE), &bytes);
     }
     Ok(stats)
+}
+
+/// For every record of `sub` (a highway sub-index of `full`), the distance
+/// to the nearest star of `full` the ship can scoop at -- a scoopable
+/// class, or a record flagged [`crate::format::FLAG_SCOOP_NEARBY`] -- in
+/// whole light years, capped at [`crate::scoop_side::NONE`] (nothing within
+/// 254 ly). One cell walk per record, in parallel.
+pub fn nearest_scoop_bytes(full: &crate::Galaxy, sub: &crate::Galaxy) -> Vec<u8> {
+    use rayon::prelude::*;
+    let limit = (crate::scoop_side::NONE - 1) as f32;
+    // Widening spheres: the median answer is ~30 ly, so most records stop
+    // at the first or second ring instead of walking a 254 ly sphere that
+    // holds a hundred thousand stars in the core.
+    const RINGS: [f32; 6] = [20.0, 40.0, 80.0, 120.0, 180.0, 254.0];
+    (0..sub.count as u32)
+        .into_par_iter()
+        .map(|i| {
+            let pos = sub.pos_of(i);
+            let mut best = f32::INFINITY;
+            for r in RINGS {
+                full.for_each_within(pos, r, |n_idx, d| {
+                    if d >= best || d <= 0.01 {
+                        return;
+                    }
+                    let code = full.class_code(n_idx);
+                    let scoopable = (code != crate::StarClass::Unknown.code() && crate::StarClass::from_code(code).scoopable())
+                        || full.flags(n_idx) & crate::format::FLAG_SCOOP_NEARBY != 0;
+                    if scoopable {
+                        best = d;
+                    }
+                });
+                if best <= r {
+                    break;
+                }
+            }
+            if best.is_finite() { best.ceil().min(limit) as u8 } else { crate::scoop_side::NONE }
+        })
+        .collect()
 }
 
 #[cfg(test)]
