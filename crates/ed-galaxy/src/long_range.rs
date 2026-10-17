@@ -133,11 +133,22 @@ pub fn neutron_dir(galaxy_dir: &std::path::Path) -> std::path::PathBuf {
 /// fewer options than a full one -- else the companion flag, as before
 /// R2 (2026-10-17; the flag covers 9.4 % of highway stars, the byte 92 %
 /// within 80 ly).
+#[allow(dead_code)] // Task 4's dry-hop reset reads it; until then only its test does.
 fn refuels_here(neutrons: &Galaxy, idx: u32, reach_now_ly: f32) -> bool {
     match neutrons.nearest_scoop_ly(idx) {
         Some(d) => d != crate::scoop_side::NONE && (d as f32) <= reach_now_ly,
         None => neutrons.flags(idx) & crate::format::FLAG_SCOOP_NEARBY != 0,
     }
+}
+
+/// Does the ship refill for free on arriving at highway star `idx`: a
+/// scoopable companion within the run (the companion flag). The coarse
+/// search that carries fuel in its state asks this; `refuels_here` (a
+/// scoopable star within a jump) is a different question, Task 4's. Read
+/// as a free refill it cost the matrix 2-8 jumps a route (2026-10-17, arm
+/// r2-judgeonly: 14 of 28 worse), because the refiner pays the detour.
+fn refills_on_arrival(neutrons: &Galaxy, idx: u32) -> bool {
+    neutrons.flags(idx) & crate::format::FLAG_SCOOP_NEARBY != 0
 }
 
 pub fn highway_star(class: crate::StarClass) -> bool {
@@ -2421,7 +2432,7 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                     return;
                 }
                 let n_pos = neutrons.pos_of(n_idx);
-                let refuels = !lean_scan && refuels_here(neutrons, n_idx, full_range);
+                let refuels = !lean_scan && refills_on_arrival(neutrons, n_idx);
                 let to_t = dist(n_pos, target);
                 let bonus = if refuels {
                     let full = full_range * neutron_boost * refuel_k;
@@ -2444,7 +2455,7 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 bucket.clear();
                 let mut keep: Vec<(f32, u32, [f32; 3], f32)> = Vec::with_capacity(cands.len() / 4);
                 for &c in cands.iter() {
-                    let refuels = !lean_scan && refuels_here(neutrons, c.1, full_range);
+                    let refuels = !lean_scan && refills_on_arrival(neutrons, c.1);
                     if refuels {
                         keep.push(c);
                         continue;
@@ -3226,7 +3237,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                     // The injected jump burns like a bridging one.
                     let bridges = edge_bridges as f32 + if injected { 1.0 } else { 0.0 };
                     let burn = m.fuel_for(d.min(range_here * boost), cur.fuel, boost) + bridges * m.max_fuel_per_jump;
-                    let refills = n_idx != GOAL && refuels_here(neutrons, n_idx, range_here);
+                    let refills = n_idx != GOAL && refills_on_arrival(neutrons, n_idx);
                     // The last edge is an ordinary run the refiner flies with
                     // scoop stops as needed; only the first boosted hop has to
                     // be fundable from the tank, or a small-tank ship stalls
@@ -3366,7 +3377,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                                 if to_goal > corridor {
                                     continue;
                                 }
-                                let refuels = !lean_scan && refuels_here(neutrons, n_idx, range_here);
+                                let refuels = !lean_scan && refills_on_arrival(neutrons, n_idx);
                                 let bonus = if refuels {
                                     let full = full_range * boost * refuel_k;
                                     if through_stop(neutrons, n_pos, goal_pos, full_range * boost) { full } else { full * deadend_f }
@@ -3428,7 +3439,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             // Refuelling neutrons rank first: they are the highway's fuel
             // stops. A min-fuel plan wants pure progress instead -- it
             // will not stop unless the tank makes it.
-            let refuels = !lean_scan && refuels_here(neutrons, n_idx, range_here);
+            let refuels = !lean_scan && refills_on_arrival(neutrons, n_idx);
             let bonus = if refuels {
                 let full = full_range * boost * refuel_k;
                 if through_stop(neutrons, n_pos, goal_pos, full_range * boost) { full } else { full * deadend_f }
@@ -3445,12 +3456,12 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // does). Neighbours a few ly apart are the same choice to the
         // coarse plan, and in the core they are most of the candidates.
         if sector_keep > 0 && cands.len() > 64 {
-            thin_by_sector(&mut cands, here, &|idx: u32| !lean_scan && refuels_here(neutrons, idx, range_here), sector_keep);
+            thin_by_sector(&mut cands, here, &|idx: u32| !lean_scan && refills_on_arrival(neutrons, idx), sector_keep);
         } else if bucket_ly > 0.0 && cands.len() > 64 {
             bucket.clear();
             let mut keep: Vec<(f32, u32, [f32; 3], f32)> = Vec::with_capacity(cands.len() / 4);
             for &c in cands.iter() {
-                let refuels = !lean_scan && refuels_here(neutrons, c.1, range_here);
+                let refuels = !lean_scan && refills_on_arrival(neutrons, c.1);
                 if refuels {
                     keep.push(c);
                     continue;
@@ -4685,6 +4696,24 @@ mod tests {
         assert!(kept.contains(&5), "the only candidate in +y stays: {kept:?}");
         assert!(!kept.contains(&2), "the second-best plain +x candidate goes: {kept:?}");
         assert_eq!(kept.len(), 4);
+    }
+
+    /// R2 Task 2, corrected the same day: the coarse search that carries
+    /// fuel in its state refills for free only where the companion flag
+    /// says a scoopable star sits at arrival. A scoopable star 10 ly away
+    /// is a detour and a stop, not a refill: read as one it cost the
+    /// matrix 2-8 jumps a route (arm r2-judgeonly vs r1: 14 of 28 worse,
+    /// stops down and jumps up on the same routes).
+    #[test]
+    fn a_free_refill_is_a_companion_not_a_neighbour() {
+        let f = highway();
+        let mut bytes = vec![crate::scoop_side::NONE; f.neutrons.count as usize];
+        bytes[0] = 10;
+        crate::scoop_side::write(&f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE), &bytes).unwrap();
+        let sub = Galaxy::open(&f.neutrons.dir).unwrap();
+        assert!(refuels_here(&sub, 0, 72.0), "the byte says a scoop is within reach...");
+        assert_eq!(refills_on_arrival(&sub, 0), sub.flags(0) & crate::format::FLAG_SCOOP_NEARBY != 0, "...but a free refill is the companion flag alone");
+        std::fs::remove_file(f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE)).unwrap();
     }
 
     /// R2 Task 2 (2026-10-17): the refuel signal reads the scoop byte against
