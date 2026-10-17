@@ -179,7 +179,12 @@ verdicts live in the CSV headers under `docs/benches/`.
   highway graph that can express long plain corridors, fuel out of the
   coarse state, the server running the cheapest variant first; rungs R0-R4
   each gated by the matrix under one judge. The maintainer's ruling: "the
-  fastest router for any route, period".
+  fastest router for any route, period". **R0, one judge on the wire
+  (same day):** the server defaulted `stop_weight` to 0.0 and the Route
+  tab sends none, so from the early answer (#198) until now every served
+  route was ranked by jump count alone while bench and app judged pilot
+  seconds; the default is 1.0 and the early-answer / best-so-far pickers
+  call the planner's judge (`route_score_public`).
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

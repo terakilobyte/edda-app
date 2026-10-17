@@ -581,6 +581,13 @@ fn fuel_units(scooped_t: f32) -> u64 {
 /// The route judging used by best-selection, the grace clock, and the
 /// wave improvement test. ED_JUDGE=fuel swaps in the item-29 study
 /// gauge (study knob only; absent = the fitted seconds model).
+/// The judge for callers outside this module (the server's early-answer
+/// and best-so-far pickers): lower is better, the units the portfolio
+/// ranks by. One judge everywhere (planner unification, R0, 2026-10-17).
+pub fn route_score_public(r: &Route, req: &RouteRequest) -> u64 {
+    route_score(r, req.fuel.map(|m| m.scoop_rate).unwrap_or(0.0), req)
+}
+
 fn route_score(r: &Route, scoop_rate: f32, req: &RouteRequest) -> u64 {
     if std::env::var("ED_JUDGE").is_ok_and(|v| v == "fuel") {
         return fuel_units(scooped_tonnes(r));
