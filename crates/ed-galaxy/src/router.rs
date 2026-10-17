@@ -671,7 +671,8 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // determinism. Until 2026-10-17 a boost cost 0.01 of a jump, so the
     // search took every supercharge that did not add a jump, whatever the
     // cone approaches cost in the chair.
-    let cost = |g: u32, boosts: u32, inj: u32, ly: f32| g as f32 + (BOOST_UNITS - 1.0) * boosts as f32 + INJECTION_UNITS * inj as f32 + 0.0001 * ly / range;
+    let boost_surcharge = if crate::long_range::units_knob(&crate::long_range::EXACT_UNITS, "ED_UNITS_EXACT") { BOOST_UNITS - 1.0 } else { 0.01 };
+    let cost = |g: u32, boosts: u32, inj: u32, ly: f32| g as f32 + boost_surcharge * boosts as f32 + INJECTION_UNITS * inj as f32 + 0.0001 * ly / range;
     open.push(Open { f: h(start_rec.pos()), g: 0, ly: 0.0, boosts: 0, idx: req.from, dry: quant(start_fuel), fuel: start_fuel, inj: 0 });
 
     let mut expansions: u64 = 0;
