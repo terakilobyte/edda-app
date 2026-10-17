@@ -1,0 +1,7 @@
+family,runs,routes,first_to_answer,median_ms_to_route
+offramp,132,105,2,31
+greedy single,66,54,10,31
+single,396,320,2,32
+greedy bidi,66,55,4,123
+bidi,66,55,2,125
+scan-twin,210,149,5,241
