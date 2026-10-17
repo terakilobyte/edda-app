@@ -942,13 +942,20 @@ impl GraceClock {
 /// are then told to stop through the cancel check handed to them; `None`
 /// waits for all. Returns every result in variant order and how many
 /// finished with a route.
-/// The coarse widen rule (R1, 2026-10-17): rescan at the long radius only
-/// when the ordinary scan pushed nothing AND saw nothing. Seeing candidates
-/// that were all already known is a dense region, not a void; the old rule
-/// (`pushed == 0` alone) fired on half of all expansions in the core.
-/// `on_dominated` is the A/B knob that restores it.
-fn widen_due(pushed: u64, scan_cands: usize, on_dominated: bool) -> bool {
-    pushed == 0 && (scan_cands == 0 || on_dominated)
+/// The coarse widen rule. A scan that saw nothing is a void: widen. A scan
+/// whose candidates were all already known widens too, every time (the
+/// shipped rule): the R0 timers showed that rescan is where the coarse
+/// millisecond goes (22,700 of 44,000 expansions on the rim pair, 6.3 of
+/// 9 s per variant), but the two cheaper rules measured on 2026-10-17 both
+/// paid in route quality -- empty-only: +9 jumps on Sol -> Beagle Point,
+/// +30 s end to end on Colonia -> Spase; once per 250 ly cell: still +9
+/// on Sol -> Beagle Point -- because those rescans supply the long
+/// bridge edges the coarse graph has no other way to see. The maintainer's
+/// order is route first, time second, so the edges stay; R3 moves the long
+/// bridges into the ordinary scan and retires the rescan properly.
+/// `ED_COARSE_WIDEN_ONCE_PER_CELL=1` selects the per-cell rule for A/B.
+fn widen_due(pushed: u64, scan_cands: usize, cell_widened_before: bool, once_per_cell: bool) -> bool {
+    pushed == 0 && (scan_cands == 0 || !once_per_cell || !cell_widened_before)
 }
 
 /// Direction sector of `there` seen from `here`: each axis -1 / 0 / +1,
@@ -3023,9 +3030,11 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     (ctl.stage)("coarse", 0, 0);
     // How far out the search settled, for the variant outcome (0 = goal).
     let mut stall_at: f32 = 0.0;
-    // Candidates the last scan produced before thinning (the widen rule).
+    // Candidates the last scan produced before thinning (the widen rule),
+    // and the cells whose dominated expansions already widened once.
     let mut scan_cands: usize = 0;
-    let widen_on_dominated = std::env::var("ED_COARSE_WIDEN_ON_DOMINATED").ok().as_deref() == Some("1");
+    let mut widened_cells: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::default();
+    let widen_once_per_cell = std::env::var("ED_COARSE_WIDEN_ONCE_PER_CELL").ok().as_deref() == Some("1");
 
     let mut pops: u64 = 0;
     let mut stale_pops: u64 = 0;
@@ -3421,7 +3430,12 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // `pushed == 0` alone, and in dense regions half of all expansions
         // paid the 3x-radius rescan for dominated neighbours (R0 timers:
         // 22,700 of 44,000 pops on the rim-to-rim pair, 6.3 of 9 s).
-        if widen_due(pushed as u64, scan_cands, widen_on_dominated) {
+        let widen_cell = {
+            let q = |v: f32| (v / NEUTRON_CELL_LY).floor() as i64 as u64 & 0x1f_ffff;
+            (q(here[0]) << 42) | (q(here[1]) << 21) | q(here[2])
+        };
+        let cell_widened_before = scan_cands > 0 && !widened_cells.insert(widen_cell);
+        if widen_due(pushed as u64, scan_cands, cell_widened_before, widen_once_per_cell) {
             // Nothing in the highway's reach: widen to a longer ordinary run
             // (rim of the galaxy) rather than back the search up. In thin
             // topology these rescans dominate coarse time (70% on the
@@ -4476,11 +4490,13 @@ mod tests {
     /// regular to reproduce domination, so the rule itself is pinned here
     /// and the counts come from the timers CSV.
     #[test]
-    fn the_widen_fires_on_an_empty_scan_not_on_dominated_candidates() {
-        assert!(widen_due(0, 0, false), "nothing seen: a void, widen");
-        assert!(!widen_due(0, 37, false), "candidates seen, all known: not a void");
-        assert!(!widen_due(3, 37, false), "something pushed: no widen");
-        assert!(widen_due(0, 37, true), "the A/B knob restores the old rule");
+    fn the_widen_fires_whenever_nothing_was_pushed_and_once_per_cell_only_by_the_knob() {
+        assert!(widen_due(0, 0, false, false), "nothing seen: a void, widen");
+        assert!(widen_due(0, 37, true, false), "shipped rule: candidates all known, widen every time (the long bridges)");
+        assert!(!widen_due(3, 37, false, false), "something pushed: no widen");
+        assert!(widen_due(0, 37, false, true), "knob: first time in this cell, widen");
+        assert!(!widen_due(0, 37, true, true), "knob: this cell widened already, not again");
+        assert!(widen_due(0, 0, true, true), "knob: a void widens regardless");
     }
 
     /// R1 sector thinning (2026-10-17): per direction sector the coarse
