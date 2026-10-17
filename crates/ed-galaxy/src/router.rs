@@ -112,6 +112,26 @@ impl Default for RouteRequest {
 /// plain alternative at all.
 pub const INJECTION_PENALTY: u32 = 30;
 
+/// One currency (planner unification R2, 2026-10-17, spec D1): pilot
+/// seconds, from the 130-journal cut of that day. A plain jump 53 s; a
+/// boosted jump 73 s (the cone approach included); a passing scoop +6 s;
+/// a full stop 120 s plus the tonnes over the scoop rate; an injection
+/// 1,800 s (the maintainer's price). The searches count in plain-jump
+/// units, one unit = `T_PLAIN_S`, so a boosted hop costs `BOOST_UNITS`.
+pub const T_PLAIN_S: f32 = 53.0;
+pub const T_BOOST_S: f32 = 73.0;
+pub const T_PASS_SCOOP_S: f32 = 6.0;
+pub const T_STOP_S: f32 = 120.0;
+pub const SCOOP_RATE_DEFAULT: f32 = 1.245;
+pub const INJECTION_SECONDS: f32 = 1_800.0;
+/// A boosted hop in plain-jump units.
+pub const BOOST_UNITS: f32 = T_BOOST_S / T_PLAIN_S;
+/// A full stop's approach overhead in plain-jump units (the tonnes ride
+/// on top, over the scoop rate).
+pub const STOP_UNITS: f32 = T_STOP_S / T_PLAIN_S;
+/// An injection in plain-jump units (the 30-jump penalty, re-derived).
+pub const INJECTION_UNITS: f32 = INJECTION_SECONDS / T_PLAIN_S;
+
 /// FSD injection synthesis, best grade first: (range multiplier, grade,
 /// one unit of each material). Per Inara; an injection does not stack
 /// with a neutron or white dwarf supercharge, so it only ever helps a
@@ -595,13 +615,17 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
             _ => 0,
         }
     };
-    // Thorough: admissible heuristic over the best reachable boost, exact A*.
-    let (h_range, weight) = if req.thorough {
-        (range * if req.supercharge { req.boost.neutron } else { 1.0 }, 1.0)
+    // Thorough: admissible heuristic in plain-jump units (R2) over the
+    // cheapest way to cover a light-year -- a plain jump at 1 unit per
+    // `range`, or a supercharged one at `BOOST_UNITS` per `range x boost`
+    // -- then exact A*. Otherwise the weighted search as before.
+    let (h_units_per_ly, weight) = if req.thorough {
+        let boost = if req.supercharge { req.boost.neutron } else { 1.0 };
+        ((1.0 / range).min(BOOST_UNITS / (range * boost)), 1.0)
     } else {
-        (range, req.weight)
+        (1.0 / range, req.weight)
     };
-    let h = |p: [f32; 3]| dist(p, goal) / h_range * weight;
+    let h = |p: [f32; 3]| dist(p, goal) * h_units_per_ly * weight;
 
     // State is (system, dry-run length) when dry runs are limited; the
     // dry component is what makes "refuel before it" enforceable. With a
@@ -612,24 +636,26 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // saying no (2026-09-10, galos spike). Then the system is the state.
     let dry_matters = fuel_model.is_some() || req.max_dry_jumps > 0;
     let key = move |idx: u32, dry: u32| -> u64 { ((idx as u64) << 8) | if dry_matters { dry.min(255) as u64 } else { 0 } };
-    // Best (jumps, ly) seen per state; a path with equal jumps but fewer ly
-    // still improves on the recorded one.
-    // (jumps, boosts, ly): lexicographically smaller is better.
-    let mut best_g: HashMap<u64, (u32, i32, f32)> = HashMap::default();
+    // Best cost seen per state, in plain-jump units (R2): jumps, the boost
+    // surcharge, the injections and the light-year tie-break in one
+    // figure, so a path with more jumps and fewer supercharges can win
+    // the state when the seconds say so. Until 2026-10-17 this was the
+    // lexicographic (jumps, boosts, ly) and the jump count always won.
+    let mut best_g: HashMap<u64, f32> = HashMap::default();
     let mut parent: HashMap<u64, (u64, bool, f32, f32, bool, bool)> = HashMap::default();
     let mut open = BinaryHeap::new();
-    // Per system, the non-dominated (jumps, fuel) pairs reached so far. A
-    // state with no fewer jumps and no more fuel than one already known is
+    // Per system, the non-dominated (cost, fuel) pairs reached so far. A
+    // state with no lower cost and no more fuel than one already known is
     // worthless: fuel levels quantised to 1/255 otherwise multiply every
     // system into dozens of near-identical states.
-    let mut pareto: HashMap<u32, Vec<(u32, f32)>> = HashMap::default();
-    let dominated = |pareto: &mut HashMap<u32, Vec<(u32, f32)>>, idx: u32, jumps: u32, fuel: f32| -> bool {
+    let mut pareto: HashMap<u32, Vec<(f32, f32)>> = HashMap::default();
+    let dominated = |pareto: &mut HashMap<u32, Vec<(f32, f32)>>, idx: u32, cost: f32, fuel: f32| -> bool {
         let e = pareto.entry(idx).or_default();
-        if e.iter().any(|&(j, f)| j <= jumps && f >= fuel - 0.05) {
+        if e.iter().any(|&(c, f)| c <= cost && f >= fuel - 0.05) {
             return true;
         }
-        e.retain(|&(j, f)| !(jumps <= j && fuel >= f));
-        e.push((jumps, fuel));
+        e.retain(|&(c, f)| !(cost <= c && fuel >= f));
+        e.push((cost, fuel));
         false
     };
 
@@ -638,12 +664,14 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
         None => 0.0,
     };
     let start_key = key(req.from, quant(start_fuel));
-    best_g.insert(start_key, (0, 0, 0.0));
-    // Scalar cost: jumps first, then a small penalty per boosted leg (use a
-    // supercharge only when it removes a jump), then a smaller charge per
-    // light-year for determinism. Both extras are far below one jump so
-    // they never change the jump count.
-    let cost = |g: u32, boosts: u32, ly: f32| g as f32 + 0.01 * boosts as f32 + 0.0001 * ly / range;
+    best_g.insert(start_key, 0.0);
+    // Scalar cost in plain-jump units (R2): every jump one unit, a
+    // supercharged hop its real 73 s against a plain jump's 53 on top, an
+    // injection its 1,800 s, then a small charge per light-year for
+    // determinism. Until 2026-10-17 a boost cost 0.01 of a jump, so the
+    // search took every supercharge that did not add a jump, whatever the
+    // cone approaches cost in the chair.
+    let cost = |g: u32, boosts: u32, inj: u32, ly: f32| g as f32 + (BOOST_UNITS - 1.0) * boosts as f32 + INJECTION_UNITS * inj as f32 + 0.0001 * ly / range;
     open.push(Open { f: h(start_rec.pos()), g: 0, ly: 0.0, boosts: 0, idx: req.from, dry: quant(start_fuel), fuel: start_fuel, inj: 0 });
 
     let mut expansions: u64 = 0;
@@ -653,8 +681,8 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
 
     while let Some(cur) = open.pop() {
         let cur_key = key(cur.idx, cur.dry);
-        let cur_rank = (cur.g + cur.inj * INJECTION_PENALTY, cur.boosts as i32, cur.ly);
-        if best_g.get(&cur_key).is_some_and(|&(bg, bb, bl)| (bg, bb, bl) < cur_rank) {
+        let cur_cost = cost(cur.g, cur.boosts, cur.inj, cur.ly);
+        if best_g.get(&cur_key).is_some_and(|&bg| bg < cur_cost) {
             continue; // stale entry
         }
         if cur.idx == req.to {
@@ -767,19 +795,19 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
                 let boosted = !injected && boost > 1.0 && (d > reach / boost || fuel_model.is_some_and(|m| m.jump(d, cur.fuel, 1.0).is_none()));
                 let nb = cur.boosts + boosted as u32;
                 let nk = key(n_idx, dry);
-                let rank = (ng + ninj * INJECTION_PENALTY, nb as i32, nl);
-                if best_g.get(&nk).is_some_and(|&(bg, bb, bl)| (bg, bb, bl) <= rank) {
+                let n_cost = cost(ng, nb, ninj, nl);
+                if best_g.get(&nk).is_some_and(|&bg| bg <= n_cost) {
                     continue;
                 }
-                if fuel_model.is_some() && n_idx != goal_idx && dominated(&mut pareto, n_idx, ng + ninj * INJECTION_PENALTY, n_fuel) {
+                if fuel_model.is_some() && n_idx != goal_idx && dominated(&mut pareto, n_idx, n_cost, n_fuel) {
                     continue;
                 }
-                best_g.insert(nk, rank);
+                best_g.insert(nk, n_cost);
                 parent.insert(nk, (cur_key, boosted, d, n_fuel, refuel, injected));
                 if !injected && dist(g.pos_of(n_idx), goal) < remaining {
                     progressed = true;
                 }
-                open.push(Open { f: cost(ng + ninj * INJECTION_PENALTY, nb, nl) + h(g.pos_of(n_idx)), g: ng, ly: nl, boosts: nb, idx: n_idx, dry, fuel: n_fuel, inj: ninj });
+                open.push(Open { f: n_cost + h(g.pos_of(n_idx)), g: ng, ly: nl, boosts: nb, idx: n_idx, dry, fuel: n_fuel, inj: ninj });
             }
         }
     }
