@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""planner_before_after.py before.jsonl after.jsonl [--ref ref.jsonl]
+"""planner_before_after.py before.jsonl after.jsonl [--ref ref.jsonl] [--judge seconds]
 
 The planner matrix gate (planner unification, 2026-10-17): one row per
 (from, to) in the before file, the after file's row beside it, a verdict
@@ -7,7 +7,11 @@ per route, exit 1 if any route is WORSE. Rows come from
 docs/benches/knobs/edda_matrix.sh (fields: from, to, jumps, stops,
 total_ly, straight_ly, first_found_ms, wall_s, or error).
 
-Pilot seconds use the bench judge: 60 s per jump + 120 s per stop.
+Pilot seconds use the bench judge: 60 s per jump + 120 s per stop. With
+`--judge seconds` the rows' `seconds_v2` (rejudge_seconds.py: plain 53,
+boosted 73, passing scoop 6, stop 120 + tonnes) is the figure compared and
+the verdict is on seconds, stops and wall; jumps are shown, not judged (a
+route with more plain jumps and fewer boosted ones can be the faster one).
 Verdicts: WORSE = more jumps, more stops, a route lost, or the same jumps
 at more than +10 % AND +1 s wall; better = fewer jumps or stops, or wall
 under 90 % and more than 1 s faster; same otherwise. Runs must not share
@@ -53,11 +57,24 @@ def wall(r, other):
     return r["wall_s"]
 
 
+JUDGE = "jumps"
+
+
 def verdict(b, a):
     if a.get("jumps") is None:
         return "WORSE" if b.get("jumps") is not None else "same"
     if b.get("jumps") is None:
         return "better"
+    if JUDGE == "seconds" and "seconds_v2" in a and "seconds_v2" in b:
+        sa, sb = a["seconds_v2"], b["seconds_v2"]
+        if sa > sb * 1.002 or (a.get("stops") or 0) > (b.get("stops") or 0):
+            return "WORSE"
+        wa, wb = wall(a, b), wall(b, a)
+        if wa > wb * 1.10 and wa > wb + 1.0 and sa >= sb:
+            return "WORSE"
+        if sa < sb or (a.get("stops") or 0) < (b.get("stops") or 0) or (wa < wb * 0.9 and wa + 1.0 < wb):
+            return "better"
+        return "same"
     if a["jumps"] > b["jumps"] or (a.get("stops") or 0) > (b.get("stops") or 0):
         return "WORSE"
     # Wall time has a noise floor: single runs under a few seconds move by
@@ -71,6 +88,12 @@ def verdict(b, a):
 
 
 def main(argv):
+    global JUDGE
+    argv = list(argv)
+    if "--judge" in argv:
+        i = argv.index("--judge")
+        JUDGE = argv[i + 1]
+        del argv[i:i + 2]
     before, after = load(argv[1]), load(argv[2])
     ref = load(argv[4]) if len(argv) > 4 and argv[3] == "--ref" else {}
     head = ["route", "straight ly", "jumps b/a", "stops b/a", "pilot s b/a", "first s b/a", "wall s b/a"]
@@ -89,7 +112,7 @@ def main(argv):
             fmt(b.get("straight_ly")),
             f"{fmt(b.get('jumps'))} / {fmt(a.get('jumps'))}",
             f"{fmt(b.get('stops'))} / {fmt(a.get('stops'))}",
-            f"{fmt(seconds(b))} / {fmt(seconds(a))}",
+            (f"{fmt(b.get('seconds_v2'))} / {fmt(a.get('seconds_v2'))}" if JUDGE == "seconds" else f"{fmt(seconds(b))} / {fmt(seconds(a))}"),
             f"{fmt((b.get('first_found_ms') or 0) / 1000, 1)} / {fmt((a.get('first_found_ms') or 0) / 1000, 1)}",
             f"{fmt(wall(b, a), 1)} / {fmt(wall(a, b), 1)}" + (" (same-day)" if "wall_s_sameday" in b or "wall_s_sameday" in a else ""),
         ]
