@@ -200,16 +200,22 @@ fn hop_units(boost: f32) -> f32 {
     if boost > 1.0 && units_knob(&COARSE_UNITS, "ED_UNITS_COARSE") { BOOST_UNITS } else { 1.0 }
 }
 
-/// R2 Task 3 ablation knobs (study only; the defaults are the one
-/// currency): ED_UNITS_COARSE=0 prices coarse edges and the coarse
-/// heuristic in boosted hops as before R2, ED_UNITS_VIA=0 prices the
-/// coarse scoop-stop edge at the old 2.0, ED_UNITS_EXACT=0 keeps the exact
-/// planner's old 0.01-a-boost surcharge. Read once per process.
+/// The one currency inside the SEARCHES is OFF by default (2026-10-17,
+/// docs/benches/2026-10-17-planner-matrix.csv): the judge prices in
+/// seconds everywhere, but pricing the coarse edges and heuristic in
+/// units (ED_UNITS_COARSE=1) measured Jongou AA-A 396 -> 510 jumps,
+/// Beagle Point +2 jumps and 18 -> 71 s, Blaa Hypai +1 stop (arm
+/// r2b-seconds), and the exact surcharge with the scoop-stop price
+/// (ED_UNITS_EXACT=1, ED_UNITS_VIA=1; arm r2b-nocoarse) lost Jongou XM-W
+/// at the cut and ran Beagle Point 18 -> 75-82 s for +45 s of route. The
+/// judge alone (arm r2b-judgeonly) is 9 better / 14 same / 5 wall-only
+/// against r1. OPEN: exact alone and via alone are unmeasured. Read once
+/// per process; `1` turns each on.
 static COARSE_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 static VIA_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 pub(crate) static EXACT_UNITS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
 pub(crate) fn units_knob(cell: &std::sync::OnceLock<bool>, var: &str) -> bool {
-    *cell.get_or_init(|| std::env::var(var).map_or(true, |v| v != "0"))
+    *cell.get_or_init(|| std::env::var(var).is_ok_and(|v| v == "1"))
 }
 
 /// Whether a hop of `d` ly leaving a star with `boost` is flown
@@ -3114,6 +3120,12 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     // wider; past this many expansions the closest neutron reached is good
     // enough and the exact planner finishes from there.
     let coarse_expansion_cap: u64 = std::env::var("ED_COARSE_CAP").ok().and_then(|v| v.parse().ok()).unwrap_or(30_000 * cap_mult);
+    // ED_COARSE_TRACE=1 (instrument, 2026-10-17, the rim pair): where the
+    // search is every 5,000 expansions and, at a stall, the frontier and
+    // the refusals -- [edge too far to bridge, no fundable candidate,
+    // beaten at the state, pareto-dominated].
+    let trace = std::env::var_os("ED_COARSE_TRACE").is_some();
+    let mut trace_counts = [0u64; 4];
     (ctl.stage)("coarse", 0, 0);
     // How far out the search settled, for the variant outcome (0 = goal).
     let mut stall_at: f32 = 0.0;
@@ -3206,10 +3218,23 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             stalled.store(true, std::sync::atomic::Ordering::Relaxed);
             stall_at = if field.is_some() { remaining } else { best_remaining };
             goal_key = best_key;
+            if trace {
+                let bp = pos_of((best_key.unwrap_or(cur_key) >> 8) as u32);
+                eprintln!("    TRACE stall: exp {expansions} open {} best_remaining {best_remaining:.0} at [{:.0} {:.0} {:.0}] (from here [{:.0} {:.0} {:.0}] remaining {remaining:.0}, fuel {:.1}, g {:.1}); refused: too far {} / no fuel {} / beaten {} / pareto {}", open.len(), bp[0], bp[1], bp[2], here[0], here[1], here[2], cur.fuel, cur.g, trace_counts[0], trace_counts[1], trace_counts[2], trace_counts[3]);
+                let mut top: Vec<&Open> = open.iter().collect();
+                top.sort_by(|a, b| a.f.partial_cmp(&b.f).unwrap_or(std::cmp::Ordering::Equal));
+                for o in top.iter().take(12) {
+                    let p = pos_of(o.idx);
+                    eprintln!("      open f {:.1} g {:.1} fuel {:.1} inj {} at [{:.0} {:.0} {:.0}] remaining {:.0}", o.f, o.g, o.fuel, o.inj, p[0], p[1], p[2], dist(p, goal_pos));
+                }
+            }
             break;
         }
         let range_here = range_at(cur.fuel);
         let direct_radius = range_here * boost;
+        if trace && expansions.is_multiple_of(5_000) {
+            eprintln!("    TRACE exp {expansions} open {} best_remaining {best_remaining:.0} here [{:.0} {:.0} {:.0}] remaining {remaining:.0} fuel {:.1} g {:.1} inj {} refused {:?}", open.len(), here[0], here[1], here[2], cur.fuel, cur.g, cur.inj, trace_counts);
+        }
 
         // Try an edge to `n_idx` at distance `d`. Two flavours: straight
         // (burning fuel), or via a scoop stop when fuel would not allow it
@@ -3224,9 +3249,15 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 None => match injection {
                     Some((mult, _, max)) if cur.inj < max => match edge_cost_max(d - range_here * (mult - 1.0), range_here, boost, max_bridge) {
                         Some((c, b)) => (c + INJECTION_COARSE_PENALTY, b, true),
-                        None => return false,
+                        None => {
+                            trace_counts[0] += 1;
+                            return false;
+                        }
                     },
-                    _ => return false,
+                    _ => {
+                        trace_counts[0] += 1;
+                        return false;
+                    }
                 },
             };
             let candidates: [(f32, f32, bool); 2] = match fuel_model {
@@ -3281,6 +3312,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 }
             };
             let mut any = false;
+            if candidates.iter().all(|c| c.0.is_nan()) {
+                trace_counts[1] += 1;
+            }
             for (cost, fuel_after, via_scoop) in candidates {
                 if cost.is_nan() {
                     continue;
@@ -3288,11 +3322,13 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 let ng = cur.g + cost;
                 let nk = key(n_idx, fuel_after);
                 if best_g.get(&nk).is_some_and(|&bg| bg <= ng) {
+                    trace_counts[2] += 1;
                     continue;
                 }
                 if n_idx != GOAL {
                     let e = pareto.entry(n_idx).or_default();
                     if e.iter().any(|&(c0, f0)| c0 <= ng && f0 >= fuel_after - 0.5) {
+                        trace_counts[3] += 1;
                         continue;
                     }
                     e.retain(|&(c0, f0)| !(ng <= c0 && fuel_after >= f0));
