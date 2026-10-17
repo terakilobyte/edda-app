@@ -470,10 +470,13 @@ pub fn resolve_endpoints(
         // pilot seconds. One judge now (planner unification, R0).
         stop_weight: api.stop_weight.unwrap_or(1.0).clamp(0.0, 5.0),
         prize_k: None,
-        // The doc on RouteRequest anticipated exactly this caller: a
-        // server that knows no commander uses conservative fleet times.
-        t_jump_s: Some(60.0),
-        stop_overhead_s: Some(120.0),
+        // The public seconds model (R2, 2026-10-17): plain 53, boosted 73,
+        // passing scoop 6, stop 120 + tonnes over the scoop rate -- the
+        // planner's own defaults, so the server judges as the bench and
+        // the app do. A commander's fitted figures would ride the request
+        // when the wire carries them; today it does not.
+        t_jump_s: None,
+        stop_overhead_s: None,
         // Product: secondaries are an experiment (ed-galaxy boost_side); off here.
         secondary_boost_ls: 0.0,
     };

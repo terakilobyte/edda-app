@@ -14,7 +14,7 @@
 //! refined with the exact planner, which finds the actual scoop star.
 
 use crate::format::{dist, Galaxy};
-use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, NO_LEG_MEMO};
+use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, BOOST_UNITS, INJECTION_UNITS, NO_LEG_MEMO, SCOOP_RATE_DEFAULT, STOP_UNITS, T_BOOST_S, T_PASS_SCOOP_S, T_PLAIN_S, T_STOP_S};
 use crate::star::StarClassCode as _;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap as HashMap;
@@ -102,7 +102,7 @@ const GREEDY_SCAN_FLOOR: u64 = 512;
 
 /// Coarse price of an injected bridging jump, on top of the jump itself.
 /// The wave's twin of the exact router's penalty (see INJECTION_PENALTY).
-const INJECTION_COARSE_PENALTY: f32 = crate::router::INJECTION_PENALTY as f32;
+const INJECTION_COARSE_PENALTY: f32 = INJECTION_UNITS;
 
 /// Where the highway sub-index lives under the galaxy index directory:
 /// `boost<cell>/`, neutrons and white dwarfs together. The grid size is in
@@ -168,16 +168,25 @@ impl PartialOrd for Open {
 const GOAL: u32 = u32::MAX;
 const START: u32 = u32::MAX - 1;
 
-/// Estimated jumps for one coarse edge of length `d` leaving a star with
-/// boost factor `boost` and unboosted range `range`. `None` when it needs
+/// Estimated cost of one coarse edge of length `d` leaving a star with
+/// boost factor `boost` and unboosted range `range`, in plain-jump units
+/// (R2): the first hop at `BOOST_UNITS` when it is supercharged (73 s
+/// against a plain jump's 53) or 1.0 when it is not, plus 1.25 per
+/// bridging jump, and the bridging jumps it assumed. `None` when it needs
 /// more bridging than allowed.
-fn edge_cost_max(d: f32, range: f32, boost: f32, max_bridge: u32) -> Option<f32> {
+fn edge_cost_max(d: f32, range: f32, boost: f32, max_bridge: u32) -> Option<(f32, u32)> {
     let first = range * boost;
+    let hop = hop_units(boost);
     if d <= first {
-        return Some(1.0);
+        return Some((hop, 0));
     }
     let bridge = ((d - first) / range).ceil() as u32;
-    (bridge <= max_bridge).then_some(1.0 + bridge as f32 * 1.25)
+    (bridge <= max_bridge).then_some((hop + bridge as f32 * 1.25, bridge))
+}
+
+/// One hop leaving a star with `boost`, in plain-jump units.
+fn hop_units(boost: f32) -> f32 {
+    if boost > 1.0 { BOOST_UNITS } else { 1.0 }
 }
 
 /// Whether a hop of `d` ly leaving a star with `boost` is flown
@@ -577,37 +586,48 @@ fn effective_grace(configured: std::time::Duration, to_first: std::time::Duratio
     to_first.clamp(floor, configured * 4)
 }
 
-/// Route quality in pilot time (item 17, recalibrated by item 22's
-/// journal fit), in DECISECONDS: jumps x t_jump + stops x overhead +
-/// scooped tonnes / scoop rate. Measured from the commander's own
-/// journals (65 files): a jump is ~70 s of life (74 Caspian / 64
-/// Mandalay -- ED_TJUMP_S overrides), a stop costs ~36 s of approach
-/// overhead (ED_STOP_OVERHEAD_S), and the fill itself runs at the
-/// scoop's hardware rate (FuelModel::scoop_rate; 1.25 t/s assumed
-/// when the model does not know). This replaces the flat
-/// 40 s/jump + 120 s/stop guess -- mid-tank top-ups are cheap and
-/// deep fills are not, which the flat model inverted.
-fn time_units(jumps: usize, refuel_stops: usize, scooped_t: f32, scoop_rate: f32, stop_weight: f32, t_jump_s: Option<f32>, stop_overhead_s: Option<f32>) -> u64 {
+/// Route quality in pilot time, in DECISECONDS: the one currency (R2,
+/// 2026-10-17, spec D1). Plain jumps x 53 s, boosted hops x 73 s (the
+/// neutron-cone approach included), passing scoops x 6 s, full stops x
+/// 120 s, and the scooped tonnes over the scoop rate (1.245 t/s, the
+/// Caspian's 7A, when the model does not know). The 130-journal cut of
+/// that day fitted the figures. A FITTED request (`t_jump_s`,
+/// `stop_overhead_s`, item 28) keeps its per-commander plain jump and
+/// stop overhead, with the boost surcharge (73 - 53 s) riding on top
+/// until the journal fit learns it; ED_TJUMP_S / ED_STOP_OVERHEAD_S stay
+/// the harness overrides. `stop_weight` scales everything refuelling
+/// (stops, passing scoops, tonnes; item 20). Item 42's tonnage-blind
+/// public stop (a flat 120 s) is superseded: the stop's tonnes are part
+/// of the one currency everywhere, as the bench's own judge counts them.
+#[allow(clippy::too_many_arguments)]
+fn time_units(plain: usize, boosted: usize, passing_scoops: usize, refuel_stops: usize, scooped_t: f32, scoop_rate: f32, stop_weight: f32, t_jump_s: Option<f32>, stop_overhead_s: Option<f32>) -> u64 {
     let knob = |var: &str, default: f32| -> f32 {
         std::env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
     };
-    // Item 28: request-level per-commander fits win; env stays as the
-    // harness override. Item 42 (from the first real validation
-    // flight, maintainer-set): the UNFITTED built-ins are the public model,
-    // flat 60 s/jump + 120 s/stop with NO tonnage term -- a fresh
-    // install should quote round public numbers, and the flight
-    // measured a real stop at ~110 s all-in (the old 36 s + tonnage
-    // formula said 80). A FITTED request keeps the decomposed model:
-    // fitted overhead + tonnage over the ship's scoop rate, which the
-    // transit-only journal fit refines per commander.
-    let t_jump = t_jump_s.unwrap_or_else(|| knob("ED_TJUMP_S", 60.0));
-    let rate = if scoop_rate > 0.0 { scoop_rate } else { 1.25 };
-    let stop_secs = match stop_overhead_s {
-        Some(overhead) => refuel_stops as f32 * overhead + scooped_t / rate,
-        None => refuel_stops as f32 * knob("ED_STOP_OVERHEAD_S", 120.0),
-    };
-    let secs = jumps as f32 * t_jump + stop_weight * stop_secs;
+    let t_plain = t_jump_s.unwrap_or_else(|| knob("ED_TJUMP_S", T_PLAIN_S));
+    let t_boost = t_plain + (T_BOOST_S - T_PLAIN_S);
+    let rate = if scoop_rate > 0.0 { scoop_rate } else { SCOOP_RATE_DEFAULT };
+    let overhead = stop_overhead_s.unwrap_or_else(|| knob("ED_STOP_OVERHEAD_S", T_STOP_S));
+    let refuel_secs = refuel_stops as f32 * overhead + passing_scoops as f32 * T_PASS_SCOOP_S + scooped_t / rate;
+    let secs = plain as f32 * t_plain + boosted as f32 * t_boost + stop_weight * refuel_secs;
     (secs * 10.0) as u64
+}
+
+/// Arrivals where the tank rose without a marked stop: a top-up in
+/// passing, priced at `T_PASS_SCOOP_S` plus its tonnes.
+fn passing_scoops(r: &Route) -> usize {
+    let (mut n, mut prev) = (0usize, None::<f32>);
+    for h in &r.hops {
+        if let (Some(f), Some(p)) = (h.fuel_after, prev) {
+            if f > p + 0.05 && !h.refuel {
+                n += 1;
+            }
+        }
+        if h.fuel_after.is_some() {
+            prev = h.fuel_after;
+        }
+    }
+    n
 }
 
 /// Tonnes scooped along a route, from its own fuel ledger.
@@ -650,7 +670,8 @@ fn route_score(r: &Route, scoop_rate: f32, req: &RouteRequest) -> u64 {
     if std::env::var("ED_JUDGE").is_ok_and(|v| v == "fuel") {
         return fuel_units(scooped_tonnes(r));
     }
-    time_units(r.jumps, r.refuel_stops, scooped_tonnes(r), scoop_rate, req.stop_weight, req.t_jump_s, req.stop_overhead_s)
+    let boosted = r.boosted_jumps.min(r.jumps);
+    time_units(r.jumps - boosted, boosted, passing_scoops(r), r.refuel_stops, scooped_tonnes(r), scoop_rate, req.stop_weight, req.t_jump_s, req.stop_overhead_s)
 }
 
 /// The greedy cone's tunables, env-overridable for the knob-search
@@ -1888,7 +1909,8 @@ fn plan_best_inner(g: &Galaxy, neutrons: Option<&Galaxy>, req: &RouteRequest, ct
         };
         eprintln!("  mid-range: exact {} | neutron-first {}", show(&exact), show(&highway));
     }
-    let rank = |r: &Route| (r.jumps, r.boosted_jumps, r.total_ly);
+    // One judge (R2): the planner's seconds, then jumps, then light-years.
+    let rank = |r: &Route| (route_score(r, req.fuel.map(|m| m.scoop_rate).unwrap_or(0.0), req), r.jumps, (r.total_ly * 10.0) as u64);
     let mut best = match (exact, highway) {
         (Ok(a), Ok(b)) => Ok(if rank(&b) < rank(&a) { b } else { a }),
         (Ok(a), Err(_)) | (Err(_), Ok(a)) => Ok(a),
@@ -2156,6 +2178,10 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             })
         })
     });
+    // Plain-jump units per light-year (R2): the cheaper of a plain jump
+    // per `full_range` and a supercharged hop at BOOST_UNITS per
+    // `full_range x boost`.
+    let unit_per_ly = (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost));
     let h_of = |p: [f32; 3], target_side: usize| -> f32 {
         let mut d = dist(p, ends[target_side]);
         let mut cell = None;
@@ -2170,10 +2196,13 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         if let (Some(alt), Some(tc), Some(pc)) = (alt, end_cells[target_side], cell) {
             d = d.max(alt.lower_bound_ly(pc as usize, tc));
         }
-        let mut j = d / (full_range * neutron_boost);
-        // The goal field's bound is already in (reference) jumps and
-        // knows the desert crossings cost plain jumps -- take whichever
-        // bound is tighter.
+        // Boosted hops to go, in plain-jump units (R2): a plain jump is a
+        // unit per `full_range`, a supercharged one `BOOST_UNITS` per
+        // `full_range x boost`; the cheaper per light-year bounds below.
+        let mut j = d * unit_per_ly;
+        // The goal field's bound is already in (reference) jumps -- each
+        // at least one unit -- and knows the desert crossings cost plain
+        // jumps; take whichever bound is tighter.
         if let (Some(f), Some(pc)) = (fields[target_side], cell) {
             if let Some(fj) = f.jumps_to_goal(pc as usize) {
                 j = j.max(fj);
@@ -2438,7 +2467,7 @@ fn plan_long_bidi(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             // its own price (plain jumps across a highway void) that
             // edge_cost_max could never grant.
             let eb = if side == 0 { depart_boost } else { node_boost(n_idx) };
-            let Some(c) = cost_override.or_else(|| edge_cost_max(d, full_range, eb, max_bridge)) else {
+            let Some(c) = cost_override.or_else(|| edge_cost_max(d, full_range, eb, max_bridge).map(|(c, _)| c)) else {
                 return false;
             };
             let ng = g_cur + c;
@@ -2929,16 +2958,24 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         .then(|| on_ramp(neutrons, field, goal_pos, start_pos, straight, full_range * neutron_boost, true))
         .flatten()
         .map(|(c, fj, _)| (c, fj, dist(c, goal_pos)));
+    // Plain-jump units per light-year (R2): the cheaper of a plain jump
+    // per `full_range` and a supercharged hop at BOOST_UNITS per
+    // `full_range x boost`.
+    let unit_per_ly = (1.0 / full_range).min(BOOST_UNITS / (full_range * neutron_boost));
     let h = |p: [f32; 3]| {
         let mut d = dist(p, goal_pos);
         let cell = (alt.is_some() || field.is_some()).then(|| cell_of_cached(p)).flatten();
         if let (Some(alt), Some(goal_cell), Some(from_cell)) = (alt, alt_goal, cell) {
             d = d.max(alt.lower_bound_ly(from_cell, goal_cell));
         }
-        let mut j = d / (full_range * neutron_boost);
+        // Plain-jump units (R2): the cheaper of a plain jump per
+        // `full_range` and a supercharged hop at `BOOST_UNITS` per
+        // `full_range x boost`, per light-year; the ramp jump counts are
+        // at least a unit each.
+        let mut j = d * unit_per_ly;
         if let Some((rp, rj, r_to_goal)) = ramp {
             if dist(p, goal_pos) > r_to_goal {
-                j = j.max(dist(p, rp) / (full_range * neutron_boost) + rj);
+                j = j.max(dist(p, rp) * unit_per_ly + rj);
             }
         }
         if let Some((rp, rj, r_gd)) = off_ramp {
@@ -2946,7 +2983,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             // a radius leaves an h cliff the frontier stalls against
             // (measured: M ascent 336 -> 363 j with the annulus).
             if dist(p, goal_pos) > r_gd {
-                j = j.max(dist(p, rp) / (full_range * neutron_boost) + rj);
+                j = j.max(dist(p, rp) * unit_per_ly + rj);
             }
         }
         // Rung 3: the descending corridor prior. Estimate cost-to-goal
@@ -3159,11 +3196,11 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             // injected (unboosted, x1.25-x2) jump in the run, priced as
             // three jumps like the exact planner does; the injection never
             // helps the supercharged first hop, which it does not stack with.
-            let (c, injected) = match edge_cost_max(d, range_here, boost, max_bridge) {
-                Some(c) => (c, false),
+            let (c, edge_bridges, injected) = match edge_cost_max(d, range_here, boost, max_bridge) {
+                Some((c, b)) => (c, b, false),
                 None => match injection {
                     Some((mult, _, max)) if cur.inj < max => match edge_cost_max(d - range_here * (mult - 1.0), range_here, boost, max_bridge) {
-                        Some(c) => (c + INJECTION_COARSE_PENALTY, true),
+                        Some((c, b)) => (c + INJECTION_COARSE_PENALTY, b, true),
                         None => return false,
                     },
                     _ => return false,
@@ -3174,7 +3211,8 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 Some(m) => {
                     // Straight: burn for the boosted hop (bridging jumps burn
                     // roughly a max jump each).
-                    let bridges = (c - if injected { 1.0 + INJECTION_COARSE_PENALTY } else { 1.0 }) / 1.25 + if injected { 1.0 } else { 0.0 };
+                    // The injected jump burns like a bridging one.
+                    let bridges = edge_bridges as f32 + if injected { 1.0 } else { 0.0 };
                     let burn = m.fuel_for(d.min(range_here * boost), cur.fuel, boost) + bridges * m.max_fuel_per_jump;
                     let refills = n_idx != GOAL && refuels_here(neutrons, n_idx, range_here);
                     // The last edge is an ordinary run the refiner flies with
@@ -3186,7 +3224,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                         // Priced above a neutron path of the same length: the
                         // run scoops on the way, and where the highway still
                         // reaches, the highway is better.
-                        (1.0 + bridges * goal_run_bridge, m.reserve, false)
+                        (hop_units(boost) + bridges * goal_run_bridge, m.reserve, false)
                     } else if bridges >= 1.0 && m.fuel_for(d.min(range_here * boost), cur.fuel, boost) <= cur.fuel - m.reserve && d <= range_here * boost + full_range * bridges + if injected { full_range * (injection.map(|i| i.0).unwrap_or(1.0) - 1.0) } else { 0.0 } {
                         // A leg with ordinary jumps in it scoops on the way (the
                         // exact leg planner picks the star): only the boosted
@@ -3204,12 +3242,15 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                     // is within boosted reach plus one full-tank jump.
                     // The hop to the scoop star burns fuel too: with an empty
                     // tank there is no hop, whatever the range figure says.
+                    // Priced as what it is (R2): the hop, the onward jump
+                    // and a full stop's overhead at the request's stop
+                    // weight; the tonnes are below the coarse resolution.
                     let first_hop = d.min(range_here * boost);
                     let can_reach_scoop = m.fuel_for(first_hop, cur.fuel, boost) <= cur.fuel - m.reserve;
                     let via = if can_reach_scoop && d <= range_here * boost + full_range {
                         let onward = (d - range_here * boost).max(0.0).min(full_range);
                         let after = m.capacity - m.fuel_for(onward.max(full_range * 0.5), m.capacity, 1.0);
-                        (2.0, after, true)
+                        (hop_units(boost) + 1.0 + STOP_UNITS * req.stop_weight, after, true)
                     } else {
                         (f32::NAN, 0.0, true)
                     };
@@ -3925,18 +3966,15 @@ mod tests {
     #[test]
     fn a_stop_heavy_route_loses_to_a_slightly_longer_clean_one() {
         // Journal-fit seconds: 30 t per stop at the 8A's 1.245 t/s.
-        let r = |j: usize, st: usize| time_units(j, st, st as f32 * 30.0, 1.245, 1.0, None, None);
+        let r = |j: usize, st: usize| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, None, None);
         assert!(r(58, 2) < r(57, 10), "58 j / 2 stops is minutes faster in the chair");
         assert!(r(57, 2) < r(58, 2), "fewer jumps still wins at equal stops");
         assert!(r(57, 2) < r(57, 3), "fewer stops still wins at equal jumps");
-        // A mid-tank top-up is cheap -- a FITTED-model fact (the flat
-        // unfitted public model charges every stop the same 120 s):
-        assert!(time_units(57, 2, 20.0, 1.245, 1.0, None, Some(36.0)) < time_units(57, 2, 120.0, 1.245, 1.0, None, Some(36.0)));
-        assert_eq!(
-            time_units(57, 2, 20.0, 1.245, 1.0, None, None),
-            time_units(57, 2, 120.0, 1.245, 1.0, None, None),
-            "unfitted stops are tonnage-blind by design (item 42)"
-        );
+        // A mid-tank top-up is cheaper than a deep fill, fitted or not:
+        // the one currency (R2) prices the tonnes over the scoop rate in
+        // the public model too (item 42's flat public stop is superseded).
+        assert!(time_units(57, 0, 0, 2, 20.0, 1.245, 1.0, None, Some(36.0)) < time_units(57, 0, 0, 2, 120.0, 1.245, 1.0, None, Some(36.0)));
+        assert!(time_units(57, 0, 0, 2, 20.0, 1.245, 1.0, None, None) < time_units(57, 0, 0, 2, 120.0, 1.245, 1.0, None, None), "the public stop prices its tonnes too");
     }
 
     /// R2 (2026-10-17), one currency: the judge prices a plain jump at 53 s
@@ -3982,18 +4020,18 @@ mod tests {
 
     /// `plain` plain hops then `boosted` boosted ones from the origin, with a
     /// fuel ledger that starts full, burns 5 t a hop and, at each `(hop,
-    /// tonnes, stop)` in `scoops`, rises by `tonnes` (a marked stop when
-    /// `stop`). The judge reads only the fields the real planner fills.
+    /// tonnes, stop)` in `scoops`, shows `tonnes` more than the previous
+    /// arrival (a marked stop when `stop`). The judge reads only the
+    /// fields the real planner fills.
     fn synthetic_route(plain: usize, boosted: usize, scoops: &[(usize, f32, bool)]) -> Route {
         let mut hops = Vec::new();
         let mut fuel = 128.0f32;
         for i in 0..=(plain + boosted) {
             let scoop = scoops.iter().find(|s| s.0 == i);
-            if i > 0 {
-                fuel -= 5.0;
-            }
-            if let Some(&(_, t, _)) = scoop {
-                fuel += t;
+            match scoop {
+                Some(&(_, t, _)) => fuel += t,
+                None if i > 0 => fuel -= 5.0,
+                None => {}
             }
             hops.push(crate::router::Hop {
                 idx: i as u32, id64: i as u64, name: format!("S{i}"), pos: [i as f32 * 50.0, 0.0, 0.0], class: StarClass::K, scoopable: scoop.is_some(),
@@ -4018,7 +4056,7 @@ mod tests {
         assert!(fuel_units(40.0) < fuel_units(41.0));
         assert_eq!(fuel_units(40.0), fuel_units(40.0), "equal tonnes tie; callers keep the first");
         // 60 j / 90 t vs 70 j / 40 t: the seconds model takes the short route...
-        assert!(time_units(60, 3, 90.0, 1.245, 1.0, None, None) < time_units(70, 3, 40.0, 1.245, 1.0, None, None));
+        assert!(time_units(60, 0, 0, 3, 90.0, 1.245, 1.0, None, None) < time_units(70, 0, 0, 3, 40.0, 1.245, 1.0, None, None));
         // ...the gauge takes the thrifty one. That gap IS the study.
         assert!(fuel_units(40.0) < fuel_units(90.0));
     }
@@ -4032,7 +4070,7 @@ mod tests {
         // Pinned against the FITTED decomposed model (70 s / 36 s +
         // tonnage) -- the dial's semantics predate the item-42 flat
         // unfitted default and must survive it.
-        let r = |j: usize, st: usize, w: f32| time_units(j, st, st as f32 * 30.0, 1.245, w, Some(70.0), Some(36.0));
+        let r = |j: usize, st: usize, w: f32| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, w, Some(70.0), Some(36.0));
         // Fitted model (1.0): the clean 58 j beats the stop-heavy 57 j.
         assert!(r(58, 2, 1.0) < r(57, 10, 1.0));
         // Try hard (0.0): stops are free, 57 j wins outright.
@@ -4050,10 +4088,13 @@ mod tests {
     /// None must be byte-identical to the built-in defaults.
     #[test]
     fn per_commander_times_ride_the_request_and_none_is_the_default() {
-        let r = |j: usize, st: usize, tj: Option<f32>, ov: Option<f32>| time_units(j, st, st as f32 * 30.0, 1.245, 1.0, tj, ov);
-        // Item 42: None = the flat public model, 60 s/jump + 120 s/stop,
-        // tonnage-blind. Closed form so the pin is arithmetic, not echo.
-        assert_eq!(r(58, 6, None, None), ((58.0f32 * 60.0 + 6.0 * 120.0) * 10.0) as u64, "None = the flat public model");
+        let r = |j: usize, st: usize, tj: Option<f32>, ov: Option<f32>| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, tj, ov);
+        // None = the public model: 53 s a plain jump, 120 s a stop plus the
+        // tonnes over the scoop rate (R2 one currency; item 42's flat
+        // tonnage-blind 60/120 is superseded). Closed form so the pin is
+        // arithmetic, not echo.
+        let public = ((58.0f32 * T_PLAIN_S + 6.0 * T_STOP_S + 180.0 / 1.245) * 10.0) as i64;
+        assert!((r(58, 6, None, None) as i64 - public).abs() <= 1, "None = the public model: {} vs {public}", r(58, 6, None, None));
         assert_ne!(r(58, 6, None, None), r(58, 6, Some(70.0), Some(36.0)), "the old fitted built-ins are no longer the default");
         // Slow-jumping pilot: two extra stops beat four extra jumps.
         assert!(r(58, 6, Some(120.0), None) < r(62, 4, Some(120.0), None));
@@ -4074,22 +4115,22 @@ mod tests {
         let mut clock = GraceClock::new(None);
         // Armed by the first credible finish (to_first 100 ms -> the
         // effective window is 100 ms in both directions).
-        clock.finish(t0, ms(100), time_units(100, 10, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0, ms(100), time_units(100, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(90), grace));
         assert!(clock.expired(t0 + ms(150), grace));
         // An improvement at t0+80 renews the window from t0+80.
-        clock.finish(t0 + ms(80), ms(180), time_units(90, 8, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(80), ms(180), time_units(90, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(150), grace), "the reset must outlive the original window");
         assert!(clock.expired(t0 + ms(200), grace));
         // A worse finish and a tie renew nothing.
-        clock.finish(t0 + ms(170), ms(270), time_units(95, 9, 0.0, 1.25, 1.0, None, None), true);
-        clock.finish(t0 + ms(175), ms(275), time_units(90, 8, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(170), ms(270), time_units(95, 0, 0, 9, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(175), ms(275), time_units(90, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
         assert!(clock.expired(t0 + ms(200), grace), "neither a worse finish nor a tie may renew the window");
         // A non-arming kind (a greedy twin) that IMPROVES still renews:
         // resetting only delays cancellation, it never causes one.
         let mut clock = GraceClock::new(None);
-        clock.finish(t0, ms(100), time_units(100, 10, 0.0, 1.25, 1.0, None, None), true);
-        clock.finish(t0 + ms(80), ms(180), time_units(80, 8, 0.0, 1.25, 1.0, None, None), false);
+        clock.finish(t0, ms(100), time_units(100, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(80), ms(180), time_units(80, 0, 0, 8, 0.0, 1.25, 1.0, None, None), false);
         assert!(!clock.expired(t0 + ms(150), grace), "an improving greedy finish must renew the window");
     }
 
@@ -4102,17 +4143,17 @@ mod tests {
         let grace = std::time::Duration::from_millis(100);
         let ms = std::time::Duration::from_millis;
         let t0 = std::time::Instant::now();
-        let mut clock = GraceClock::new(Some(time_units(215, 40, 0.0, 1.25, 1.0, None, None)));
+        let mut clock = GraceClock::new(Some(time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None)));
         // A tie of the standing best: no clock.
-        clock.finish(t0, ms(100), time_units(215, 40, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0, ms(100), time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(10_000), grace), "a re-confirmation must not arm the clock");
         // A genuine improvement arms it.
-        clock.finish(t0 + ms(200), ms(300), time_units(190, 40, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(200), ms(300), time_units(190, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(clock.expired(t0 + ms(1_000), grace));
         // The first wave has no seed: its first credible finish arms
         // regardless of score (the status quo, unchanged).
         let mut wave_one = GraceClock::new(None);
-        wave_one.finish(t0, ms(100), time_units(215, 40, 0.0, 1.25, 1.0, None, None), true);
+        wave_one.finish(t0, ms(100), time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(wave_one.expired(t0 + ms(1_000), grace));
     }
 
