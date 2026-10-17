@@ -190,11 +190,16 @@ verdicts live in the CSV headers under `docs/benches/`.
   outcomes and phase / first-found / CPU-proxy metrics on the server; a
   per-plot leg memo (fuel-monotone, the variant's reserve in the key,
   re-plans from the real tank bypass it: the first memo turned Beagle
-  Point -> Sol into no route); variants start in the measured
-  first-to-answer order with a head stage of one per worker (greedy single
-  answers first on 10 of 25 routes, scan twins on the hard ones;
-  `2026-10-17-variant-first-found.csv`); the long lane gets 3 planner
-  threads per plot on the 8-core box. Measured and NOT shipped, each behind
+  Point -> Sol into no route); the long lane gets 3 planner
+  threads per plot on the 8-core box. The declared variant start order
+  (first-to-answer families first, `2026-10-17-variant-first-found.csv`)
+  is a knob OFF by default: a three-thread emulation of the box (arms
+  before3 / r1-3) had it worse on 8 of 28 routes (Colonia <-> Spase first
+  route 0.8 -> 25.6 s, Sol -> Beagle Point 50 -> 100 s wall, Jongou AA-A
+  396 -> 455 jumps) because the variant that answers those in under a
+  second sits late in the family order while rayon's split starts it among
+  the first three; the split order ships, and which family wins which
+  route class is R3's to tabulate (the boss's "we got lucky" question). Measured and NOT shipped, each behind
   a knob with its numbers in the CSV: fail-fast on a far stall, gateway on
   stall, a reversed approach leg (Beagle Point -> Sol no route), the
   widen rescan empty-only or once per cell (+9 jumps Sol -> Beagle Point),
