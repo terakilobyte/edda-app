@@ -488,8 +488,68 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
             return Ok(l);
         }
     }
+    // An approach into a sparse end: search from that end, where the
+    // frontier stays small, and flip (R1, 2026-10-17: the rim approach
+    // Hypoe Groa -> Sphiesi was 8,591 expansions forward, 282 reversed).
+    if sparser_end(g, from, to, req.range_ly) {
+        if let Some(l) = plan_reversed(g, req, ctl, leg_of, from, to, fuel) {
+            note("reversed");
+            return Ok(l);
+        }
+    }
     note("exact");
     plan(g, &leg_of(from, to, fuel), ctl)
+}
+
+/// Is the destination's neighbourhood much sparser than the origin's? One
+/// cell walk per end at the ship's plain reach; the quarter is the margin
+/// at which the reversed search is clearly the cheaper one.
+fn sparser_end(g: &Galaxy, from: u32, to: u32, reach: f32) -> bool {
+    let count = |idx: u32| {
+        let mut n = 0u32;
+        g.for_each_within(g.pos_of(idx), reach.max(1.0), |_, _| n += 1);
+        n
+    };
+    let (at_from, at_to) = (count(from), count(to));
+    at_to * 4 < at_from
+}
+
+/// Expansion ceiling for the reversed attempt: it is a bet on a cheap
+/// answer, and the forward plan is still there if the bet does not pay.
+const REVERSED_LEG_EXPANSIONS: u64 = 200_000;
+
+/// Plan `to -> from` without supercharging (a boost depends on the
+/// departure star and would not survive the flip), flip the hops, and
+/// re-simulate fuel forward. `None` when the reverse search fails, when a
+/// flipped hop is out of plain reach, or when the tank does not fly it.
+fn plan_reversed(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Option<Route> {
+    let start_back = req.fuel.map(|m| m.capacity).unwrap_or(fuel);
+    let back = RouteRequest { supercharge: false, max_expansions: REVERSED_LEG_EXPANSIONS, injection: None, ..leg_of(to, from, start_back) };
+    let r = plan(g, &back, ctl).ok()?;
+    let mut hops: Vec<crate::router::Hop> = r.hops.into_iter().rev().collect();
+    let mut total = 0.0f32;
+    for i in 0..hops.len() {
+        let d = if i == 0 { 0.0 } else { dist(hops[i - 1].pos, hops[i].pos) };
+        if d > req.range_ly * 1.001 {
+            return None;
+        }
+        total += d;
+        let h = &mut hops[i];
+        h.distance_ly = d;
+        h.total_ly = total;
+        h.boosted = false;
+        h.via_secondary = None;
+        h.injection = None;
+        h.refuel = false;
+        h.fuel_optional = false;
+    }
+    let mut route = Route { jumps: hops.len().saturating_sub(1), total_ly: total, boosted_jumps: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, hops, ..r };
+    if let Some(m) = req.fuel {
+        if !refuel_hops(g, &m, req, &mut route, fuel) {
+            return None;
+        }
+    }
+    Some(route)
 }
 
 /// Re-simulate a leg's fuel from `fuel` at its first hop, rewriting
@@ -4363,6 +4423,24 @@ mod tests {
             stars.push(star(&format!("N{i}"), 50.0 + 230.0 * i as f32, 0.0, 10.0, N));
         }
         build(&stars)
+    }
+
+    /// R1 (2026-10-17): an approach leg into a sparse end is planned from
+    /// that end (30x fewer expansions measured on the rim approach) and
+    /// flipped; the flipped route must start and end where the leg does and
+    /// carry forward fuel figures.
+    #[test]
+    fn a_reversed_leg_flies_forward_after_the_flip() {
+        let f = build(&[star("K0", 0.0, 0.0, 0.0, K), star("K60", 60.0, 0.0, 0.0, K), star("K120", 120.0, 0.0, 0.0, K), star("K180", 180.0, 0.0, 0.0, K), star("K240", 240.0, 0.0, 0.0, K)]);
+        let m = FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        let r = RouteRequest { fuel: Some(m), start_fuel: 128.0, range_ly: m.range_at(128.0), ..req(&f, "K0", "K240", 72.0) };
+        let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: 5_000_000, start_fuel, ..r.clone() };
+        let route = plan_reversed(&f.g, &r, &Control::none(), &leg_of, r.from, r.to, 128.0).expect("a plain line flips");
+        assert_eq!(route.hops.first().unwrap().idx, r.from, "{:?}", names(&route));
+        assert_eq!(route.hops.last().unwrap().idx, r.to, "{:?}", names(&route));
+        assert_eq!(route.jumps, 4);
+        assert!(route.hops.iter().all(|h| h.fuel_after.unwrap_or(0.0) >= 0.0));
+        assert_contiguous(&route, &r);
     }
 
     /// R1 sector thinning (2026-10-17): per direction sector the coarse
