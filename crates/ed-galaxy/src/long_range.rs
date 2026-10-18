@@ -1395,7 +1395,7 @@ fn single_arms(repaired: bool, jumps: f32, ceiling: f32, ceiling_gated: bool) ->
 /// planner; the settle rounds fly it with the real tank). Long where the
 /// greedy sides were weak, but a route -- on the reverse Jongou pair the
 /// only one (2026-10-18, `docs/benches/2026-10-18-witness.csv`).
-fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant) -> Result<Route, RouteError> {
+fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant, lean: bool) -> Result<Route, RouteError> {
     // The witness's waypoints are not coarse waypoints: its refinement does
     // not draw on the search trace (a plain hop through a white dwarf the
     // profile cannot boost is a witness hop, not a highway choice).
@@ -1439,11 +1439,18 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     };
     let mut route = refined?;
     // The eager refinement marks a stop at every scoopable star (683 on the
-    // rim reverse): prune to the stops the tank needs before anyone sees it.
-    if let Some(m) = fuel_model {
-        let mut lean = route.clone();
-        if crate::router::minimize_refuels(&m, &req.boost, req.injection.map(|(mult, _, _)| mult), &mut lean, start_fuel) {
-            route = lean;
+    // rim reverse). Offered in the plot's judging currency: pruned to the
+    // stops the tank needs when the fold judges lean (`lean` = the plot's
+    // prune_judge), eager like every other candidate when it judges eager.
+    // Pruned unconditionally it won nested eager-judged leg plots on stops
+    // it alone had shed (Jongou XM-W -> Byoi CQ-G, 2026-10-18: a 78-hop
+    // witness with 3 stops over a 28-hop leg with 23, 401 j shipped as 451).
+    if lean {
+        if let Some(m) = fuel_model {
+            let mut pruned = route.clone();
+            if crate::router::minimize_refuels(&m, &req.boost, req.injection.map(|(mult, _, _)| mult), &mut pruned, start_fuel) {
+                route = pruned;
+            }
         }
     }
     // Offered at once: the server's best-so-far picker ranks it against
@@ -1835,7 +1842,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 if cap_mult > 1 {
                     (Err(RouteError::Cancelled), 9)
                 } else {
-                    (plan_witness(g, neutrons, req, &ctl, started), 9)
+                    (plan_witness(g, neutrons, req, &ctl, started, prune_judge), 9)
                 }
             } else if thin > 0 && i < lead {
                 // The thin family (kind 7): the quick diggers, first on
@@ -4920,6 +4927,27 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// The witness is offered in the plot's judging currency: pruned to its
+    /// lean stops when the fold judges lean (min-fuel), eager when the fold
+    /// judges eager, so the fold compares like with like. Jongou XM-W ->
+    /// Byoi CQ-G, 2026-10-18: a nested eager-judged leg plot took a 78-hop
+    /// witness carrying 3 pruned stops over a 28-hop route carrying 23
+    /// eager stops, and the R2 head's 401-jump route shipped as 451.
+    #[test]
+    fn the_witness_is_offered_in_the_plots_judging_currency() {
+        let m = FuelModel::from_loadout(319.0, 32.0, 5.2, 5, true, false, 77.9, 10.5, 0.0);
+        let mut stars: Vec<_> = (0..5).map(|i| star(&format!("K{i}"), i as f32 * 60.0, 0.0, 0.0, K)).collect();
+        stars.push(star("Island", 340.0, 0.0, 0.0, K));
+        stars.push(star("N0", 0.0, 3000.0, 0.0, N));
+        let f = build(&stars);
+        let r = RouteRequest { injection: Some((2.0, "premium", 22)), time_budget_ms: 20_000, fuel: Some(m), start_fuel: 32.0, ..req(&f, "K0", "Island", m.range_at(m.capacity)) };
+        let started = std::time::Instant::now();
+        let eager = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, false).unwrap();
+        let lean = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, true).unwrap();
+        assert_eq!(names(&eager), names(&lean), "the same route in two currencies");
+        assert!(eager.refuel_stops > lean.refuel_stops, "eager {} stops vs lean {}", eager.refuel_stops, lean.refuel_stops);
     }
 
     /// The witness's route reaches the early-answer hook like any other
