@@ -661,23 +661,55 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
 /// `budget_ms` (unknown is admitted; 0 skips the check). ED_NO_LEG_PRECHECK=1
 /// ablates.
 fn leg_feasible(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u64) -> bool {
-    if budget_ms == 0 {
-        return true;
-    }
     let longest = req.fuel.map(|m| m.range_at(0.0)).unwrap_or(req.range_ly).max(req.range_ly);
-    // Every reach the ship has stays in: its boosts and its injection
-    // allowance (a 114 ly gap between two scoopables flies on one x2).
-    let blind = RouteRequest { from, to, fuel: None, start_fuel: 0.0, max_dry_jumps: 0, range_ly: longest, thorough: false, weight: 1.3, time_budget_ms: budget_ms, min_fuel: false, max_expansions: 0, ..req.clone() };
-    let quiet = |_: &'static str, _: [f32; 3], _: f32| {};
-    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &crate::router::NO_LEG_MEMO, variant: &|_| {}, trace: &quiet };
-    !matches!(plan(g, &blind, &ctl), Err(RouteError::NoRoute))
+    !matches!(blind_leg(g, req, from, to, budget_ms, longest, true, true), Err(RouteError::NoRoute))
 }
 
-/// The precheck's budget: a fiftieth of the leg's own, at most 2 s -- the
-/// void answers in 130 ms, a dense 1,200 ly leg needs 3 s to say yes and
-/// is admitted unknown.
+/// The exact leg planner's cap: a fifth when the fuel-blind pass at the
+/// leg's own range already found nothing (void evidence: the 3,864 ly
+/// Phae Aihm -> Hypins edge answers "no" in 130 ms fuel-blind and then
+/// cost 25 s fuel-aware in every reverse-rim variant), the whole cap
+/// otherwise. 0 (no cap) stays 0.
+fn exact_leg_budget_ms(cap_ms: u64, void_evidence: bool) -> u64 {
+    if void_evidence { cap_ms / 5 } else { cap_ms }
+}
+
+/// The fuel-blind plan behind [`leg_feasible`]: the route at the ship's
+/// longest range with its boosts and injections, `Err(Budget)` when
+/// `budget_ms` runs out or is 0. Flown with the real tank it is the leg's
+/// skeleton (R4 Task C): the 1,209 ly Jongua XV-E -> Gonguae GW-C leg has a
+/// 16-hop plain skeleton through scoopable F stars in 3.4 s where the
+/// fuel-aware exact search spent its 25 s cap and failed.
+fn blind_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u64, range_ly: f32, boosts: bool, injections: bool) -> Result<Route, RouteError> {
+    if budget_ms == 0 {
+        return Err(RouteError::Budget);
+    }
+    // `range_ly`: the leg's real range for a skeleton that must fly the
+    // tank it starts with, the empty-tank range for the soundness verdict.
+    // Boosts and the injection allowance as asked: a skeleton wants the
+    // boosts (and not the injections, which the exact planner prices); the
+    // void detector wants neither -- a plain search dies at a gap in
+    // 130 ms where a boosted one roams the near side for seconds; the
+    // soundness verdict wants both (a 114 ly gap between two scoopables
+    // flies on one x2). Bounded by the leg's own expansion cap so it
+    // ends the way the leg would, never unbounded (round 2 of 2026-10-18
+    // ran 5 s inconclusive on both dead legs with no cap).
+    let d = dist(g.pos_of(from), g.pos_of(to));
+    let blind = RouteRequest { from, to, fuel: None, start_fuel: 0.0, max_dry_jumps: 0, range_ly: range_ly.max(1.0), supercharge: boosts && req.supercharge, thorough: false, weight: LEG_WEIGHT, time_budget_ms: budget_ms, min_fuel: false, max_expansions: leg_expansion_cap(d), injection: if injections { req.injection } else { None }, ..req.clone() };
+    let quiet = |_: &'static str, _: [f32; 3], _: f32| {};
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &crate::router::NO_LEG_MEMO, variant: &|_| {}, trace: &quiet };
+    plan(g, &blind, &ctl)
+}
+
+/// The precheck's budget: a tenth of the leg's own, at most 2.5 s -- the
+/// skeleton pass is bounded by the leg's expansion cap as well, the void
+/// detector and the verdict get a second each. ED_LEG_PRECHECK_MS
+/// overrides, 0 turns it off.
 fn leg_precheck_ms(leg_budget_ms: u64) -> u64 {
-    if std::env::var_os("ED_NO_LEG_PRECHECK").is_some() { 0 } else { (leg_budget_ms / 50).clamp(200, 2_000) }
+    if let Some(v) = std::env::var("ED_LEG_PRECHECK_MS").ok().and_then(|v| v.parse().ok()) {
+        return v;
+    }
+    if std::env::var_os("ED_NO_LEG_PRECHECK").is_some() { 0 } else { (leg_budget_ms / 10).clamp(200, 2_500) }
 }
 
 fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
@@ -716,12 +748,50 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
             return Ok(l);
         }
     }
-    let leg_req = leg_of(from, to, fuel);
-    if !leg_feasible(g, req, from, to, leg_precheck_ms(leg_req.time_budget_ms)) {
-        note("refused: no tank flies it");
-        return Err(RouteError::NoRoute);
+    let mut leg_req = leg_of(from, to, fuel);
+    let t0 = std::time::Instant::now();
+    let cap = leg_precheck_ms(leg_req.time_budget_ms);
+    // Pass 0 (R4 Task C): the skeleton at the leg's REAL range, no
+    // injections -- flown with the real tank it is the leg.
+    let real_range = req.fuel.map(|m| m.range_at(fuel)).unwrap_or(req.range_ly);
+    let longest = req.fuel.map(|m| m.range_at(0.0)).unwrap_or(req.range_ly).max(req.range_ly);
+    let mut void_evidence = false;
+    match blind_leg(g, req, from, to, cap, real_range, true, false) {
+        Ok(mut skel) => match req.fuel {
+            None => return Ok(skel),
+            Some(m) => {
+                if refuel_hops(g, &m, req, &mut skel, fuel) {
+                    note(&format!("skeleton: {} hops flown ({} ms)", skel.jumps, t0.elapsed().as_millis()));
+                    return Ok(skel);
+                }
+                note(&format!("skeleton of {} hops does not fly the tank ({} ms)", skel.jumps, t0.elapsed().as_millis()));
+            }
+        },
+        Err(e) => {
+            note(&format!("no skeleton ({}; {} ms)", if matches!(e, RouteError::NoRoute) { "none" } else { "cap" }, t0.elapsed().as_millis()));
+            // The void detector: plain range, no boosts, no injections --
+            // dies at a gap in milliseconds. NoRoute is evidence, not a
+            // verdict: the exact planner still runs, on a fifth of its cap.
+            if matches!(blind_leg(g, req, from, to, cap.min(1_000), longest, false, false), Err(RouteError::NoRoute)) {
+                void_evidence = true;
+                // The verdict: the empty-tank range with every boost and
+                // injection in hand, briefly. NoRoute here is final.
+                match blind_leg(g, req, from, to, cap.min(1_000), longest, true, true) {
+                    Err(RouteError::NoRoute) => {
+                        note(&format!("refused: no tank flies it ({} ms)", t0.elapsed().as_millis()));
+                        return Err(RouteError::NoRoute);
+                    }
+                    Ok(_) => {
+                        void_evidence = false;
+                        note(&format!("flies only light, boosted or injected; the exact planner decides ({} ms)", t0.elapsed().as_millis()));
+                    }
+                    Err(_) => note(&format!("void evidence, verdict inconclusive ({} ms)", t0.elapsed().as_millis())),
+                }
+            }
+        }
     }
-    note("exact");
+    leg_req.time_budget_ms = exact_leg_budget_ms(leg_req.time_budget_ms, void_evidence);
+    note(if void_evidence { "exact (a fifth of the cap)" } else { "exact" });
     plan(g, &leg_req, ctl)
 }
 
@@ -5935,6 +6005,29 @@ pub(crate) mod tests {
         assert!(!leg_feasible(&gap.g, &plain, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000), "114 ly on a 78 ly ship with no injection");
         let injected = RouteRequest { injection: Some((2.0, "premium", 1)), ..plain.clone() };
         assert!(leg_feasible(&gap.g, &injected, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000), "the same gap with one injection in hand");
+        // The blind route itself is the leg's skeleton: on the chain it is
+        // the five plain hops, and flown with the real tank it is the leg
+        // (R4 Task C) -- the fuel-aware exact search runs only when the
+        // skeleton does not fly.
+        // ... at the range the leg actually has (the 1,209 ly Jongua skeleton
+        // planned at the empty-tank 77.8 ly did not fly at 120 t / 72.5 ly):
+        // a 60 ly chain flies at 72 and not at 50.
+        let skel = blind_leg(&f.g, &r, f.g.find("C0").unwrap(), f.g.find("D").unwrap(), 2_000, 72.0, true, true).unwrap();
+        assert_eq!(skel.jumps, 5, "{:?}", names(&skel));
+        assert!(matches!(blind_leg(&f.g, &r, f.g.find("C0").unwrap(), f.g.find("D").unwrap(), 2_000, 50.0, true, true), Err(RouteError::NoRoute)), "a 60 ly chain at a 50 ly range");
+        assert!(matches!(blind_leg(&gap.g, &plain, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000, 77.9, true, true), Err(RouteError::NoRoute)));
+        assert!(blind_leg(&gap.g, &injected, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000, 77.9, true, false).is_err(), "injections withheld: the 114 ly gap stands");
+        // The void detector withholds boosts too: a 300 ly gap with a
+        // neutron at its start flies boosted (x4) and not plain.
+        let nb = build(&[star("N", 0.0, 0.0, 0.0, N), star("Far", 300.0, 0.0, 0.0, K)]);
+        let bq = RouteRequest { fuel: Some(m), start_fuel: 32.0, ..req(&nb, "N", "Far", m.range_at(m.capacity)) };
+        assert!(blind_leg(&nb.g, &bq, nb.g.find("N").unwrap(), nb.g.find("Far").unwrap(), 2_000, 77.9, true, false).is_ok(), "boosted: 300 ly from a neutron");
+        assert!(matches!(blind_leg(&nb.g, &bq, nb.g.find("N").unwrap(), nb.g.find("Far").unwrap(), 2_000, 77.9, false, false), Err(RouteError::NoRoute)), "plain: a 300 ly gap");
+        // Void evidence (the real-range pass said NoRoute) gives the exact
+        // planner a fifth of its cap; otherwise the full cap.
+        assert_eq!(exact_leg_budget_ms(25_000, true), 5_000);
+        assert_eq!(exact_leg_budget_ms(25_000, false), 25_000);
+        assert_eq!(exact_leg_budget_ms(0, true), 0, "no cap stays no cap");
     }
 
     /// The corridor variant engages where the on-ramp gate admits the plot,
