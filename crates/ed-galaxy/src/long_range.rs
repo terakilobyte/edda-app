@@ -665,7 +665,9 @@ fn leg_feasible(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u
         return true;
     }
     let longest = req.fuel.map(|m| m.range_at(0.0)).unwrap_or(req.range_ly).max(req.range_ly);
-    let blind = RouteRequest { from, to, fuel: None, start_fuel: 0.0, max_dry_jumps: 0, range_ly: longest, thorough: false, weight: 1.3, time_budget_ms: budget_ms, min_fuel: false, injection: None, max_expansions: 0, ..req.clone() };
+    // Every reach the ship has stays in: its boosts and its injection
+    // allowance (a 114 ly gap between two scoopables flies on one x2).
+    let blind = RouteRequest { from, to, fuel: None, start_fuel: 0.0, max_dry_jumps: 0, range_ly: longest, thorough: false, weight: 1.3, time_budget_ms: budget_ms, min_fuel: false, max_expansions: 0, ..req.clone() };
     let quiet = |_: &'static str, _: [f32; 3], _: f32| {};
     let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &crate::router::NO_LEG_MEMO, variant: &|_| {}, trace: &quiet };
     !matches!(plan(g, &blind, &ctl), Err(RouteError::NoRoute))
@@ -5923,6 +5925,16 @@ pub(crate) mod tests {
         assert!(t0.elapsed() < std::time::Duration::from_millis(500), "refused fast: {:?}", t0.elapsed());
         assert!(leg_feasible(&f.g, &r, f.g.find("C0").unwrap(), f.g.find("D").unwrap(), 2_000), "a 60 ly chain is admitted");
         assert!(leg_feasible(&f.g, &r, f.g.find("A").unwrap(), f.g.find("B").unwrap(), 0), "no budget to check: admitted");
+        // "Any tank" keeps every reach the ship has: a 114 ly gap between
+        // two scoopable stars flies on one injection (x2), and the probes
+        // of 2026-10-18 refused exactly that leg (Byoi Fraae CQ-G d10-0 ->
+        // ZJ-I d9-0) when the check dropped the allowance; no allowance,
+        // no route.
+        let gap = build(&[star("P", 0.0, 0.0, 0.0, K), star("Q", 114.0, 0.0, 0.0, K)]);
+        let plain = RouteRequest { fuel: Some(m), start_fuel: 32.0, ..req(&gap, "P", "Q", m.range_at(m.capacity)) };
+        assert!(!leg_feasible(&gap.g, &plain, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000), "114 ly on a 78 ly ship with no injection");
+        let injected = RouteRequest { injection: Some((2.0, "premium", 1)), ..plain.clone() };
+        assert!(leg_feasible(&gap.g, &injected, gap.g.find("P").unwrap(), gap.g.find("Q").unwrap(), 2_000), "the same gap with one injection in hand");
     }
 
     /// The corridor variant engages where the on-ramp gate admits the plot,
