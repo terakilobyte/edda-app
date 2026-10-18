@@ -101,6 +101,36 @@
 # everywhere; the prices inside the searches ship OFF (ED_UNITS_COARSE /
 # ED_UNITS_VIA / ED_UNITS_EXACT = 1 turn each on); exact alone and via
 # alone are unmeasured (OPEN). Then, by the boss's ruling, the rim pair.
+# THE RIM PAIR and the thin family (arms thin*, branch planner/r2, rows in
+# 2026-10-17-planner-matrix-thin*.jsonl; thin5 / thin5-3 are the shipped
+# shape, field off): the coarse search refused 201 M already-beaten
+# candidates in 30,000 expansions in the bulge (fanout unbounded) and moved
+# 2 kly; a fanout-32, weight-3 single and a weight-3 bidi lead every wave
+# (indices 0-1), the single never arming, the bidi arming under the
+# ceiling, each yielding its worker at a third of the budget unless its
+# chain is done; a refinement leg is capped at a quarter of the plot's time
+# (one unflyable 1,209 ly leg took 97.8 of 100 s). VERDICT thin5 (PC, vs
+# r1, seconds judge): 14 better / 11 same / 3 worse -- the three: Sol ->
+# Sgr A* 68 j / 4 stops (the judge prefers it by 137 s), Sol -> Byoomao
+# +44 s of tonnes at the same jumps and stops, Sol -> Beagle Point wall
+# 18 -> 77 s at the same 191 j. Both rim directions plot (412 j / 110,449
+# ly and 448 j; the external reference 453 j / 114,668 ly in 61 s),
+# Colonia -> Spase 91 -> 88 j and 50.6 -> 5.2 s, Jongou XM-W first route
+# 100 -> 14 s. VERDICT thin5-3 (three threads, vs before3): 15 / 8 / 5 --
+# Colonia -> Sol 55 -> 56 j, Colonia -> Wongi 54/2 -> 55/3 (the wave held
+# 54-, 55- and 56-jump candidates within 2 % in seconds and the min-fuel
+# judge's pruned-clone estimate picked the one the final rewrite then
+# judged 87 s slower: a judge estimate-vs-final mismatch at the knife edge,
+# surfaced by the changed finisher set), Sgr A* -> Sol judge-gate, Sol ->
+# Beagle Point wall 50 -> 100 s, Sol -> Byoomao +44 s tonnes; vs r1b-3
+# 16 / 8 / 4. Earlier shapes on the record: thin / thin-3 (the pair
+# arming: 13/14/1 and 11/11/6), thin2 / thin2-3 (never arming: 13/14/1 and
+# 10/11/7), thin4f-3 (goal field forced, cut short). Measured and not
+# shipped: the goal field (rim 447 -> 460 j, 412 -> 418 j for plots 4-20x
+# faster; Colonia -> Spase 50 s -> 1.3 s at 88 j: the stall fallback, R3),
+# the goal end's 90-jump run (Beagle 191 -> 198 j), the goalward widen
+# rule (no reproduction). Still lost: both reverse Jongou routes (an
+# unflyable leg the coarse graph assumed bridgeable: R4).
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -466,3 +496,59 @@ r2b-nocoarse,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,,,,,,100.2,Error: Sorry; no 
 r2b-nocoarse,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,100.3,Error: Sorry; no route found within the search limit.
 r2b-nocoarse,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,,,,,,100.3,Error: Sorry; no route found within the search limit.
 r2b-nocoarse,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,,,,,,100.3,Error: Sorry; no route found within the search limit.
+thin5,Wongi,Spase AA-A a108-0,38200,101,6,7726,139,0.8,
+thin5,Spase AA-A a108-0,Wongi,38200,102,5,7790,116,0.5,
+thin5,Sol,Byoomao AA-A c1,24621,64,3,4871,146,0.9,
+thin5,Byoomao AA-A c1,Sol,24621,62,3,4694,125,0.8,
+thin5,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,98,0.7,
+thin5,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,96,0.6,
+thin5,Wongi,Plielou RN-R d5-27,12117,37,2,2749,119,0.8,
+thin5,Plielou RN-R d5-27,Wongi,12117,37,1,2643,105,0.4,
+thin5,Wongi,Colonia,21939,58,2,4351,166,1.4,
+thin5,Colonia,Wongi,21939,54,2,4096,152,0.9,
+thin5,Sol,Sagittarius A*,25900,68,4,5146,194,1.0,
+thin5,Sagittarius A*,Sol,25900,73,3,5434,926,2.7,
+thin5,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,222,1.2,
+thin5,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,102,0.3,
+thin5,Wongi,Beagle Point,65182,191,10,14274,230,77.1,
+thin5,Beagle Point,Wongi,65182,196,10,14518,164,0.6,
+thin5,Colonia,Spase AA-A a108-0,31440,88,4,6582,1094,5.2,
+thin5,Spase AA-A a108-0,Colonia,31440,87,5,6516,1216,6.2,
+thin5,Sol,Colonia,22000,58,3,4358,186,1.2,
+thin5,Colonia,Sol,22000,55,2,4161,116,1.0,
+thin5,Sol,Beagle Point,65279,191,10,14273,221,76.7,
+thin5,Beagle Point,Sol,65279,197,9,14592,169,0.6,
+thin5,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1625,100.2,
+thin5,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,80.0,Error: Sorry; no route found within the search limit.
+thin5,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,14312,55.0,
+thin5,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,82.8,Error: Sorry; no route found within the search limit.
+thin5,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,24846,101.9,
+thin5,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,448,19,30514,26499,107.5,
+thin5-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,115,0.9,
+thin5-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,101,0.6,
+thin5-3,Sol,Byoomao AA-A c1,24621,64,3,4871,105,0.9,
+thin5-3,Byoomao AA-A c1,Sol,24621,62,3,4714,96,0.7,
+thin5-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,91,0.7,
+thin5-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,94,0.6,
+thin5-3,Wongi,Plielou RN-R d5-27,12117,37,2,2749,102,0.9,
+thin5-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,103,0.5,
+thin5-3,Wongi,Colonia,21939,58,2,4351,117,1.7,
+thin5-3,Colonia,Wongi,21939,55,3,4201,112,1.1,
+thin5-3,Sol,Sagittarius A*,25900,68,4,5146,147,1.0,
+thin5-3,Sagittarius A*,Sol,25900,73,3,5427,1887,6.6,
+thin5-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,479,1.6,
+thin5-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,100,0.4,
+thin5-3,Wongi,Beagle Point,65182,191,10,14274,189,41.8,
+thin5-3,Beagle Point,Wongi,65182,196,10,14518,132,0.9,
+thin5-3,Colonia,Spase AA-A a108-0,31440,88,4,6582,5859,13.6,
+thin5-3,Spase AA-A a108-0,Colonia,31440,88,5,6595,3559,11.3,
+thin5-3,Sol,Colonia,22000,58,3,4358,113,1.3,
+thin5-3,Colonia,Sol,22000,56,2,4248,102,1.0,
+thin5-3,Sol,Beagle Point,65279,191,10,14273,189,100.4,
+thin5-3,Beagle Point,Sol,65279,197,9,14592,122,0.8,
+thin5-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1113,52.7,
+thin5-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,101.1,Error: Sorry; no route found within the search limit.
+thin5-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,9759,100.5,
+thin5-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,101.1,Error: Sorry; no route found within the search limit.
+thin5-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,6360,102.6,
+thin5-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,447,19,30445,19552,100.6,

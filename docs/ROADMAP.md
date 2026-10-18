@@ -212,6 +212,32 @@ verdicts live in the CSV headers under `docs/benches/`.
   budget cut move by a jump with expansion order. Against the external
   reference R1 has fewer jumps on 15 of 28, more on 7, no route on 4: the
   four lost routes and the crossings at the cut are R2-R4's.
+  **R2 and the rim (2026-10-17, branch `planner/r2`,
+  `docs/benches/2026-10-17-planner-matrix.csv` arms r2*/thin*):** the judge
+  prices pilot seconds everywhere (plain 53 s, boosted 73, passing scoop 6,
+  stop 120 + tonnes over the scoop rate, injection 1,800); the same prices
+  INSIDE the searches measured negative (coarse: Jongou AA-A 396 -> 510 j,
+  Beagle Point 18 -> 71 s; exact + scoop-stop: Jongou XM-W lost at the cut)
+  and sit behind knobs. The scoop byte (`scoop250.bin`) is in the sub-index
+  for the dry-hop reset to come; read as a free refill it cost 2-8 jumps a
+  route and was put back to the companion flag. **The rim pair plots**
+  (Ood Fleau ZJ-I d9-0 <-> Sphiesi HX-L d7-0, 84,599 ly, no route in 600 s
+  before): the coarse search was refusing 201 M already-beaten candidates
+  in 30,000 expansions in the bulge, and a THIN FAMILY -- a fanout-32,
+  weight-3 single and a weight-3 bidi at portfolio indices 0 and 1, never
+  arming (the single) or arming under the ceiling (the bidi), yielding a
+  worker at a third of the budget unless its chain is done -- gives 412 j /
+  110,449 ly forward (first route 426 j at 6.3 s on three threads) and
+  447 j reverse (first at 20.5 s); the external reference 453 j / 114,668
+  ly in 61 s. A refinement leg is capped at a quarter of the plot's time
+  (one unflyable 1,209 ly leg took 97.8 of 100 s). Measured and NOT
+  shipped: the goal field forced on (rim 447 -> 460 j, 412 -> 418 j, for
+  plots four to twenty times faster; Colonia -> Spase 50 s -> 1.3 s at the
+  same jumps: the fallback heuristic on a stall, R3), the goal end's long
+  plain run (Beagle Point 191 -> 198 j), the goalward widen rule (did not
+  reproduce), the start-order knob. Still lost: both reverse Jongou
+  routes -- an injection-only goal whose approach the coarse graph assumes
+  bridgeable and the exact planner cannot fly (R4's honest bridge pricing).
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
