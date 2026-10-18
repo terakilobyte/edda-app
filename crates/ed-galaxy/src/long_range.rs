@@ -770,9 +770,14 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
         Err(e) => {
             note(&format!("no skeleton ({}; {} ms)", if matches!(e, RouteError::NoRoute) { "none" } else { "cap" }, t0.elapsed().as_millis()));
             // The void detector: plain range, no boosts, no injections --
-            // dies at a gap in milliseconds. NoRoute is evidence, not a
-            // verdict: the exact planner still runs, on a fifth of its cap.
-            if matches!(blind_leg(g, req, from, to, cap.min(1_000), longest, false, false), Err(RouteError::NoRoute)) {
+            // dies at a gap in milliseconds, from the end that faces the
+            // gap (the 3,864 ly Phae Aihm -> Hypins void fired from Phae
+            // Aihm in 130 ms and roamed the populated side for its whole
+            // second from Hypins), so both ends look. NoRoute is evidence,
+            // not a verdict: the exact planner still runs, on a fifth of
+            // its cap.
+            let plain_dead = |a: u32, b: u32| matches!(blind_leg(g, req, a, b, cap.min(1_000), longest, false, false), Err(RouteError::NoRoute));
+            if plain_dead(from, to) || plain_dead(to, from) {
                 void_evidence = true;
                 // The verdict: the empty-tank range with every boost and
                 // injection in hand, briefly. NoRoute here is final.
