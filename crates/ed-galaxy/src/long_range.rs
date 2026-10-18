@@ -175,6 +175,18 @@ fn heavy_slice_ms(time_budget_ms: u64, first_wave: bool, knob: Option<u64>) -> O
     }
 }
 
+/// Does a heavy variant yield at its slice. With coarse stats (a single):
+/// unless the coarse chain reached the goal -- a chain that STALLED and
+/// went to the exact leg planner is in the refine stage too, and that
+/// 25 s refinement of a 10,000 ly stall is exactly what the slice cuts
+/// (the Jongou XM-W -> Byoi CQ-G trace, three threads, 2026-10-18: five
+/// singles at 26-27 s while the scan twins carrying the 402-jump route
+/// waited until 67 s). Without them (a bidi): unless it is refining, as
+/// the thin bidi does.
+fn heavy_yields(past_slice: bool, has_coarse_stats: bool, coarse_done: bool, refining: bool) -> bool {
+    past_slice && !(if has_coarse_stats { coarse_done } else { refining })
+}
+
 /// Does a thin variant yield its worker: past its deadline with the coarse
 /// chain not yet at the goal. A chain that has reached the goal is refined
 /// to the end (the rim reverse with the field, 2026-10-17: the chain was
@@ -1840,7 +1852,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             // The heavy variants' slice: past it with the chain not at the
             // goal (and not yet refining), yield the worker. See heavy_slice_ms.
             let slice_deadline = heavy_slice_ms(req.time_budget_ms, cap_mult == 1, slice_knob).map(|ms| variant_started + std::time::Duration::from_millis(ms));
-            let heavy_check = || check() || slice_deadline.is_some_and(|d| thin_yields(std::time::Instant::now() > d, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed) || thin_refining.load(std::sync::atomic::Ordering::Relaxed)));
+            // A bidi slot has no CoarseStats: the bidi (nb), the greedy bidi, the sixth scan twin.
+            let bidi_slot = (bidi && i == nb) || (greedy_slots > 1 && i == greedy_single + 1) || (scan_twins > 5 && i == greedy_single + greedy_slots + offramp_slots + 5);
+            let heavy_check = || check() || slice_deadline.is_some_and(|d| heavy_yields(std::time::Instant::now() > d, !bidi_slot, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed), thin_refining.load(std::sync::atomic::Ordering::Relaxed)));
             let ctl = Control { cancelled: &heavy_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
             if i < nb {
                 // ED_ONLY_BIDI: debug rig -- silence the singles so the
@@ -5785,6 +5799,21 @@ pub(crate) mod tests {
         assert_eq!(route.hops[1].fuel_after, Some(m.capacity));
         // The K goal is topped up on arrival too, so it counts as a stop.
         assert_eq!(route.refuel_stops, 2);
+    }
+
+    /// Past the slice, a single (it has coarse stats) yields unless its
+    /// coarse chain reached the goal -- the exact-leg refinement of a
+    /// STALLED chain is what the slice exists to cut (the Jongou XM-W
+    /// trace: five singles 26-27 s refining a 10,000 ly stall while the
+    /// scan twins that carry the 402-jump route waited); a bidi has no
+    /// coarse stats and keeps the refining exemption instead.
+    #[test]
+    fn a_stalled_single_yields_at_the_slice_even_while_refining() {
+        assert!(heavy_yields(true, true, false, true), "a single refining a stalled chain yields");
+        assert!(!heavy_yields(true, true, true, false), "a single whose chain reached the goal finishes");
+        assert!(!heavy_yields(true, false, false, true), "a bidi in refinement finishes");
+        assert!(heavy_yields(true, false, false, false), "a bidi still searching yields");
+        assert!(!heavy_yields(false, true, false, true), "nothing yields before the slice");
     }
 
     /// The heavy variants' first-wave slice (the maintainer's "hop between
