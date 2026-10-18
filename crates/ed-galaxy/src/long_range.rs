@@ -1300,6 +1300,19 @@ fn with_repair<T>(banned: &std::sync::Mutex<Vec<(u32, u32)>>, repaired: &std::sy
     res
 }
 
+/// Whether the base single's route arms the grace clock. Always, unless it
+/// came from a LazySP repair ABOVE the credibility ceiling: a rescue where
+/// the coarse graph lied is not a credible optimum (arm w5p-3, 2026-10-18:
+/// the repaired 425 j rim route armed at 6 s and guillotined the 412 j
+/// dig), while a repair under the ceiling is as good as the unrepaired
+/// route (a refused 38 j Wongi -> Blaa Hypai ran 100 s for nothing). With
+/// `ceiling_gated` (ED_SINGLE_CEILING=1) the single arms only under the
+/// ceiling, like the bidi.
+fn single_arms(repaired: bool, jumps: f32, ceiling: f32, ceiling_gated: bool) -> bool {
+    let under = jumps <= ceiling;
+    if ceiling_gated { under } else { !repaired || under }
+}
+
 /// The witness variant (R3 Task 2): the feasibility search's flyable star
 /// sequence, every star a waypoint, refined by `refine_waypoints` (one-hop
 /// legs are direct; an injected or unfundable hop goes to the exact leg
@@ -1588,6 +1601,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 None => euclid,
             }
         };
+        // ED_SINGLE_CEILING=1 (arm, 2026-10-18): the base single arms only
+        // under the ceiling like the bidi.
+        let single_ceiling = std::env::var_os("ED_SINGLE_CEILING").is_some();
         // Two more slots (item 13): greedy-cone twins of the base
         // single and the bidi. In dense space they finish in a fraction
         // of the baseline's time and sometimes find BETTER routes (the
@@ -1819,9 +1835,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     let anchor = corridor_anchor.load(std::sync::atomic::Ordering::Relaxed);
                     (route.jumps as f32) <= arm_ceiling || (anchor > 0 && route.jumps as u32 <= anchor)
                 }
-                (Ok(_), 0) => true,
+                (Ok(route), 0) => single_arms(repaired.load(std::sync::atomic::Ordering::Relaxed), route.jumps as f32, arm_ceiling, single_ceiling),
                 _ => false,
-            } && !repaired.load(std::sync::atomic::Ordering::Relaxed);
+            };
             if let Ok(route) = &res {
                 // ED_NO_INCUMBENT=1: the ablation arm (the searches prune nothing).
                 if std::env::var_os("ED_NO_INCUMBENT").is_none() {
@@ -4684,6 +4700,23 @@ pub(crate) mod tests {
             let allowed = r.range_ly * if w[1].injection.is_some() { 2.0 } else { 1.0 } + 0.01;
             assert!(d <= allowed, "{} -> {}: {d:.1} ly over {allowed:.1}", w[0].name, w[1].name);
         }
+    }
+
+    /// Whether the base single's route arms the grace clock: always, unless
+    /// it came from a LazySP repair above the credibility ceiling (a rescue
+    /// where the coarse graph lied is not a credible optimum: the repaired
+    /// 425 j rim route armed at 6 s over the 412 j dig; a repaired 38 j
+    /// Wongi -> Blaa Hypai under its ceiling is as good as the unrepaired
+    /// one and ran 100 s for nothing when every repair was refused).
+    /// ED_SINGLE_CEILING=1 (arm) gates the single by the ceiling like the
+    /// bidi: on the rim the singles then never arm and the plot digs.
+    #[test]
+    fn the_base_single_arms_unless_repaired_above_the_ceiling() {
+        assert!(single_arms(false, 425.0, 246.0, false), "an unrepaired route arms whatever the ceiling");
+        assert!(!single_arms(true, 425.0, 246.0, false), "a repair above the ceiling does not");
+        assert!(single_arms(true, 38.0, 38.7, false), "a repair under the ceiling does");
+        assert!(!single_arms(false, 425.0, 246.0, true), "ceiling-gated: above does not arm");
+        assert!(single_arms(false, 38.0, 38.7, true), "ceiling-gated: under arms");
     }
 
     /// A route that needed a repair (the variant re-ran after a leg banned a
