@@ -1087,10 +1087,37 @@ impl GraceClock {
             }
         }
     }
-    fn expired(&self, now: std::time::Instant, grace: std::time::Duration) -> bool {
+    /// Expired: armed, past the effective window, and past the quality
+    /// floor when the wave has one (`floor_until`).
+    fn expired(&self, now: std::time::Instant, grace: std::time::Duration, floor_until: Option<std::time::Instant>) -> bool {
+        if floor_until.is_some_and(|f| now < f) {
+            return false;
+        }
         self.state
             .is_some_and(|(at, to_first, _)| now.saturating_duration_since(at) > effective_grace(grace, to_first))
     }
+}
+
+/// "Spend a little" (the maintainer, 2026-10-18): the first wave is not
+/// guillotined before this long after it started, so the slow diggers get
+/// a worker on the plots the quick variants answer in a second. Ten
+/// seconds, at most a tenth of the budget (the interactive lane's 30 s
+/// gets 3 s), the first wave only (escalation waves are seeded and keep
+/// their own clocks). The pilot still gets the first route at first-found
+/// (the long lane answers at first + 5 s early grace and keeps refining):
+/// the floor delays the final answer, never the first. `knob` is
+/// ED_QUALITY_FLOOR_MS for the harness: its value stands, 0 turns it off.
+const QUALITY_FLOOR_MS: u64 = 10_000;
+fn quality_floor(time_budget_ms: u64, first_wave: bool, knob: Option<u64>) -> std::time::Duration {
+    if !first_wave {
+        return std::time::Duration::ZERO;
+    }
+    let ms = match knob {
+        Some(v) => v,
+        None if time_budget_ms > 0 => QUALITY_FLOOR_MS.min(time_budget_ms / 10),
+        None => QUALITY_FLOOR_MS,
+    };
+    std::time::Duration::from_millis(ms)
 }
 
 /// Run `n` variants over the rayon pool. Once one has a route, the others
@@ -1203,6 +1230,7 @@ fn variant_kind(i: usize, witness: usize, thin: usize, nb: usize, bidi: bool, re
 fn run_variants<T: Send>(
     n: usize,
     grace: Option<std::time::Duration>,
+    floor: std::time::Duration,
     seed: Option<u64>,
     cancelled: &(dyn Fn() -> bool + Sync),
     score: impl Fn(&T) -> u64 + Sync,
@@ -1211,12 +1239,13 @@ fn run_variants<T: Send>(
 ) -> (Vec<Result<T, RouteError>>, u32, u32) {
     use rayon::prelude::*;
     let wave_started = std::time::Instant::now();
+    let floor_until = (!floor.is_zero()).then(|| wave_started + floor);
     let clock: std::sync::Mutex<GraceClock> = std::sync::Mutex::new(GraceClock::new(seed));
     let stop = |grace: std::time::Duration| {
         clock
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .expired(std::time::Instant::now(), grace)
+            .expired(std::time::Instant::now(), grace, floor_until)
     };
     let one = |i: usize| -> Result<T, RouteError> {
         let check = || cancelled() || grace.is_some_and(stop);
@@ -1738,7 +1767,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         } else {
             Vec::new()
         };
-        let (results, finished, launched) = run_variants(total, grace, seed, &cancelled, |r: &Route| judge(r), |i, check| {
+        let floor = quality_floor(req.time_budget_ms, cap_mult == 1, std::env::var("ED_QUALITY_FLOOR_MS").ok().and_then(|v| v.parse().ok()));
+        let (results, finished, launched) = run_variants(total, grace, floor, seed, &cancelled, |r: &Route| judge(r), |i, check| {
             let variant_started = std::time::Instant::now();
             let coarse = CoarseStats::default();
             let ctl = Control { cancelled: check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: &legs, variant: ctl.variant, trace: ctl.trace };
@@ -4614,22 +4644,22 @@ pub(crate) mod tests {
         // Armed by the first credible finish (to_first 100 ms -> the
         // effective window is 100 ms in both directions).
         clock.finish(t0, ms(100), time_units(100, 0, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
-        assert!(!clock.expired(t0 + ms(90), grace));
-        assert!(clock.expired(t0 + ms(150), grace));
+        assert!(!clock.expired(t0 + ms(90), grace, None));
+        assert!(clock.expired(t0 + ms(150), grace, None));
         // An improvement at t0+80 renews the window from t0+80.
         clock.finish(t0 + ms(80), ms(180), time_units(90, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
-        assert!(!clock.expired(t0 + ms(150), grace), "the reset must outlive the original window");
-        assert!(clock.expired(t0 + ms(200), grace));
+        assert!(!clock.expired(t0 + ms(150), grace, None), "the reset must outlive the original window");
+        assert!(clock.expired(t0 + ms(200), grace, None));
         // A worse finish and a tie renew nothing.
         clock.finish(t0 + ms(170), ms(270), time_units(95, 0, 0, 0, 9, 0.0, 1.25, 1.0, None, None), true);
         clock.finish(t0 + ms(175), ms(275), time_units(90, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
-        assert!(clock.expired(t0 + ms(200), grace), "neither a worse finish nor a tie may renew the window");
+        assert!(clock.expired(t0 + ms(200), grace, None), "neither a worse finish nor a tie may renew the window");
         // A non-arming kind (a greedy twin) that IMPROVES still renews:
         // resetting only delays cancellation, it never causes one.
         let mut clock = GraceClock::new(None);
         clock.finish(t0, ms(100), time_units(100, 0, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
         clock.finish(t0 + ms(80), ms(180), time_units(80, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), false);
-        assert!(!clock.expired(t0 + ms(150), grace), "an improving greedy finish must renew the window");
+        assert!(!clock.expired(t0 + ms(150), grace, None), "an improving greedy finish must renew the window");
     }
 
     /// Item 14a, the escalation seed: a wave past the first exists only to
@@ -4644,15 +4674,15 @@ pub(crate) mod tests {
         let mut clock = GraceClock::new(Some(time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None)));
         // A tie of the standing best: no clock.
         clock.finish(t0, ms(100), time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
-        assert!(!clock.expired(t0 + ms(10_000), grace), "a re-confirmation must not arm the clock");
+        assert!(!clock.expired(t0 + ms(10_000), grace, None), "a re-confirmation must not arm the clock");
         // A genuine improvement arms it.
         clock.finish(t0 + ms(200), ms(300), time_units(190, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
-        assert!(clock.expired(t0 + ms(1_000), grace));
+        assert!(clock.expired(t0 + ms(1_000), grace, None));
         // The first wave has no seed: its first credible finish arms
         // regardless of score (the status quo, unchanged).
         let mut wave_one = GraceClock::new(None);
         wave_one.finish(t0, ms(100), time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
-        assert!(wave_one.expired(t0 + ms(1_000), grace));
+        assert!(wave_one.expired(t0 + ms(1_000), grace, None));
     }
 
     /// R1 (2026-10-17): the portfolio starts its variants in a declared
@@ -4665,12 +4695,12 @@ pub(crate) mod tests {
         let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
         let ran = std::sync::Mutex::new(Vec::new());
         let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
-        let (results, finished, started) = pool.install(|| run_variants(6, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4]));
+        let (results, finished, started) = pool.install(|| run_variants(6, None, std::time::Duration::ZERO, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[3, 0, 5, 1, 2, 4]));
         assert_eq!((finished, started), (6, 6));
         assert!(results.iter().all(|r| r.is_ok()));
         assert_eq!(ran.into_inner().unwrap(), vec![3, 0, 5, 1, 2, 4], "one worker: the declared order, nothing else");
         // Results come back by variant index whatever the start order.
-        let (results, _, _) = pool.install(|| run_variants(3, None, None, &|| false, |r: &Route| r.jumps as u64, |i, _| (Ok(Route { jumps: i + 10, ..dummy() }), true), &[2, 0, 1]));
+        let (results, _, _) = pool.install(|| run_variants(3, None, std::time::Duration::ZERO, None, &|| false, |r: &Route| r.jumps as u64, |i, _| (Ok(Route { jumps: i + 10, ..dummy() }), true), &[2, 0, 1]));
         assert_eq!(results.iter().map(|r| r.as_ref().unwrap().jumps).collect::<Vec<_>>(), vec![10, 11, 12]);
     }
 
@@ -4969,7 +4999,7 @@ pub(crate) mod tests {
         let dummy = || -> Route { serde_json::from_value(serde_json::json!({"range_ly":0.0,"hops":[],"jumps":1,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap() };
         let ran = std::sync::Mutex::new(Vec::new());
         let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
-        let (results, finished, started) = pool.install(|| run_variants(5, None, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[]));
+        let (results, finished, started) = pool.install(|| run_variants(5, None, std::time::Duration::ZERO, None, &|| false, |_: &Route| 0, |i, _| { ran.lock().unwrap().push(i); (Ok(dummy()), true) }, &[]));
         assert_eq!((finished, started), (5, 5));
         assert!(results.iter().all(|r| r.is_ok()));
         assert_eq!(ran.into_inner().unwrap(), vec![0, 1, 2, 3, 4], "no order given: the range, as rayon splits it (one worker: in index order)");
@@ -4983,7 +5013,7 @@ pub(crate) mod tests {
     fn a_slow_variant_is_cancelled_once_another_has_a_route() {
         let dummy = || Route { highway_pending: false, range_ly: 0.0, hops: vec![], jumps: 1, total_ly: 0.0, straight_ly: 0.0, boosted_jumps: 0, expansions: 0, elapsed_ms: 0, refuel_stops: 0, injections: 0, secondary_boosts: 0, ship_id: None, ship: None, variants_run: 0, variants_finished: 0, ship_has_scoop: None, fsd_integrity: None, integrity_loss_per_boost: None, ship_has_afmu: None };
         let started = std::time::Instant::now();
-        let (results, finished, _) = run_variants(3, Some(std::time::Duration::from_millis(50)), None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
+        let (results, finished, _) = run_variants(3, Some(std::time::Duration::from_millis(50)), std::time::Duration::ZERO, None, &|| false, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |i, check| {
             if i == 1 {
                 while !check() {
                     std::thread::sleep(std::time::Duration::from_millis(5));
@@ -4998,7 +5028,7 @@ pub(crate) mod tests {
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
         // Without a grace period every variant is waited for; the user's
         // own cancel still reaches them.
-        let (results, finished, _) = run_variants(2, None, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[]);
+        let (results, finished, _) = run_variants(2, None, std::time::Duration::ZERO, None, &|| true, |r: &Route| route_score(r, 0.0, &RouteRequest::default()), |_, check| if check() { (Err(RouteError::Cancelled), false) } else { (Ok(dummy()), true) }, &[]);
         assert_eq!(finished, 0);
         assert!(results.iter().all(|r| matches!(r, Err(RouteError::Cancelled))));
     }
@@ -5723,6 +5753,44 @@ pub(crate) mod tests {
         assert_eq!(route.hops[1].fuel_after, Some(m.capacity));
         // The K goal is topped up on arrival too, so it counts as a stop.
         assert_eq!(route.refuel_stops, 2);
+    }
+
+    /// "Spend a little" (the maintainer, 2026-10-18): the first wave is not
+    /// guillotined before the quality floor -- ten seconds, a tenth of a
+    /// short budget -- so the slow diggers get a worker on the plots the
+    /// quick variants answer in a second (eight of the 28 pinned routes
+    /// ended 1 to 7 jumps over the external reference in 0.6 to 6.8 s with
+    /// 90 s of budget unused). Escalation waves keep their own clocks and
+    /// no floor; ED_QUALITY_FLOOR_MS overrides, 0 turns it off.
+    #[test]
+    fn the_quality_floor_is_the_first_waves_and_a_tenth_of_the_budget() {
+        use std::time::Duration;
+        let ms = Duration::from_millis;
+        assert_eq!(quality_floor(100_000, true, None), ms(10_000), "the long lane: ten seconds");
+        assert_eq!(quality_floor(30_000, true, None), ms(3_000), "the interactive lane: a tenth of its budget");
+        assert_eq!(quality_floor(0, true, None), ms(10_000), "no budget: the full floor");
+        assert_eq!(quality_floor(100_000, false, None), Duration::ZERO, "escalation waves have no floor");
+        assert_eq!(quality_floor(100_000, true, Some(0)), Duration::ZERO, "ED_QUALITY_FLOOR_MS=0 turns it off");
+        assert_eq!(quality_floor(100_000, true, Some(20_000)), ms(20_000), "the knob's value stands, uncapped");
+    }
+
+    /// An armed clock waits for the floor and cuts at once past it; the
+    /// floor never arms a clock by itself.
+    #[test]
+    fn the_grace_clock_does_not_expire_before_the_quality_floor() {
+        use std::time::{Duration, Instant};
+        let ms = Duration::from_millis;
+        let t0 = Instant::now();
+        let mut clock = GraceClock::new(None);
+        clock.finish(t0 + ms(300), ms(300), 1_000, true);
+        let grace = ms(1_000);
+        assert!(clock.expired(t0 + ms(900), grace, None), "no floor: the 500 ms window has passed");
+        let floor = Some(t0 + ms(10_000));
+        assert!(!clock.expired(t0 + ms(900), grace, floor), "under the floor the window waits");
+        assert!(!clock.expired(t0 + ms(9_999), grace, floor));
+        assert!(clock.expired(t0 + ms(10_001), grace, floor), "past the floor the expired window cuts at once");
+        let unarmed = GraceClock::new(None);
+        assert!(!unarmed.expired(t0 + ms(20_000), grace, floor), "the floor never arms a clock");
     }
 
     /// The measured shape: fast plots stop waiting on losers (a 337 ms
