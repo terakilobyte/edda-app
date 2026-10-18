@@ -244,7 +244,14 @@ Write it in full: the heap per bucket, the bitset, the injected side list, the p
 
 - [ ] `knobs/variant_first_found.py` extended with route class (straight ly band, end density band) and the winning family per class on the final arms; `docs/benches/2026-10-18-planner-matrix-r3-table.md`; the ROADMAP entry; the R4 plan named next (honest bridge pricing from the aggregate, hwgraph250, per-band field costs).
 
+## Folded in from the maintainer's independent review (appendix D of the holistic review)
+
+- Task 2's witness-cut legs are the review's "never hand a gap over ~1,200 ly to the exact planner as one leg": the cut is at witness stars every 2-5 kly, and the fallback segment is the witness itself.
+- Task 3's bounded leg check is its "per-leg budget inside the race" (the time cap is already in from R2).
+- Carried to R4, in this order, each a pre-registered arm: (1) ship-calibrated query-time pricing of the goal field (`graph250.bin` stores `(dist_ly, min_pair_ly, flags)` per edge; the per-plot Dijkstra prices them with the caller's fuel model and boost) -- confirm: the rim reverse stays at or under 447 j with the field on, Colonia -> Spase keeps 1.3 s, the field goes on by default without a route worse on the matrix; (2) focal search / EES over the calibrated field replacing the fixed weight, the 30,000 cap and the hand-off -- confirm: one weight column in the sweep, the run-time tail gone, no route worse; (3) the highway adjacency file with bit-packed 64-bit edges (target, white-dwarf bit, local-scoop bit, distance, cell) -- confirm: expansion throughput 5x, no `stars.bin` / `scoop250.bin` reads in the inner loop; (4) the 1D dominance byte for the (star, dry_hops) coarse state, with R2 Task 4.
+- On the record as candidates, no task until a profile names them: a `powf` lookup table in `FuelModel::fuel_for`, the carrier planner's scan and quickselect.
+
 ## What R3 does not do
 
-- No highway adjacency file, no per-band field costs, no component labels beyond what Task 1's drained frontier gives (R4).
+- No highway adjacency file, no ship-calibrated field pricing, no focal search, no component labels beyond what Task 1's drained frontier gives (R4).
 - No change to the one-currency prices inside the searches (knobs, measured negative).
