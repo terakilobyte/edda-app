@@ -241,6 +241,27 @@
 # only: shipping it means a nested leg plot inheriting its parent's
 # currency (a RouteRequest field; R4), and the bench measures --min-fuel
 # plots alone.
+# R4 (afternoon). Instruments first: the reference's full routes fetched
+# conversation-side (its neutron plotter is fuel-blind at one range: fed
+# our full-tank reach it plots 108 jumps on Spase -> Wongi, at our mean
+# reach 100, ours 102 flying the real tank -- the 1-6 % short-plot
+# "deficits" are its constant max range), 2-22 % of its neutron waypoints
+# are class Unknown in our index (a data gap, ~2 jumps per 100), and the
+# two reverse-rim dead legs are voids (void_probe.rs: 2,850 and 1,025 ly
+# of empty 50 ly cells along 3,864 and 2,011 ly bridge edges). BURIED: a
+# straight-line void check in the coarse relax -- forward Jongou XM-W ->
+# Byoi CQ-G 401 -> 1,806 j, coarse 0.6 -> 18 s (the rim's 1,000-1,300 ly
+# bridges detour off their lines). w14-3 = the leg precheck + skeleton
+# (a fuel-blind plan at the leg's own range, bounded by its expansion
+# cap, is the leg when it flies the tank; a plain no-boost pass is the
+# void detector and a leg with void evidence gets a fifth of the exact
+# cap; the empty-tank verdict pass alone refuses) vs w12-3: 4 better /
+# 22 same / 2 WORSE (Byoi CQ-G -> Jongou XM-W wall 91 -> 78 s; Ood Fleau
+# -> Sphiesi 421 -> 427 j with first-found 2.3 -> 9.7 s, the witness's
+# 400-leg refinement slowed; Spase -> Colonia 90 -> 91, noise). Dead
+# void legs 25-30 -> 8.5 s where the detector fires; the 1,209 ly Jongua
+# XV-E -> Gonguae GW-C leg (flyable only light) still 28.5 s. Reverse
+# crossings unchanged (910 / 1,054). ED_NO_LEG_PRECHECK=1 ablates.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -1092,3 +1113,31 @@ w13-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,5586,82.3,
 w13-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,536,91.0,
 w13-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,421,18,29155,2424,12.5,
 w13-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32437,609,37.9,
+w14-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,118,1.0,
+w14-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,112,0.7,
+w14-3,Sol,Byoomao AA-A c1,24621,64,3,4871,112,1.2,
+w14-3,Byoomao AA-A c1,Sol,24621,62,3,4694,104,1.2,
+w14-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,100,0.9,
+w14-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,99,0.8,
+w14-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,111,0.7,
+w14-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,102,0.6,
+w14-3,Wongi,Colonia,21939,58,2,4350,127,5.5,
+w14-3,Colonia,Wongi,21939,54,2,4096,128,2.4,
+w14-3,Sol,Sagittarius A*,25900,68,4,5145,159,3.2,
+w14-3,Sagittarius A*,Sol,25900,73,3,5427,1003,7.4,
+w14-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,287,10.6,
+w14-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,107,0.5,
+w14-3,Wongi,Beagle Point,65182,191,10,14274,679,47.5,
+w14-3,Beagle Point,Wongi,65182,196,10,14518,127,1.1,
+w14-3,Colonia,Spase AA-A a108-0,31440,88,4,6579,426,2.7,
+w14-3,Spase AA-A a108-0,Colonia,31440,91,5,6830,991,12.2,
+w14-3,Sol,Colonia,22000,57,3,4320,125,5.5,
+w14-3,Colonia,Sol,22000,55,2,4161,111,2.3,
+w14-3,Sol,Beagle Point,65279,191,10,14273,657,38.5,
+w14-3,Beagle Point,Sol,65279,197,9,14592,127,1.1,
+w14-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1596,69.7,
+w14-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,910,36,55970,289,100.7,
+w14-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,4752,84.1,
+w14-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1054,39,63847,516,78.1,
+w14-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,427,18,29457,9707,19.6,
+w14-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32436,532,30.7,

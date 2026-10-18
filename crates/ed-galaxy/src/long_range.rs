@@ -3320,13 +3320,19 @@ fn plan_long_corridor(
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
+    // LazySP for the corridor too: a leg the exact planner cannot fly bans
+    // its coarse edge and the descent or segment re-plans (the 3,864 ly
+    // Phae Aihm -> Hypins void edge ended every corridor probe of
+    // 2026-10-18 with Budget until this).
+    let banned: std::sync::Mutex<Vec<(u32, u32)>> = std::sync::Mutex::new(Vec::new());
+    let repaired = std::sync::atomic::AtomicBool::new(false);
     // The descent runs the scan twins' shape (weight 1.8, reserve 0.75,
     // bucket 0.5, the non-lean scan): on the rim crossings it is the one
     // shape that reaches the far end (Jongou XM-W -> Byoi CQ-G: scan twins
     // 0-2 routed in 0.6-3.9 s while every base single stalled at the cap
     // with 10 kly left; the plain shape stalled here too and handed a
     // 10 kly leg to the exact planner, probe rev_only 2026-10-18).
-    let back = plan_long_with(g, neutrons, &rev, ctl, 1.8, 0.75, 0.5, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS, &NO_INCUMBENT)?;
+    let back = with_repair(&banned, &repaired, || plan_long_with(g, neutrons, &rev, ctl, 1.8, 0.75, 0.5, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &banned, &NO_INCUMBENT))?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -3369,7 +3375,7 @@ fn plan_long_corridor(
         let sreq = RouteRequest { from: at, to: pin, start_fuel: fuel, ..req.clone() };
         // Segments run field-less: the plot's goal field prices toward
         // the FINAL goal and would poison a segment's heuristic.
-        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT)?;
+        let leg = with_repair(&banned, &repaired, || plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false, &banned, &NO_INCUMBENT))?;
         fuel = leg.hops.last().and_then(|h| h.fuel_after).unwrap_or(full_tank);
         at = pin;
         whole = Some(match whole {
