@@ -651,6 +651,33 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
     planned
 }
 
+/// R4: is the leg flyable by ANY tank -- a fuel-blind plan at the ship's
+/// longest range (an empty tank), the request's boosts, no dry-run limit.
+/// A necessary condition the exact planner's fuel states cannot beat:
+/// `false` means no route exists and the leg is refused at once, where the
+/// fuel-aware search spent its 25 s cap proving the same (Phae Aihm SG-Y
+/// d0 -> Hypins FL-Y d0, 3,864 ly, in every reverse-rim variant; 0.13 s
+/// fuel-blind). `true` on a route or when the check runs out of
+/// `budget_ms` (unknown is admitted; 0 skips the check). ED_NO_LEG_PRECHECK=1
+/// ablates.
+fn leg_feasible(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u64) -> bool {
+    if budget_ms == 0 {
+        return true;
+    }
+    let longest = req.fuel.map(|m| m.range_at(0.0)).unwrap_or(req.range_ly).max(req.range_ly);
+    let blind = RouteRequest { from, to, fuel: None, start_fuel: 0.0, max_dry_jumps: 0, range_ly: longest, thorough: false, weight: 1.3, time_budget_ms: budget_ms, min_fuel: false, injection: None, max_expansions: 0, ..req.clone() };
+    let quiet = |_: &'static str, _: [f32; 3], _: f32| {};
+    let ctl = Control { cancelled: &|| false, progress: &|_, _| {}, stage: &|_, _, _| {}, found: &|_| {}, legs: &crate::router::NO_LEG_MEMO, variant: &|_| {}, trace: &quiet };
+    !matches!(plan(g, &blind, &ctl), Err(RouteError::NoRoute))
+}
+
+/// The precheck's budget: a fiftieth of the leg's own, at most 2 s -- the
+/// void answers in 130 ms, a dense 1,200 ly leg needs 3 s to say yes and
+/// is admitted unknown.
+fn leg_precheck_ms(leg_budget_ms: u64) -> u64 {
+    if std::env::var_os("ED_NO_LEG_PRECHECK").is_some() { 0 } else { (leg_budget_ms / 50).clamp(200, 2_000) }
+}
+
 fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
     if let Some(l) = direct_leg(g, req, from, to, fuel) {
         return Ok(l);
@@ -687,8 +714,13 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
             return Ok(l);
         }
     }
+    let leg_req = leg_of(from, to, fuel);
+    if !leg_feasible(g, req, from, to, leg_precheck_ms(leg_req.time_budget_ms)) {
+        note("refused: no tank flies it");
+        return Err(RouteError::NoRoute);
+    }
     note("exact");
-    plan(g, &leg_of(from, to, fuel), ctl)
+    plan(g, &leg_req, ctl)
 }
 
 /// Re-simulate a leg's fuel from `fuel` at its first hop, rewriting
@@ -1863,6 +1895,12 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             let bidi_slot = (bidi && i == nb) || (greedy_slots > 1 && i == greedy_single + 1) || (scan_twins > 5 && i == greedy_single + greedy_slots + offramp_slots + 5);
             let heavy_check = || check() || slice_deadline.is_some_and(|d| heavy_yields(std::time::Instant::now() > d, !bidi_slot, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed), thin_refining.load(std::sync::atomic::Ordering::Relaxed)));
             let ctl = Control { cancelled: &heavy_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
+            // ED_ONLY_CORRIDOR: debug rig -- silence every heavy variant but
+            // the corridor so its behaviour (and its unshared budget) is
+            // readable in the trace.
+            if std::env::var_os("ED_ONLY_CORRIDOR").is_some() && !(corridor_slot && i == greedy_single + greedy_slots + offramp_slots + scan_twins) {
+                return (Err(RouteError::Cancelled), false);
+            }
             if i < nb {
                 // ED_ONLY_BIDI: debug rig -- silence the singles so the
                 // bidi variant's behaviour is readable in the trace.
@@ -1890,6 +1928,10 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, !lean_base, fields), 6)
                 }
             } else if corridor_slot && i == greedy_single + greedy_slots + offramp_slots + scan_twins {
+                // The corridor is a composite plan (a descent, then segments)
+                // with no coarse stats of its own: the slice's yield rule has
+                // no signal for it, so it runs under the plain check.
+                let ctl = Control { cancelled: check, ..ctl };
                 (plan_long_corridor(g, neutrons, req, &ctl, cap_mult, fields, &corridor_anchor), 5)
             } else {
                 // The last slot: retrograde (kind 3). Its internal
@@ -3177,6 +3219,13 @@ fn plan_long_retro(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Cont
 /// route ACHIEVED jumps x slack) is stored for the arming rule:
 /// unlike the euclid/field ceilings, hopeless at the rim, a
 /// same-ship descent is a real achieved figure for this corridor.
+/// Whether the corridor variant runs: the on-ramp gate admits the plot, or
+/// ED_CORRIDOR=force (the R4 experiment, 2026-10-18: the reverse rim
+/// crossings' gate refused the one variant built for them).
+fn corridor_engages(ramp_admits: bool, forced: bool) -> bool {
+    ramp_admits || forced
+}
+
 fn plan_long_corridor(
     g: &Galaxy,
     neutrons: &Galaxy,
@@ -3192,13 +3241,20 @@ fn plan_long_corridor(
     let reach = req.fuel.map(|m| m.reach(m.capacity, 1.0)).unwrap_or(req.range_ly.max(1.0)) * boost;
     // Engage only where the mirror gate says the goal side is the thin
     // side -- everywhere else the slot loses silently and cheaply.
-    if on_ramp(neutrons, fields[1], goal_pos, start_pos, straight, reach, true).is_none() {
+    let forced = std::env::var("ED_CORRIDOR").ok().as_deref() == Some("force");
+    if !corridor_engages(on_ramp(neutrons, fields[1], goal_pos, start_pos, straight, reach, true).is_some(), forced) {
         return Err(RouteError::Cancelled);
     }
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS, &NO_INCUMBENT)?;
+    // The descent runs the scan twins' shape (weight 1.8, reserve 0.75,
+    // bucket 0.5, the non-lean scan): on the rim crossings it is the one
+    // shape that reaches the far end (Jongou XM-W -> Byoi CQ-G: scan twins
+    // 0-2 routed in 0.6-3.9 s while every base single stalled at the cap
+    // with 10 kly left; the plain shape stalled here too and handed a
+    // 10 kly leg to the exact planner, probe rev_only 2026-10-18).
+    let back = plan_long_with(g, neutrons, &rev, ctl, 1.8, 0.75, 0.5, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS, &NO_INCUMBENT)?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -5842,6 +5898,41 @@ pub(crate) mod tests {
         assert!(!heavy_yields(true, false, false, true), "a bidi in refinement finishes");
         assert!(heavy_yields(true, false, false, false), "a bidi still searching yields");
         assert!(!heavy_yields(false, true, false, true), "nothing yields before the slice");
+    }
+
+    /// R4: the leg feasibility precheck. A leg no tank could fly -- a gap
+    /// wider than the ship's longest jump with nothing in between -- is
+    /// refused in milliseconds, before the exact planner spends its 25 s
+    /// leg cap proving it (Phae Aihm SG-Y d0 -> Hypins FL-Y d0, 3,864 ly:
+    /// 25 s in every reverse-rim variant, 0.13 s fuel-blind). A leg with a
+    /// chain of stars is admitted; a precheck that runs out of its small
+    /// budget admits too (unknown is not infeasible).
+    #[test]
+    fn a_leg_across_a_void_is_refused_before_the_exact_planner() {
+        let m = FuelModel::from_loadout(319.0, 32.0, 5.2, 5, true, false, 77.9, 10.5, 0.0);
+        let mut stars = vec![star("A", 0.0, 0.0, 0.0, K), star("B", 300.0, 0.0, 0.0, K)];
+        for i in 1..=4 {
+            stars.push(star(&format!("C{i}"), i as f32 * 60.0, 400.0, 0.0, K));
+        }
+        stars.push(star("D", 300.0, 400.0, 0.0, K));
+        stars.push(star("C0", 0.0, 400.0, 0.0, K));
+        let f = build(&stars);
+        let r = RouteRequest { fuel: Some(m), start_fuel: 32.0, ..req(&f, "A", "B", m.range_at(m.capacity)) };
+        let t0 = std::time::Instant::now();
+        assert!(!leg_feasible(&f.g, &r, f.g.find("A").unwrap(), f.g.find("B").unwrap(), 2_000), "300 ly of nothing on a 78 ly ship");
+        assert!(t0.elapsed() < std::time::Duration::from_millis(500), "refused fast: {:?}", t0.elapsed());
+        assert!(leg_feasible(&f.g, &r, f.g.find("C0").unwrap(), f.g.find("D").unwrap(), 2_000), "a 60 ly chain is admitted");
+        assert!(leg_feasible(&f.g, &r, f.g.find("A").unwrap(), f.g.find("B").unwrap(), 0), "no budget to check: admitted");
+    }
+
+    /// The corridor variant engages where the on-ramp gate admits the plot,
+    /// or everywhere under ED_CORRIDOR=force (the R4 experiment on the
+    /// reverse rim crossings, whose gate refused them).
+    #[test]
+    fn the_corridor_engages_on_the_gate_or_when_forced() {
+        assert!(corridor_engages(true, false));
+        assert!(!corridor_engages(false, false));
+        assert!(corridor_engages(false, true), "forced: the gate is bypassed");
     }
 
     /// The heavy variants' first-wave slice (the maintainer's "hop between
