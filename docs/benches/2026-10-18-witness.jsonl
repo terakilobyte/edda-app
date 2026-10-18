@@ -1,0 +1,28 @@
+{"from":"Wongi","to":"Spase AA-A a108-0","straight_ly":38200,"hops":105,"boosted_departures":103,"injections":0,"total_ly":41720,"expansions":120,"ms":1376}
+{"from":"Spase AA-A a108-0","to":"Wongi","straight_ly":38200,"hops":102,"boosted_departures":100,"injections":0,"total_ly":40916,"expansions":117,"ms":469}
+{"from":"Sol","to":"Byoomao AA-A c1","straight_ly":24621,"hops":65,"boosted_departures":63,"injections":0,"total_ly":25931,"expansions":85,"ms":625}
+{"from":"Byoomao AA-A c1","to":"Sol","straight_ly":24621,"hops":65,"boosted_departures":64,"injections":0,"total_ly":26250,"expansions":94,"ms":282}
+{"from":"Pheia Auscs AA-A d0","to":"Spase AA-A a108-0","straight_ly":13439,"hops":37,"boosted_departures":36,"injections":0,"total_ly":14389,"expansions":202,"ms":194}
+{"from":"Spase AA-A a108-0","to":"Pheia Auscs AA-A d0","straight_ly":13439,"hops":39,"boosted_departures":38,"injections":0,"total_ly":15061,"expansions":47,"ms":121}
+{"from":"Wongi","to":"Plielou RN-R d5-27","straight_ly":12117,"hops":37,"boosted_departures":35,"injections":0,"total_ly":13754,"expansions":48,"ms":298}
+{"from":"Plielou RN-R d5-27","to":"Wongi","straight_ly":12117,"hops":36,"boosted_departures":33,"injections":0,"total_ly":13539,"expansions":191,"ms":155}
+{"from":"Wongi","to":"Colonia","straight_ly":21939,"hops":56,"boosted_departures":55,"injections":0,"total_ly":22963,"expansions":171,"ms":1582}
+{"from":"Colonia","to":"Wongi","straight_ly":21939,"hops":56,"boosted_departures":55,"injections":0,"total_ly":22947,"expansions":70,"ms":899}
+{"from":"Sol","to":"Sagittarius A*","straight_ly":25900,"hops":71,"boosted_departures":69,"injections":0,"total_ly":28422,"expansions":149,"ms":1582}
+{"from":"Sagittarius A*","to":"Sol","straight_ly":25900,"hops":73,"boosted_departures":66,"injections":0,"total_ly":27644,"expansions":80,"ms":912}
+{"from":"Wongi","to":"Blaa Hypai AA-A a96-19","straight_ly":12712,"hops":38,"boosted_departures":36,"injections":0,"total_ly":14618,"expansions":53,"ms":403}
+{"from":"Blaa Hypai AA-A a96-19","to":"Wongi","straight_ly":12712,"hops":43,"boosted_departures":32,"injections":0,"total_ly":13664,"expansions":132,"ms":247}
+{"from":"Wongi","to":"Beagle Point","straight_ly":65182,"hops":206,"boosted_departures":172,"injections":0,"total_ly":71307,"expansions":236,"ms":457}
+{"from":"Beagle Point","to":"Wongi","straight_ly":65182,"hops":210,"boosted_departures":172,"injections":0,"total_ly":71754,"expansions":685,"ms":929}
+{"from":"Colonia","to":"Spase AA-A a108-0","straight_ly":31440,"hops":94,"boosted_departures":85,"injections":0,"total_ly":35342,"expansions":162,"ms":923}
+{"from":"Spase AA-A a108-0","to":"Colonia","straight_ly":31440,"hops":101,"boosted_departures":93,"injections":0,"total_ly":38120,"expansions":417,"ms":1039}
+{"from":"Sol","to":"Colonia","straight_ly":22000,"hops":56,"boosted_departures":55,"injections":0,"total_ly":22946,"expansions":180,"ms":1118}
+{"from":"Colonia","to":"Sol","straight_ly":22000,"hops":56,"boosted_departures":55,"injections":0,"total_ly":22897,"expansions":70,"ms":906}
+{"from":"Sol","to":"Beagle Point","straight_ly":65279,"hops":206,"boosted_departures":172,"injections":0,"total_ly":71285,"expansions":240,"ms":441}
+{"from":"Beagle Point","to":"Sol","straight_ly":65279,"hops":206,"boosted_departures":173,"injections":0,"total_ly":71765,"expansions":681,"ms":489}
+{"from":"Jongou AA-A d0","to":"Byoi Fraae AT-U d2-1","straight_ly":85526,"hops":1887,"boosted_departures":12,"injections":2,"total_ly":123061,"expansions":52365,"ms":3435}
+{"from":"Byoi Fraae AT-U d2-1","to":"Jongou AA-A d0","straight_ly":85526,"hops":934,"boosted_departures":221,"injections":2,"total_ly":127058,"expansions":3721,"ms":176}
+{"from":"Jongou XM-W d1-0","to":"Byoi Fraae CQ-G d10-0","straight_ly":87012,"hops":1945,"boosted_departures":17,"injections":10,"total_ly":128748,"expansions":154189,"ms":10454}
+{"from":"Byoi Fraae CQ-G d10-0","to":"Jongou XM-W d1-0","straight_ly":87012,"hops":1073,"boosted_departures":216,"injections":10,"total_ly":134022,"expansions":12351,"ms":311}
+{"from":"Ood Fleau ZJ-I d9-0","to":"Sphiesi HX-L d7-0","straight_ly":84599,"hops":1620,"boosted_departures":22,"injections":6,"total_ly":111990,"expansions":169326,"ms":9266}
+{"from":"Sphiesi HX-L d7-0","to":"Ood Fleau ZJ-I d9-0","straight_ly":84599,"hops":741,"boosted_departures":220,"injections":7,"total_ly":119581,"expansions":3084,"ms":339}

@@ -1,0 +1,43 @@
+# The feasibility search alone (planner unification R3 Task 1, 2026-10-18):
+# a flyable witness route for every pinned pair, both directions, with the
+# bench Caspian (128 t, 6.8 t a jump, 77.81 ly max, x6 / x3 SCO), premium
+# injections 22, warm index, this PC, one thread; examples/witness.rs via
+# knobs/witness_matrix.sh. State (star, dry jumps, injections used), two
+# greedy sides meeting at the first star both closed, injections in
+# lexicographic buckets per side. VERDICT: a witness on 28 of 28 (the two
+# reverse Jongou routes included, 934 and 1,073 hops with 2 and 10
+# injections in 1.2 and 0.3 s; the shipped planner has no route on them);
+# every witness under 12 s, median under 1 s. The witnesses are long where
+# the greedy sides are weak (forward Jongou 1,887 hops; the rim forward
+# 1,620 with 169,326 expansions): quality is the optimisers' business, the
+# witness is the floor under them. A one-sided search drained 1.8 M stars in
+# 180 s at the reverse Jongou wall: the second side is what makes it finish.
+route_from,route_to,straight_ly,hops,boosted_departures,injections,total_ly,expansions,ms
+Wongi,Spase AA-A a108-0,38200,105,103,0,41720,120,1376
+Spase AA-A a108-0,Wongi,38200,102,100,0,40916,117,469
+Sol,Byoomao AA-A c1,24621,65,63,0,25931,85,625
+Byoomao AA-A c1,Sol,24621,65,64,0,26250,94,282
+Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,36,0,14389,202,194
+Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,39,38,0,15061,47,121
+Wongi,Plielou RN-R d5-27,12117,37,35,0,13754,48,298
+Plielou RN-R d5-27,Wongi,12117,36,33,0,13539,191,155
+Wongi,Colonia,21939,56,55,0,22963,171,1582
+Colonia,Wongi,21939,56,55,0,22947,70,899
+Sol,Sagittarius A*,25900,71,69,0,28422,149,1582
+Sagittarius A*,Sol,25900,73,66,0,27644,80,912
+Wongi,Blaa Hypai AA-A a96-19,12712,38,36,0,14618,53,403
+Blaa Hypai AA-A a96-19,Wongi,12712,43,32,0,13664,132,247
+Wongi,Beagle Point,65182,206,172,0,71307,236,457
+Beagle Point,Wongi,65182,210,172,0,71754,685,929
+Colonia,Spase AA-A a108-0,31440,94,85,0,35342,162,923
+Spase AA-A a108-0,Colonia,31440,101,93,0,38120,417,1039
+Sol,Colonia,22000,56,55,0,22946,180,1118
+Colonia,Sol,22000,56,55,0,22897,70,906
+Sol,Beagle Point,65279,206,172,0,71285,240,441
+Beagle Point,Sol,65279,206,173,0,71765,681,489
+Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,1887,12,2,123061,52365,3435
+Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,934,221,2,127058,3721,176
+Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,1945,17,10,128748,154189,10454
+Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1073,216,10,134022,12351,311
+Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,1620,22,6,111990,169326,9266
+Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,741,220,7,119581,3084,339
