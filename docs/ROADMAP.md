@@ -337,6 +337,42 @@ verdicts live in the CSV headers under `docs/benches/`.
   -> Sphiesi 425 -> 410 j and the Jongou pair's 451 -> 401 and 919 -> 910;
   against the shipped planner 18 / 5 / 5, against the R2 head 10 / 13 /
   5 (the table regenerated: `2026-10-18-planner-matrix-r3-table.md`).
+  **R4 (2026-10-18 afternoon, same branch):** instruments first. The
+  reference's rows are its fuel-blind neutron plotter at one range
+  figure: fed our full-tank reach it plots 108 jumps on Spase -> Wongi,
+  at our mean reach 100, ours 102 flying the real tank -- the 1-6 %
+  short-plot "deficits" are its constant max range, and our search is at
+  par on equal assumptions. 2-22 % of its neutron waypoints are class
+  Unknown in our index (a data gap worth ~2 jumps per 100; class
+  enrichment, not the planner). `void_probe.rs` showed the two dead
+  reverse-rim bridge legs cross 2,850 and 1,025 ly of empty cells; a
+  STRAIGHT-LINE VOID CHECK in the coarse relax is BURIED (forward Jongou
+  XM-W -> Byoi CQ-G 401 -> 1,806 j, coarse 0.6 -> 18 s: the rim's
+  1,000-1,300 ly bridges detour off their lines). Landed: the LEG
+  PRECHECK + SKELETON -- a fuel-blind plan at the leg's own range, bounded
+  by the leg's expansion cap, IS the leg when it flies the tank; a plain
+  no-boost pass from both ends is the void detector and a leg with void
+  evidence gets a fifth of the exact cap; the empty-tank verdict pass
+  alone refuses (arm w14-3 vs w12-3 4 / 22 / 2; dead void legs 25-30 ->
+  8.5-9.5 s; `ED_NO_LEG_PRECHECK`). The corridor variant was made runnable
+  (`ED_CORRIDOR=force`, the descent in the scan twins' shape, LazySP
+  repair) and stays a knob: one serial variant cannot absorb its repairs
+  inside the budget. THE WIN -- WITNESS SEGMENTS, the maintainer's
+  "feasibility search as the seed": the raw witness reaches the pilot at
+  once, then every ~12 kly stretch between two witness stars is
+  re-planned by the coarse+refine planner in the scan twins' shape with
+  the stretch's real tank and remaining injections, the witness's own
+  hops the fallback where they fly, iterated twice. Byoi AT-U -> Jongou
+  AA-A 910 -> 583 j, Byoi CQ-G -> Jongou XM-W 1,054 -> 591 j (the
+  reference 477 / 516), the raw witness still first at 0.3-0.6 s, the
+  improved routes at 11-36 s; arm w15-3 vs w14-3 5 / 20 / 3 with 0 rows
+  worse on jumps, ON by default (`ED_NO_WITNESS_SEGMENTS`, `ED_WSEG_LY`,
+  `ED_WSEG_MS`, `ED_WSEG_PASSES`). OPEN: the 1,209 ly Jongua XV-E ->
+  Gonguae GW-C leg is flyable only at an empty tank (a standalone plot
+  fails from 120 and 40 t) and costs 28 s wherever a chain uses it -- an
+  exact-planner hole; the reverse crossings' remaining gap to the
+  reference (583 / 591 vs 477 / 516); Jongou AA-A -> Byoi AT-U's 396 vs
+  the R2 head's 392.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

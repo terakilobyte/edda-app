@@ -705,12 +705,21 @@ fn blind_leg(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u64,
 /// skeleton pass is bounded by the leg's expansion cap as well, the void
 /// detector and the verdict get a second each. ED_LEG_PRECHECK_MS
 /// overrides, 0 turns it off.
-fn leg_precheck_ms(leg_budget_ms: u64) -> u64 {
+fn leg_precheck_ms(leg_budget_ms: u64, leg_ly: f32) -> u64 {
     if let Some(v) = std::env::var("ED_LEG_PRECHECK_MS").ok().and_then(|v| v.parse().ok()) {
         return v;
     }
-    if std::env::var_os("ED_NO_LEG_PRECHECK").is_some() { 0 } else { (leg_budget_ms / 10).clamp(200, 2_500) }
+    // Long legs only: a short injected or unfundable hop goes straight to
+    // the exact planner, which settles it in milliseconds; the passes cost
+    // it up to 4.5 s, and the witness has hundreds of them (the rim plots'
+    // first route 2.3 -> 9.7 s on three threads, 3.7 -> 16 s on the PC,
+    // arms w14-3 .. w17, 2026-10-18).
+    if leg_ly < PRECHECK_MIN_LY || std::env::var_os("ED_NO_LEG_PRECHECK").is_some() { 0 } else { (leg_budget_ms / 10).clamp(200, 2_500) }
 }
+
+/// Legs this long or longer get the precheck (the dead bridges were 1,209,
+/// 2,011 and 3,864 ly; the stall handoffs 10-31 kly).
+const PRECHECK_MIN_LY: f32 = 500.0;
 
 fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
     if let Some(l) = direct_leg(g, req, from, to, fuel) {
@@ -750,7 +759,11 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
     }
     let mut leg_req = leg_of(from, to, fuel);
     let t0 = std::time::Instant::now();
-    let cap = leg_precheck_ms(leg_req.time_budget_ms);
+    let cap = leg_precheck_ms(leg_req.time_budget_ms, dist(g.pos_of(from), g.pos_of(to)));
+    if cap == 0 {
+        note("exact");
+        return plan(g, &leg_req, ctl);
+    }
     // Pass 0 (R4 Task C): the skeleton at the leg's REAL range, no
     // injections -- flown with the real tank it is the leg.
     let real_range = req.fuel.map(|m| m.range_at(fuel)).unwrap_or(req.range_ly);
@@ -1504,7 +1517,7 @@ fn single_arms(repaired: bool, jumps: f32, ceiling: f32, ceiling_gated: bool) ->
 /// planner; the settle rounds fly it with the real tank). Long where the
 /// greedy sides were weak, but a route -- on the reverse Jongou pair the
 /// only one (2026-10-18, `docs/benches/2026-10-18-witness.csv`).
-fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant, lean: bool) -> Result<Route, RouteError> {
+fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant, lean: bool, best_seen: &std::sync::atomic::AtomicU32) -> Result<Route, RouteError> {
     // The witness's waypoints are not coarse waypoints: its refinement does
     // not draw on the search trace (a plain hop through a white dwarf the
     // profile cannot boost is a witness hop, not a highway choice).
@@ -1547,17 +1560,35 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         None => refine_waypoints(g, req, ctl, raw(), start_fuel, fuel_model, w.expansions, straight, started),
     };
     let mut route = refined?;
-    // R4 Task D (ED_WITNESS_SEGMENTS=1): the raw witness reaches the pilot
-    // now, through the plot's own hook; what this variant returns is the
-    // witness re-planned in segments when that is better.
-    if std::env::var_os("ED_WITNESS_SEGMENTS").is_some() && w.stars.len() > 2 {
+    // R4 Task D, ON by default (arm w15-3 vs w14-3, 2026-10-18: 5 better /
+    // 20 same / 3 wall-only worse; Byoi AT-U -> Jongou AA-A 910 -> 583 j,
+    // Byoi CQ-G -> Jongou XM-W 1,054 -> 591 j; ED_NO_WITNESS_SEGMENTS=1
+    // ablates): the raw witness reaches the pilot now, through the plot's
+    // own hook; what this variant returns is the witness re-planned in
+    // segments when that is better.
+    if std::env::var_os("ED_NO_WITNESS_SEGMENTS").is_none() && w.stars.len() > 2 && segments_worth_it(route.jumps) {
         (ctl.found)(&route);
+        // The hold: a quick optimiser's route cancels the segments before
+        // they crowd the pool on a plot it wins.
+        let hold_ms: u64 = std::env::var("ED_WSEG_HOLD_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(SEGMENTS_HOLD_MS);
+        let release = started + std::time::Duration::from_millis(hold_ms);
+        let mut go = true;
+        while std::time::Instant::now() < release {
+            if (ctl.cancelled)() || !segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
+                go = false;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+            eprintln!("    witness segments: {} after the hold at {} ms (best elsewhere {})", if go { "starting" } else { "not needed" }, started.elapsed().as_millis(), best_seen.load(std::sync::atomic::Ordering::Relaxed));
+        }
         // Passes: the improved route is the next pass's witness, pinned at
         // other stars, until a pass improves nothing (ED_WSEG_PASSES, 2).
-        let passes: usize = std::env::var("ED_WSEG_PASSES").ok().and_then(|v| v.parse().ok()).unwrap_or(2);
+        let passes: usize = if go { std::env::var("ED_WSEG_PASSES").ok().and_then(|v| v.parse().ok()).unwrap_or(2) } else { 0 };
         let mut seed = w;
         for pass in 0..passes {
-            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route) {
+            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen) {
                 Some(better) => {
                     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                         eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1592,6 +1623,28 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     Ok(route)
 }
 
+/// Do the witness segments go on: only while no other variant has finished
+/// with as few jumps as the route they are improving.
+fn segments_continue(best_seen: u32, seed_jumps: usize) -> bool {
+    best_seen as usize > seed_jumps
+}
+
+/// Are the segments worth starting: a crossing's witness (200 hops or
+/// more). A shorter plot is one the optimisers answer in seconds, where the
+/// segments' nested plans only crowd the pool (PC arms w15 / w16,
+/// 2026-10-18: the forward Jongou XM-W plot's first route 6 -> 16 s and
+/// 401 -> 509 j with the segments running beside the scan twins).
+fn segments_worth_it(raw_jumps: usize) -> bool {
+    raw_jumps >= 200
+}
+
+/// How long after the plot started the segments wait before they begin,
+/// so a quick optimiser's route cancels them on the plots it wins (the
+/// stop rule cannot fire while nothing else gets to finish). The raw
+/// witness is already offered; only its improvement waits.
+/// ED_WSEG_HOLD_MS overrides.
+const SEGMENTS_HOLD_MS: u64 = 5_000;
+
 /// R4 Task D: the witness's pins -- index 0, then every witness star at
 /// which the path since the last pin reaches `seg_ly`, then the last.
 fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
@@ -1616,11 +1669,15 @@ fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
 /// injections still in hand; a stretch the planner cannot better inside
 /// its time falls back to the witness's own hops, so the whole is never
 /// worse than the witness. `None` when nothing improved or the plot was
-/// cancelled. ED_WSEG_LY (3,000) and ED_WSEG_MS (3,000) for the harness.
+/// cancelled. ED_WSEG_LY (12,000) and ED_WSEG_MS (8,000) for the harness.
 #[allow(clippy::too_many_arguments)]
-fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route) -> Option<Route> {
-    let seg_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(3_000.0);
-    let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(3_000);
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32) -> Option<Route> {
+    // 12 kly windows (the sweep of 2026-10-18: 3 kly 867 j, 6 kly 803, 12 kly
+    // 691, 24 kly 562 on Byoi CQ-G -> Jongou XM-W; 696 / 629 / 596 / 627 on
+    // Byoi AT-U -> Jongou AA-A -- the greedy witness's macro-detour needs
+    // long windows, the far plot turned at 24), 8 s each.
+    let seg_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(12_000.0);
+    let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(8_000);
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
     let pins = witness_pins(&pos, seg_ly);
@@ -1636,6 +1693,15 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
         if (ctl.cancelled)() {
             if debug {
                 eprintln!("    witness segments: cancelled at pin {}", win[0]);
+            }
+            return None;
+        }
+        // Another variant already holds a route as good as the one being
+        // improved: this worker is better spent elsewhere.
+        let best = best_seen.load(std::sync::atomic::Ordering::Relaxed);
+        if !segments_continue(best, raw.jumps) {
+            if debug {
+                eprintln!("    witness segments: stopped at pin {} -- a {best} j route exists", win[0]);
             }
             return None;
         }
@@ -1881,6 +1947,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     // The fewest jumps any variant has finished with, this plot (R3 Task 4):
     // every coarse search prunes chains that cannot beat it.
     let incumbent = std::sync::atomic::AtomicU32::new(u32::MAX);
+    // The same figure, always kept (the incumbent is knob-gated): the
+    // witness segments stop improving once a better route exists.
+    let best_jumps = std::sync::atomic::AtomicU32::new(u32::MAX);
     let grace = (req.grace_ms > 0).then(|| std::time::Duration::from_millis(req.grace_ms));
     let slice_knob: Option<u64> = std::env::var("ED_SLICE_MS").ok().and_then(|v| v.parse().ok());
     let (mut variants_run, mut variants_finished) = (0u32, 0u32);
@@ -2090,7 +2159,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 if cap_mult > 1 {
                     (Err(RouteError::Cancelled), 9)
                 } else {
-                    (plan_witness(g, neutrons, req, &ctl, started, prune_judge), 9)
+                    (plan_witness(g, neutrons, req, &ctl, started, prune_judge, &best_jumps), 9)
                 }
             } else if thin > 0 && i < lead {
                 // The thin family (kind 7): the quick diggers, first on
@@ -2199,6 +2268,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 if std::env::var_os("ED_INCUMBENT").is_some() {
                     incumbent.fetch_min(route.jumps as u32, std::sync::atomic::Ordering::Relaxed);
                 }
+                best_jumps.fetch_min(route.jumps as u32, std::sync::atomic::Ordering::Relaxed);
                 (ctl.found)(route);
             }
             let (coarse_expansions, stall_remaining_ly) = (coarse.expansions.load(std::sync::atomic::Ordering::Relaxed), coarse.stall_ly());
@@ -5207,6 +5277,31 @@ pub(crate) mod tests {
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
     }
 
+    /// The segments are for crossings: a raw witness under 200 hops is a
+    /// plot the optimisers answer in seconds, and the segments' nested plans
+    /// would only crowd the pool there (the PC arms w15 / w16: first-found
+    /// 6 -> 16 s on the forward Jongou plot).
+    #[test]
+    fn the_segments_are_for_crossings_only() {
+        assert!(segments_worth_it(1_116));
+        assert!(segments_worth_it(200));
+        assert!(!segments_worth_it(199));
+        assert!(!segments_worth_it(37));
+    }
+
+    /// The segments improve the witness only while nothing better exists:
+    /// once another variant has finished with fewer jumps than the route
+    /// the segments are improving, the pass stops (the PC arm w15: the
+    /// segments' nested plans crowded the pool on the forward Jongou plot
+    /// and the 401 j scan-twin route shipped as 509).
+    #[test]
+    fn the_segments_stop_once_a_better_route_exists() {
+        assert!(segments_continue(u32::MAX, 1_116), "nothing else finished: improve");
+        assert!(segments_continue(1_200, 1_116), "something worse finished: improve");
+        assert!(!segments_continue(402, 1_116), "a better route exists: stop");
+        assert!(!segments_continue(1_116, 1_116), "an equal route exists: stop");
+    }
+
     /// R4 Task D: the witness's pins -- its first star, then a star every
     /// `seg_ly` of path, then its last -- cut the witness into stretches
     /// the coarse planner re-plans with full freedom inside each.
@@ -5233,8 +5328,9 @@ pub(crate) mod tests {
         let f = build(&stars);
         let r = RouteRequest { injection: Some((2.0, "premium", 22)), time_budget_ms: 20_000, fuel: Some(m), start_fuel: 32.0, ..req(&f, "K0", "Island", m.range_at(m.capacity)) };
         let started = std::time::Instant::now();
-        let eager = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, false).unwrap();
-        let lean = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, true).unwrap();
+        let nobody = std::sync::atomic::AtomicU32::new(u32::MAX);
+        let eager = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, false, &nobody).unwrap();
+        let lean = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, true, &nobody).unwrap();
         assert_eq!(names(&eager), names(&lean), "the same route in two currencies");
         assert!(eager.refuel_stops > lean.refuel_stops, "eager {} stops vs lean {}", eager.refuel_stops, lean.refuel_stops);
     }
@@ -6184,6 +6280,13 @@ pub(crate) mod tests {
         let bq = RouteRequest { fuel: Some(m), start_fuel: 32.0, ..req(&nb, "N", "Far", m.range_at(m.capacity)) };
         assert!(blind_leg(&nb.g, &bq, nb.g.find("N").unwrap(), nb.g.find("Far").unwrap(), 2_000, 77.9, true, false).is_ok(), "boosted: 300 ly from a neutron");
         assert!(matches!(blind_leg(&nb.g, &bq, nb.g.find("N").unwrap(), nb.g.find("Far").unwrap(), 2_000, 77.9, false, false), Err(RouteError::NoRoute)), "plain: a 300 ly gap");
+        // The precheck is for long legs: a 150 ly injected hop goes straight
+        // to the exact planner (the witness's one-hop legs made the rim
+        // plots' first route 2.3 -> 9.7 s with the passes on every leg).
+        assert_eq!(leg_precheck_ms(25_000, 150.0), 0, "a short leg: no precheck");
+        assert_eq!(leg_precheck_ms(25_000, 499.0), 0);
+        assert_eq!(leg_precheck_ms(25_000, 500.0), 2_500, "a long leg: a tenth of the cap, at most 2.5 s");
+        assert_eq!(leg_precheck_ms(1_000, 3_864.0), 200, "never under 200 ms on a long leg");
         // Void evidence (the real-range pass said NoRoute) gives the exact
         // planner a fifth of its cap; otherwise the full cap.
         assert_eq!(exact_leg_budget_ms(25_000, true), 5_000);
