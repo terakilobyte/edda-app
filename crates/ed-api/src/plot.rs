@@ -1027,7 +1027,7 @@ impl RouteService {
             let ctl = Control { cancelled: &cancelled, progress: none.progress, stage: none.stage, found: &found_both, legs: &ed_galaxy::router::NO_LEG_MEMO, variant: &variant, trace: none.trace };
             // One search (the boss, 2026-10-09: "can we fold it into one?").
             // The planner already prices an injected jump at three plain
-            // ones (INJECTION_PENALTY, and the wave's twin), so a route
+            // ones (INJECTION_UNITS in both searches), so a route
             // that works without them never pays for one, and the search
             // never dead-ends where only an injection crosses. A plain
             // pass in front of it measured as the failure: proving "no

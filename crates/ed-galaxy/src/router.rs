@@ -602,6 +602,13 @@ pub fn last_exact_scans() -> u64 {
     EXACT_SCANS.with(|c| c.get())
 }
 
+/// Plain-jump units per light-year for the thorough heuristic: the cheaper
+/// of a plain jump per `range` and a supercharged hop, priced as the cost
+/// prices it (`1 + boost_surcharge`), per `range x boost`.
+fn exact_h_units_per_ly(range: f32, boost: f32, boost_surcharge: f32) -> f32 {
+    (1.0 / range).min((1.0 + boost_surcharge) / (range * boost))
+}
+
 pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, RouteError> {
     let started = std::time::Instant::now();
     EXACT_SCANS.with(|c| c.set(0));
@@ -622,9 +629,14 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     // cheapest way to cover a light-year -- a plain jump at 1 unit per
     // `range`, or a supercharged one at `BOOST_UNITS` per `range x boost`
     // -- then exact A*. Otherwise the weighted search as before.
+    // The boost surcharge the cost charges (the one currency's 0.377 jumps
+    // behind ED_UNITS_EXACT=1; 0.01 by default) -- the heuristic MUST price
+    // a boosted light-year with the same figure or it stops being a lower
+    // bound (review of PR #237).
+    let boost_surcharge = if crate::long_range::units_knob(&crate::long_range::EXACT_UNITS, "ED_UNITS_EXACT") { BOOST_UNITS - 1.0 } else { 0.01 };
     let (h_units_per_ly, weight) = if req.thorough {
         let boost = if req.supercharge { req.boost.neutron } else { 1.0 };
-        ((1.0 / range).min(BOOST_UNITS / (range * boost)), 1.0)
+        (exact_h_units_per_ly(range, boost, boost_surcharge), 1.0)
     } else {
         (1.0 / range, req.weight)
     };
@@ -641,9 +653,9 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     let key = move |idx: u32, dry: u32| -> u64 { ((idx as u64) << 8) | if dry_matters { dry.min(255) as u64 } else { 0 } };
     // Best cost seen per state, in plain-jump units (R2): jumps, the boost
     // surcharge, the injections and the light-year tie-break in one
-    // figure, so a path with more jumps and fewer supercharges can win
-    // the state when the seconds say so. Until 2026-10-17 this was the
-    // lexicographic (jumps, boosts, ly) and the jump count always won.
+    // figure (one f32 instead of the lexicographic (jumps, boosts, ly) it
+    // was until 2026-10-17; with the default surcharge the jump count
+    // still decides unless a path carries a hundred more boosts).
     let mut best_g: HashMap<u64, f32> = HashMap::default();
     let mut parent: HashMap<u64, (u64, bool, f32, f32, bool, bool)> = HashMap::default();
     let mut open = BinaryHeap::new();
@@ -669,12 +681,11 @@ pub fn plan(g: &Galaxy, req: &RouteRequest, ctl: &Control) -> Result<Route, Rout
     let start_key = key(req.from, quant(start_fuel));
     best_g.insert(start_key, 0.0);
     // Scalar cost in plain-jump units (R2): every jump one unit, a
-    // supercharged hop its real 73 s against a plain jump's 53 on top, an
-    // injection its 1,800 s, then a small charge per light-year for
-    // determinism. Until 2026-10-17 a boost cost 0.01 of a jump, so the
-    // search took every supercharge that did not add a jump, whatever the
-    // cone approaches cost in the chair.
-    let boost_surcharge = if crate::long_range::units_knob(&crate::long_range::EXACT_UNITS, "ED_UNITS_EXACT") { BOOST_UNITS - 1.0 } else { 0.01 };
+    // supercharged hop its surcharge on top (0.01 by default, so a
+    // supercharge is taken whenever it does not add a jump; its real 73 s
+    // against 53 behind ED_UNITS_EXACT=1, which measured negative on the
+    // matrix), an injection its 1,800 s, then a small charge per light-year
+    // for determinism.
     let cost = |g: u32, boosts: u32, inj: u32, ly: f32| g as f32 + boost_surcharge * boosts as f32 + INJECTION_UNITS * inj as f32 + 0.0001 * ly / range;
     open.push(Open { f: h(start_rec.pos()), g: 0, ly: 0.0, boosts: 0, idx: req.from, dry: quant(start_fuel), fuel: start_fuel, inj: 0 });
 
@@ -1268,6 +1279,22 @@ mod tests {
         assert_eq!(route.refuel_stops, 1);
         let last_tank = route.hops[n - 2].fuel_after.unwrap();
         assert!(last_tank > 0.0 && last_tank < m.max_fuel_per_jump, "the run ends thin, not dry: {last_tank:.1} t");
+    }
+
+    /// The thorough heuristic prices a light-year by the cheapest hop the
+    /// COST knows: with the one-currency surcharge off (the default) a
+    /// boosted hop costs 1.01 jumps, and the bound must say so, or exact
+    /// A* overestimates by a third and a sub-1,500 ly plot comes back a
+    /// jump worse (review of PR #237, 2026-10-17).
+    #[test]
+    fn the_thorough_heuristic_prices_a_boost_as_the_cost_does() {
+        let plain_only = exact_h_units_per_ly(72.0, 1.0, 0.01);
+        assert!((plain_only - 1.0 / 72.0).abs() < 1e-7);
+        let off = exact_h_units_per_ly(72.0, 4.0, 0.01);
+        assert!((off - 1.01 / 288.0).abs() < 1e-7, "surcharge off: a boosted hop is 1.01 jumps per 288 ly");
+        let on = exact_h_units_per_ly(72.0, 4.0, BOOST_UNITS - 1.0);
+        assert!((on - BOOST_UNITS / 288.0).abs() < 1e-7, "surcharge on: 1.377 per 288 ly");
+        assert!(off < on && on < plain_only);
     }
 
     /// R2 (2026-10-17), one currency: the exact planner prices a boosted
