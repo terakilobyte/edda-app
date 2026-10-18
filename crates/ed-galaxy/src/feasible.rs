@@ -140,7 +140,7 @@ impl Side {
                 scratch.push((t, d));
             }
         });
-        let mut push = |side: &mut Side, t: u32, d: f32, injected: bool| {
+        let push = |side: &mut Side, t: u32, d: f32, injected: bool| {
             // Forward: dry jumps since the last scoop, `t` included. Backward:
             // the dry run AHEAD of `t` (the hops after it up to the next
             // scoop): a scoopable `t` does not shorten the run that follows

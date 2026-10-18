@@ -14,7 +14,7 @@
 //! refined with the exact planner, which finds the actual scoop star.
 
 use crate::format::{dist, Galaxy};
-use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, BOOST_UNITS, INJECTION_SECONDS, INJECTION_UNITS, NO_LEG_MEMO, SCOOP_RATE_DEFAULT, STOP_UNITS, T_BOOST_S, T_PASS_SCOOP_S, T_PLAIN_S, T_STOP_S};
+use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, BOOST_UNITS, INJECTION_SECONDS, INJECTION_UNITS, SCOOP_RATE_DEFAULT, STOP_UNITS, T_BOOST_S, T_PASS_SCOOP_S, T_PLAIN_S, T_STOP_S};
 use crate::star::StarClassCode as _;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap as HashMap;
@@ -148,6 +148,31 @@ const THIN_BUCKET: f32 = 0.5;
 /// Wongi -> Blaa Hypai 1 -> 98 s). The rim answers arrive at 6-27 s.
 fn thin_budget_ms(time_budget_ms: u64) -> u64 {
     if time_budget_ms > 0 { time_budget_ms / 3 } else { 30_000 }
+}
+
+/// The heavy variants' first-wave slice (the maintainer's "hop between
+/// techniques on a stall", 2026-10-18): an eighth of the budget (12.5 s on
+/// the long lane), after which a heavy variant whose coarse chain has not
+/// reached the goal yields its worker to the variants still queued, as a
+/// thin variant does at a third. Measured on the three-thread debug traces
+/// (Jongou XM-W -> CQ-G, Wongi -> Blaa Hypai): every first-wave variant
+/// that found a route did so inside 5 s (one thin single at 10 s, under its
+/// own cap); every variant past 12 s returned nothing -- six singles stalled
+/// at the 30,000-expansion cap and spent 25 s each in the exact planner on
+/// a 10,000 ly leg, holding the three workers while the scan twins that
+/// carry the 402-jump route waited until 75-97 s. Escalation waves have no
+/// slice (the x4 Blaa Hypai singles routed at 17-19 s). ED_SLICE_MS
+/// overrides, 0 turns it off.
+fn heavy_slice_ms(time_budget_ms: u64, first_wave: bool, knob: Option<u64>) -> Option<u64> {
+    if !first_wave {
+        return None;
+    }
+    match knob {
+        Some(0) => None,
+        Some(v) => Some(v),
+        None if time_budget_ms > 0 => Some(time_budget_ms / 8),
+        None => Some(12_500),
+    }
 }
 
 /// Does a thin variant yield its worker: past its deadline with the coarse
@@ -1590,6 +1615,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     // every coarse search prunes chains that cannot beat it.
     let incumbent = std::sync::atomic::AtomicU32::new(u32::MAX);
     let grace = (req.grace_ms > 0).then(|| std::time::Duration::from_millis(req.grace_ms));
+    let slice_knob: Option<u64> = std::env::var("ED_SLICE_MS").ok().and_then(|v| v.parse().ok());
     let (mut variants_run, mut variants_finished) = (0u32, 0u32);
     loop {
         let wave_started = std::time::Instant::now();
@@ -1811,6 +1837,11 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 }
             } else {
             let i = i - lead;
+            // The heavy variants' slice: past it with the chain not at the
+            // goal (and not yet refining), yield the worker. See heavy_slice_ms.
+            let slice_deadline = heavy_slice_ms(req.time_budget_ms, cap_mult == 1, slice_knob).map(|ms| variant_started + std::time::Duration::from_millis(ms));
+            let heavy_check = || check() || slice_deadline.is_some_and(|d| thin_yields(std::time::Instant::now() > d, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed) || thin_refining.load(std::sync::atomic::Ordering::Relaxed)));
+            let ctl = Control { cancelled: &heavy_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
             if i < nb {
                 // ED_ONLY_BIDI: debug rig -- silence the singles so the
                 // bidi variant's behaviour is readable in the trace.
@@ -4385,6 +4416,7 @@ pub fn refine_waypoints_reporting(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::router::NO_LEG_MEMO;
     use crate::fuel::{BoostProfile, FuelModel};
     use crate::import::{import_reader, subset_cells};
     use crate::StarClass;
@@ -5753,6 +5785,19 @@ pub(crate) mod tests {
         assert_eq!(route.hops[1].fuel_after, Some(m.capacity));
         // The K goal is topped up on arrival too, so it counts as a stop.
         assert_eq!(route.refuel_stops, 2);
+    }
+
+    /// The heavy variants' first-wave slice (the maintainer's "hop between
+    /// techniques on a stall"): an eighth of the budget, first wave only,
+    /// ED_SLICE_MS overriding (0 = off).
+    #[test]
+    fn the_heavy_slice_is_an_eighth_of_the_budget_in_the_first_wave() {
+        assert_eq!(heavy_slice_ms(100_000, true, None), Some(12_500), "the long lane");
+        assert_eq!(heavy_slice_ms(30_000, true, None), Some(3_750), "the interactive lane");
+        assert_eq!(heavy_slice_ms(0, true, None), Some(12_500), "no budget: the long lane's slice");
+        assert_eq!(heavy_slice_ms(100_000, false, None), None, "escalation waves have no slice");
+        assert_eq!(heavy_slice_ms(100_000, true, Some(0)), None, "ED_SLICE_MS=0 turns it off");
+        assert_eq!(heavy_slice_ms(100_000, true, Some(20_000)), Some(20_000), "the knob's value stands");
     }
 
     /// "Spend a little" (the maintainer, 2026-10-18): the first wave is not
