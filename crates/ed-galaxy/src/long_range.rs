@@ -52,13 +52,20 @@ const MAX_GOAL_BRIDGE_JUMPS: u32 = 12;
 /// Weighted A* for refinement legs (a few hundred ly), the exact-plotter trade.
 const LEG_WEIGHT: f32 = 1.3;
 
-/// A refinement leg's expansion cap: 400 an ly with a 50,000 floor. A leg
-/// the coarse chain assumed bridgeable but that cannot be flown must fail
-/// in seconds, not hold the variant for the plot (the reverse Jongou route,
-/// 2026-10-17: one 1,209 ly leg took 97.8 of 100 s at the old flat
-/// 5,000,000). The longest legitimate leg on the record took 27,471.
+/// A refinement leg's expansion backstop: 1,000 an ly with a 200,000
+/// floor (a legitimate 742 ly rim leg took 218,774; at 400 an ly a 514 ly
+/// one failed and the rim reverse lost 13 jumps). The cap that bites is
+/// `leg_time_budget_ms`.
 fn leg_expansion_cap(ly: f32) -> u64 {
-    ((ly * 400.0) as u64).max(50_000)
+    ((ly * 1_000.0) as u64).max(200_000)
+}
+
+/// A refinement leg's time: a quarter of the plot's budget, so one leg the
+/// coarse chain assumed bridgeable but that cannot be flown fails in 25 s
+/// of a 100 s plot instead of 98 (the reverse Jongou route, 2026-10-17);
+/// every legitimate leg on the record finished under 8 s. 0 = no budget.
+fn leg_time_budget_ms(plot_budget_ms: u64) -> u64 {
+    plot_budget_ms / 4
 }
 
 /// A coarse search that settles for its closest neutron hands the rest to
@@ -3863,7 +3870,7 @@ pub fn refine_waypoints(
     use rayon::prelude::*;
     let done = std::sync::atomic::AtomicU32::new(0);
     (ctl.stage)("refine", 0, legs);
-    let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: leg_expansion_cap(dist(g.pos_of(from), g.pos_of(to))), start_fuel, ..req.clone() };
+    let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: leg_expansion_cap(dist(g.pos_of(from), g.pos_of(to))), time_budget_ms: leg_time_budget_ms(req.time_budget_ms), start_fuel, ..req.clone() };
     let windows: Vec<[(u32, f32); 2]> = waypoints.windows(2).map(|w| [w[0], w[1]]).collect();
     let plan_legs = |jobs: &[(usize, f32)], use_memo: bool| -> Vec<(usize, Result<Route, RouteError>)> {
         jobs.par_iter()
@@ -4438,9 +4445,19 @@ mod tests {
     /// longest legitimate leg on the record took 27,471 expansions.
     #[test]
     fn a_refinement_legs_expansion_cap_scales_with_its_length() {
-        assert_eq!(leg_expansion_cap(1209.0), 483_600);
-        assert_eq!(leg_expansion_cap(40.0), 50_000, "a floor for the short legs");
-        assert!(leg_expansion_cap(1209.0) > 27_471 * 10, "ten times the longest legitimate leg on the record");
+        assert_eq!(leg_expansion_cap(1209.0), 1_209_000);
+        assert_eq!(leg_expansion_cap(40.0), 200_000, "a floor for the short legs");
+        assert!(leg_expansion_cap(514.0) > 218_774, "a legitimate 742 ly rim leg took 218,774 expansions; a 514 ly one over 205,000 (the 400-an-ly cap failed it)");
+    }
+
+    /// The cap that matters is time: a quarter of the plot's budget per leg
+    /// (2026-10-17: the unflyable 1,209 ly Jongou leg fails at 25 s instead
+    /// of 98; every legitimate leg on the record finished under 8 s). No
+    /// plot budget, no leg budget.
+    #[test]
+    fn a_refinement_leg_gets_a_quarter_of_the_plots_time() {
+        assert_eq!(leg_time_budget_ms(100_000), 25_000);
+        assert_eq!(leg_time_budget_ms(0), 0);
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the
