@@ -1300,7 +1300,7 @@ fn with_repair<T>(banned: &std::sync::Mutex<Vec<(u32, u32)>>, repaired: &std::sy
     res
 }
 
-/// R3 Task 6, the bound-gap stop (arm, ED_BOUND_STOP=1): no escalation wave
+/// R3 Task 6, the bound-gap stop (default on; ED_NO_BOUND_STOP=1 ablates): no escalation wave
 /// while the standing best is under the credibility ceiling -- the gap to
 /// the bound is inside the slack the arming already accepts, so no dig can
 /// pay for itself (Wongi -> Blaa Hypai, arm w6-3: a 38 j best under a 38.7
@@ -1849,8 +1849,14 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 _ => false,
             };
             if let Ok(route) = &res {
-                // ED_NO_INCUMBENT=1: the ablation arm (the searches prune nothing).
-                if std::env::var_os("ED_NO_INCUMBENT").is_none() {
+                // ED_INCUMBENT=1 (arm): the shared incumbent prunes every coarse
+                // search (R3 Task 4). Off by default: measured a wash on three
+                // threads (w7n-3 without it 5 / 15 / 8 vs thin6-3, w6-3 with it
+                // 5 / 13 / 10, the difference two knife-edge plots moving in
+                // opposite directions) and the pre-registered wall gains on
+                // the Jongou pairs did not appear; the pruning risk (a coarse
+                // hop count is an estimate) buys nothing measured.
+                if std::env::var_os("ED_INCUMBENT").is_some() {
                     incumbent.fetch_min(route.jumps as u32, std::sync::atomic::Ordering::Relaxed);
                 }
                 (ctl.found)(route);
@@ -1959,7 +1965,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             _ => f32::INFINITY,
         };
         let prize_k: f32 = req.prize_k.or_else(|| std::env::var("ED_PRIZE_K").ok().and_then(|v| v.parse().ok())).unwrap_or(1.0);
-        let bound_stop = std::env::var_os("ED_BOUND_STOP").is_some();
+        // On by default (arm w7-3 vs w6-3: 2 better / 26 same / 0 worse,
+        // Wongi -> Blaa Hypai 99.9 -> 6.7 s); ED_NO_BOUND_STOP=1 ablates.
+        let bound_stop = std::env::var_os("ED_NO_BOUND_STOP").is_none();
         if !room || !stalled.load(std::sync::atomic::Ordering::Relaxed) || cancelled() || cap_mult >= 64 || prize_left < wave_took.as_secs_f32() * prize_k || wave_stops_at_bound(best.as_ref().map(|b| b.jumps), arm_ceiling, bound_stop) {
             break;
         }
@@ -4713,7 +4721,7 @@ pub(crate) mod tests {
         }
     }
 
-    /// R3 Task 6, the bound-gap stop (arm, ED_BOUND_STOP=1): no escalation
+    /// R3 Task 6, the bound-gap stop (default on, ED_NO_BOUND_STOP=1 ablates): no escalation
     /// wave is launched while the standing best is under the credibility
     /// ceiling -- the gap to the bound is inside the slack, so no dig can
     /// pay (Wongi -> Blaa Hypai, w6-3: a 38 j best under a 38.7 ceiling
