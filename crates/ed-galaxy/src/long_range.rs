@@ -1300,6 +1300,16 @@ fn with_repair<T>(banned: &std::sync::Mutex<Vec<(u32, u32)>>, repaired: &std::sy
     res
 }
 
+/// R3 Task 6, the bound-gap stop (arm, ED_BOUND_STOP=1): no escalation wave
+/// while the standing best is under the credibility ceiling -- the gap to
+/// the bound is inside the slack the arming already accepts, so no dig can
+/// pay for itself (Wongi -> Blaa Hypai, arm w6-3: a 38 j best under a 38.7
+/// ceiling escalated to the x4 wave because the first wave ended 50 ms
+/// before the grace window did, and the plot ran 100 s instead of 1.6 s).
+fn wave_stops_at_bound(best_jumps: Option<usize>, ceiling: f32, enabled: bool) -> bool {
+    enabled && best_jumps.is_some_and(|j| j as f32 <= ceiling)
+}
+
 /// Whether the base single's route arms the grace clock. Always, unless it
 /// came from a LazySP repair ABOVE the credibility ceiling: a rescue where
 /// the coarse graph lied is not a credible optimum (arm w5p-3, 2026-10-18:
@@ -1949,7 +1959,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             _ => f32::INFINITY,
         };
         let prize_k: f32 = req.prize_k.or_else(|| std::env::var("ED_PRIZE_K").ok().and_then(|v| v.parse().ok())).unwrap_or(1.0);
-        if !room || !stalled.load(std::sync::atomic::Ordering::Relaxed) || cancelled() || cap_mult >= 64 || prize_left < wave_took.as_secs_f32() * prize_k {
+        let bound_stop = std::env::var_os("ED_BOUND_STOP").is_some();
+        if !room || !stalled.load(std::sync::atomic::Ordering::Relaxed) || cancelled() || cap_mult >= 64 || prize_left < wave_took.as_secs_f32() * prize_k || wave_stops_at_bound(best.as_ref().map(|b| b.jumps), arm_ceiling, bound_stop) {
             break;
         }
         cap_mult *= 4;
@@ -4700,6 +4711,20 @@ pub(crate) mod tests {
             let allowed = r.range_ly * if w[1].injection.is_some() { 2.0 } else { 1.0 } + 0.01;
             assert!(d <= allowed, "{} -> {}: {d:.1} ly over {allowed:.1}", w[0].name, w[1].name);
         }
+    }
+
+    /// R3 Task 6, the bound-gap stop (arm, ED_BOUND_STOP=1): no escalation
+    /// wave is launched while the standing best is under the credibility
+    /// ceiling -- the gap to the bound is inside the slack, so no dig can
+    /// pay (Wongi -> Blaa Hypai, w6-3: a 38 j best under a 38.7 ceiling
+    /// escalated to the x4 wave because the first wave ended 50 ms before
+    /// the grace window did, and ran 100 s).
+    #[test]
+    fn no_wave_is_launched_while_the_best_is_under_the_ceiling() {
+        assert!(wave_stops_at_bound(Some(38), 38.7, true));
+        assert!(!wave_stops_at_bound(Some(39), 38.7, true), "above the ceiling the waves go on");
+        assert!(!wave_stops_at_bound(None, 38.7, true), "no route yet: dig");
+        assert!(!wave_stops_at_bound(Some(38), 38.7, false), "knob off: the old rule");
     }
 
     /// Whether the base single's route arms the grace clock: always, unless

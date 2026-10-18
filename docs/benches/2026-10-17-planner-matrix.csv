@@ -137,6 +137,29 @@
 # the goal end's 90-jump run (Beagle 191 -> 198 j), the goalward widen
 # rule (no reproduction). Still lost: both reverse Jongou routes (an
 # unflyable leg the coarse graph assumed bridgeable: R4).
+# R3 (2026-10-18, branch planner/r3; arms w5p-3 = hard pairs only, w6-3,
+# w6c-3 on three threads; rows in 2026-10-18-planner-matrix-<arm>.jsonl):
+# the feasibility witness (feasible.rs, R3 Task 1-2) is portfolio index 0
+# and refined eagerly; LazySP (Task 3: a leg that cannot be flown bans its
+# coarse edge for the plot, the variant re-plans, a repaired route never
+# arms above the ceiling); the shared incumbent prunes every coarse
+# search (Task 4, ED_NO_INCUMBENT ablates). Witness fix the same night:
+# parents keyed by the dry count (the reverse Jongou witness carried a
+# 27-hop dry run on a 17-hop cap; all four hard witnesses now exactly at
+# the cap). VERDICT w6-3 vs thin6-3 (seconds judge): 5 better / 13 same /
+# 10 WORSE; vs before3 15 / 6 / 7. ALL 28 ROUTES FOUND on three threads
+# for the first time: Byoi AT-U -> Jongou AA-A 919 j / 36 stops (witness
+# 943 j at 0.3 s; no planner of ours ever had one), Byoi CQ-G -> Jongou
+# XM-W 1,055 j / 39 stops. Costs on the record: the rim pair 412/447 ->
+# 425/462 j at 6.7 s / 27.7 s instead of 100 s (the reserve-0.4 singles now
+# finish in 2-3 s and arm; when the thin bidi's 412 lands first they
+# cannot -- a scheduling race, reproduced with the pre-R3 binary),
+# Jongou XM-W -> CQ-G 401 -> 451 j (deterministic across three arms,
+# under diagnosis), Colonia <-> Spase 88/88 -> 89/92 j with the plots
+# ending at 2.3 / 5.8 s. NEGATIVE, knob stays off: w6c-3 (ED_SINGLE_CEILING=1,
+# the base single arms only under the ceiling) 4 / 10 / 14 vs thin6-3:
+# Beagle -> Sol 0.9 -> 13.3 s, Sol -> Beagle 33.6 -> 100.5 s, Jongou AA-A
+# -> AT-U 396 -> 407 j.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -614,3 +637,69 @@ thin6-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,14217,100.9,
 thin6-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,101.1,Error: Sorry; no route found within the search limit.
 thin6-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,6639,102.7,
 thin6-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,447,19,30445,20317,100.6,
+w6-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,118,1.1,
+w6-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,113,0.7,
+w6-3,Sol,Byoomao AA-A c1,24621,64,3,4871,118,1.0,
+w6-3,Byoomao AA-A c1,Sol,24621,62,3,4714,105,0.8,
+w6-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,102,0.7,
+w6-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,111,0.7,
+w6-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,110,0.7,
+w6-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,106,0.6,
+w6-3,Wongi,Colonia,21939,59,2,4431,127,1.6,
+w6-3,Colonia,Wongi,21939,55,3,4201,119,1.2,
+w6-3,Sol,Sagittarius A*,25900,68,4,5145,156,1.0,
+w6-3,Sagittarius A*,Sol,25900,73,3,5427,921,7.3,
+w6-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,290,99.9,
+w6-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,109,0.5,
+w6-3,Wongi,Beagle Point,65182,191,10,14274,658,56.7,
+w6-3,Beagle Point,Wongi,65182,196,10,14518,132,1.4,
+w6-3,Colonia,Spase AA-A a108-0,31440,89,4,6604,406,2.3,
+w6-3,Spase AA-A a108-0,Colonia,31440,92,5,6898,977,5.8,
+w6-3,Sol,Colonia,22000,57,3,4320,126,1.7,
+w6-3,Colonia,Sol,22000,56,2,4248,107,1.2,
+w6-3,Sol,Beagle Point,65279,191,10,14273,644,35.3,
+w6-3,Beagle Point,Sol,65279,197,9,14592,134,1.5,
+w6-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,392,17,27284,1128,53.7,
+w6-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,919,36,56282,286,100.7,
+w6-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,451,19,30780,4846,100.8,
+w6-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,501,103.3,
+w6-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,425,18,29352,2283,6.7,
+w6-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32437,518,27.7,
+w6c-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,117,1.0,
+w6c-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,113,0.8,
+w6c-3,Sol,Byoomao AA-A c1,24621,64,3,4871,112,1.0,
+w6c-3,Byoomao AA-A c1,Sol,24621,62,3,4714,104,0.8,
+w6c-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,100,0.7,
+w6c-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,100,0.7,
+w6c-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,108,0.7,
+w6c-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,105,0.6,
+w6c-3,Wongi,Colonia,21939,59,2,4431,125,1.6,
+w6c-3,Colonia,Wongi,21939,55,3,4201,121,1.3,
+w6c-3,Sol,Sagittarius A*,25900,68,4,5145,156,1.1,
+w6c-3,Sagittarius A*,Sol,25900,73,3,5427,923,7.3,
+w6c-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,285,100.5,
+w6c-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,107,0.5,
+w6c-3,Wongi,Beagle Point,65182,191,10,14274,668,62.4,
+w6c-3,Beagle Point,Wongi,65182,196,10,14518,129,12.3,
+w6c-3,Colonia,Spase AA-A a108-0,31440,89,4,6604,406,2.3,
+w6c-3,Spase AA-A a108-0,Colonia,31440,92,5,6883,981,12.5,
+w6c-3,Sol,Colonia,22000,57,3,4320,123,1.7,
+w6c-3,Colonia,Sol,22000,56,2,4248,107,1.2,
+w6c-3,Sol,Beagle Point,65279,191,10,14273,698,100.5,
+w6c-3,Beagle Point,Sol,65279,197,9,14592,131,13.3,
+w6c-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,407,17,28285,1155,84.9,
+w6c-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,919,36,56282,284,100.7,
+w6c-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,451,19,30780,4960,100.8,
+w6c-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,512,103.3,
+w6c-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,425,18,29352,2255,101.0,
+w6c-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32437,515,100.6,
+w5p-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,392,17,27284,1122,53.1,
+w5p-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,919,36,56282,291,100.7,
+w5p-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,451,19,30780,4962,100.8,
+w5p-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,501,102.6,
+w5p-3,Colonia,Spase AA-A a108-0,31440,89,4,6604,411,2.3,
+w5p-3,Spase AA-A a108-0,Colonia,31440,92,5,6898,972,5.8,
+w5p-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,425,18,29352,2149,6.3,
+w5p-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32437,556,30.9,
+w5p-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,106,0.5,
+w5p-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,288,2.0,
