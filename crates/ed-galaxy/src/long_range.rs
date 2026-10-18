@@ -249,6 +249,10 @@ struct Open {
     fuel: f32,
     /// Injections spent getting here (the allowance is per route).
     inj: u32,
+    /// Jumps the chain has committed to so far (a boosted hop, every
+    /// bridging jump, an injected jump, a scoop stop's extra jump): the
+    /// integer the shared incumbent prunes against (R3 Task 4).
+    hops: u32,
 }
 impl Eq for Open {}
 impl Ord for Open {
@@ -1268,10 +1272,17 @@ fn declared_order_on(knob: Option<&str>) -> bool {
 /// retrograde and crossing planners).
 pub(crate) static NO_BANS: std::sync::Mutex<Vec<(u32, u32)>> = std::sync::Mutex::new(Vec::new());
 
+/// No incumbent: the coarse search prunes nothing.
+pub(crate) static NO_INCUMBENT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(u32::MAX);
+
 /// Run a coarse variant, re-running it while a refinement failure banned a
-/// new coarse edge (LazySP, R3 Task 3): at most `REPAIRS` repairs.
+/// new coarse edge (LazySP, R3 Task 3): at most `REPAIRS` repairs. A re-run
+/// sets `repaired`: its route is a rescue where the coarse graph lied, not
+/// a credible optimum, and the caller never lets it arm the grace clock
+/// (arm w5p-3, 2026-10-18: the repaired base single's 425 j rim route armed
+/// at 6 s and guillotined the 412 j dig).
 const REPAIRS: usize = 2;
-fn with_repair(banned: &std::sync::Mutex<Vec<(u32, u32)>>, mut run: impl FnMut() -> Result<Route, RouteError>) -> Result<Route, RouteError> {
+fn with_repair<T>(banned: &std::sync::Mutex<Vec<(u32, u32)>>, repaired: &std::sync::atomic::AtomicBool, mut run: impl FnMut() -> Result<T, RouteError>) -> Result<T, RouteError> {
     let count = || banned.lock().unwrap_or_else(|e| e.into_inner()).len();
     let mut known = count();
     let mut res = run();
@@ -1283,6 +1294,7 @@ fn with_repair(banned: &std::sync::Mutex<Vec<(u32, u32)>>, mut run: impl FnMut()
             break;
         }
         known = now;
+        repaired.store(true, std::sync::atomic::Ordering::Relaxed);
         res = run();
     }
     res
@@ -1522,6 +1534,9 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     let legs = LegMemo::for_plot();
     // Coarse edges a leg could not fly, banned for the plot (R3 Task 3).
     let banned: std::sync::Mutex<Vec<(u32, u32)>> = std::sync::Mutex::new(Vec::new());
+    // The fewest jumps any variant has finished with, this plot (R3 Task 4):
+    // every coarse search prunes chains that cannot beat it.
+    let incumbent = std::sync::atomic::AtomicU32::new(u32::MAX);
     let grace = (req.grace_ms > 0).then(|| std::time::Duration::from_millis(req.grace_ms));
     let (mut variants_run, mut variants_finished) = (0u32, 0u32);
     loop {
@@ -1710,6 +1725,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             // the thin single's fail-fast stall is its own, not the wave's
             // escalation flag.
             let thin_refining = std::sync::atomic::AtomicBool::new(false);
+            // Set when this variant's route came from a LazySP re-run.
+            let repaired = std::sync::atomic::AtomicBool::new(false);
             let thin_stage = |name: &'static str, a: u32, b: u32| {
                 if name == "refine" {
                     thin_refining.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -1732,7 +1749,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // the budget. See THIN_FANOUT and thin_budget_ms.
                 let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
                 if i == witness {
-                    (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true, &banned)), 7)
+                    (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true, &banned, &incumbent)), 7)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 8)
                 }
@@ -1745,22 +1762,22 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     return (Err(RouteError::Cancelled), false);
                 }
                 let (w, r, b) = variants[i];
-                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 0)
+                (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned, &incumbent)), 0)
             } else if bidi && i == nb {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, lean_base, fields), 1)
             } else if greedy_slots > 0 && i == greedy_single {
-                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 2)
+                (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned, &incumbent)), 2)
             } else if greedy_slots > 1 && i == greedy_single + 1 {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, true, lean_base, fields), 2)
             } else if offramp_slots > 0 && i == greedy_single + greedy_slots {
-                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 4)
+                (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned, &incumbent)), 4)
             } else if offramp_slots > 1 && i == greedy_single + greedy_slots + 1 {
-                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 4)
+                (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned, &incumbent)), 4)
             } else if scan_twins > 0 && i >= greedy_single + greedy_slots + offramp_slots && i < greedy_single + greedy_slots + offramp_slots + scan_twins {
                 let s = i - greedy_single - greedy_slots - offramp_slots;
                 if s < 5 {
                     let (w, r, b) = twin_cfg[s];
-                    (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 6)
+                    (with_repair(&banned, &repaired, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1], false, &banned, &incumbent)), 6)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, !lean_base, fields), 6)
                 }
@@ -1804,8 +1821,12 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 }
                 (Ok(_), 0) => true,
                 _ => false,
-            };
+            } && !repaired.load(std::sync::atomic::Ordering::Relaxed);
             if let Ok(route) = &res {
+                // ED_NO_INCUMBENT=1: the ablation arm (the searches prune nothing).
+                if std::env::var_os("ED_NO_INCUMBENT").is_none() {
+                    incumbent.fetch_min(route.jumps as u32, std::sync::atomic::Ordering::Relaxed);
+                }
                 (ctl.found)(route);
             }
             let (coarse_expansions, stall_remaining_ly) = (coarse.expansions.load(std::sync::atomic::Ordering::Relaxed), coarse.stall_ly());
@@ -2977,7 +2998,7 @@ fn plan_long_retro(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Cont
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back, false, &NO_BANS)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back, false, &NO_BANS, &NO_INCUMBENT)?;
     let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
     let req = &RouteRequest { fuel: fuel_model, ..req.clone() };
     let start_fuel = fuel_model.map(|m| req.start_fuel.clamp(0.0, m.capacity)).unwrap_or(0.0);
@@ -3060,7 +3081,7 @@ fn plan_long_corridor(
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS, &NO_INCUMBENT)?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -3103,7 +3124,7 @@ fn plan_long_corridor(
         let sreq = RouteRequest { from: at, to: pin, start_fuel: fuel, ..req.clone() };
         // Segments run field-less: the plot's goal field prices toward
         // the FINAL goal and would poison a segment's heuristic.
-        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS)?;
+        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT)?;
         fuel = leg.hops.last().and_then(|h| h.fuel_after).unwrap_or(full_tank);
         at = pin;
         whole = Some(match whole {
@@ -3125,7 +3146,7 @@ fn plan_long_corridor(
     Ok(route)
 }
 
-fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>, thin: bool, banned: &std::sync::Mutex<Vec<(u32, u32)>>) -> Result<Route, RouteError> {
+fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>, thin: bool, banned: &std::sync::Mutex<Vec<(u32, u32)>>, incumbent: &std::sync::atomic::AtomicU32) -> Result<Route, RouteError> {
 
     let started = std::time::Instant::now();
     // Keep a hop's worth of fuel in hand: a route may never arrive at a
@@ -3331,7 +3352,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     let mut open = BinaryHeap::new();
     let start_key = key(START, start_fuel);
     best_g.insert(start_key, 0.0);
-    open.push(Open { f: h(start_pos), g: 0.0, idx: START, fuel: start_fuel, inj: 0 });
+    open.push(Open { f: h(start_pos), g: 0.0, idx: START, fuel: start_fuel, inj: 0, hops: 0 });
 
     let mut expansions: u64 = 0;
     let mut best_remaining = straight;
@@ -3615,6 +3636,20 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 if cost.is_nan() {
                     continue;
                 }
+                // The shared incumbent (R3 Task 4): a chain that cannot beat
+                // the fewest jumps any variant has finished with, even at a
+                // boosted hop per reach from here, is not worth a state. A
+                // twentieth of slack and two jumps keep the refinement's
+                // own jumps from pruning a route that would tie.
+                let n_hops = cur.hops + 1 + edge_bridges + u32::from(injected) + u32::from(via_scoop);
+                let inc = incumbent.load(std::sync::atomic::Ordering::Relaxed);
+                if inc != u32::MAX && n_idx != GOAL {
+                    let floor = (dist(n_pos, goal_pos) / (full_range * neutron_boost)).ceil() as u32;
+                    if n_hops + floor > inc + inc / 20 + 2 {
+                        trace_counts[2] += 1;
+                        continue;
+                    }
+                }
                 let ng = cur.g + cost;
                 let nk = key(n_idx, fuel_after);
                 if best_g.get(&nk).is_some_and(|&bg| bg <= ng) {
@@ -3638,7 +3673,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 }
                 best_g.insert(nk, ng);
                 parent.insert(nk, (cur_key, via_scoop));
-                open.push(Open { f: ng + h(n_pos), g: ng, idx: n_idx, fuel: fuel_after, inj: cur.inj + (injected && !via_scoop) as u32 });
+                open.push(Open { f: ng + h(n_pos), g: ng, idx: n_idx, fuel: fuel_after, inj: cur.inj + (injected && !via_scoop) as u32, hops: n_hops });
                 if n_idx == GOAL {
                     goal_seen = Some(match goal_seen {
                         Some((g0, k0, s0)) if g0 <= ng => (g0, k0, s0),
@@ -4651,6 +4686,55 @@ pub(crate) mod tests {
         }
     }
 
+    /// A route that needed a repair (the variant re-ran after a leg banned a
+    /// coarse edge) is a rescue, not a credible optimum: `with_repair`
+    /// reports it so the caller never lets it arm the grace clock (arm
+    /// w5p-3, 2026-10-18: the repaired base single's 425 j rim route armed
+    /// at 6 s and guillotined the 412 j dig; Spase -> Colonia 87 -> 92 j).
+    #[test]
+    fn a_repaired_route_is_reported_as_repaired() {
+        let banned = std::sync::Mutex::new(Vec::new());
+        let repaired = std::sync::atomic::AtomicBool::new(false);
+        let r = with_repair(&banned, &repaired, || Ok::<u32, RouteError>(1));
+        assert!(r.is_ok() && !repaired.load(std::sync::atomic::Ordering::Relaxed), "a first-run route is not a repair");
+        let mut runs = 0;
+        let r = with_repair(&banned, &repaired, || {
+            runs += 1;
+            if runs == 1 {
+                banned.lock().unwrap().push((1, 2));
+                Err(RouteError::NoRoute)
+            } else {
+                Ok(2u32)
+            }
+        });
+        assert!(r.is_ok() && repaired.load(std::sync::atomic::Ordering::Relaxed), "a route after a ban re-run is a repair");
+    }
+
+    /// R3 Task 4: the shared incumbent prunes the coarse search without
+    /// costing a route that beats it: with the incumbent above the best
+    /// route the plan is unchanged; with it at the best route the chain
+    /// survives the slack.
+    #[test]
+    fn incumbent_pruning_keeps_every_route_that_beats_the_incumbent() {
+        let f = highway();
+        let r = req(&f, "K0", "K3000", 72.0);
+        let stalled = std::sync::atomic::AtomicBool::new(false);
+        let plan = |incumbent: u32| {
+            let inc = std::sync::atomic::AtomicU32::new(incumbent);
+            plan_long_with(&f.g, &f.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.75, 1, false, false, false, None, &stalled, &CoarseStats::default(), None, false, &NO_BANS, &inc)
+        };
+        let base = plan(u32::MAX).unwrap();
+        let loose = plan(base.jumps as u32 + 5).unwrap();
+        assert_eq!(names(&loose), names(&base), "an incumbent the route beats changes nothing");
+        // An incumbent the route only ties: the slack keeps the chain (the
+        // coarse hop count is an estimate; a far-below incumbent may prune
+        // it and leave a detour the plot's judge then discards).
+        match plan(base.jumps as u32) {
+            Ok(r) => assert!(r.jumps <= base.jumps, "a route that ties the incumbent survives the slack: {} vs {}", r.jumps, base.jumps),
+            Err(_) => {}
+        }
+    }
+
     /// R3 Task 3 (LazySP): a coarse edge whose leg the exact planner cannot
     /// fly is banned for the plot and the variant re-plans around it. A, B,
     /// C are neutrons on a line with nothing between B and C (600 ly: a
@@ -4677,7 +4761,7 @@ pub(crate) mod tests {
         let r = RouteRequest { boost: BoostProfile { neutron: 6.0, white_dwarf: 1.5 }, ..req(&f, "A", "C", 72.0) };
         let banned = std::sync::Mutex::new(Vec::new());
         let stalled = std::sync::atomic::AtomicBool::new(false);
-        let plan = || plan_long_with(&f.g, &f.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.75, 1, false, false, false, None, &stalled, &CoarseStats::default(), None, false, &banned);
+        let plan = || plan_long_with(&f.g, &f.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.75, 1, false, false, false, None, &stalled, &CoarseStats::default(), None, false, &banned, &NO_INCUMBENT);
         let first = plan();
         assert!(first.is_err(), "the B -> C leg cannot be flown: {:?}", first.map(|r| names(&r).iter().map(|s| s.to_string()).collect::<Vec<_>>()));
         assert_eq!(banned.lock().unwrap().len(), 1, "the dead edge is banned");
@@ -5655,7 +5739,7 @@ pub(crate) mod tests {
         let hw = highway();
         let r = req(&hw, "K0", "K3000", 60.0);
         let none = std::sync::atomic::AtomicBool::new(false);
-        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS).unwrap();
+        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT).unwrap();
         let both = plan_long_bidi(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "K0");
         assert_eq!(both.hops.last().unwrap().name, "K3000");
@@ -5684,7 +5768,7 @@ pub(crate) mod tests {
         stars.push(star("Goal", 4_200.0, 0.0, 90.0, K));
         let fan = build(&stars);
         let rf = req(&fan, "Start", "Goal", 70.0);
-        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS).unwrap();
+        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT).unwrap();
         let both = plan_long_bidi(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "Start");
         assert_eq!(both.hops.last().unwrap().name, "Goal");
