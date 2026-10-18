@@ -1156,11 +1156,12 @@ pub(crate) fn thin_by_sector(cands: &mut Vec<(f32, u32, [f32; 3], f32)>, here: [
 /// The family a portfolio slot belongs to, by the same index arithmetic
 /// the dispatch and the debug label use.
 #[allow(clippy::too_many_arguments)]
-fn variant_kind(i: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool, total: usize) -> &'static str {
-    if i < thin {
-        return if i == 0 { "thin single" } else { "thin bidi" };
+fn variant_kind(i: usize, witness: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool, total: usize) -> &'static str {
+    let lead = witness + thin;
+    if i < lead {
+        return lead_kind(i, witness);
     }
-    let (i, total) = (i - thin, total - thin);
+    let (i, total) = (i - lead, total - lead);
     let b = usize::from(bidi);
     if i < nb {
         "single"
@@ -1259,6 +1260,64 @@ fn declared_order_on(knob: Option<&str>) -> bool {
     knob == Some("1")
 }
 
+/// The witness variant (R3 Task 2): the feasibility search's flyable star
+/// sequence, every star a waypoint, refined by `refine_waypoints` (one-hop
+/// legs are direct; an injected or unfundable hop goes to the exact leg
+/// planner; the settle rounds fly it with the real tank). Long where the
+/// greedy sides were weak, but a route -- on the reverse Jongou pair the
+/// only one (2026-10-18, `docs/benches/2026-10-18-witness.csv`).
+fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant) -> Result<Route, RouteError> {
+    let w = crate::feasible::find_witness(g, neutrons, req, ctl.cancelled)?;
+    let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
+    let capacity = fuel_model.map(|m| m.capacity).unwrap_or(0.0);
+    let start_fuel = fuel_model.map(|m| req.start_fuel.clamp(0.0, m.capacity)).unwrap_or(0.0);
+    let straight = dist(g.pos_of(req.from), g.pos_of(req.to));
+    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+        eprintln!("    witness: {} hops, {} injections, {} expansions at {} ms", w.stars.len().saturating_sub(1), w.injections.len(), w.expansions, started.elapsed().as_millis());
+    }
+    // Windowed first: waypoints about WITNESS_WINDOW_LY apart along the
+    // witness, each leg a short exact plan that improves on the greedy's
+    // hops (the boss, 2026-10-18: greedy, then the smart thing, then greedy
+    // again, per stretch); a window that cannot be refined within its cap
+    // fails the pass, and the raw witness -- every star a one-hop leg --
+    // is the fallback that cannot.
+    let windowed = witness_windows(g, &w.stars, WITNESS_WINDOW_LY, capacity);
+    match refine_waypoints(g, req, ctl, windowed, start_fuel, fuel_model, w.expansions, straight, started) {
+        Ok(r) => Ok(r),
+        Err(RouteError::Cancelled) => Err(RouteError::Cancelled),
+        Err(e) => {
+            if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                eprintln!("    witness: windowed refinement failed ({e:?}); the raw witness stands");
+            }
+            let raw: Vec<(u32, f32)> = w.stars.iter().map(|&s| (s, capacity)).collect();
+            refine_waypoints(g, req, ctl, raw, start_fuel, fuel_model, w.expansions, straight, started)
+        }
+    }
+}
+
+/// How far apart the witness's refinement windows are cut (at witness
+/// stars): short enough for the exact leg planner inside its time cap, long
+/// enough that a window holds a real improvement over the greedy's hops.
+const WITNESS_WINDOW_LY: f32 = 1_000.0;
+
+/// Waypoints along the witness every ~`window_ly` of path, always at a
+/// witness star, the ends included; the tank estimate at each is full.
+fn witness_windows(g: &Galaxy, stars: &[u32], window_ly: f32, capacity: f32) -> Vec<(u32, f32)> {
+    let mut out = vec![(stars[0], capacity)];
+    let mut run = 0.0f32;
+    for w in stars.windows(2) {
+        run += dist(g.pos_of(w[0]), g.pos_of(w[1]));
+        if run >= window_ly {
+            out.push((w[1], capacity));
+            run = 0.0;
+        }
+    }
+    if out.last().map(|l| l.0) != stars.last().copied() {
+        out.push((*stars.last().unwrap(), capacity));
+    }
+    out
+}
+
 /// The order a wave starts its variants in: by family, the measured
 /// first-to-answer families first, the deep diggers last; within a
 /// family, index order. From the r1 matrix arm's per-variant outcomes
@@ -1267,11 +1326,20 @@ fn declared_order_on(knob: Option<&str>) -> bool {
 /// bidi 4, single 2, offramp 2, bidi 2; median ms to a route -- offramp
 /// 31, greedy single 31, single 32, greedy bidi 123, bidi 125, scan-twin
 /// 241 (scan twins are slow on easy routes and first on the hard ones).
-const KIND_ORDER: &[&str] = &["thin single", "thin bidi", "greedy single", "scan-twin", "greedy bidi", "single", "offramp", "bidi", "corridor", "retro"];
+/// The leading slots: the witness (R3, when on) then the thin pair.
+fn lead_kind(i: usize, witness: usize) -> &'static str {
+    match i + 1 - witness {
+        0 => "witness",
+        1 => "thin single",
+        _ => "thin bidi",
+    }
+}
+
+const KIND_ORDER: &[&str] = &["witness", "thin single", "thin bidi", "greedy single", "scan-twin", "greedy bidi", "single", "offramp", "bidi", "corridor", "retro"];
 
 #[allow(clippy::too_many_arguments)]
-fn variant_order(total: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool) -> Vec<usize> {
-    let rank = |i: usize| KIND_ORDER.iter().position(|k| *k == variant_kind(i, thin, nb, bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total)).unwrap_or(KIND_ORDER.len());
+fn variant_order(total: usize, witness: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool) -> Vec<usize> {
+    let rank = |i: usize| KIND_ORDER.iter().position(|k| *k == variant_kind(i, witness, thin, nb, bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total)).unwrap_or(KIND_ORDER.len());
     let mut order: Vec<usize> = (0..total).collect();
     order.sort_by_key(|&i| (rank(i), i));
     order
@@ -1469,6 +1537,13 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         let retro = std::env::var_os("ED_RETRO").is_some();
         // The thin family leads (see THIN_FANOUT); ED_NO_THIN=1 removes it.
         let thin: usize = if std::env::var_os("ED_NO_THIN").is_some() { 0 } else { 2 };
+        // The witness (R3 Task 2, 2026-10-18): the feasibility search's
+        // flyable route, refined, runs as the first member of the first
+        // wave, so a plot has an answer in seconds and never "no route" on
+        // a connected pair; it never arms the grace clock (its route is the
+        // floor, not the answer). ED_NO_WITNESS=1 removes it.
+        let witness: usize = if std::env::var_os("ED_NO_WITNESS").is_some() { 0 } else { 1 };
+        let lead = witness + thin;
         // Item 23 residual: two off-ramp twins -- the base single and a
         // light-thinning single with the goal-side entry seed enabled.
         // No engagement gate beyond the seed's own gradient check: the
@@ -1524,7 +1599,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             (COARSE_WEIGHT, RESERVE_FRACTION, 0.5),
             (1.3, 0.4, 0.5),
         ];
-        let total = thin + variants.len() + usize::from(bidi) + greedy_slots + offramp_slots + scan_twins + usize::from(corridor_slot) + usize::from(retro);
+        let total = lead + variants.len() + usize::from(bidi) + greedy_slots + offramp_slots + scan_twins + usize::from(corridor_slot) + usize::from(retro);
         // Past the first wave the clock is seeded with the standing best:
         // escalation waves exist only to improve, so re-confirmations do
         // not arm the guillotine over the deep variants (14a).
@@ -1558,7 +1633,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         };
         let seed = (cap_mult > 1).then(|| best.as_ref().map(&judge)).flatten();
         let order = if declared_order_on(std::env::var("ED_VARIANT_ORDER").ok().as_deref()) {
-            variant_order(total, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot)
+            variant_order(total, witness, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot)
         } else {
             Vec::new()
         };
@@ -1583,18 +1658,26 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             };
             let thin_stalled = std::sync::atomic::AtomicBool::new(false);
             let thin_check = || check() || thin_yields(std::time::Instant::now() > thin_deadline, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed) || thin_refining.load(std::sync::atomic::Ordering::Relaxed));
-            let (res, kind) = if thin > 0 && i < thin {
+            let (res, kind) = if witness == 1 && i == 0 {
+                // The witness (kind 9): wave 1 only; later waves exist to
+                // improve on what wave 1 found.
+                if cap_mult > 1 {
+                    (Err(RouteError::Cancelled), 9)
+                } else {
+                    (plan_witness(g, neutrons, req, &ctl, started), 9)
+                }
+            } else if thin > 0 && i < lead {
                 // The thin family (kind 7): the quick diggers, first on
                 // every thread count, yielding their worker at a third of
                 // the budget. See THIN_FANOUT and thin_budget_ms.
                 let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
-                if i == 0 {
+                if i == witness {
                     (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true), 7)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 8)
                 }
             } else {
-            let i = i - thin;
+            let i = i - lead;
             if i < nb {
                 // ED_ONLY_BIDI: debug rig -- silence the singles so the
                 // bidi variant's behaviour is readable in the trace.
@@ -1649,7 +1732,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // under the ceiling guillotined the dig behind it (arm thin-3:
                 // Colonia -> Sol 55 -> 56 j, Spase -> Colonia 87 -> 88 j);
                 // like the greedy cone it wins where nothing else answers.
-                (Ok(_), 7) => false,
+                (Ok(_), 7) | (Ok(_), 9) => false,
                 // The corridor variant arms against its own descent
                 // anchor OR the general ceiling, whichever admits: a
                 // forward route within slack of the same-ship descent
@@ -1667,11 +1750,11 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             }
             let (coarse_expansions, stall_remaining_ly) = (coarse.expansions.load(std::sync::atomic::Ordering::Relaxed), coarse.stall_ly());
             if debug {
-                eprintln!("    variant outcome: wave x{cap_mult} #{i} {} {} {} ms, coarse {coarse_expansions} expansions, stall {stall_remaining_ly:.0} ly", variant_kind(i, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total), if res.is_ok() { "route" } else { "none" }, variant_started.elapsed().as_millis());
+                eprintln!("    variant outcome: wave x{cap_mult} #{i} {} {} {} ms, coarse {coarse_expansions} expansions, stall {stall_remaining_ly:.0} ly", variant_kind(i, witness, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total), if res.is_ok() { "route" } else { "none" }, variant_started.elapsed().as_millis());
             }
             (ctl.variant)(VariantOutcome {
                 wave: cap_mult,
-                kind: variant_kind(i, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total),
+                kind: variant_kind(i, witness, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total),
                 index: i,
                 ok: res.is_ok(),
                 jumps: res.as_ref().map(|r| r.jumps as u32).unwrap_or(0),
@@ -1689,16 +1772,16 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         any_budget |= results.iter().any(|r| matches!(r, Err(RouteError::Budget)));
         if debug {
             for (i, r) in results.iter().enumerate() {
-                let label = if thin > 0 && i < thin {
-                    if i == 0 { "thin single".to_string() } else { "thin bidi".to_string() }
+                let label = if lead > 0 && i < lead {
+                    lead_kind(i, witness).to_string()
                 } else {
-                let i = i - thin;
+                let i = i - lead;
                 if i < variants.len() {
                     let (w, rf, b) = variants[i];
                     format!("single w{w} r{rf} b{b}")
                 } else if bidi && i == variants.len() {
                     "bidi".to_string()
-                } else if retro && i == total - thin - 1 {
+                } else if retro && i == total - lead - 1 {
                     "retro".to_string()
                 } else if i == variants.len() + usize::from(bidi) {
                     "greedy single".to_string()
@@ -4397,15 +4480,61 @@ pub(crate) mod tests {
     #[test]
     fn the_thin_family_leads_the_portfolio() {
         // nb 6 singles, bidi, no retro, 2 greedy, 2 offramp, 6 twins, no corridor: 17 + 2 thin.
-        assert_eq!(variant_kind(0, 2, 6, true, false, 2, 2, 6, false, 19), "thin single");
-        assert_eq!(variant_kind(1, 2, 6, true, false, 2, 2, 6, false, 19), "thin bidi");
-        assert_eq!(variant_kind(2, 2, 6, true, false, 2, 2, 6, false, 19), "single");
-        assert_eq!(variant_kind(8, 2, 6, true, false, 2, 2, 6, false, 19), "bidi");
-        assert_eq!(variant_kind(9, 2, 6, true, false, 2, 2, 6, false, 19), "greedy single");
-        assert_eq!(variant_kind(18, 2, 6, true, true, 2, 2, 5, false, 19), "retro", "the last slot is still the retro one");
-        assert_eq!(variant_kind(0, 0, 6, true, false, 2, 2, 6, false, 17), "single", "ED_NO_THIN: the old numbering");
-        assert_eq!(&KIND_ORDER[..2], &["thin single", "thin bidi"]);
-        assert_eq!(&variant_order(19, 2, 6, true, false, 2, 2, 6, false)[..2], &[0, 1]);
+        assert_eq!(variant_kind(0, 0, 2, 6, true, false, 2, 2, 6, false, 19), "thin single");
+        assert_eq!(variant_kind(1, 0, 2, 6, true, false, 2, 2, 6, false, 19), "thin bidi");
+        assert_eq!(variant_kind(2, 0, 2, 6, true, false, 2, 2, 6, false, 19), "single");
+        assert_eq!(variant_kind(8, 0, 2, 6, true, false, 2, 2, 6, false, 19), "bidi");
+        assert_eq!(variant_kind(9, 0, 2, 6, true, false, 2, 2, 6, false, 19), "greedy single");
+        assert_eq!(variant_kind(18, 0, 2, 6, true, true, 2, 2, 5, false, 19), "retro", "the last slot is still the retro one");
+        assert_eq!(variant_kind(0, 0, 0, 6, true, false, 2, 2, 6, false, 17), "single", "ED_NO_THIN: the old numbering");
+        assert_eq!(&KIND_ORDER[..3], &["witness", "thin single", "thin bidi"]);
+        assert_eq!(&variant_order(19, 0, 2, 6, true, false, 2, 2, 6, false)[..2], &[0, 1]);
+        // With the witness on it leads, and the thin pair follows at 1 and 2.
+        assert_eq!(variant_kind(0, 1, 2, 6, true, false, 2, 2, 6, false, 20), "witness");
+        assert_eq!(variant_kind(1, 1, 2, 6, true, false, 2, 2, 6, false, 20), "thin single");
+        assert_eq!(variant_kind(3, 1, 2, 6, true, false, 2, 2, 6, false, 20), "single");
+        assert_eq!(&variant_order(20, 1, 2, 6, true, false, 2, 2, 6, false)[..3], &[0, 1, 2]);
+    }
+
+    /// R3 Task 2: the witness is the answer when every optimiser fails. A K
+    /// chain to an island 100 ly past its end (an injection enters it) with
+    /// one neutron far away: the coarse variants find nothing, the witness
+    /// does, and the plot returns its route instead of "no route".
+    #[test]
+    fn the_witness_route_is_the_answer_when_every_variant_fails() {
+        let mut stars: Vec<_> = (0..5).map(|i| star(&format!("K{i}"), i as f32 * 60.0, 0.0, 0.0, K)).collect();
+        stars.push(star("Island", 340.0, 0.0, 0.0, K));
+        stars.push(star("N0", 0.0, 3000.0, 0.0, N));
+        let f = build(&stars);
+        let r = RouteRequest { injection: Some((2.0, "premium", 22)), time_budget_ms: 20_000, ..req(&f, "K0", "Island", 72.0) };
+        let route = plan_long(&f.g, &f.neutrons, &r, &Control::none()).unwrap();
+        assert_eq!(names(&route).last(), Some(&"Island"));
+        assert_eq!(route.injections, 1, "{:?}", names(&route));
+        // Contiguous, with the injected hop allowed its x2 (assert_contiguous
+        // knows boosts, not injections).
+        for w in route.hops.windows(2) {
+            let d = dist(w[0].pos, w[1].pos);
+            let allowed = r.range_ly * if w[1].injection.is_some() { 2.0 } else { 1.0 } + 0.01;
+            assert!(d <= allowed, "{} -> {}: {d:.1} ly over {allowed:.1}", w[0].name, w[1].name);
+        }
+    }
+
+    /// The witness's route reaches the early-answer hook like any other
+    /// variant's, so a plot whose optimisers are still digging has an
+    /// answer on the wire in seconds.
+    #[test]
+    fn the_witness_arrives_as_an_early_answer() {
+        let mut stars: Vec<_> = (0..5).map(|i| star(&format!("K{i}"), i as f32 * 60.0, 0.0, 0.0, K)).collect();
+        stars.push(star("Island", 340.0, 0.0, 0.0, K));
+        stars.push(star("N0", 0.0, 3000.0, 0.0, N));
+        let f = build(&stars);
+        let r = RouteRequest { injection: Some((2.0, "premium", 22)), time_budget_ms: 20_000, ..req(&f, "K0", "Island", 72.0) };
+        let seen = std::sync::Mutex::new(Vec::new());
+        let found = |route: &Route| seen.lock().unwrap().push(route.hops.last().map(|h| h.name.clone()).unwrap_or_default());
+        let ctl = Control { found: &found, ..Control::none() };
+        plan_long(&f.g, &f.neutrons, &r, &ctl).unwrap();
+        let seen = seen.into_inner().unwrap();
+        assert!(seen.iter().any(|n| n == "Island"), "the witness's route was offered as an answer: {seen:?}");
     }
 
     /// The thin pair is a quick-answer family: on the box's three threads a
