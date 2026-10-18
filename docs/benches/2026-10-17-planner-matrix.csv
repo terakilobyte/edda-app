@@ -102,8 +102,14 @@
 # ED_UNITS_VIA / ED_UNITS_EXACT = 1 turn each on); exact alone and via
 # alone are unmeasured (OPEN). Then, by the boss's ruling, the rim pair.
 # THE RIM PAIR and the thin family (arms thin*, branch planner/r2, rows in
-# 2026-10-17-planner-matrix-thin*.jsonl; thin5 / thin5-3 are the shipped
-# shape, field off): the coarse search refused 201 M already-beaten
+# 2026-10-17-planner-matrix-thin*.jsonl; thin6 / thin6-3 are the SHIPPED
+# shape after the fresh review -- the thorough heuristic following the
+# cost's boost price, the refine stage lifting the thin cap, a 20 s leg
+# floor, the judge pricing injections: PC vs the shipped planner 16 better
+# / 10 same / 2 worse (Byoomao tonnes, Sgr A* judge-gate), three threads
+# 16 / 8 / 4 (+ the two one-jump judge knife-edge rows); the rim pair
+# unchanged at 412 / 447. thin5 / thin5-3 were the pre-review shape, field
+# off): the coarse search refused 201 M already-beaten
 # candidates in 30,000 expansions in the bulge (fanout unbounded) and moved
 # 2 kly; a fanout-32, weight-3 single and a weight-3 bidi lead every wave
 # (indices 0-1), the single never arming, the bidi arming under the
@@ -552,3 +558,59 @@ thin5-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,9759,100.5,
 thin5-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,101.1,Error: Sorry; no route found within the search limit.
 thin5-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,6360,102.6,
 thin5-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,447,19,30445,19552,100.6,
+thin6,Wongi,Spase AA-A a108-0,38200,101,6,7726,140,0.8,
+thin6,Spase AA-A a108-0,Wongi,38200,102,5,7790,111,0.5,
+thin6,Sol,Byoomao AA-A c1,24621,64,3,4871,140,0.9,
+thin6,Byoomao AA-A c1,Sol,24621,62,3,4694,109,0.8,
+thin6,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,99,0.7,
+thin6,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,98,0.6,
+thin6,Wongi,Plielou RN-R d5-27,12117,37,2,2749,118,0.8,
+thin6,Plielou RN-R d5-27,Wongi,12117,37,1,2643,102,0.4,
+thin6,Wongi,Colonia,21939,58,2,4351,162,1.4,
+thin6,Colonia,Wongi,21939,54,2,4096,149,0.9,
+thin6,Sol,Sagittarius A*,25900,68,4,5146,182,1.0,
+thin6,Sagittarius A*,Sol,25900,73,3,5434,968,2.9,
+thin6,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,219,1.2,
+thin6,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,102,0.3,
+thin6,Wongi,Beagle Point,65182,191,10,14274,225,76.9,
+thin6,Beagle Point,Wongi,65182,196,10,14518,181,0.6,
+thin6,Colonia,Spase AA-A a108-0,31440,88,4,6582,1019,5.1,
+thin6,Spase AA-A a108-0,Colonia,31440,87,5,6516,1216,6.1,
+thin6,Sol,Colonia,22000,58,3,4358,161,1.2,
+thin6,Colonia,Sol,22000,55,2,4161,119,1.0,
+thin6,Sol,Beagle Point,65279,191,10,14273,215,77.1,
+thin6,Beagle Point,Sol,65279,197,9,14592,170,0.6,
+thin6,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1669,100.3,
+thin6,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,81.4,Error: Sorry; no route found within the search limit.
+thin6,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,14373,58.0,
+thin6,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,85.5,Error: Sorry; no route found within the search limit.
+thin6,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,29035,102.6,
+thin6,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,447,19,30445,33393,101.5,
+thin6-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,112,1.0,
+thin6-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,102,0.6,
+thin6-3,Sol,Byoomao AA-A c1,24621,64,3,4871,117,0.9,
+thin6-3,Byoomao AA-A c1,Sol,24621,62,3,4714,98,0.7,
+thin6-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,91,0.7,
+thin6-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,96,0.6,
+thin6-3,Wongi,Plielou RN-R d5-27,12117,37,2,2749,109,0.9,
+thin6-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,103,0.6,
+thin6-3,Wongi,Colonia,21939,58,2,4351,119,1.7,
+thin6-3,Colonia,Wongi,21939,55,3,4201,114,1.1,
+thin6-3,Sol,Sagittarius A*,25900,68,4,5146,147,1.0,
+thin6-3,Sagittarius A*,Sol,25900,73,3,5427,1867,6.2,
+thin6-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,486,1.6,
+thin6-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,100,0.4,
+thin6-3,Wongi,Beagle Point,65182,191,10,14274,198,44.2,
+thin6-3,Beagle Point,Wongi,65182,196,10,14518,128,1.0,
+thin6-3,Colonia,Spase AA-A a108-0,31440,88,4,6582,6235,14.1,
+thin6-3,Spase AA-A a108-0,Colonia,31440,88,5,6595,3717,11.6,
+thin6-3,Sol,Colonia,22000,58,3,4358,129,1.4,
+thin6-3,Colonia,Sol,22000,56,2,4248,103,1.0,
+thin6-3,Sol,Beagle Point,65279,191,10,14273,194,33.6,
+thin6-3,Beagle Point,Sol,65279,197,9,14592,122,0.9,
+thin6-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1103,54.0,
+thin6-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,,,,,,101.1,Error: Sorry; no route found within the search limit.
+thin6-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,14217,100.9,
+thin6-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,,,,,,101.1,Error: Sorry; no route found within the search limit.
+thin6-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,412,17,28490,6639,102.7,
+thin6-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,447,19,30445,20317,100.6,
