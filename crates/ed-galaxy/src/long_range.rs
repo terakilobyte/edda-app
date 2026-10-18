@@ -49,8 +49,17 @@ const MAX_END_BRIDGE_JUMPS: u32 = 60;
 /// made the weighted search exhaustive on Beagle Point).
 const MAX_GOAL_BRIDGE_JUMPS: u32 = 12;
 
-/// Weighted A* for refinement legs (a few hundred ly), the Spansh trade.
+/// Weighted A* for refinement legs (a few hundred ly), the exact-plotter trade.
 const LEG_WEIGHT: f32 = 1.3;
+
+/// A refinement leg's expansion cap: 400 an ly with a 50,000 floor. A leg
+/// the coarse chain assumed bridgeable but that cannot be flown must fail
+/// in seconds, not hold the variant for the plot (the reverse Jongou route,
+/// 2026-10-17: one 1,209 ly leg took 97.8 of 100 s at the old flat
+/// 5,000,000). The longest legitimate leg on the record took 27,471.
+fn leg_expansion_cap(ly: f32) -> u64 {
+    ((ly * 400.0) as u64).max(50_000)
+}
 
 /// A coarse search that settles for its closest neutron hands the rest to
 /// the exact planner only within this many boosted reaches of the goal;
@@ -147,6 +156,14 @@ fn thin_yields(past_deadline: bool, coarse_done: bool) -> bool {
 /// and a precheck that looks along the line never fires there.
 fn field_wanted(forced: bool, nonuniform: bool) -> bool {
     forced || nonuniform
+}
+
+/// How far a plot end off the highway may be from the cell it snaps onto
+/// for the goal field: the plain run the coarse search allows that end.
+/// Until 2026-10-17 this was 8 x the range (578 ly for the Caspian), and
+/// an island goal 873 ly from its nearest neutron got no field at all.
+fn end_snap_ly(field_range: f32) -> f32 {
+    field_range * MAX_END_BRIDGE_JUMPS as f32
 }
 
 /// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
@@ -1325,7 +1342,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 };
                 let f = std::array::from_fn(|s| {
                     end_cells[s]
-                        .or_else(|| crate::cgraph::nearest_cell(neutrons, ends[s], field_range * 8.0))
+                        .or_else(|| crate::cgraph::nearest_cell(neutrons, ends[s], end_snap_ly(field_range)))
                         .map(|c| cg.goal_field_where(c, keep))
                 });
                 if debug {
@@ -3846,7 +3863,7 @@ pub fn refine_waypoints(
     use rayon::prelude::*;
     let done = std::sync::atomic::AtomicU32::new(0);
     (ctl.stage)("refine", 0, legs);
-    let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: 5_000_000, start_fuel, ..req.clone() };
+    let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: leg_expansion_cap(dist(g.pos_of(from), g.pos_of(to))), start_fuel, ..req.clone() };
     let windows: Vec<[(u32, f32); 2]> = waypoints.windows(2).map(|w| [w[0], w[1]]).collect();
     let plan_legs = |jobs: &[(usize, f32)], use_memo: bool| -> Vec<(usize, Result<Route, RouteError>)> {
         jobs.par_iter()
@@ -4401,6 +4418,29 @@ mod tests {
         assert!(thin_yields(true, false), "past the deadline, chain not done: yield");
         assert!(!thin_yields(true, true), "past the deadline, chain done: finish the refinement");
         assert!(!thin_yields(false, false));
+    }
+
+    /// A plot end off the highway snaps onto the cell graph within the
+    /// plain run the coarse search allows that end (60 jumps), not 8 x the
+    /// range: Jongou AA-A d0's nearest neutron is 873 ly out and the goal
+    /// field toward it was never built (2026-10-17, "goal fields built in
+    /// 0 ms"), so the reverse Jongou search had no arm map to follow.
+    #[test]
+    fn a_plot_end_snaps_onto_the_cell_graph_within_its_plain_run() {
+        assert_eq!(end_snap_ly(72.0), 72.0 * MAX_END_BRIDGE_JUMPS as f32);
+        assert!(end_snap_ly(72.0) > 873.0, "Jongou's 873 ly to the nearest neutron is inside the snap");
+    }
+
+    /// A refinement leg's expansion cap scales with its length (2026-10-17,
+    /// the reverse Jongou route): one 1,209 ly leg the coarse chain had
+    /// assumed bridgeable was not flyable, and at the old flat 5,000,000 cap
+    /// the exact planner spent 97.8 of the plot's 100 s proving it. The
+    /// longest legitimate leg on the record took 27,471 expansions.
+    #[test]
+    fn a_refinement_legs_expansion_cap_scales_with_its_length() {
+        assert_eq!(leg_expansion_cap(1209.0), 483_600);
+        assert_eq!(leg_expansion_cap(40.0), 50_000, "a floor for the short legs");
+        assert!(leg_expansion_cap(1209.0) > 27_471 * 10, "ten times the longest legitimate leg on the record");
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the
