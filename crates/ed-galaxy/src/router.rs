@@ -354,6 +354,9 @@ pub fn minimize_refuels(m: &FuelModel, boost: &BoostProfile, injection_mult: Opt
 #[derive(Debug, Default)]
 pub struct CoarseStats {
     pub expansions: std::sync::atomic::AtomicU64,
+    /// The coarse chain reached the goal (the refinement is what remains);
+    /// the thin variants' cap reads it.
+    pub coarse_done: std::sync::atomic::AtomicBool,
     stall_ly_bits: std::sync::atomic::AtomicU32,
     pub widens: std::sync::atomic::AtomicU64,
 }
