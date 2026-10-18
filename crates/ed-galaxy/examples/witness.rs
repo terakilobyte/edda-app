@@ -17,6 +17,7 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(2);
     }
     let g = Galaxy::open(std::path::Path::new(&args[1]))?;
+    let neutrons = Galaxy::open(&std::path::Path::new(&args[1]).join("boost250"))?;
     let from = g.find(&args[2]).ok_or_else(|| anyhow::anyhow!("unknown system {}", args[2]))?;
     let to = g.find(&args[3]).ok_or_else(|| anyhow::anyhow!("unknown system {}", args[3]))?;
     let mut injection = None;
@@ -59,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     };
     let t = std::time::Instant::now();
     let cancel = || max_ms > 0 && t.elapsed().as_millis() as u64 > max_ms;
-    match ed_galaxy::feasible::find_witness(&g, &req, &cancel) {
+    match ed_galaxy::feasible::find_witness(&g, &neutrons, &req, &cancel) {
         Ok(w) => {
             let boosted = w.stars.windows(2).filter(|p| matches!(g.class(&g.record(p[0])), ed_galaxy::StarClass::Neutron | ed_galaxy::StarClass::WhiteDwarf)).count();
             let total: f32 = w.stars.windows(2).map(|p| { let (a, b) = (g.pos_of(p[0]), g.pos_of(p[1])); ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt() }).sum();
