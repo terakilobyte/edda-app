@@ -132,6 +132,23 @@ fn thin_budget_ms(time_budget_ms: u64) -> u64 {
     if time_budget_ms > 0 { time_budget_ms / 3 } else { 30_000 }
 }
 
+/// Does a thin variant yield its worker: past its deadline with the coarse
+/// chain not yet at the goal. A chain that has reached the goal is refined
+/// to the end (the rim reverse with the field, 2026-10-17: the chain was
+/// done in 1,307 expansions and the 33 s cap cut the refinement, 462 j
+/// instead of 447 for the wave).
+fn thin_yields(past_deadline: bool, coarse_done: bool) -> bool {
+    past_deadline && !coarse_done
+}
+
+/// The goal field is built when the straight-line precheck finds the
+/// corridor non-uniform, or when forced (ED_FIELD=1, study knob,
+/// 2026-10-17): the reverse Jongou approach leaves the line 6 kly south,
+/// and a precheck that looks along the line never fires there.
+fn field_wanted(forced: bool, nonuniform: bool) -> bool {
+    forced || nonuniform
+}
+
 /// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
 /// Shipped at 0 until the 28-route matrix blesses a value (R1, 2026-10-17).
 const COARSE_SECTOR_KEEP: usize = 0;
@@ -1288,7 +1305,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             })
         });
         match neutrons.cell_graph() {
-            Some(cg) if nonuniform && std::env::var_os("ED_NO_FIELD").is_none() => {
+            Some(cg) if field_wanted(std::env::var_os("ED_FIELD").is_some(), nonuniform) && std::env::var_os("ED_NO_FIELD").is_none() => {
                 let t = std::time::Instant::now();
                 // Chain-viability floor: the field only routes through
                 // cells holding enough highway stars to actually chain.
@@ -1526,7 +1543,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             let greedy_single = nb + usize::from(bidi);
             // (kind: 0 = baseline single, 1 = bidi, 2 = greedy twin)
             let thin_deadline = variant_started + std::time::Duration::from_millis(thin_budget_ms(req.time_budget_ms));
-            let thin_check = || check() || std::time::Instant::now() > thin_deadline;
+            let thin_check = || check() || thin_yields(std::time::Instant::now() > thin_deadline, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed));
             let (res, kind) = if thin > 0 && i < thin {
                 // The thin family (kind 7): the quick diggers, first on
                 // every thread count, yielding their worker at a third of
@@ -3763,6 +3780,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     };
     let mut waypoints: Vec<(u32, f32)> = chain.iter().filter_map(|&s| full_idx(s).map(|i| (i, fuel_of(s)))).collect();
     let stalled = goal_key != Some(key(GOAL, 0.0)) && (gk >> 8) as u32 != GOAL;
+    stats.coarse_done.store(!stalled, std::sync::atomic::Ordering::Relaxed);
     if stalled {
         // The chain ends at the closest neutron reached; the rest is exact
         // -- when the rest is a leg the exact planner can take. A stall
@@ -4361,6 +4379,28 @@ mod tests {
         assert_eq!(thin_budget_ms(100_000), 33_333);
         assert_eq!(thin_budget_ms(3_000), 1_000);
         assert_eq!(thin_budget_ms(0), 30_000, "no budget: the thin pair still yields at 30 s");
+    }
+
+    /// The goal field is wanted when the straight line looks non-uniform OR
+    /// when forced (ED_FIELD=1, 2026-10-17): the reverse Jongou approach
+    /// leaves the straight line 6 kly south and the precheck, which looks
+    /// along that line, never fired.
+    #[test]
+    fn the_goal_field_is_wanted_when_forced_or_nonuniform() {
+        assert!(field_wanted(false, true));
+        assert!(field_wanted(true, false));
+        assert!(!field_wanted(false, false));
+    }
+
+    /// The thin cap covers the coarse phase only: a thin variant whose
+    /// chain has reached the goal finishes refining it (the rim reverse
+    /// with the field: chain done in 1,307 expansions, cut at 33 s while
+    /// refining, the wave's answer 462 j instead of 447).
+    #[test]
+    fn the_thin_cap_ends_at_the_coarse_phase() {
+        assert!(thin_yields(true, false), "past the deadline, chain not done: yield");
+        assert!(!thin_yields(true, true), "past the deadline, chain done: finish the refinement");
+        assert!(!thin_yields(false, false));
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the
