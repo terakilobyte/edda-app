@@ -328,8 +328,10 @@ verdicts live in the CSV headers under `docs/benches/`.
   finishes at 93-97 j -- so they are R4's ground (goal field and bridge
   pricing), not the schedule's. OPEN: Jongou AA-A -> Byoi AT-U 392 / 396
   moves between arms; Jongou AA-A -> Byoi AT-U 392 -> 396 on both thread
-  counts is the witness-currency change in a nested leg plot (an arm
-  judging every fold lean, `ED_PRUNE_JUDGE=1`, is the next measurement);
+  counts is the witness-currency change in a nested leg plot; every fold
+  judging lean (`ED_PRUNE_JUDGE=1`, arm w13-3) measured 3 / 25 / 0 but did
+  not move it (Spase -> Colonia 90 -> 89 did), so it stays a knob until a
+  nested leg plot can inherit its parent's judging currency (R4);
   the plot_fuzz same-seed replay and the maintainer's flight before any
   release. On the PC (24 threads, w12 vs w8): 6 / 14 / 8, with Ood Fleau
   -> Sphiesi 425 -> 410 j and the Jongou pair's 451 -> 401 and 919 -> 910;

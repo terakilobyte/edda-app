@@ -233,6 +233,14 @@
 # -> Colonia 90 -> 91 against; the rest wall-only (+2 to +7 s, the floor).
 # vs the shipped planner 18 / 5 / 5 (w8: 17 / 6 / 5), vs the R2 head 10 /
 # 13 / 5 (w8: 9 / 14 / 5). The after table regenerated from w12-3 / w12.
+# w13-3 = w12-3's binary with ED_PRUNE_JUDGE=1 (every fold, the nested
+# leg plots included, judges the pruned clone) vs w12-3: 3 better / 25
+# same / 0 WORSE (Spase -> Colonia 90 -> 89 j / 4 stops; Byoi CQ-G ->
+# Jongou XM-W 63,847 -> 63,798 s; Sol -> Beagle wall 48 -> 25 s, noise).
+# Jongou AA-A -> Byoi AT-U stayed 396 (pre-registered 392: MISSED). Knob
+# only: shipping it means a nested leg plot inheriting its parent's
+# currency (a RouteRequest field; R4), and the bench measures --min-fuel
+# plots alone.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -1056,3 +1064,31 @@ w12,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,6024,31.9,
 w12,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,850,28.7,
 w12,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,410,18,28432,3732,101.4,
 w12,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,448,20,31503,1743,48.6,
+w13-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,143,1.2,
+w13-3,Spase AA-A a108-0,Wongi,38200,102,5,7790,122,0.8,
+w13-3,Sol,Byoomao AA-A c1,24621,64,3,4871,125,1.4,
+w13-3,Byoomao AA-A c1,Sol,24621,62,3,4694,115,1.4,
+w13-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2760,110,0.9,
+w13-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2694,113,0.8,
+w13-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,121,0.8,
+w13-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,117,0.6,
+w13-3,Wongi,Colonia,21939,58,2,4350,139,6.8,
+w13-3,Colonia,Wongi,21939,54,2,4096,147,2.8,
+w13-3,Sol,Sagittarius A*,25900,68,4,5145,191,3.8,
+w13-3,Sagittarius A*,Sol,25900,73,3,5427,1221,7.8,
+w13-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,440,10.7,
+w13-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,133,0.6,
+w13-3,Wongi,Beagle Point,65182,191,10,14274,775,68.2,
+w13-3,Beagle Point,Wongi,65182,196,10,14518,158,1.2,
+w13-3,Colonia,Spase AA-A a108-0,31440,88,4,6579,511,3.0,
+w13-3,Spase AA-A a108-0,Colonia,31440,89,4,6660,1087,12.6,
+w13-3,Sol,Colonia,22000,57,3,4320,130,6.3,
+w13-3,Colonia,Sol,22000,55,2,4161,117,2.5,
+w13-3,Sol,Beagle Point,65279,191,10,14273,723,24.6,
+w13-3,Beagle Point,Sol,65279,197,9,14592,141,1.2,
+w13-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,396,17,27517,1209,70.9,
+w13-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,910,36,55970,300,100.9,
+w13-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,5586,82.3,
+w13-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,1055,39,63798,536,91.0,
+w13-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,421,18,29155,2424,12.5,
+w13-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,462,20,32437,609,37.9,
