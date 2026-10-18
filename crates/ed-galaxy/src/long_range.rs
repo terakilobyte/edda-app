@@ -721,6 +721,17 @@ fn leg_precheck_ms(leg_budget_ms: u64, leg_ly: f32) -> u64 {
 /// 2,011 and 3,864 ly; the stall handoffs 10-31 kly).
 const PRECHECK_MIN_LY: f32 = 500.0;
 
+/// The exact planner's probe before any blind pass: a tenth of the leg's
+/// cap, 200 ms to 2 s (2 s with no cap). Most long legs settle inside it
+/// (a 500-800 ly boosted hop on a rim chain takes milliseconds); only a
+/// probe that runs out of budget pays for the skeleton, the void detector
+/// and the verdict. Arms w14-w18, 2026-10-18: with the passes first, the
+/// rim plots' first route went 2.3 -> 9.5 s on three threads and 3.7 ->
+/// 16 s on the PC.
+fn exact_probe_ms(leg_budget_ms: u64) -> u64 {
+    if leg_budget_ms == 0 { 2_000 } else { (leg_budget_ms / 10).clamp(200, 2_000) }
+}
+
 fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32, u32, f32) -> RouteRequest, from: u32, to: u32, fuel: f32) -> Result<Route, RouteError> {
     if let Some(l) = direct_leg(g, req, from, to, fuel) {
         return Ok(l);
@@ -763,6 +774,19 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
     if cap == 0 {
         note("exact");
         return plan(g, &leg_req, ctl);
+    }
+    // The exact planner first, briefly: it settles most long legs in
+    // milliseconds, and only its running out of budget earns the passes.
+    let probe = RouteRequest { time_budget_ms: exact_probe_ms(leg_req.time_budget_ms), ..leg_req.clone() };
+    match plan(g, &probe, ctl) {
+        Err(RouteError::Budget) => note(&format!("exact probe ran out ({} ms); the blind passes decide", t0.elapsed().as_millis())),
+        other => {
+            note(&format!("exact probe: {} ({} ms)", if other.is_ok() { "route" } else { "no route" }, t0.elapsed().as_millis()));
+            return other;
+        }
+    }
+    if leg_req.time_budget_ms > 0 {
+        leg_req.time_budget_ms = leg_req.time_budget_ms.saturating_sub(t0.elapsed().as_millis() as u64).max(1_000);
     }
     // Pass 0 (R4 Task C): the skeleton at the leg's REAL range, no
     // injections -- flown with the real tank it is the leg.
@@ -6287,6 +6311,12 @@ pub(crate) mod tests {
         assert_eq!(leg_precheck_ms(25_000, 499.0), 0);
         assert_eq!(leg_precheck_ms(25_000, 500.0), 2_500, "a long leg: a tenth of the cap, at most 2.5 s");
         assert_eq!(leg_precheck_ms(1_000, 3_864.0), 200, "never under 200 ms on a long leg");
+        // The exact planner's probe comes first: a tenth of the leg's cap,
+        // 200 ms to 2 s; the blind passes run only when the probe runs out.
+        assert_eq!(exact_probe_ms(25_000), 2_000);
+        assert_eq!(exact_probe_ms(5_000), 500);
+        assert_eq!(exact_probe_ms(1_000), 200);
+        assert_eq!(exact_probe_ms(0), 2_000, "no cap: the two-second probe");
         // Void evidence (the real-range pass said NoRoute) gives the exact
         // planner a fifth of its cap; otherwise the full cap.
         assert_eq!(exact_leg_budget_ms(25_000, true), 5_000);

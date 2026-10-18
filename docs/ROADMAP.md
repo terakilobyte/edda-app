@@ -365,9 +365,18 @@ verdicts live in the CSV headers under `docs/benches/`.
   hops the fallback where they fly, iterated twice. Byoi AT-U -> Jongou
   AA-A 910 -> 583 j, Byoi CQ-G -> Jongou XM-W 1,054 -> 591 j (the
   reference 477 / 516), the raw witness still first at 0.3-0.6 s, the
-  improved routes at 11-36 s; arm w15-3 vs w14-3 5 / 20 / 3 with 0 rows
-  worse on jumps, ON by default (`ED_NO_WITNESS_SEGMENTS`, `ED_WSEG_LY`,
-  `ED_WSEG_MS`, `ED_WSEG_PASSES`). OPEN: the 1,209 ly Jongua XV-E ->
+  improved routes at 11-36 s; ON by default for crossings (a raw
+  witness of 200 hops or more) after a 5 s hold that any better route
+  cancels, with a stop rule at every segment boundary -- the PC arm
+  without those had the segments' nested plans crowding the pool on the
+  forward Jongou plot (401 -> 509 j) (`ED_NO_WITNESS_SEGMENTS`,
+  `ED_WSEG_LY`, `ED_WSEG_MS`, `ED_WSEG_PASSES`, `ED_WSEG_HOLD_MS`). The
+  leg precheck runs EXACT FIRST (a short probe; only its running out
+  earns the blind passes) after arms w14-w18 showed the passes costing
+  the rim plots' first route 2.3 -> 9.5 s. END OF DAY (arms w19 / w19-3,
+  seconds judge): three threads vs the shipped planner 17 / 4 / 7, vs the
+  R2 head 10 / 10 / 8; PC 18 / 5 / 5 and 9 / 15 / 4; the reverse crossings
+  514 / 591 j on both thread counts (the night's 910 / 1,054). OPEN: the 1,209 ly Jongua XV-E ->
   Gonguae GW-C leg is flyable only at an empty tank (a standalone plot
   fails from 120 and 40 t) and costs 28 s wherever a chain uses it -- an
   exact-planner hole; the reverse crossings' remaining gap to the
