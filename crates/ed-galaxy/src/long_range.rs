@@ -104,10 +104,13 @@ const COARSE_FANOUT: usize = usize::MAX;
 /// a thin single that stalls that far out fails fast (`THIN_HANDOFF_REACHES`)
 /// so its worker moves on instead of exact-planning 8.5 kly for the rest
 /// of the budget. The two run at indices 0 and 1 so rayon's range split
-/// starts them first on the box's three threads; they never arm the grace
-/// clock (a thin answer under the ceiling guillotined the thorough dig on
-/// three threads: Colonia -> Sol 55 -> 56 j, Jongou AA-A 396 -> 406 j).
-/// ED_NO_THIN=1 removes them.
+/// starts them first on the box's three threads. The thin bidi arms the
+/// grace clock under the jump ceiling like the regular bidi (without an
+/// early arming the singles stall and the x4 wave fires: Wongi -> Blaa
+/// Hypai 1 -> 91 s); the thin single never does (its weight-3 answer
+/// guillotined the dig behind it: Colonia -> Sol 55 -> 56 j). Each yields
+/// its worker at a third of the budget (`thin_budget_ms`). ED_NO_THIN=1
+/// removes them.
 const THIN_FANOUT: usize = 32;
 const THIN_WEIGHT: f32 = 3.0;
 const THIN_HANDOFF_REACHES: f32 = 10.0;
@@ -118,6 +121,16 @@ const THIN_HANDOFF_REACHES: f32 = 10.0;
 /// not finish in 100 s beside them.
 const THIN_RESERVE: f32 = 0.4;
 const THIN_BUCKET: f32 = 0.5;
+
+/// How long a thin variant may hold a worker: a third of the plot's budget,
+/// 30 s without one. On the box's three threads a thin variant that was not
+/// quick kept its worker for the whole plot and the deep digs behind it
+/// starved (arm thin2-3, 2026-10-17: Colonia -> Sol 55 -> 56 j, Colonia ->
+/// Wongi 54 -> 55 j, Spase -> Colonia 87 -> 88 j, Jongou AA-A 396 -> 406 j,
+/// Wongi -> Blaa Hypai 1 -> 98 s). The rim answers arrive at 6-27 s.
+fn thin_budget_ms(time_budget_ms: u64) -> u64 {
+    if time_budget_ms > 0 { time_budget_ms / 3 } else { 30_000 }
+}
 
 /// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
 /// Shipped at 0 until the 28-route matrix blesses a value (R1, 2026-10-17).
@@ -1512,13 +1525,17 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             let nb = variants.len();
             let greedy_single = nb + usize::from(bidi);
             // (kind: 0 = baseline single, 1 = bidi, 2 = greedy twin)
+            let thin_deadline = variant_started + std::time::Duration::from_millis(thin_budget_ms(req.time_budget_ms));
+            let thin_check = || check() || std::time::Instant::now() > thin_deadline;
             let (res, kind) = if thin > 0 && i < thin {
                 // The thin family (kind 7): the quick diggers, first on
-                // every thread count. See THIN_FANOUT.
+                // every thread count, yielding their worker at a third of
+                // the budget. See THIN_FANOUT and thin_budget_ms.
+                let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
                 if i == 0 {
                     (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], true), 7)
                 } else {
-                    (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 7)
+                    (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 8)
                 }
             } else {
             let i = i - thin;
@@ -1566,14 +1583,16 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // guillotine the flagship's slow 58/2-finder (-39 s,
                 // ~half the rolls). Seconds-weighted, armed wins; the
                 // flagship flicker is the documented cost.
-                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) => (route.jumps as f32) <= arm_ceiling,
-                // The thin pair (kind 7) NEVER arms: on three threads its
-                // quick answer under the ceiling guillotined the dig behind
-                // it (arm thin-3, 2026-10-17: Colonia -> Sol 55 -> 56 j,
-                // Colonia -> Wongi 54 -> 55 j / 2 -> 3 stops, Spase ->
-                // Colonia 87 -> 88 j, Jongou AA-A 396 -> 406 j); like the
-                // greedy cone it wins where nothing else answers and loses
-                // silently elsewhere.
+                // The thin bidi (kind 8) arms like the regular bidi: on
+                // three threads the regular bidi starts late and the singles
+                // stall before anything arms, so the x4 wave fired on routes
+                // that took a second before (Wongi -> Blaa Hypai 1 -> 91 s,
+                // arm thin2-3, 2026-10-17: "next wave x4 after 8048 ms").
+                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) | (Ok(route), 8) => (route.jumps as f32) <= arm_ceiling,
+                // The thin single (kind 7) NEVER arms: its weight-3 answer
+                // under the ceiling guillotined the dig behind it (arm thin-3:
+                // Colonia -> Sol 55 -> 56 j, Spase -> Colonia 87 -> 88 j);
+                // like the greedy cone it wins where nothing else answers.
                 (Ok(_), 7) => false,
                 // The corridor variant arms against its own descent
                 // anchor OR the general ceiling, whichever admits: a
@@ -4312,6 +4331,18 @@ mod tests {
         assert_eq!(variant_kind(0, 0, 6, true, false, 2, 2, 6, false, 17), "single", "ED_NO_THIN: the old numbering");
         assert_eq!(&KIND_ORDER[..2], &["thin single", "thin bidi"]);
         assert_eq!(&variant_order(19, 2, 6, true, false, 2, 2, 6, false)[..2], &[0, 1]);
+    }
+
+    /// The thin pair is a quick-answer family: on the box's three threads a
+    /// thin variant that has not answered by a third of the budget holds a
+    /// worker the deep digs need (arm thin2-3, 2026-10-17: Colonia -> Sol
+    /// 55 -> 56 j, Spase -> Colonia 87 -> 88 j, Wongi -> Blaa Hypai 1 -> 98 s
+    /// wall), so it yields there; 30 s when the plot has no budget.
+    #[test]
+    fn the_thin_pair_yields_its_worker_at_a_third_of_the_budget() {
+        assert_eq!(thin_budget_ms(100_000), 33_333);
+        assert_eq!(thin_budget_ms(3_000), 1_000);
+        assert_eq!(thin_budget_ms(0), 30_000, "no budget: the thin pair still yields at 30 s");
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the
