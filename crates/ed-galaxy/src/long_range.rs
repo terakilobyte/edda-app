@@ -1267,6 +1267,11 @@ fn declared_order_on(knob: Option<&str>) -> bool {
 /// greedy sides were weak, but a route -- on the reverse Jongou pair the
 /// only one (2026-10-18, `docs/benches/2026-10-18-witness.csv`).
 fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant) -> Result<Route, RouteError> {
+    // The witness's waypoints are not coarse waypoints: its refinement does
+    // not draw on the search trace (a plain hop through a white dwarf the
+    // profile cannot boost is a witness hop, not a highway choice).
+    let quiet = |_: &'static str, _: [f32; 3], _: f32| {};
+    let ctl = &Control { cancelled: ctl.cancelled, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: &quiet };
     let w = crate::feasible::find_witness(g, neutrons, req, ctl.cancelled)?;
     let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
     let capacity = fuel_model.map(|m| m.capacity).unwrap_or(0.0);
@@ -1328,7 +1333,8 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
 /// started, never past the plot's budget.
 const WITNESS_HOLD_MS: u64 = 3_000;
 fn witness_release_ms(time_budget_ms: u64) -> u64 {
-    if time_budget_ms > 0 { WITNESS_HOLD_MS.min(time_budget_ms) } else { WITNESS_HOLD_MS }
+    // No budget (tests, probes): nothing to hold for.
+    if time_budget_ms > 0 { WITNESS_HOLD_MS.min(time_budget_ms) } else { 0 }
 }
 
 /// The request the witness is refined under: the caller's, with eager
@@ -4564,7 +4570,7 @@ pub(crate) mod tests {
     fn the_witness_is_held_and_pruned_before_it_is_offered() {
         assert_eq!(witness_release_ms(100_000), 3_000);
         assert_eq!(witness_release_ms(2_000), 2_000, "never past the plot's budget");
-        assert_eq!(witness_release_ms(0), 3_000);
+        assert_eq!(witness_release_ms(0), 0, "no budget, no hold");
     }
 
     /// The witness is refined EAGERLY, whatever the request's fuel mode: the
