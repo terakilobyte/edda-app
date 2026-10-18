@@ -82,8 +82,12 @@ struct Side {
     target_pos: [f32; 3],
     buckets: Vec<Bucket>,
     k: usize,
-    parent: std::collections::HashMap<(u32, u8), (u32, u8, bool)>,
-    /// star -> (bucket, dry) at which it closed first.
+    /// (star, bucket, dry) -> (parent star, its bucket, its dry, injected).
+    /// Keyed by the dry count too: a star re-opened with fewer dry jumps
+    /// is stitched through THAT parent, never the first chain's.
+    parent: std::collections::HashMap<(u32, u8, u8), (u32, u8, u8, bool)>,
+    /// star -> (bucket, dry) at which it closed: the first bucket, and the
+    /// fewest dry jumps it closed with in that bucket.
     closed: std::collections::HashMap<u32, (u8, u8)>,
 }
 
@@ -115,7 +119,7 @@ impl Side {
                 continue;
             }
             self.buckets[k].best_dry.insert(star, dry);
-            self.closed.entry(star).or_insert((k as u8, dry));
+            self.closed.entry(star).and_modify(|c| if c.0 as usize == k && dry < c.1 { c.1 = dry }).or_insert((k as u8, dry));
             self.expand(g, neutrons, req, reaches, cap, max_inj, star, dry, k, scratch);
             return Some((star, k as u8, dry));
         }
@@ -155,7 +159,7 @@ impl Side {
             if side.buckets[kn].best_dry.get(&t).is_some_and(|&b| b <= dry_t) {
                 return;
             }
-            side.parent.entry((t, kn as u8)).or_insert((star, k as u8, injected));
+            side.parent.entry((t, kn as u8, dry_t)).or_insert((star, k as u8, dry, injected));
             let key = dist(g.pos_of(t), side.target_pos);
             let _ = d;
             side.buckets[kn].push(key, t, dry_t);
@@ -250,8 +254,8 @@ pub fn find_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, cancelled
         if let Some(&(ko, dry_o)) = other.closed.get(&star) {
             let joined_dry = if g.scoopable(star) { 0 } else { dry as u32 + dry_o as u32 };
             if k as usize + ko as usize <= max_inj && joined_dry <= cap as u32 {
-                let (kf, kb) = if forward_turn { (k, ko) } else { (ko, k) };
-                return Ok(stitch(&fwd, &bwd, star, kf, kb, expansions));
+                let (kf, df, kb, db) = if forward_turn { (k, dry, ko, dry_o) } else { (ko, dry_o, k, dry) };
+                return Ok(stitch(&fwd, &bwd, star, (kf, df), (kb, db), expansions));
             }
         }
     }
@@ -259,26 +263,26 @@ pub fn find_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, cancelled
 
 /// The witness through `meet`: the forward chain from the origin to it, then
 /// the backward chain from it to the goal.
-fn stitch(fwd: &Side, bwd: &Side, meet: u32, kf: u8, kb: u8, expansions: u64) -> Witness {
+fn stitch(fwd: &Side, bwd: &Side, meet: u32, (kf, df): (u8, u8), (kb, db): (u8, u8), expansions: u64) -> Witness {
     let mut head = vec![meet];
     let mut head_inj: Vec<bool> = Vec::new();
-    let mut cur = (meet, kf);
+    let mut cur = (meet, kf, df);
     while cur.0 != fwd.origin || cur.1 != 0 {
-        let &(p, pk, injected) = fwd.parent.get(&cur).expect("a forward parent");
+        let &(p, pk, pd, injected) = fwd.parent.get(&cur).expect("a forward parent");
         head_inj.push(injected);
         head.push(p);
-        cur = (p, pk);
+        cur = (p, pk, pd);
     }
     head.reverse();
     head_inj.reverse();
     let mut stars = head;
     let mut injected_hops = head_inj;
-    let mut cur = (meet, kb);
+    let mut cur = (meet, kb, db);
     while cur.0 != bwd.origin || cur.1 != 0 {
-        let &(n, nk, injected) = bwd.parent.get(&cur).expect("a backward parent");
+        let &(n, nk, nd, injected) = bwd.parent.get(&cur).expect("a backward parent");
         injected_hops.push(injected);
         stars.push(n);
-        cur = (n, nk);
+        cur = (n, nk, nd);
     }
     let injections = injected_hops.iter().enumerate().filter(|(_, &inj)| inj).map(|(i, _)| i + 1).collect();
     Witness { stars, injections, expansions }
@@ -384,6 +388,49 @@ mod tests {
                 assert!(run <= dry_cap(req.fuel.as_ref()) as usize, "{run} dry jumps in a row");
             }
         }
+    }
+
+    /// A star reached first down a long dry chain and again, later, from a
+    /// scoop is stitched through the SECOND parent: the first chain's dry
+    /// run plus the run after the star is over the cap (the reverse Jongou
+    /// witness carried a 27-hop dry run on a 17-hop cap, 2026-10-18). Start
+    /// K, three brown dwarfs to T, four more to the goal K: 8 dry in a row,
+    /// unflyable; an arc of K stars reaches T at one dry jump. A fan of K
+    /// stars past the goal keeps the backward frontier wide so the forward
+    /// side does the walking: first down the dwarfs (closer to the goal),
+    /// then round the arc, re-opening T with fewer dry jumps.
+    #[test]
+    fn a_star_reopened_with_fewer_dry_jumps_is_stitched_through_its_better_parent() {
+        let m = FuelModel::from_loadout(319.0, 32.0, 5.2, 5, true, false, 77.9, 10.5, 0.0);
+        let range = m.range_at(m.capacity);
+        assert!((60.0..84.0).contains(&range), "60 ly hops fly, 85 ly hops do not: range {range}");
+        let bd = "L (Brown dwarf) Star";
+        let mut stars = vec![star("Start", 0.0, 0.0, 0.0, K)];
+        for i in 1..=3 {
+            stars.push(star(&format!("D{i}"), i as f32 * 60.0, 0.0, 0.0, bd));
+        }
+        stars.push(star("T", 240.0, 0.0, 0.0, bd));
+        for i in 1..=4 {
+            stars.push(star(&format!("E{i}"), 240.0 + i as f32 * 60.0, 0.0, 0.0, bd));
+        }
+        stars.push(star("Goal", 540.0, 0.0, 0.0, K));
+        for (i, (x, y)) in [(0.0, 60.0), (0.0, 120.0), (60.0, 120.0), (120.0, 120.0), (180.0, 120.0), (240.0, 120.0), (240.0, 60.0)].into_iter().enumerate() {
+            stars.push(star(&format!("A{i}"), x, y, 0.0, K));
+        }
+        for i in 0..12 {
+            let th = (-75.0f32 + i as f32 * 150.0 / 11.0).to_radians();
+            stars.push(star(&format!("Fan{i}"), 540.0 + 50.0 * th.cos(), 50.0 * th.sin(), 0.0, K));
+        }
+        let f = build(&stars);
+        let req = RouteRequest { from: f.g.find("Start").unwrap(), to: f.g.find("Goal").unwrap(), range_ly: range, fuel: Some(m), start_fuel: 32.0, ..Default::default() };
+        let w = find_witness(&f.g, &f.neutrons, &req, &|| false).expect("the arc is a witness");
+        let names: Vec<&str> = w.stars.iter().map(|&s| f.g.name(&f.g.record(s))).collect();
+        let mut run = 0usize;
+        for &s in &w.stars[1..] {
+            if f.g.scoopable(s) { run = 0 } else { run += 1 }
+            assert!(run <= dry_cap(req.fuel.as_ref()) as usize, "{run} dry jumps in a row: {names:?}");
+        }
+        assert!(names.contains(&"A6"), "stitched through the arc: {names:?}");
     }
 
     /// The backward side counts the run AHEAD of a star: a scoopable
