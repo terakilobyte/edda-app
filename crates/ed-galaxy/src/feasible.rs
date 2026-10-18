@@ -38,12 +38,13 @@ pub fn feasible_reaches(req: &RouteRequest) -> Reaches {
 }
 
 /// Jumps the tank funds between scoops: a maximum jump of any kind burns
-/// at most `max_fuel_per_jump`, so `capacity / max_fuel_per_jump` dry
-/// jumps always replay under the real model (the Caspian: 18; the
-/// Mandalay: 6). 63 without a model.
+/// at most `max_fuel_per_jump`, so `capacity / max_fuel_per_jump` is the
+/// most the tank can fly dry, and one of those is kept in hand for the
+/// planner's reserve and the burn model's drift at light mass (the
+/// Caspian: 17; the Mandalay: 5). 63 without a model.
 pub fn dry_cap(m: Option<&crate::fuel::FuelModel>) -> u8 {
     match m {
-        Some(m) if m.max_fuel_per_jump > 0.0 => ((m.capacity / m.max_fuel_per_jump).floor() as u8).clamp(1, 63),
+        Some(m) if m.max_fuel_per_jump > 0.0 => ((m.capacity / m.max_fuel_per_jump).floor() as u8).saturating_sub(1).clamp(1, 63),
         _ => 63,
     }
 }
@@ -356,13 +357,15 @@ mod tests {
     }
 
     /// Brown dwarfs (unscoopable) 60 ly apart for 25 hops, a Mandalay with
-    /// a 32 t tank and 5.2 t a jump (6 dry jumps): no witness, because the
-    /// 7th dry jump cannot be flown; with a K star every 5 hops the witness
-    /// exists and never exceeds 6 dry jumps between scoops.
+    /// a 32 t tank and 5.2 t a jump (5 dry jumps, one jump in hand): no
+    /// witness, because the 6th dry jump cannot be flown; with a K star
+    /// every 5 hops the witness exists and never exceeds the cap.
     #[test]
     fn the_witness_never_runs_more_dry_jumps_than_the_tank_allows() {
         let m = FuelModel::from_loadout(319.0, 32.0, 5.2, 5, true, false, 77.9, 10.5, 0.0);
-        assert_eq!(dry_cap(Some(&m)), 6);
+        assert_eq!(dry_cap(Some(&m)), 5, "32 t at 5.2 t a jump is 6 maximum jumps; one is kept in hand for the reserve and the burn model's drift");
+        let caspian = FuelModel::from_loadout(1323.3, 128.0, 6.8, 8, true, true, 77.81, 10.5, 0.0);
+        assert_eq!(dry_cap(Some(&caspian)), 17);
         let dry: Vec<_> = (0..26).map(|i| star(&format!("D{i}"), i as f32 * 60.0, 0.0, 0.0, "L (Brown dwarf) Star")).collect();
         let f = build(&dry);
         let req = RouteRequest { from: f.g.find("D0").unwrap(), to: f.g.find("D25").unwrap(), range_ly: m.range_at(m.capacity), fuel: Some(m), start_fuel: 32.0, ..Default::default() };

@@ -1281,6 +1281,12 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     // again, per stretch); a window that cannot be refined within its cap
     // fails the pass, and the raw witness -- every star a one-hop leg --
     // is the fallback that cannot.
+    // Eager refuelling: the witness assumed a refill at every scoopable
+    // star; the min-fuel refinement stripped the stops it relied on and its
+    // final pass met a neutron hop with 7 t in the tank (reverse Jongou,
+    // 2026-10-18). The judge prunes the eager route afterwards.
+    let eager = witness_refinement_request(req);
+    let req = &eager;
     let windowed = witness_windows(g, &w.stars, WITNESS_WINDOW_LY, capacity);
     match refine_waypoints(g, req, ctl, windowed, start_fuel, fuel_model, w.expansions, straight, started) {
         Ok(r) => Ok(r),
@@ -1293,6 +1299,12 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
             refine_waypoints(g, req, ctl, raw, start_fuel, fuel_model, w.expansions, straight, started)
         }
     }
+}
+
+/// The request the witness is refined under: the caller's, with eager
+/// refuelling whatever its fuel mode.
+fn witness_refinement_request(req: &RouteRequest) -> RouteRequest {
+    RouteRequest { min_fuel: false, ..req.clone() }
 }
 
 /// How far apart the witness's refinement windows are cut (at witness
@@ -4517,6 +4529,17 @@ pub(crate) mod tests {
             let allowed = r.range_ly * if w[1].injection.is_some() { 2.0 } else { 1.0 } + 0.01;
             assert!(d <= allowed, "{} -> {}: {d:.1} ly over {allowed:.1}", w[0].name, w[1].name);
         }
+    }
+
+    /// The witness is refined EAGERLY, whatever the request's fuel mode: the
+    /// feasibility search assumed a refill at every scoopable star, and the
+    /// min-fuel refinement stripped the stops it relied on (the reverse
+    /// Jongou witnesses, 2026-10-18: a neutron hop reached with 7 t).
+    #[test]
+    fn the_witness_is_refined_with_eager_stops() {
+        let r = RouteRequest { min_fuel: true, ..Default::default() };
+        assert!(!witness_refinement_request(&r).min_fuel);
+        assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
     }
 
     /// The witness's route reaches the early-answer hook like any other
