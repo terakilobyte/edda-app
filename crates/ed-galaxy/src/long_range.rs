@@ -4068,7 +4068,7 @@ pub fn refine_waypoints(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::fuel::{BoostProfile, FuelModel};
     use crate::import::{import_reader, subset_cells};
@@ -4076,20 +4076,20 @@ mod tests {
     use std::path::Path;
     use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
-    const K: &str = "K (Yellow-Orange) Star";
+    pub(crate) const K: &str = "K (Yellow-Orange) Star";
     const L: &str = "L (Brown dwarf) Star";
-    const N: &str = "Neutron Star";
+    pub(crate) const N: &str = "Neutron Star";
     const WD: &str = "White Dwarf (DA) Star";
 
     /// A synthetic index plus its neutron sub-index, written through the
     /// crate's own importer so the tests exercise the real on-disk path.
-    struct Field {
-        _dir: tempfile::TempDir,
-        g: Galaxy,
-        neutrons: Galaxy,
+    pub(crate) struct Field {
+        pub(crate) _dir: tempfile::TempDir,
+        pub(crate) g: Galaxy,
+        pub(crate) neutrons: Galaxy,
     }
 
-    fn build(stars: &[(String, f32, f32, f32, &str)]) -> Field {
+    pub(crate) fn build(stars: &[(String, f32, f32, f32, &str)]) -> Field {
         build_with(stars, highway_star)
     }
 
@@ -4584,7 +4584,7 @@ mod tests {
         assert_eq!(route.boosted_jumps, 1);
     }
 
-    fn star(name: &str, x: f32, y: f32, z: f32, sub: &'static str) -> (String, f32, f32, f32, &'static str) {
+    pub(crate) fn star(name: &str, x: f32, y: f32, z: f32, sub: &'static str) -> (String, f32, f32, f32, &'static str) {
         (name.to_string(), x, y, z, sub)
     }
 
