@@ -238,6 +238,45 @@ verdicts live in the CSV headers under `docs/benches/`.
   reproduce), the start-order knob. Still lost: both reverse Jongou
   routes -- an injection-only goal whose approach the coarse graph assumes
   bridgeable and the exact planner cannot fly (R4's honest bridge pricing).
+  **R3 and the witness (night of 2026-10-17/18, branch `planner/r3`,
+  `2026-10-17-planner-matrix.csv` arms w5p-3 .. w8, table
+  `2026-10-18-planner-matrix-r3-table.md`, holistic review
+  `docs/superpowers/specs/2026-10-18-planner-holistic-review.md`):** ALL 28
+  ROUTES HAVE A ROUTE on three threads for the first time. A bidirectional
+  FEASIBILITY WITNESS (`feasible.rs`: state = star, dry jumps since the last
+  scoop, injections spent; greedy on distance to the far end; two sides
+  meeting when their injections and joined dry run fit the tank) finds a
+  flyable star sequence on every pinned route in 0.3-4 s and is portfolio
+  index 0, refined eagerly and pruned, never arming: the first route the
+  pilot sees on a hard plot, and on the two Byoi -> Jongou reverse routes the
+  only one any planner of ours ever had (919 j / 36 stops, 1,055 j / 39;
+  the external reference 477 / 516, so these two are the only routes still
+  longer than it). Its parent map keyed by (star, bucket) kept a first
+  parent and stitched a 27-hop dry run onto a 17-hop cap (found with
+  `witness --dump`); keyed by the dry count too, every hard witness sits
+  exactly at the cap. LazySP: a refinement leg that cannot be flown bans
+  its coarse edge for the plot and the variant re-plans (twice at most);
+  a repaired route arms the grace clock only under the credibility
+  ceiling (a repaired 425 j rim route armed at 6 s and cut the 412 j dig).
+  The BOUND-GAP STOP: no escalation wave while the standing best is under
+  the ceiling (Wongi -> Blaa Hypai 99.9 -> 6.7 s; 2 better / 26 same / 0
+  worse, on by default). Final gate, seconds judge: three threads 16 / 6 / 6
+  vs the shipped planner and 6 / 15 / 7 vs the R2 head; PC 17 / 6 / 5 and
+  9 / 14 / 5. The worse rows are the three-thread SCHEDULING RACE, not the
+  search: the reserve-0.4 singles now finish in 2-3 s and arm, so the rim
+  plots end at 7 / 30 s with 425 / 462 j where the thin bidi's 412 / 447
+  needed the budget (both still under the reference's 451 / 591), Colonia
+  <-> Spase end at 2 / 6 s with 89 / 92 j, and Jongou XM-W -> CQ-G's 402 j
+  scan twins get a worker only at 75-97 s behind the stalled singles
+  (reproduced with the pre-R3 binary in isolation). Measured and NOT
+  shipped: the shared incumbent pruning (R3 Task 4; a wash, the pre-
+  registered wall gains absent, `ED_INCUMBENT=1`), the base single gated by
+  the ceiling (Beagle 1 -> 13 s, Sol -> Beagle 100 s, `ED_SINGLE_CEILING`),
+  windowed witness refinement, the 3 s witness hold. OPEN: the three-thread
+  schedule -- a variant that stalls holds a worker to the cut; the
+  maintainer's "hop between techniques on a stall" (a first-wave time slice
+  per variant) is the next arm; the rim quality-vs-time call (412 j in
+  100 s or 425 j in 7 s) is his.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
