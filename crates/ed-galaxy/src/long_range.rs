@@ -3204,7 +3204,15 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     // the refusals -- [edge too far to bridge, no fundable candidate,
     // beaten at the state, pareto-dominated].
     let trace = std::env::var_os("ED_COARSE_TRACE").is_some();
+    // ED_GOAL_BRIDGE (study knob, 2026-10-17): the plain-jump run the last
+    // coarse edge may hand the exact planner; the start end allows
+    // MAX_END_BRIDGE_JUMPS, the goal end MAX_GOAL_BRIDGE_JUMPS.
+    let goal_bridge: u32 = std::env::var("ED_GOAL_BRIDGE").ok().and_then(|v| v.parse().ok()).unwrap_or(MAX_GOAL_BRIDGE_JUMPS);
+    // ED_COARSE_FAR_BRIDGES (study knob, 2026-10-17): the plain jumps a
+    // widened mid-route scan may bridge (default MAX_BRIDGE_JUMPS x 3).
+    let far_bridges: u32 = std::env::var("ED_COARSE_FAR_BRIDGES").ok().and_then(|v| v.parse().ok()).unwrap_or(MAX_BRIDGE_JUMPS * 3);
     let mut trace_counts = [0u64; 4];
+    let mut trace_refused: std::collections::HashSet<u32> = std::collections::HashSet::new();
     (ctl.stage)("coarse", 0, 0);
     // How far out the search settled, for the variant outcome (0 = goal).
     let mut stall_at: f32 = 0.0;
@@ -3391,8 +3399,12 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 }
             };
             let mut any = false;
+            let would_improve = trace && n_idx != GOAL && dist(n_pos, goal_pos) < best_remaining;
             if candidates.iter().all(|c| c.0.is_nan()) {
                 trace_counts[1] += 1;
+                if would_improve && trace_refused.insert(n_idx) {
+                    eprintln!("    TRACE refused (no fuel) {} at {:.0} ly from goal, d {d:.0}, fuel here {:.1}, bridges {:.0}, injected {injected}", neutrons.name(&neutrons.record(n_idx)), dist(n_pos, goal_pos), cur.fuel, edge_bridges);
+                }
             }
             for (cost, fuel_after, via_scoop) in candidates {
                 if cost.is_nan() {
@@ -3402,12 +3414,18 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 let nk = key(n_idx, fuel_after);
                 if best_g.get(&nk).is_some_and(|&bg| bg <= ng) {
                     trace_counts[2] += 1;
+                    if would_improve && trace_refused.insert(n_idx) {
+                        eprintln!("    TRACE refused (beaten at the state) {} at {:.0} ly from goal, d {d:.0}, g {ng:.1} vs {:.1}", neutrons.name(&neutrons.record(n_idx)), dist(n_pos, goal_pos), best_g[&nk]);
+                    }
                     continue;
                 }
                 if n_idx != GOAL {
                     let e = pareto.entry(n_idx).or_default();
                     if e.iter().any(|&(c0, f0)| c0 <= ng && f0 >= fuel_after - 0.5) {
                         trace_counts[3] += 1;
+                        if would_improve && trace_refused.insert(n_idx) {
+                            eprintln!("    TRACE refused (pareto) {} at {:.0} ly from goal, d {d:.0}, g {ng:.1} fuel {fuel_after:.1}", neutrons.name(&neutrons.record(n_idx)), dist(n_pos, goal_pos));
+                        }
                         continue;
                     }
                     e.retain(|&(c0, f0)| !(ng <= c0 && fuel_after >= f0));
@@ -3431,8 +3449,8 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // Straight to the goal when one edge covers it; the last edge may be
         // a long ordinary run (cost: one jump per full-tank range, scooping
         // on the way is the refiner's business).
-        if remaining <= direct_radius + full_range * MAX_GOAL_BRIDGE_JUMPS as f32 {
-            relax(GOAL, goal_pos, remaining, &mut best_g, &mut parent, &mut open, &mut pareto, MAX_GOAL_BRIDGE_JUMPS);
+        if remaining <= direct_radius + full_range * goal_bridge as f32 {
+            relax(GOAL, goal_pos, remaining, &mut best_g, &mut parent, &mut open, &mut pareto, goal_bridge);
         }
 
         // Neutrons reachable in one boosted jump first; widen to bridging
@@ -3651,7 +3669,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
             // -- a widen that pushes nothing still SEES candidates (they
             // fail highway_ok, the corridor bound or relax), so the sphere
             // is almost never dark and the check was pure overhead.
-            let far = if cur.idx == START { direct_radius + full_range * MAX_END_BRIDGE_JUMPS as f32 } else { direct_radius + full_range * (MAX_BRIDGE_JUMPS * 3) as f32 };
+            let far = if cur.idx == START { direct_radius + full_range * MAX_END_BRIDGE_JUMPS as f32 } else { direct_radius + full_range * far_bridges as f32 };
             neutrons.for_each_within_toward(here, far, toward, |n_idx, d| {
                 if cur.idx == n_idx || d <= direct_radius + full_range || !highway_ok(n_idx) {
                     return;
@@ -3660,7 +3678,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
                 if dist(n_pos, goal_pos) > corridor {
                     return;
                 }
-                relax(n_idx, n_pos, d, &mut best_g, &mut parent, &mut open, &mut pareto, if cur.idx == START { MAX_END_BRIDGE_JUMPS } else { MAX_BRIDGE_JUMPS * 3 });
+                relax(n_idx, n_pos, d, &mut best_g, &mut parent, &mut open, &mut pareto, if cur.idx == START { MAX_END_BRIDGE_JUMPS } else { far_bridges });
             });
             widened += 1;
         }
