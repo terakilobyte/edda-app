@@ -1547,6 +1547,15 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         None => refine_waypoints(g, req, ctl, raw(), start_fuel, fuel_model, w.expansions, straight, started),
     };
     let mut route = refined?;
+    // R4 Task D (ED_WITNESS_SEGMENTS=1): the raw witness reaches the pilot
+    // now, through the plot's own hook; what this variant returns is the
+    // witness re-planned in segments when that is better.
+    if std::env::var_os("ED_WITNESS_SEGMENTS").is_some() && w.stars.len() > 2 {
+        (ctl.found)(&route);
+        if let Some(better) = witness_segments(g, neutrons, &w, req, ctl, fuel_model, start_fuel, straight, started, &route) {
+            route = better;
+        }
+    }
     // The eager refinement marks a stop at every scoopable star (683 on the
     // rim reverse). Offered in the plot's judging currency: pruned to the
     // stops the tank needs when the fold judges lean (`lean` = the plot's
@@ -1567,6 +1576,122 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     // (2026-10-18, arm w4-3): the holding worker slept a third of the lane,
     // short routes' walls doubled, the delayed arming let the x4 waves fire.
     Ok(route)
+}
+
+/// R4 Task D: the witness's pins -- index 0, then every witness star at
+/// which the path since the last pin reaches `seg_ly`, then the last.
+fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
+    let mut pins = vec![0usize];
+    let mut since = 0.0f32;
+    for i in 1..path.len() {
+        since += dist(path[i - 1], path[i]);
+        if since >= seg_ly {
+            pins.push(i);
+            since = 0.0;
+        }
+    }
+    if path.len() > 1 && *pins.last().unwrap() != path.len() - 1 {
+        pins.push(path.len() - 1);
+    }
+    pins
+}
+
+/// R4 Task D: the witness, re-planned in segments. Each stretch between
+/// two pins gets the coarse+refine planner in the scan twins' shape (the
+/// one shape that crosses the rim) with the stretch's own fuel and the
+/// injections still in hand; a stretch the planner cannot better inside
+/// its time falls back to the witness's own hops, so the whole is never
+/// worse than the witness. `None` when nothing improved or the plot was
+/// cancelled. ED_WSEG_LY (3,000) and ED_WSEG_MS (3,000) for the harness.
+#[allow(clippy::too_many_arguments)]
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route) -> Option<Route> {
+    let seg_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(3_000.0);
+    let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(3_000);
+    let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
+    let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
+    let pins = witness_pins(&pos, seg_ly);
+    let capacity = fuel_model.map(|m| m.capacity).unwrap_or(0.0);
+    let mut fuel = start_fuel;
+    let mut used_inj: u32 = 0;
+    let mut whole: Option<Route> = None;
+    let (mut improved, mut fell_back) = (0usize, 0usize);
+    if debug {
+        eprintln!("    witness segments: {} stars, {} pins of ~{seg_ly:.0} ly, {seg_ms} ms each, start fuel {start_fuel:.0}", w.stars.len(), pins.len());
+    }
+    for win in pins.windows(2) {
+        if (ctl.cancelled)() {
+            if debug {
+                eprintln!("    witness segments: cancelled at pin {}", win[0]);
+            }
+            return None;
+        }
+        let (i, j) = (win[0], win[1]);
+        let (a, b) = (w.stars[i], w.stars[j]);
+        let t_seg = std::time::Instant::now();
+        let inj_left = req.injection.map(|(m, n, k)| (m, n, k.saturating_sub(used_inj)));
+        let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: seg_ms, injection: inj_left, ..req.clone() };
+        let none = std::sync::atomic::AtomicBool::new(false);
+        let planned = plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT);
+        if debug {
+            eprintln!("      segment {i}..{j} ({} witness hops, {:.0} ly, fuel {fuel:.0}): {} in {} ms", j - i, dist(pos[i], pos[j]), match &planned { Ok(r) => format!("{} j", r.jumps), Err(e) => format!("{e:?}") }, t_seg.elapsed().as_millis());
+        }
+        let seg = match planned {
+            Ok(r) if r.jumps <= j - i => {
+                improved += 1;
+                r
+            }
+            Err(RouteError::Cancelled) => {
+                if debug {
+                    eprintln!("    witness segments: the plot cancelled the segment planner");
+                }
+                return None;
+            }
+            planned => {
+                // The witness's own hops for this stretch -- flyable from a
+                // full tank by construction, not always from the tank this
+                // segment really starts with (219..227 began at 5 t): when
+                // they do not fly, a longer planned segment still stands.
+                let wps: Vec<(u32, f32)> = w.stars[i..=j].iter().map(|&s| (s, capacity)).collect();
+                match (refine_waypoints(g, req, ctl, wps, fuel, fuel_model, 0, straight, started), planned) {
+                    (Ok(r), _) => {
+                        fell_back += 1;
+                        r
+                    }
+                    (Err(_), Ok(r)) => {
+                        improved += 1;
+                        r
+                    }
+                    (Err(e), Err(_)) => {
+                        if debug {
+                            eprintln!("    witness segments: neither the planner nor the witness's hops fly {i}..{j} from {fuel:.0} t ({e:?})");
+                        }
+                        return None;
+                    }
+                }
+            }
+        };
+        fuel = seg.hops.last().and_then(|h| h.fuel_after).unwrap_or(fuel);
+        used_inj += seg.injections as u32;
+        whole = Some(match whole {
+            None => seg,
+            Some(mut wh) => {
+                wh.hops.extend(seg.hops.into_iter().skip(1));
+                wh.jumps += seg.jumps;
+                wh.total_ly += seg.total_ly;
+                wh.boosted_jumps += seg.boosted_jumps;
+                wh.refuel_stops += seg.refuel_stops;
+                wh.expansions += seg.expansions;
+                wh.injections += seg.injections;
+                wh
+            }
+        });
+    }
+    let mut route = whole?;
+    route.straight_ly = straight;
+    if debug {
+        eprintln!("    witness segments: {} pins, {improved} improved, {fell_back} fell back; {} j vs the raw witness's {} j at {} ms", pins.len(), route.jumps, raw.jumps, started.elapsed().as_millis());
+    }
+    (route.jumps < raw.jumps).then_some(route)
 }
 
 /// The request the witness is refined under: the caller's, with eager
@@ -5066,6 +5191,17 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// R4 Task D: the witness's pins -- its first star, then a star every
+    /// `seg_ly` of path, then its last -- cut the witness into stretches
+    /// the coarse planner re-plans with full freedom inside each.
+    #[test]
+    fn the_witness_is_pinned_every_segment_length_of_path() {
+        let path: Vec<[f32; 3]> = (0..11).map(|i| [i as f32 * 100.0, 0.0, 0.0]).collect();
+        assert_eq!(witness_pins(&path, 300.0), vec![0, 3, 6, 9, 10], "every 300 ly of a 1,000 ly line, and the end");
+        assert_eq!(witness_pins(&path, 5_000.0), vec![0, 10], "a stretch longer than the path: the ends");
+        assert_eq!(witness_pins(&path[..1], 300.0), vec![0], "a one-star witness");
     }
 
     /// The witness is offered in the plot's judging currency: pruned to its
