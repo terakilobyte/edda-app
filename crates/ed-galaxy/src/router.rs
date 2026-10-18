@@ -429,14 +429,25 @@ pub struct LegMemo {
     remembers: bool,
     /// Per leg, the plans made so far with the tank each was planned from.
     legs: std::sync::Mutex<Option<rustc_hash::FxHashMap<LegKey, Vec<(f32, Result<Route, RouteError>)>>>>,
+    /// Per leg, the (tank, time budget ms) pairs that ran out of time (R3
+    /// Task 3): a lookup with no more tank and no more time skips the leg.
+    too_costly: std::sync::Mutex<Vec<(LegKey, f32, u64)>>,
 }
 
 /// The memo that remembers nothing: for `Control::none()`.
-pub static NO_LEG_MEMO: LegMemo = LegMemo { remembers: false, legs: std::sync::Mutex::new(None) };
+pub static NO_LEG_MEMO: LegMemo = LegMemo { remembers: false, legs: std::sync::Mutex::new(None), too_costly: std::sync::Mutex::new(Vec::new()) };
 
 impl LegMemo {
     pub fn for_plot() -> LegMemo {
-        LegMemo { remembers: true, legs: std::sync::Mutex::new(Some(rustc_hash::FxHashMap::default())) }
+        LegMemo { remembers: true, legs: std::sync::Mutex::new(Some(rustc_hash::FxHashMap::default())), too_costly: std::sync::Mutex::new(Vec::new()) }
+    }
+
+    /// Remember that the leg ran out of `budget_ms` from `fuel` tonnes.
+    pub fn put_too_costly(&self, key: LegKey, fuel: f32, budget_ms: u64) {
+        if !self.remembers {
+            return;
+        }
+        self.too_costly.lock().unwrap_or_else(|e| e.into_inner()).push((key, fuel, budget_ms));
     }
     /// The plan for this leg that `fuel` can trust: a ROUTE planned from the
     /// highest tank not above `fuel` (more fuel still flies it), else a
@@ -444,9 +455,16 @@ impl LegMemo {
     /// A failure from less fuel says nothing about more, and a route from
     /// more fuel nothing about less: those are misses (the first memo got
     /// this wrong and Beagle Point -> Sol became no route, 2026-10-17).
-    pub fn get(&self, key: &LegKey, fuel: f32) -> Option<Result<Route, RouteError>> {
+    pub fn get(&self, key: &LegKey, fuel: f32, budget_ms: u64) -> Option<Result<Route, RouteError>> {
         if !self.remembers {
             return None;
+        }
+        {
+            let costly = self.too_costly.lock().unwrap_or_else(|e| e.into_inner());
+            // A budget of 0 is no budget: no earlier attempt had more time.
+            if budget_ms > 0 && costly.iter().any(|(k, f, ms)| k == key && *f >= fuel - 0.01 && *ms >= budget_ms) {
+                return Some(Err(RouteError::Budget));
+            }
         }
         let legs = self.legs.lock().unwrap_or_else(|e| e.into_inner());
         let plans = legs.as_ref()?.get(key)?;

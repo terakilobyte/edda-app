@@ -591,12 +591,16 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
     let key = LegKey::new(from, to, req.injection.map(|(_, _, n)| n).unwrap_or(0), req.fuel.map(|m| m.reserve).unwrap_or(0.0));
     // ED_LEG_MEMO=0: bisect knob (R1 A/B).
     let memo_on = use_memo && std::env::var("ED_LEG_MEMO").ok().as_deref() != Some("0");
+    let budget_ms = leg_of(from, to, fuel).time_budget_ms;
     if memo_on {
-        if let Some(known) = ctl.legs.get(&key, fuel) {
+        if let Some(known) = ctl.legs.get(&key, fuel, budget_ms) {
             return known;
         }
     }
     let planned = refine_leg_uncached(g, req, ctl, leg_of, from, to, fuel);
+    if memo_on && matches!(planned, Err(RouteError::Budget)) {
+        ctl.legs.put_too_costly(key.clone(), fuel, budget_ms);
+    }
     // Remembered for the first pass only; a re-plan from the real tank is
     // a repair of a leg the memo already holds (the memo keeps routes and
     // NoRoute, never Budget or Cancelled).
@@ -1260,6 +1264,30 @@ fn declared_order_on(knob: Option<&str>) -> bool {
     knob == Some("1")
 }
 
+/// No banned edges: for callers outside a plot's portfolio (tests, the
+/// retrograde and crossing planners).
+pub(crate) static NO_BANS: std::sync::Mutex<Vec<(u32, u32)>> = std::sync::Mutex::new(Vec::new());
+
+/// Run a coarse variant, re-running it while a refinement failure banned a
+/// new coarse edge (LazySP, R3 Task 3): at most `REPAIRS` repairs.
+const REPAIRS: usize = 2;
+fn with_repair(banned: &std::sync::Mutex<Vec<(u32, u32)>>, mut run: impl FnMut() -> Result<Route, RouteError>) -> Result<Route, RouteError> {
+    let count = || banned.lock().unwrap_or_else(|e| e.into_inner()).len();
+    let mut known = count();
+    let mut res = run();
+    for _ in 0..REPAIRS {
+        let now = count();
+        // Only a failure that banned a new edge (this variant's or another's)
+        // is worth a re-run.
+        if res.is_ok() || matches!(res, Err(RouteError::Cancelled)) || now == known {
+            break;
+        }
+        known = now;
+        res = run();
+    }
+    res
+}
+
 /// The witness variant (R3 Task 2): the feasibility search's flyable star
 /// sequence, every star a waypoint, refined by `refine_waypoints` (one-hop
 /// legs are direct; an injected or unfundable hop goes to the exact leg
@@ -1317,24 +1345,11 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
             route = lean;
         }
     }
-    // Hold the floor until the quick optimisers have had their say: on the
-    // routes they solve in a second the user never sees the witness.
-    let release = started + std::time::Duration::from_millis(witness_release_ms(req.time_budget_ms));
-    while std::time::Instant::now() < release {
-        if (ctl.cancelled)() {
-            return Err(RouteError::Cancelled);
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    // Offered at once: the server's best-so-far picker ranks it against
+    // every later answer. A 3 s hold measured negative on three threads
+    // (2026-10-18, arm w4-3): the holding worker slept a third of the lane,
+    // short routes' walls doubled, the delayed arming let the x4 waves fire.
     Ok(route)
-}
-
-/// When the witness's route may be offered: `WITNESS_HOLD_MS` after the plot
-/// started, never past the plot's budget.
-const WITNESS_HOLD_MS: u64 = 3_000;
-fn witness_release_ms(time_budget_ms: u64) -> u64 {
-    // No budget (tests, probes): nothing to hold for.
-    if time_budget_ms > 0 { WITNESS_HOLD_MS.min(time_budget_ms) } else { 0 }
 }
 
 /// The request the witness is refined under: the caller's, with eager
@@ -1505,6 +1520,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     let mut cap_mult: u64 = 1;
     // Legs refined once per plot, shared by every variant and every wave.
     let legs = LegMemo::for_plot();
+    // Coarse edges a leg could not fly, banned for the plot (R3 Task 3).
+    let banned: std::sync::Mutex<Vec<(u32, u32)>> = std::sync::Mutex::new(Vec::new());
     let grace = (req.grace_ms > 0).then(|| std::time::Duration::from_millis(req.grace_ms));
     let (mut variants_run, mut variants_finished) = (0u32, 0u32);
     loop {
@@ -1715,7 +1732,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // the budget. See THIN_FANOUT and thin_budget_ms.
                 let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
                 if i == witness {
-                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true), 7)
+                    (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true, &banned)), 7)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 8)
                 }
@@ -1728,22 +1745,22 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     return (Err(RouteError::Cancelled), false);
                 }
                 let (w, r, b) = variants[i];
-                (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], false), 0)
+                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 0)
             } else if bidi && i == nb {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, lean_base, fields), 1)
             } else if greedy_slots > 0 && i == greedy_single {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1], false), 2)
+                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 2)
             } else if greedy_slots > 1 && i == greedy_single + 1 {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, true, lean_base, fields), 2)
             } else if offramp_slots > 0 && i == greedy_single + greedy_slots {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false), 4)
+                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 4)
             } else if offramp_slots > 1 && i == greedy_single + greedy_slots + 1 {
-                (plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false), 4)
+                (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 4)
             } else if scan_twins > 0 && i >= greedy_single + greedy_slots + offramp_slots && i < greedy_single + greedy_slots + offramp_slots + scan_twins {
                 let s = i - greedy_single - greedy_slots - offramp_slots;
                 if s < 5 {
                     let (w, r, b) = twin_cfg[s];
-                    (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1], false), 6)
+                    (with_repair(&banned, || plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1], false, &banned)), 6)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, !lean_base, fields), 6)
                 }
@@ -2960,7 +2977,7 @@ fn plan_long_retro(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Cont
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back, false)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back, false, &NO_BANS)?;
     let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
     let req = &RouteRequest { fuel: fuel_model, ..req.clone() };
     let start_fuel = fuel_model.map(|m| req.start_fuel.clamp(0.0, m.capacity)).unwrap_or(0.0);
@@ -3043,7 +3060,7 @@ fn plan_long_corridor(
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false, &NO_BANS)?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -3086,7 +3103,7 @@ fn plan_long_corridor(
         let sreq = RouteRequest { from: at, to: pin, start_fuel: fuel, ..req.clone() };
         // Segments run field-less: the plot's goal field prices toward
         // the FINAL goal and would poison a segment's heuristic.
-        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false)?;
+        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS)?;
         fuel = leg.hops.last().and_then(|h| h.fuel_after).unwrap_or(full_tank);
         at = pin;
         whole = Some(match whole {
@@ -3108,7 +3125,7 @@ fn plan_long_corridor(
     Ok(route)
 }
 
-fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>, thin: bool) -> Result<Route, RouteError> {
+fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>, thin: bool, banned: &std::sync::Mutex<Vec<(u32, u32)>>) -> Result<Route, RouteError> {
 
     let started = std::time::Instant::now();
     // Keep a hop's worth of fuel in hand: a route may never arrive at a
@@ -3501,6 +3518,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         }
         let range_here = range_at(cur.fuel);
         let direct_radius = range_here * boost;
+        // Coarse edges a refinement leg could not fly, this plot (R3 Task 3,
+        // LazySP): read once per expansion, refused in relax.
+        let bans: Vec<(u32, u32)> = banned.lock().unwrap_or_else(|e| e.into_inner()).clone();
         if trace && expansions.is_multiple_of(5_000) {
             eprintln!("    TRACE exp {expansions} open {} best_remaining {best_remaining:.0} here [{:.0} {:.0} {:.0}] remaining {remaining:.0} fuel {:.1} g {:.1} inj {} refused {:?}", open.len(), here[0], here[1], here[2], cur.fuel, cur.g, cur.inj, trace_counts);
         }
@@ -3509,6 +3529,9 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // (burning fuel), or via a scoop stop when fuel would not allow it
         // (one more jump, tank refilled short of the target).
         let mut relax = |n_idx: u32, n_pos: [f32; 3], d: f32, best_g: &mut HashMap<u64, f32>, parent: &mut HashMap<u64, (u64, bool)>, open: &mut BinaryHeap<Open>, pareto: &mut HashMap<u32, Vec<(f32, f32)>>, max_bridge: u32| -> bool {
+            if !bans.is_empty() && bans.iter().any(|&(a, b)| a == cur.idx && b == n_idx) {
+                return false;
+            }
             // An edge the ship cannot bridge may still be bridged with one
             // injected (unboosted, x1.25-x2) jump in the run, priced as
             // three jumps like the exact planner does; the injection never
@@ -3944,6 +3967,8 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         }
     };
     let mut waypoints: Vec<(u32, f32)> = chain.iter().filter_map(|&s| full_idx(s).map(|i| (i, fuel_of(s)))).collect();
+    // The sub-index star behind each waypoint, for banning a dead edge.
+    let mut wp_sub: Vec<Option<u32>> = chain.iter().filter_map(|&s| full_idx(s).map(|_| Some((s >> 8) as u32))).collect();
     let stalled = goal_key != Some(key(GOAL, 0.0)) && (gk >> 8) as u32 != GOAL;
     stats.coarse_done.store(!stalled, std::sync::atomic::Ordering::Relaxed);
     if stalled {
@@ -3969,12 +3994,31 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // 2026-10-17: the long hand-off leg arrives dry and the approach
         // leg then fails from 0 t -- `docs/benches/2026-10-17-rim-to-rim-stress.csv`.)
         waypoints.push((req.to, 0.0));
+        wp_sub.push(None);
     } else if gateway.is_some() {
         // Final approach: gateway -> destination, planned like any other leg
         // (the exact planner handles the long ordinary run and its scoops).
         waypoints.push((req.to, 0.0));
+        wp_sub.push(None);
     }
-    refine_waypoints(g, req, ctl, waypoints, start_fuel, fuel_model, expansions, straight, started)
+    let mut failed_leg = None;
+    let refined = refine_waypoints_reporting(g, req, ctl, waypoints, start_fuel, fuel_model, expansions, straight, started, &mut failed_leg);
+    if let (Err(_), Some(i)) = (&refined, failed_leg) {
+        // LazySP (R3 Task 3): the coarse edge whose leg could not be flown
+        // is banned for the plot; the caller re-plans around it.
+        if let (Some(Some(a)), Some(Some(b))) = (wp_sub.get(i), wp_sub.get(i + 1)) {
+            // The sentinels are real coarse nodes: an edge INTO the goal or
+            // OUT of the start can be the dead one.
+            if *a != GOAL && *b != START {
+                banned.lock().unwrap_or_else(|e| e.into_inner()).push((*a, *b));
+                if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                    let label = |x: u32| if x == GOAL { "goal".to_string() } else if x == START { "start".to_string() } else { neutrons.name(&neutrons.record(x)).to_string() };
+                    eprintln!("    banned coarse edge {} -> {} (leg {i} could not be flown); the variant re-plans", label(*a), label(*b));
+                }
+            }
+        }
+    }
+    refined
 }
 
 /// Refine a waypoint chain into a flyable route: plan every leg with the
@@ -3996,6 +4040,27 @@ pub fn refine_waypoints(
     straight: f32,
     started: std::time::Instant,
 ) -> Result<Route, RouteError> {
+    let mut failed = None;
+    refine_waypoints_reporting(g, req, ctl, waypoints, start_fuel, fuel_model, coarse_expansions, straight, started, &mut failed)
+}
+
+/// `refine_waypoints` that also names the first leg that could not be
+/// planned (R3 Task 3): the caller bans that coarse edge and re-plans. The
+/// first pass stops its sibling legs on the first failure instead of
+/// finishing every one of them first.
+#[allow(clippy::too_many_arguments)]
+pub fn refine_waypoints_reporting(
+    g: &Galaxy,
+    req: &RouteRequest,
+    ctl: &Control,
+    waypoints: Vec<(u32, f32)>,
+    start_fuel: f32,
+    fuel_model: Option<crate::fuel::FuelModel>,
+    coarse_expansions: u64,
+    straight: f32,
+    started: std::time::Instant,
+    failed_leg: &mut Option<usize>,
+) -> Result<Route, RouteError> {
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let legs = waypoints.len().saturating_sub(1) as u32;
     for (i, (idx, _)) in waypoints.iter().enumerate() {
@@ -4014,10 +4079,24 @@ pub fn refine_waypoints(
     let leg_of = |from: u32, to: u32, start_fuel: f32| RouteRequest { from, to, weight: LEG_WEIGHT, thorough: false, max_expansions: leg_expansion_cap(dist(g.pos_of(from), g.pos_of(to))), time_budget_ms: leg_time_budget_ms(req.time_budget_ms), start_fuel, ..req.clone() };
     let windows: Vec<[(u32, f32); 2]> = waypoints.windows(2).map(|w| [w[0], w[1]]).collect();
     let plan_legs = |jobs: &[(usize, f32)], use_memo: bool| -> Vec<(usize, Result<Route, RouteError>)> {
+        // The first failure stops the siblings: a dead leg's 25 s is paid
+        // once, not once per leg still queued behind it.
+        let abort = std::sync::atomic::AtomicBool::new(false);
+        // Hundreds of one-hop legs (the witness) go to the pool in a few
+        // chunks, not one task each: a thousand tiny tasks flooded the
+        // box's three workers (2026-10-18, arm w4-3).
+        let min_len = if jobs.len() > 200 { jobs.len() / 4 } else { 1 };
         jobs.par_iter()
+            .with_min_len(min_len)
             .map(|&(i, fuel)| {
+                if abort.load(std::sync::atomic::Ordering::Relaxed) {
+                    return (i, Err(RouteError::Cancelled));
+                }
                 let t = std::time::Instant::now();
                 let r = refine_leg(g, req, ctl, &leg_of, windows[i][0].0, windows[i][1].0, fuel, use_memo);
+                if r.is_err() {
+                    abort.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
                 if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                     match &r {
                         Ok(r) => eprintln!("    leg {i:>2}: {} jumps {} expansions {} ms (fuel {fuel:.0})", r.jumps, r.expansions, t.elapsed().as_millis()),
@@ -4037,7 +4116,17 @@ pub fn refine_waypoints(
     };
     let mut assumed: Vec<f32> = windows.iter().enumerate().map(|(i, w)| if i == 0 { start_fuel } else { w[0].1 }).collect();
     let mut planned: Vec<Option<Route>> = vec![None; windows.len()];
-    for (i, r) in plan_legs(&windows.iter().enumerate().map(|(i, _)| (i, assumed[i])).collect::<Vec<_>>(), true) {
+    let first_pass = plan_legs(&windows.iter().enumerate().map(|(i, _)| (i, assumed[i])).collect::<Vec<_>>(), true);
+    // The first REAL failure names the leg; the siblings it aborted report
+    // Cancelled and are not it.
+    if let Some((i, e)) = first_pass.iter().find_map(|(i, r)| match r {
+        Err(e) if !matches!(e, RouteError::Cancelled) => Some((*i, e.clone_err())),
+        _ => None,
+    }) {
+        *failed_leg = Some(i);
+        return Err(e);
+    }
+    for (i, r) in first_pass {
         planned[i] = Some(r?);
     }
     if debug {
@@ -4562,15 +4651,38 @@ pub(crate) mod tests {
         }
     }
 
-    /// The witness's route is pruned before it is offered (the eager
-    /// refinement marks a stop at every scoopable star: 683 on the rim
-    /// reverse) and held back until WITNESS_HOLD_MS so the optimisers'
-    /// answers come first on the routes they solve in a second.
+    /// R3 Task 3 (LazySP): a coarse edge whose leg the exact planner cannot
+    /// fly is banned for the plot and the variant re-plans around it. A, B,
+    /// C are neutrons on a line with nothing between B and C (600 ly: a
+    /// one-bridge coarse edge with no star to bridge on), and E, F a detour
+    /// at 400 ly hops. The coarse search takes B -> C (2.25 against 3); the
+    /// refinement fails, the edge is banned, the re-run goes B -> E -> F -> C.
     #[test]
-    fn the_witness_is_held_and_pruned_before_it_is_offered() {
-        assert_eq!(witness_release_ms(100_000), 3_000);
-        assert_eq!(witness_release_ms(2_000), 2_000, "never past the plot's budget");
-        assert_eq!(witness_release_ms(0), 0, "no budget, no hold");
+    fn a_failed_leg_bans_its_edge_and_the_variant_re_plans() {
+        // A, B, C in a line; nothing between B and C (500 ly: a one-bridge
+        // coarse edge priced 2.25 with no star to bridge on). The detour E,
+        // F runs 400 ly above the line at boosted hops (3.0). The coarse
+        // search takes B -> C, the refinement fails, the edge is banned and
+        // the re-run goes B -> E -> F -> C.
+        let stars = vec![
+            star("A", 0.0, 0.0, 0.0, N),
+            star("B", 400.0, 0.0, 0.0, N),
+            // C is a K star: the goal is one coarse node (a neutron goal is
+            // also a sub-index node, and the dead edge would need two bans).
+            star("C", 900.0, 0.0, 0.0, K),
+            star("E", 400.0, 400.0, 0.0, N),
+            star("F", 800.0, 400.0, 0.0, N),
+        ];
+        let f = build(&stars);
+        let r = RouteRequest { boost: BoostProfile { neutron: 6.0, white_dwarf: 1.5 }, ..req(&f, "A", "C", 72.0) };
+        let banned = std::sync::Mutex::new(Vec::new());
+        let stalled = std::sync::atomic::AtomicBool::new(false);
+        let plan = || plan_long_with(&f.g, &f.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.75, 1, false, false, false, None, &stalled, &CoarseStats::default(), None, false, &banned);
+        let first = plan();
+        assert!(first.is_err(), "the B -> C leg cannot be flown: {:?}", first.map(|r| names(&r).iter().map(|s| s.to_string()).collect::<Vec<_>>()));
+        assert_eq!(banned.lock().unwrap().len(), 1, "the dead edge is banned");
+        let second = plan().expect("a route once the dead edge is banned");
+        assert_eq!(names(&second), vec!["A", "B", "E", "F", "C"], "banned {:?}", banned.lock().unwrap());
     }
 
     /// The witness is refined EAGERLY, whatever the request's fuel mode: the
@@ -5270,26 +5382,26 @@ pub(crate) mod tests {
         let memo = LegMemo::for_plot();
         let five: Route = serde_json::from_value(serde_json::json!({"range_ly":50.0,"hops":[],"jumps":5,"total_ly":0.0,"straight_ly":0.0,"boosted_jumps":0,"expansions":0,"elapsed_ms":0,"refuel_stops":0,"injections":0,"secondary_boosts":0})).unwrap();
         memo.put(LegKey::new(1, 2, 22, 5.1), 120.0, Ok(five.clone()));
-        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 120.0).unwrap().unwrap().jumps, 5, "the same tank: a hit");
-        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 128.0).unwrap().unwrap().jumps, 5, "more fuel: a candidate the settle rounds verify, a hit");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 120.0, 0).unwrap().unwrap().jumps, 5, "the same tank: a hit");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 128.0, 0).unwrap().unwrap().jumps, 5, "more fuel: a candidate the settle rounds verify, a hit");
         memo.put(LegKey::new(7, 8, 22, 5.1), 100.0, Err(RouteError::Budget));
-        assert!(memo.get(&LegKey::new(7, 8, 22, 5.1), 90.0).is_none(), "a budget failure is the clock's, not the leg's: not kept");
-        assert!(memo.get(&LegKey::new(1, 2, 22, 5.1), 119.0).is_none(), "less fuel: not the same leg");
-        assert!(memo.get(&LegKey::new(1, 2, 21, 5.1), 128.0).is_none(), "injections left are part of the leg");
-        assert!(memo.get(&LegKey::new(1, 3, 22, 5.1), 128.0).is_none(), "another destination");
-        assert!(memo.get(&LegKey::new(1, 2, 22, 2.7), 128.0).is_none(), "another reserve is another variant's leg");
+        assert!(memo.get(&LegKey::new(7, 8, 22, 5.1), 90.0, 0).is_none(), "a budget failure is the clock's, not the leg's: not kept");
+        assert!(memo.get(&LegKey::new(1, 2, 22, 5.1), 119.0, 0).is_none(), "less fuel: not the same leg");
+        assert!(memo.get(&LegKey::new(1, 2, 21, 5.1), 128.0, 0).is_none(), "injections left are part of the leg");
+        assert!(memo.get(&LegKey::new(1, 3, 22, 5.1), 128.0, 0).is_none(), "another destination");
+        assert!(memo.get(&LegKey::new(1, 2, 22, 2.7), 128.0, 0).is_none(), "another reserve is another variant's leg");
         // A later, leaner plan replaces nothing: both are kept, the best fit answers.
         let three: Route = Route { jumps: 3, ..five.clone() };
         memo.put(LegKey::new(1, 2, 22, 5.1), 100.0, Ok(three));
-        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 110.0).unwrap().unwrap().jumps, 3, "the plan from the lower tank serves 110 t");
-        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 125.0).unwrap().unwrap().jumps, 5, "the plan from the higher tank serves 125 t");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 110.0, 0).unwrap().unwrap().jumps, 3, "the plan from the lower tank serves 110 t");
+        assert_eq!(memo.get(&LegKey::new(1, 2, 22, 5.1), 125.0, 0).unwrap().unwrap().jumps, 5, "the plan from the higher tank serves 125 t");
         // A failure runs the other way: impossible from 100 t means impossible
         // from 90 t, and says nothing about 128 t.
         memo.put(LegKey::new(4, 5, 22, 5.1), 100.0, Err(RouteError::NoRoute));
-        assert!(matches!(memo.get(&LegKey::new(4, 5, 22, 5.1), 90.0), Some(Err(RouteError::NoRoute))), "less fuel: the failure stands");
-        assert!(memo.get(&LegKey::new(4, 5, 22, 5.1), 128.0).is_none(), "more fuel: not known to fail");
+        assert!(matches!(memo.get(&LegKey::new(4, 5, 22, 5.1), 90.0, 0), Some(Err(RouteError::NoRoute))), "less fuel: the failure stands");
+        assert!(memo.get(&LegKey::new(4, 5, 22, 5.1), 128.0, 0).is_none(), "more fuel: not known to fail");
         NO_LEG_MEMO.put(LegKey::new(1, 2, 22, 5.1), 128.0, Err(RouteError::NoRoute));
-        assert!(NO_LEG_MEMO.get(&LegKey::new(1, 2, 22, 5.1), 128.0).is_none(), "the shared no-memo never remembers");
+        assert!(NO_LEG_MEMO.get(&LegKey::new(1, 2, 22, 5.1), 128.0, 0).is_none(), "the shared no-memo never remembers");
     }
 
     /// R0 observability (2026-10-17): every portfolio variant reports what
@@ -5543,7 +5655,7 @@ pub(crate) mod tests {
         let hw = highway();
         let r = req(&hw, "K0", "K3000", 60.0);
         let none = std::sync::atomic::AtomicBool::new(false);
-        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false).unwrap();
+        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS).unwrap();
         let both = plan_long_bidi(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "K0");
         assert_eq!(both.hops.last().unwrap().name, "K3000");
@@ -5572,7 +5684,7 @@ pub(crate) mod tests {
         stars.push(star("Goal", 4_200.0, 0.0, 90.0, K));
         let fan = build(&stars);
         let rf = req(&fan, "Start", "Goal", 70.0);
-        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false).unwrap();
+        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS).unwrap();
         let both = plan_long_bidi(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "Start");
         assert_eq!(both.hops.last().unwrap().name, "Goal");

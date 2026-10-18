@@ -1,7 +1,7 @@
 //! The feasibility search alone: a flyable witness route for one pair, or
 //! "no route", with its cost (planner unification R3, 2026-10-18).
 //!
-//!     witness <index_dir> <from> <to> [--inject premium N] [--no-boost] [--max-ms T]
+//!     witness <index_dir> <from> <to> [--inject premium N] [--no-boost] [--max-ms T] [--dump]
 //! ED_WITNESS_TRACE=1 prints the frontier every 20,000 expansions.
 //!
 //! Ship: the maintainer's Caspian Explorer (128 t, 6.8 t a jump, 77.81 ly
@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
     let mut injection = None;
     let mut supercharge = true;
     let mut max_ms: u64 = 0;
+    let mut dump = false;
     let mut i = 4;
     while i < args.len() {
         match args[i].as_str() {
@@ -33,6 +34,10 @@ fn main() -> anyhow::Result<()> {
             }
             "--no-boost" => {
                 supercharge = false;
+                i += 1;
+            }
+            "--dump" => {
+                dump = true;
                 i += 1;
             }
             "--max-ms" => {
@@ -62,6 +67,21 @@ fn main() -> anyhow::Result<()> {
     let cancel = || max_ms > 0 && t.elapsed().as_millis() as u64 > max_ms;
     match ed_galaxy::feasible::find_witness(&g, &neutrons, &req, &cancel) {
         Ok(w) => {
+            if dump {
+                // Every star with its class and scoopability, and the dry
+                // runs (unscoopable arrivals in a row) the witness carries.
+                let mut run = 0usize;
+                let mut longest = 0usize;
+                for (i, &st) in w.stars.iter().enumerate() {
+                    let rec = g.record(st);
+                    let sc = g.scoopable(st);
+                    if i > 0 {
+                        if sc { run = 0 } else { run += 1; longest = longest.max(run); }
+                    }
+                    eprintln!("{i:5} {:40} {:?} scoop={sc} dry_run={run}{}", g.name(&rec), g.class(&rec), if w.injections.contains(&i) { " INJECTED" } else { "" });
+                }
+                eprintln!("longest dry run: {longest}");
+            }
             let boosted = w.stars.windows(2).filter(|p| matches!(g.class(&g.record(p[0])), ed_galaxy::StarClass::Neutron | ed_galaxy::StarClass::WhiteDwarf)).count();
             let total: f32 = w.stars.windows(2).map(|p| { let (a, b) = (g.pos_of(p[0]), g.pos_of(p[1])); ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt() }).sum();
             println!("{{\"from\":\"{}\",\"to\":\"{}\",\"straight_ly\":{:.0},\"hops\":{},\"boosted_departures\":{},\"injections\":{},\"total_ly\":{:.0},\"expansions\":{},\"ms\":{}}}", args[2], args[3], straight, w.stars.len() - 1, boosted, w.injections.len(), total, w.expansions, t.elapsed().as_millis());
