@@ -9,7 +9,7 @@
 //! request allows it. The heuristic uses the *plain* range so it stays
 //! close to admissible over the long stretches where no boost is on offer;
 //! with `weight > 1` it becomes weighted A*, which trades exactness for
-//! speed on long routes -- the same trade Spansh makes.
+//! speed on long routes -- the same trade the external reference makes.
 //!
 //! What this does **not** model yet: fuel. Every hop reports whether its
 //! star is scoopable, and `max_dry_jumps` refuses paths that string more
