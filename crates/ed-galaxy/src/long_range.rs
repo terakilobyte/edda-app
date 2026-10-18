@@ -104,8 +104,10 @@ const COARSE_FANOUT: usize = usize::MAX;
 /// a thin single that stalls that far out fails fast (`THIN_HANDOFF_REACHES`)
 /// so its worker moves on instead of exact-planning 8.5 kly for the rest
 /// of the budget. The two run at indices 0 and 1 so rayon's range split
-/// starts them first on the box's three threads; they arm the grace clock
-/// only under the jump ceiling, like bidi. ED_NO_THIN=1 removes them.
+/// starts them first on the box's three threads; they never arm the grace
+/// clock (a thin answer under the ceiling guillotined the thorough dig on
+/// three threads: Colonia -> Sol 55 -> 56 j, Jongou AA-A 396 -> 406 j).
+/// ED_NO_THIN=1 removes them.
 const THIN_FANOUT: usize = 32;
 const THIN_WEIGHT: f32 = 3.0;
 const THIN_HANDOFF_REACHES: f32 = 10.0;
@@ -1564,7 +1566,15 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // guillotine the flagship's slow 58/2-finder (-39 s,
                 // ~half the rolls). Seconds-weighted, armed wins; the
                 // flagship flicker is the documented cost.
-                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) | (Ok(route), 7) => (route.jumps as f32) <= arm_ceiling,
+                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) => (route.jumps as f32) <= arm_ceiling,
+                // The thin pair (kind 7) NEVER arms: on three threads its
+                // quick answer under the ceiling guillotined the dig behind
+                // it (arm thin-3, 2026-10-17: Colonia -> Sol 55 -> 56 j,
+                // Colonia -> Wongi 54 -> 55 j / 2 -> 3 stops, Spase ->
+                // Colonia 87 -> 88 j, Jongou AA-A 396 -> 406 j); like the
+                // greedy cone it wins where nothing else answers and loses
+                // silently elsewhere.
+                (Ok(_), 7) => false,
                 // The corridor variant arms against its own descent
                 // anchor OR the general ceiling, whichever admits: a
                 // forward route within slack of the same-ship descent
