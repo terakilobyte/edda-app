@@ -1275,30 +1275,60 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
         eprintln!("    witness: {} hops, {} injections, {} expansions at {} ms", w.stars.len().saturating_sub(1), w.injections.len(), w.expansions, started.elapsed().as_millis());
     }
-    // Windowed first: waypoints about WITNESS_WINDOW_LY apart along the
-    // witness, each leg a short exact plan that improves on the greedy's
-    // hops (the boss, 2026-10-18: greedy, then the smart thing, then greedy
-    // again, per stretch); a window that cannot be refined within its cap
-    // fails the pass, and the raw witness -- every star a one-hop leg --
-    // is the fallback that cannot.
+    // Every witness star a waypoint: one-hop legs are direct, an injected
+    // or unfundable hop goes to the exact leg planner, the settle rounds fly
+    // it with the real tank. ED_WITNESS_WINDOW_LY=<ly> refines in windows
+    // instead (measured 2026-10-18: a failing 1,000 ly window cost its time
+    // cap and Colonia -> Spase's first route moved 6 -> 26 s; the
+    // optimisers improve on the witness, the witness is the floor).
     // Eager refuelling: the witness assumed a refill at every scoopable
     // star; the min-fuel refinement stripped the stops it relied on and its
     // final pass met a neutron hop with 7 t in the tank (reverse Jongou,
     // 2026-10-18). The judge prunes the eager route afterwards.
     let eager = witness_refinement_request(req);
     let req = &eager;
-    let windowed = witness_windows(g, &w.stars, WITNESS_WINDOW_LY, capacity);
-    match refine_waypoints(g, req, ctl, windowed, start_fuel, fuel_model, w.expansions, straight, started) {
-        Ok(r) => Ok(r),
-        Err(RouteError::Cancelled) => Err(RouteError::Cancelled),
-        Err(e) => {
-            if std::env::var_os("ED_PLOT_DEBUG").is_some() {
-                eprintln!("    witness: windowed refinement failed ({e:?}); the raw witness stands");
+    let window_ly: f32 = std::env::var("ED_WITNESS_WINDOW_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+    let windowed = (window_ly > 0.0).then(|| witness_windows(g, &w.stars, window_ly, capacity));
+    let raw = || w.stars.iter().map(|&s| (s, capacity)).collect::<Vec<(u32, f32)>>();
+    let refined = match windowed {
+        Some(windows) => match refine_waypoints(g, req, ctl, windows, start_fuel, fuel_model, w.expansions, straight, started) {
+            Ok(r) => Ok(r),
+            Err(RouteError::Cancelled) => Err(RouteError::Cancelled),
+            Err(e) => {
+                if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                    eprintln!("    witness: windowed refinement failed ({e:?}); the raw witness stands");
+                }
+                refine_waypoints(g, req, ctl, raw(), start_fuel, fuel_model, w.expansions, straight, started)
             }
-            let raw: Vec<(u32, f32)> = w.stars.iter().map(|&s| (s, capacity)).collect();
-            refine_waypoints(g, req, ctl, raw, start_fuel, fuel_model, w.expansions, straight, started)
+        },
+        None => refine_waypoints(g, req, ctl, raw(), start_fuel, fuel_model, w.expansions, straight, started),
+    };
+    let mut route = refined?;
+    // The eager refinement marks a stop at every scoopable star (683 on the
+    // rim reverse): prune to the stops the tank needs before anyone sees it.
+    if let Some(m) = fuel_model {
+        let mut lean = route.clone();
+        if crate::router::minimize_refuels(&m, &req.boost, req.injection.map(|(mult, _, _)| mult), &mut lean, start_fuel) {
+            route = lean;
         }
     }
+    // Hold the floor until the quick optimisers have had their say: on the
+    // routes they solve in a second the user never sees the witness.
+    let release = started + std::time::Duration::from_millis(witness_release_ms(req.time_budget_ms));
+    while std::time::Instant::now() < release {
+        if (ctl.cancelled)() {
+            return Err(RouteError::Cancelled);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    Ok(route)
+}
+
+/// When the witness's route may be offered: `WITNESS_HOLD_MS` after the plot
+/// started, never past the plot's budget.
+const WITNESS_HOLD_MS: u64 = 3_000;
+fn witness_release_ms(time_budget_ms: u64) -> u64 {
+    if time_budget_ms > 0 { WITNESS_HOLD_MS.min(time_budget_ms) } else { WITNESS_HOLD_MS }
 }
 
 /// The request the witness is refined under: the caller's, with eager
@@ -1306,11 +1336,6 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
 fn witness_refinement_request(req: &RouteRequest) -> RouteRequest {
     RouteRequest { min_fuel: false, ..req.clone() }
 }
-
-/// How far apart the witness's refinement windows are cut (at witness
-/// stars): short enough for the exact leg planner inside its time cap, long
-/// enough that a window holds a real improvement over the greedy's hops.
-const WITNESS_WINDOW_LY: f32 = 1_000.0;
 
 /// Waypoints along the witness every ~`window_ly` of path, always at a
 /// witness star, the ends included; the tank estimate at each is full.
@@ -4529,6 +4554,17 @@ pub(crate) mod tests {
             let allowed = r.range_ly * if w[1].injection.is_some() { 2.0 } else { 1.0 } + 0.01;
             assert!(d <= allowed, "{} -> {}: {d:.1} ly over {allowed:.1}", w[0].name, w[1].name);
         }
+    }
+
+    /// The witness's route is pruned before it is offered (the eager
+    /// refinement marks a stop at every scoopable star: 683 on the rim
+    /// reverse) and held back until WITNESS_HOLD_MS so the optimisers'
+    /// answers come first on the routes they solve in a second.
+    #[test]
+    fn the_witness_is_held_and_pruned_before_it_is_offered() {
+        assert_eq!(witness_release_ms(100_000), 3_000);
+        assert_eq!(witness_release_ms(2_000), 2_000, "never past the plot's budget");
+        assert_eq!(witness_release_ms(0), 3_000);
     }
 
     /// The witness is refined EAGERLY, whatever the request's fuel mode: the

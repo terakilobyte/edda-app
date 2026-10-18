@@ -137,12 +137,13 @@ impl Side {
             }
         });
         let mut push = |side: &mut Side, t: u32, d: f32, injected: bool| {
+            // Forward: dry jumps since the last scoop, `t` included. Backward:
+            // the dry run AHEAD of `t` (the hops after it up to the next
+            // scoop): a scoopable `t` does not shorten the run that follows
+            // it, and the run is bounded at every star it contains.
             let dry_t = if side.forward {
                 if g.scoopable(t) { 0 } else { dry + 1 }
             } else if g.scoopable(star) {
-                // Backward: the run that ends at `star` restarts at a scoop.
-                if g.scoopable(t) { 0 } else { 1 }
-            } else if g.scoopable(t) {
                 0
             } else {
                 dry + 1
@@ -383,6 +384,26 @@ mod tests {
                 assert!(run <= dry_cap(req.fuel.as_ref()) as usize, "{run} dry jumps in a row");
             }
         }
+    }
+
+    /// The backward side counts the run AHEAD of a star: a scoopable
+    /// predecessor does not reset the dry run that follows it (the reverse
+    /// Jongou witness reached a neutron hop with 7 t, 2026-10-18). A K star
+    /// then eight brown dwarfs then the goal: with a cap of 5 there is no
+    /// witness, whichever side builds the run.
+    #[test]
+    fn a_dry_run_counted_from_the_goal_side_respects_the_cap() {
+        let m = FuelModel::from_loadout(319.0, 32.0, 5.2, 5, true, false, 77.9, 10.5, 0.0);
+        let mut stars = vec![star("K0", 0.0, 0.0, 0.0, K)];
+        for i in 1..=8 {
+            stars.push(star(&format!("D{i}"), i as f32 * 60.0, 0.0, 0.0, "L (Brown dwarf) Star"));
+        }
+        stars.push(star("Goal", 540.0, 0.0, 0.0, K));
+        let f = build(&stars);
+        let req = RouteRequest { from: f.g.find("K0").unwrap(), to: f.g.find("Goal").unwrap(), range_ly: m.range_at(m.capacity), fuel: Some(m), start_fuel: 32.0, ..Default::default() };
+        assert!(matches!(find_witness(&f.g, &f.neutrons, &req, &|| false), Err(RouteError::NoRoute)), "eight dry jumps on a five-jump cap");
+        let rev = RouteRequest { from: req.to, to: req.from, ..req.clone() };
+        assert!(matches!(find_witness(&f.g, &f.neutrons, &rev, &|| false), Err(RouteError::NoRoute)), "the same run from the other end");
     }
 
     /// A goal nothing reaches (5,000 ly off, no injections): the frontier
