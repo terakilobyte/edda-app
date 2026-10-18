@@ -14,7 +14,7 @@
 //! refined with the exact planner, which finds the actual scoop star.
 
 use crate::format::{dist, Galaxy};
-use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, BOOST_UNITS, INJECTION_UNITS, NO_LEG_MEMO, SCOOP_RATE_DEFAULT, STOP_UNITS, T_BOOST_S, T_PASS_SCOOP_S, T_PLAIN_S, T_STOP_S};
+use crate::router::{plan, CoarseStats, Control, LegKey, LegMemo, Route, RouteError, RouteRequest, VariantOutcome, BOOST_UNITS, INJECTION_SECONDS, INJECTION_UNITS, NO_LEG_MEMO, SCOOP_RATE_DEFAULT, STOP_UNITS, T_BOOST_S, T_PASS_SCOOP_S, T_PLAIN_S, T_STOP_S};
 use crate::star::StarClassCode as _;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap as HashMap;
@@ -60,12 +60,14 @@ fn leg_expansion_cap(ly: f32) -> u64 {
     ((ly * 1_000.0) as u64).max(200_000)
 }
 
-/// A refinement leg's time: a quarter of the plot's budget, so one leg the
-/// coarse chain assumed bridgeable but that cannot be flown fails in 25 s
-/// of a 100 s plot instead of 98 (the reverse Jongou route, 2026-10-17);
-/// every legitimate leg on the record finished under 8 s. 0 = no budget.
+/// A refinement leg's time: a quarter of the plot's budget with a 20 s
+/// floor (never more than the plot has), so one leg the coarse chain
+/// assumed bridgeable but that cannot be flown fails in 25 s of a 100 s
+/// plot instead of 98 (the reverse Jongou route, 2026-10-17) while a
+/// legitimate 742 ly rim leg (7.8 s alone) survives the interactive lane's
+/// 30 s. 0 = no budget.
 fn leg_time_budget_ms(plot_budget_ms: u64) -> u64 {
-    plot_budget_ms / 4
+    if plot_budget_ms == 0 { 0 } else { (plot_budget_ms / 4).max(20_000.min(plot_budget_ms)) }
 }
 
 /// A coarse search that settles for its closest neutron hands the rest to
@@ -185,7 +187,7 @@ const COARSE_SECTOR_KEEP: usize = 0;
 const GREEDY_SCAN_FLOOR: u64 = 512;
 
 /// Coarse price of an injected bridging jump, on top of the jump itself.
-/// The wave's twin of the exact router's penalty (see INJECTION_PENALTY).
+/// The wave's twin of the exact router's injection price (INJECTION_UNITS).
 const INJECTION_COARSE_PENALTY: f32 = INJECTION_UNITS;
 
 /// Where the highway sub-index lives under the galaxy index directory:
@@ -702,7 +704,8 @@ fn effective_grace(configured: std::time::Duration, to_first: std::time::Duratio
 /// Route quality in pilot time, in DECISECONDS: the one currency (R2,
 /// 2026-10-17, spec D1). Plain jumps x 53 s, boosted hops x 73 s (the
 /// neutron-cone approach included), passing scoops x 6 s, full stops x
-/// 120 s, and the scooped tonnes over the scoop rate (1.245 t/s, the
+/// 120 s, injections x 1,800 s (the maintainer's price, spec D1), and the
+/// scooped tonnes over the scoop rate (1.245 t/s, the
 /// Caspian's 7A, when the model does not know). The 130-journal cut of
 /// that day fitted the figures. A FITTED request (`t_jump_s`,
 /// `stop_overhead_s`, item 28) keeps its per-commander plain jump and
@@ -713,7 +716,7 @@ fn effective_grace(configured: std::time::Duration, to_first: std::time::Duratio
 /// public stop (a flat 120 s) is superseded: the stop's tonnes are part
 /// of the one currency everywhere, as the bench's own judge counts them.
 #[allow(clippy::too_many_arguments)]
-fn time_units(plain: usize, boosted: usize, passing_scoops: usize, refuel_stops: usize, scooped_t: f32, scoop_rate: f32, stop_weight: f32, t_jump_s: Option<f32>, stop_overhead_s: Option<f32>) -> u64 {
+fn time_units(plain: usize, boosted: usize, passing_scoops: usize, injections: usize, refuel_stops: usize, scooped_t: f32, scoop_rate: f32, stop_weight: f32, t_jump_s: Option<f32>, stop_overhead_s: Option<f32>) -> u64 {
     let knob = |var: &str, default: f32| -> f32 {
         std::env::var(var).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
     };
@@ -722,7 +725,7 @@ fn time_units(plain: usize, boosted: usize, passing_scoops: usize, refuel_stops:
     let rate = if scoop_rate > 0.0 { scoop_rate } else { SCOOP_RATE_DEFAULT };
     let overhead = stop_overhead_s.unwrap_or_else(|| knob("ED_STOP_OVERHEAD_S", T_STOP_S));
     let refuel_secs = refuel_stops as f32 * overhead + passing_scoops as f32 * T_PASS_SCOOP_S + scooped_t / rate;
-    let secs = plain as f32 * t_plain + boosted as f32 * t_boost + stop_weight * refuel_secs;
+    let secs = plain as f32 * t_plain + boosted as f32 * t_boost + injections as f32 * INJECTION_SECONDS + stop_weight * refuel_secs;
     (secs * 10.0) as u64
 }
 
@@ -784,7 +787,7 @@ fn route_score(r: &Route, scoop_rate: f32, req: &RouteRequest) -> u64 {
         return fuel_units(scooped_tonnes(r));
     }
     let boosted = r.boosted_jumps.min(r.jumps);
-    time_units(r.jumps - boosted, boosted, passing_scoops(r), r.refuel_stops, scooped_tonnes(r), scoop_rate, req.stop_weight, req.t_jump_s, req.stop_overhead_s)
+    time_units(r.jumps - boosted, boosted, passing_scoops(r), r.injections, r.refuel_stops, scooped_tonnes(r), scoop_rate, req.stop_weight, req.t_jump_s, req.stop_overhead_s)
 }
 
 /// The greedy cone's tunables, env-overridable for the knob-search
@@ -1567,14 +1570,26 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             let greedy_single = nb + usize::from(bidi);
             // (kind: 0 = baseline single, 1 = bidi, 2 = greedy twin)
             let thin_deadline = variant_started + std::time::Duration::from_millis(thin_budget_ms(req.time_budget_ms));
-            let thin_check = || check() || thin_yields(std::time::Instant::now() > thin_deadline, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed));
+            // The refine stage lifts the cap for both thin variants (the bidi
+            // has no CoarseStats to set coarse_done; review of PR #237), and
+            // the thin single's fail-fast stall is its own, not the wave's
+            // escalation flag.
+            let thin_refining = std::sync::atomic::AtomicBool::new(false);
+            let thin_stage = |name: &'static str, a: u32, b: u32| {
+                if name == "refine" {
+                    thin_refining.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+                (ctl.stage)(name, a, b)
+            };
+            let thin_stalled = std::sync::atomic::AtomicBool::new(false);
+            let thin_check = || check() || thin_yields(std::time::Instant::now() > thin_deadline, coarse.coarse_done.load(std::sync::atomic::Ordering::Relaxed) || thin_refining.load(std::sync::atomic::Ordering::Relaxed));
             let (res, kind) = if thin > 0 && i < thin {
                 // The thin family (kind 7): the quick diggers, first on
                 // every thread count, yielding their worker at a third of
                 // the budget. See THIN_FANOUT and thin_budget_ms.
-                let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
+                let ctl = Control { cancelled: &thin_check, progress: ctl.progress, stage: &thin_stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
                 if i == 0 {
-                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], true), 7)
+                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &thin_stalled, &coarse, fields[1], true), 7)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 8)
                 }
@@ -1683,7 +1698,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     format!("single w{w} r{rf} b{b}")
                 } else if bidi && i == variants.len() {
                     "bidi".to_string()
-                } else if retro && i == total - 1 {
+                } else if retro && i == total - thin - 1 {
                     "retro".to_string()
                 } else if i == variants.len() + usize::from(bidi) {
                     "greedy single".to_string()
@@ -4164,15 +4179,15 @@ mod tests {
     #[test]
     fn a_stop_heavy_route_loses_to_a_slightly_longer_clean_one() {
         // Journal-fit seconds: 30 t per stop at the 8A's 1.245 t/s.
-        let r = |j: usize, st: usize| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, None, None);
+        let r = |j: usize, st: usize| time_units(j, 0, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, None, None);
         assert!(r(58, 2) < r(57, 10), "58 j / 2 stops is minutes faster in the chair");
         assert!(r(57, 2) < r(58, 2), "fewer jumps still wins at equal stops");
         assert!(r(57, 2) < r(57, 3), "fewer stops still wins at equal jumps");
         // A mid-tank top-up is cheaper than a deep fill, fitted or not:
         // the one currency (R2) prices the tonnes over the scoop rate in
         // the public model too (item 42's flat public stop is superseded).
-        assert!(time_units(57, 0, 0, 2, 20.0, 1.245, 1.0, None, Some(36.0)) < time_units(57, 0, 0, 2, 120.0, 1.245, 1.0, None, Some(36.0)));
-        assert!(time_units(57, 0, 0, 2, 20.0, 1.245, 1.0, None, None) < time_units(57, 0, 0, 2, 120.0, 1.245, 1.0, None, None), "the public stop prices its tonnes too");
+        assert!(time_units(57, 0, 0, 0, 2, 20.0, 1.245, 1.0, None, Some(36.0)) < time_units(57, 0, 0, 0, 2, 120.0, 1.245, 1.0, None, Some(36.0)));
+        assert!(time_units(57, 0, 0, 0, 2, 20.0, 1.245, 1.0, None, None) < time_units(57, 0, 0, 0, 2, 120.0, 1.245, 1.0, None, None), "the public stop prices its tonnes too");
     }
 
     /// R2 (2026-10-17), one currency: the judge prices a plain jump at 53 s
@@ -4254,7 +4269,7 @@ mod tests {
         assert!(fuel_units(40.0) < fuel_units(41.0));
         assert_eq!(fuel_units(40.0), fuel_units(40.0), "equal tonnes tie; callers keep the first");
         // 60 j / 90 t vs 70 j / 40 t: the seconds model takes the short route...
-        assert!(time_units(60, 0, 0, 3, 90.0, 1.245, 1.0, None, None) < time_units(70, 0, 0, 3, 40.0, 1.245, 1.0, None, None));
+        assert!(time_units(60, 0, 0, 0, 3, 90.0, 1.245, 1.0, None, None) < time_units(70, 0, 0, 0, 3, 40.0, 1.245, 1.0, None, None));
         // ...the gauge takes the thrifty one. That gap IS the study.
         assert!(fuel_units(40.0) < fuel_units(90.0));
     }
@@ -4268,7 +4283,7 @@ mod tests {
         // Pinned against the FITTED decomposed model (70 s / 36 s +
         // tonnage) -- the dial's semantics predate the item-42 flat
         // unfitted default and must survive it.
-        let r = |j: usize, st: usize, w: f32| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, w, Some(70.0), Some(36.0));
+        let r = |j: usize, st: usize, w: f32| time_units(j, 0, 0, 0, st, st as f32 * 30.0, 1.245, w, Some(70.0), Some(36.0));
         // Fitted model (1.0): the clean 58 j beats the stop-heavy 57 j.
         assert!(r(58, 2, 1.0) < r(57, 10, 1.0));
         // Try hard (0.0): stops are free, 57 j wins outright.
@@ -4286,7 +4301,7 @@ mod tests {
     /// None must be byte-identical to the built-in defaults.
     #[test]
     fn per_commander_times_ride_the_request_and_none_is_the_default() {
-        let r = |j: usize, st: usize, tj: Option<f32>, ov: Option<f32>| time_units(j, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, tj, ov);
+        let r = |j: usize, st: usize, tj: Option<f32>, ov: Option<f32>| time_units(j, 0, 0, 0, st, st as f32 * 30.0, 1.245, 1.0, tj, ov);
         // None = the public model: 53 s a plain jump, 120 s a stop plus the
         // tonnes over the scoop rate (R2 one currency; item 42's flat
         // tonnage-blind 60/120 is superseded). Closed form so the pin is
@@ -4313,22 +4328,22 @@ mod tests {
         let mut clock = GraceClock::new(None);
         // Armed by the first credible finish (to_first 100 ms -> the
         // effective window is 100 ms in both directions).
-        clock.finish(t0, ms(100), time_units(100, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0, ms(100), time_units(100, 0, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(90), grace));
         assert!(clock.expired(t0 + ms(150), grace));
         // An improvement at t0+80 renews the window from t0+80.
-        clock.finish(t0 + ms(80), ms(180), time_units(90, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(80), ms(180), time_units(90, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(150), grace), "the reset must outlive the original window");
         assert!(clock.expired(t0 + ms(200), grace));
         // A worse finish and a tie renew nothing.
-        clock.finish(t0 + ms(170), ms(270), time_units(95, 0, 0, 9, 0.0, 1.25, 1.0, None, None), true);
-        clock.finish(t0 + ms(175), ms(275), time_units(90, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(170), ms(270), time_units(95, 0, 0, 0, 9, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(175), ms(275), time_units(90, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), true);
         assert!(clock.expired(t0 + ms(200), grace), "neither a worse finish nor a tie may renew the window");
         // A non-arming kind (a greedy twin) that IMPROVES still renews:
         // resetting only delays cancellation, it never causes one.
         let mut clock = GraceClock::new(None);
-        clock.finish(t0, ms(100), time_units(100, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
-        clock.finish(t0 + ms(80), ms(180), time_units(80, 0, 0, 8, 0.0, 1.25, 1.0, None, None), false);
+        clock.finish(t0, ms(100), time_units(100, 0, 0, 0, 10, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(80), ms(180), time_units(80, 0, 0, 0, 8, 0.0, 1.25, 1.0, None, None), false);
         assert!(!clock.expired(t0 + ms(150), grace), "an improving greedy finish must renew the window");
     }
 
@@ -4341,17 +4356,17 @@ mod tests {
         let grace = std::time::Duration::from_millis(100);
         let ms = std::time::Duration::from_millis;
         let t0 = std::time::Instant::now();
-        let mut clock = GraceClock::new(Some(time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None)));
+        let mut clock = GraceClock::new(Some(time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None)));
         // A tie of the standing best: no clock.
-        clock.finish(t0, ms(100), time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0, ms(100), time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(!clock.expired(t0 + ms(10_000), grace), "a re-confirmation must not arm the clock");
         // A genuine improvement arms it.
-        clock.finish(t0 + ms(200), ms(300), time_units(190, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
+        clock.finish(t0 + ms(200), ms(300), time_units(190, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(clock.expired(t0 + ms(1_000), grace));
         // The first wave has no seed: its first credible finish arms
         // regardless of score (the status quo, unchanged).
         let mut wave_one = GraceClock::new(None);
-        wave_one.finish(t0, ms(100), time_units(215, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
+        wave_one.finish(t0, ms(100), time_units(215, 0, 0, 0, 40, 0.0, 1.25, 1.0, None, None), true);
         assert!(wave_one.expired(t0 + ms(1_000), grace));
     }
 
@@ -4457,7 +4472,33 @@ mod tests {
     #[test]
     fn a_refinement_leg_gets_a_quarter_of_the_plots_time() {
         assert_eq!(leg_time_budget_ms(100_000), 25_000);
+        assert_eq!(leg_time_budget_ms(30_000), 20_000, "the interactive lane's 30 s: a quarter would fail a legitimate 742 ly rim leg (7.8 s alone)");
+        assert_eq!(leg_time_budget_ms(3_000), 3_000, "never more than the plot has");
         assert_eq!(leg_time_budget_ms(0), 0);
+    }
+
+    /// Spec D1: an injection is 1,800 s in the one currency, the judge
+    /// included (until 2026-10-17 the judge counted an injected hop as a
+    /// plain jump while both searches priced it at 1,800 s).
+    #[test]
+    fn an_injection_costs_its_eighteen_hundred_seconds() {
+        let req = RouteRequest { stop_weight: 1.0, ..Default::default() };
+        let plain = synthetic_route(10, 0, &[]);
+        let injected = Route { injections: 1, ..synthetic_route(10, 0, &[]) };
+        assert_eq!(route_score_public(&injected, &req) - route_score_public(&plain, &req), 18_000, "deciseconds");
+    }
+
+    /// A scoop250.bin whose record count is not the sub-index's is a stale
+    /// side file from another build: it answers for the wrong stars, so it
+    /// is ignored.
+    #[test]
+    fn a_stale_scoop_file_is_ignored() {
+        let f = highway();
+        let bytes = vec![10u8; f.neutrons.count + 1];
+        crate::scoop_side::write(&f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE), &bytes).unwrap();
+        let sub = Galaxy::open(&f.neutrons.dir).unwrap();
+        assert_eq!(sub.nearest_scoop_ly(0), None, "one byte too many: not this sub-index's file");
+        std::fs::remove_file(f.neutrons.dir.join(crate::scoop_side::SCOOP_SIDE_FILE)).unwrap();
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the

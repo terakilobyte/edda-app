@@ -364,7 +364,7 @@ impl Galaxy {
     /// R2, 2026-10-17).
     pub fn nearest_scoop_ly(&self, idx: u32) -> Option<u8> {
         self.scoop_side
-            .get_or_init(|| crate::scoop_side::ScoopSide::open(&self.dir.join(crate::scoop_side::SCOOP_SIDE_FILE)).ok())
+            .get_or_init(|| crate::scoop_side::ScoopSide::open(&self.dir.join(crate::scoop_side::SCOOP_SIDE_FILE)).ok().filter(|s| s.len() == self.count))
             .as_ref()?
             .get(idx)
     }
