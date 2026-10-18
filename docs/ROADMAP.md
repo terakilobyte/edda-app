@@ -277,6 +277,64 @@ verdicts live in the CSV headers under `docs/benches/`.
   maintainer's "hop between techniques on a stall" (a first-wave time slice
   per variant) is the next arm; the rim quality-vs-time call (412 j in
   100 s or 425 j in 7 s) is his.
+  **The day after (2026-10-18, arms w9-3 .. w12-3 in the same CSV):** the
+  maintainer ruled "SPEND A LITTLE" over "stay blazing": a QUALITY FLOOR
+  on the first wave (10 s, at most a tenth of the budget,
+  `ED_QUALITY_FLOOR_MS`) so the slow diggers get a worker on the plots the
+  quick variants answer in a second -- the pilot still gets the first
+  route at first-found (the long lane answers at first + 5 s and keeps
+  refining), only the final answer moves. Then his "hop between
+  techniques on a stall": the HEAVY SLICE (an eighth of the budget,
+  `ED_SLICE_MS`): a heavy variant past it with its coarse chain not at
+  the goal yields its worker, as a thin one does at a third -- the traces
+  had every first-wave variant that routed doing so inside 5 s and every
+  one past 12 s returning nothing. Its first form spared the refine stage
+  and so the five stalled singles that spend 25 s each refining a
+  10,000 ly stall; a single now yields on "chain not at the goal" alone
+  (a bidi, without coarse stats, keeps the refining exemption). Measured
+  on three threads, seconds judge: the floor 4 better / 15 same / 9
+  worse against the same binary without it (Colonia -> Sol 56 -> 55 j,
+  Colonia -> Wongi 55 -> 54, Colonia -> Spase 89 -> 88, Wongi -> Colonia
+  59 -> 58, 0 worse on jumps; every worse row wall-only, Wongi -> Blaa
+  Hypai 2 -> 11 s the dearest); the slice 4 / 24 / 0 on top (Spase ->
+  Colonia 92 -> 89 j, Sol -> Beagle Point wall 55 -> 25 s), its yield fix
+  2 / 26 / 0 (the Jongou pair's walls 99 / 103 -> 82 / 91 s). Both ON by
+  default. The same-code re-measure one hour apart (w9n-3 vs w8-3: 2 / 23 /
+  3 with no code difference) is the three-thread NOISE FLOOR: walls on
+  the Beagle and rim plots move 10-40 s between runs, first-found
+  +-10 %, and a knife-edge plot (Colonia -> Wongi) changes its jumps by
+  scheduling alone. THE JONGOU XM-W -> CQ-G 401 -> 451 WAS NOT THE
+  SCHEDULING RACE the paragraph above says. `route_diff.py` on the R2
+  head's route file against the day's: 359 shared stars and ONE
+  divergent segment after Groek CL-P d5-2 -- 24 hops / 2,191 ly then, 73
+  hops / 5,020 ly now; both plots found the same eager 402 j route at
+  97 s. The min-fuel settle re-plans that leg through a nested plot
+  that judges EAGER (sub-requests carry `min_fuel: false`), and there the
+  witness -- pruned to its lean stops before being offered, unconditionally
+  -- beat a 28-hop leg carrying 23 eager stops with its 3 (judged 48,732
+  against 62,365). The witness is now offered in the plot's judging
+  currency (pruned only when the fold judges lean): 451 -> 401 j / 17
+  stops, the R2 head's route back, and Byoi AT-U -> Jongou AA-A 919 ->
+  910, Ood Fleau -> Sphiesi 425 -> 421 with it (4 / 21 / 3; the three
+  against are two plots that move between same-code arms and a wall
+  inside the noise band). The day against last night's after table
+  (w12-3 vs w8-3): 11 better / 11 same / 6 worse; against the reference's
+  jump counts fewer on 18, tied 1, more on 9 (was 17 / 1 / 10). The nine:
+  the two Byoi -> Jongou reverse plots (910 / 1,054 vs 477 / 516) and
+  seven short plots 1-6 j over (Spase -> Colonia 90 vs 85, Spase -> Wongi
+  102 vs 96, Sagittarius A* -> Sol 73 vs 70, the rest by one or two),
+  which the traces show are NOT scheduling -- every variant of Sagittarius
+  A* -> Sol answers 72-75 j inside 4 s, Spase -> Colonia's first wave
+  finishes at 93-97 j -- so they are R4's ground (goal field and bridge
+  pricing), not the schedule's. OPEN: Jongou AA-A -> Byoi AT-U 392 / 396
+  moves between arms; Jongou AA-A -> Byoi AT-U 392 -> 396 on both thread
+  counts is the witness-currency change in a nested leg plot (an arm
+  judging every fold lean, `ED_PRUNE_JUDGE=1`, is the next measurement);
+  the plot_fuzz same-seed replay and the maintainer's flight before any
+  release. On the PC (24 threads, w12 vs w8): 6 / 14 / 8, with Ood Fleau
+  -> Sphiesi 425 -> 410 j and the Jongou pair's 451 -> 401 and 919 -> 910;
+  against the shipped planner 18 / 5 / 5, against the R2 head 10 / 13 /
+  5 (the table regenerated: `2026-10-18-planner-matrix-r3-table.md`).
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
