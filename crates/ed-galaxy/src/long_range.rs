@@ -1552,8 +1552,22 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     // witness re-planned in segments when that is better.
     if std::env::var_os("ED_WITNESS_SEGMENTS").is_some() && w.stars.len() > 2 {
         (ctl.found)(&route);
-        if let Some(better) = witness_segments(g, neutrons, &w, req, ctl, fuel_model, start_fuel, straight, started, &route) {
-            route = better;
+        // Passes: the improved route is the next pass's witness, pinned at
+        // other stars, until a pass improves nothing (ED_WSEG_PASSES, 2).
+        let passes: usize = std::env::var("ED_WSEG_PASSES").ok().and_then(|v| v.parse().ok()).unwrap_or(2);
+        let mut seed = w;
+        for pass in 0..passes {
+            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route) {
+                Some(better) => {
+                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                        eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
+                    }
+                    (ctl.found)(&better);
+                    seed = crate::feasible::Witness { stars: better.hops.iter().map(|h| h.idx).collect(), injections: Vec::new(), expansions: 0 };
+                    route = better;
+                }
+                None => break,
+            }
         }
     }
     // The eager refinement marks a stop at every scoopable star (683 on the
