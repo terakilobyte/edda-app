@@ -89,6 +89,27 @@ pub const NEUTRON_CELL_LY: f32 = 250.0;
 /// goal (and any that refuel) are worth an edge.
 const COARSE_FANOUT: usize = usize::MAX;
 
+/// The thin family (2026-10-17, the rim pair Ood Fleau ZJ-I d9-0 <->
+/// Sphiesi HX-L d7-0, 84,599 ly): a single and a bidi that relax at most
+/// `THIN_FANOUT` candidates an expansion at weight `THIN_WEIGHT`. In the
+/// bulge the unbounded scan refused 201 M already-beaten candidates in
+/// 30,000 expansions (6,700 a step) and moved 2 kly; with fanout 32 and
+/// weight 3 one variant on one thread plotted the whole route in 23.5 s
+/// (424 jumps, 105,220 ly), the portfolio on the PC in 13.5 s (421 j),
+/// and the external reference's figure is 453 j / 114,668 ly in 61 s.
+/// Fanout 32 at weight 1.5 still stalls at 43.7 kly (the weight is
+/// required); fanout 64 + sector 2 cost 36 jumps. The reverse direction
+/// is the bidi's: a single-direction coarse hugs the straight line while
+/// the only neutron band into an F-star goal runs 10 kly south of it, and
+/// a thin single that stalls that far out fails fast (`THIN_HANDOFF_REACHES`)
+/// so its worker moves on instead of exact-planning 8.5 kly for the rest
+/// of the budget. The two run at indices 0 and 1 so rayon's range split
+/// starts them first on the box's three threads; they arm the grace clock
+/// only under the jump ceiling, like bidi. ED_NO_THIN=1 removes them.
+const THIN_FANOUT: usize = 32;
+const THIN_WEIGHT: f32 = 3.0;
+const THIN_HANDOFF_REACHES: f32 = 10.0;
+
 /// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
 /// Shipped at 0 until the 28-route matrix blesses a value (R1, 2026-10-17).
 const COARSE_SECTOR_KEEP: usize = 0;
@@ -1069,7 +1090,11 @@ pub(crate) fn thin_by_sector(cands: &mut Vec<(f32, u32, [f32; 3], f32)>, here: [
 /// The family a portfolio slot belongs to, by the same index arithmetic
 /// the dispatch and the debug label use.
 #[allow(clippy::too_many_arguments)]
-fn variant_kind(i: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool, total: usize) -> &'static str {
+fn variant_kind(i: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool, total: usize) -> &'static str {
+    if i < thin {
+        return if i == 0 { "thin single" } else { "thin bidi" };
+    }
+    let (i, total) = (i - thin, total - thin);
     let b = usize::from(bidi);
     if i < nb {
         "single"
@@ -1176,11 +1201,11 @@ fn declared_order_on(knob: Option<&str>) -> bool {
 /// bidi 4, single 2, offramp 2, bidi 2; median ms to a route -- offramp
 /// 31, greedy single 31, single 32, greedy bidi 123, bidi 125, scan-twin
 /// 241 (scan twins are slow on easy routes and first on the hard ones).
-const KIND_ORDER: &[&str] = &["greedy single", "scan-twin", "greedy bidi", "single", "offramp", "bidi", "corridor", "retro"];
+const KIND_ORDER: &[&str] = &["thin single", "thin bidi", "greedy single", "scan-twin", "greedy bidi", "single", "offramp", "bidi", "corridor", "retro"];
 
 #[allow(clippy::too_many_arguments)]
-fn variant_order(total: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool) -> Vec<usize> {
-    let rank = |i: usize| KIND_ORDER.iter().position(|k| *k == variant_kind(i, nb, bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total)).unwrap_or(KIND_ORDER.len());
+fn variant_order(total: usize, thin: usize, nb: usize, bidi: bool, retro: bool, greedy_slots: usize, offramp_slots: usize, scan_twins: usize, corridor_slot: bool) -> Vec<usize> {
+    let rank = |i: usize| KIND_ORDER.iter().position(|k| *k == variant_kind(i, thin, nb, bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total)).unwrap_or(KIND_ORDER.len());
     let mut order: Vec<usize> = (0..total).collect();
     order.sort_by_key(|&i| (rank(i), i));
     order
@@ -1376,6 +1401,8 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         // fuel-direction-specific micro-structure, not portable
         // geometry -- the original instinct to park this was right.
         let retro = std::env::var_os("ED_RETRO").is_some();
+        // The thin family leads (see THIN_FANOUT); ED_NO_THIN=1 removes it.
+        let thin: usize = if std::env::var_os("ED_NO_THIN").is_some() { 0 } else { 2 };
         // Item 23 residual: two off-ramp twins -- the base single and a
         // light-thinning single with the goal-side entry seed enabled.
         // No engagement gate beyond the seed's own gradient check: the
@@ -1431,7 +1458,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             (COARSE_WEIGHT, RESERVE_FRACTION, 0.5),
             (1.3, 0.4, 0.5),
         ];
-        let total = variants.len() + usize::from(bidi) + greedy_slots + offramp_slots + scan_twins + usize::from(corridor_slot) + usize::from(retro);
+        let total = thin + variants.len() + usize::from(bidi) + greedy_slots + offramp_slots + scan_twins + usize::from(corridor_slot) + usize::from(retro);
         // Past the first wave the clock is seeded with the standing best:
         // escalation waves exist only to improve, so re-confirmations do
         // not arm the guillotine over the deep variants (14a).
@@ -1465,7 +1492,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         };
         let seed = (cap_mult > 1).then(|| best.as_ref().map(&judge)).flatten();
         let order = if declared_order_on(std::env::var("ED_VARIANT_ORDER").ok().as_deref()) {
-            variant_order(total, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot)
+            variant_order(total, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot)
         } else {
             Vec::new()
         };
@@ -1476,29 +1503,39 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             let nb = variants.len();
             let greedy_single = nb + usize::from(bidi);
             // (kind: 0 = baseline single, 1 = bidi, 2 = greedy twin)
-            let (res, kind) = if i < nb {
+            let (res, kind) = if thin > 0 && i < thin {
+                // The thin family (kind 7): the quick diggers, first on
+                // every thread count. See THIN_FANOUT.
+                if i == 0 {
+                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], true), 7)
+                } else {
+                    (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 7)
+                }
+            } else {
+            let i = i - thin;
+            if i < nb {
                 // ED_ONLY_BIDI: debug rig -- silence the singles so the
                 // bidi variant's behaviour is readable in the trace.
                 if std::env::var_os("ED_ONLY_BIDI").is_some() {
                     return (Err(RouteError::Cancelled), false);
                 }
                 let (w, r, b) = variants[i];
-                (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1]), 0)
+                (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], false), 0)
             } else if bidi && i == nb {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, lean_base, fields), 1)
             } else if greedy_slots > 0 && i == greedy_single {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1]), 2)
+                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, true, false, lean_base, None, &stalled, &coarse, fields[1], false), 2)
             } else if greedy_slots > 1 && i == greedy_single + 1 {
                 (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, true, lean_base, fields), 2)
             } else if offramp_slots > 0 && i == greedy_single + greedy_slots {
-                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1]), 4)
+                (plan_long_with(g, neutrons, req, &ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false), 4)
             } else if offramp_slots > 1 && i == greedy_single + greedy_slots + 1 {
-                (plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1]), 4)
+                (plan_long_with(g, neutrons, req, &ctl, 1.3, 0.4, 0.5, cap_mult, false, true, lean_base, None, &stalled, &coarse, fields[1], false), 4)
             } else if scan_twins > 0 && i >= greedy_single + greedy_slots + offramp_slots && i < greedy_single + greedy_slots + offramp_slots + scan_twins {
                 let s = i - greedy_single - greedy_slots - offramp_slots;
                 if s < 5 {
                     let (w, r, b) = twin_cfg[s];
-                    (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1]), 6)
+                    (plan_long_with(g, neutrons, req, &ctl, w, r, b, cap_mult, false, false, !lean_base, None, &stalled, &coarse, fields[1], false), 6)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, COARSE_WEIGHT, cap_mult, false, !lean_base, fields), 6)
                 }
@@ -1509,6 +1546,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // descending plan aims at the original START, so it
                 // consults fields[0].
                 (plan_long_retro(g, neutrons, req, &ctl, cap_mult, fields[0]), 3)
+            }
             };
             let arms = match (&res, kind) {
                 // Scan twins (kind 6) arm ceiling-gated like bidi. Both
@@ -1519,7 +1557,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // guillotine the flagship's slow 58/2-finder (-39 s,
                 // ~half the rolls). Seconds-weighted, armed wins; the
                 // flagship flicker is the documented cost.
-                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) => (route.jumps as f32) <= arm_ceiling,
+                (Ok(route), 1) | (Ok(route), 4) | (Ok(route), 6) | (Ok(route), 7) => (route.jumps as f32) <= arm_ceiling,
                 // The corridor variant arms against its own descent
                 // anchor OR the general ceiling, whichever admits: a
                 // forward route within slack of the same-ship descent
@@ -1537,11 +1575,11 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
             }
             let (coarse_expansions, stall_remaining_ly) = (coarse.expansions.load(std::sync::atomic::Ordering::Relaxed), coarse.stall_ly());
             if debug {
-                eprintln!("    variant outcome: wave x{cap_mult} #{i} {} {} {} ms, coarse {coarse_expansions} expansions, stall {stall_remaining_ly:.0} ly", variant_kind(i, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total), if res.is_ok() { "route" } else { "none" }, variant_started.elapsed().as_millis());
+                eprintln!("    variant outcome: wave x{cap_mult} #{i} {} {} {} ms, coarse {coarse_expansions} expansions, stall {stall_remaining_ly:.0} ly", variant_kind(i, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total), if res.is_ok() { "route" } else { "none" }, variant_started.elapsed().as_millis());
             }
             (ctl.variant)(VariantOutcome {
                 wave: cap_mult,
-                kind: variant_kind(i, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total),
+                kind: variant_kind(i, thin, variants.len(), bidi, retro, greedy_slots, offramp_slots, scan_twins, corridor_slot, total),
                 index: i,
                 ok: res.is_ok(),
                 jumps: res.as_ref().map(|r| r.jumps as u32).unwrap_or(0),
@@ -1559,7 +1597,11 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         any_budget |= results.iter().any(|r| matches!(r, Err(RouteError::Budget)));
         if debug {
             for (i, r) in results.iter().enumerate() {
-                let label = if i < variants.len() {
+                let label = if thin > 0 && i < thin {
+                    if i == 0 { "thin single".to_string() } else { "thin bidi".to_string() }
+                } else {
+                let i = i - thin;
+                if i < variants.len() {
                     let (w, rf, b) = variants[i];
                     format!("single w{w} r{rf} b{b}")
                 } else if bidi && i == variants.len() {
@@ -1576,6 +1618,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                     "corridor".to_string()
                 } else {
                     format!("offramp {}", i - variants.len() - usize::from(bidi) - greedy_slots)
+                }
                 };
                 match r {
                     Ok(r) => eprintln!("    wave x{cap_mult} {label}: {} jumps, {} stops, {} boosted, {} ms", r.jumps, r.refuel_stops, r.boosted_jumps, r.elapsed_ms),
@@ -2699,7 +2742,7 @@ fn plan_long_retro(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Cont
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back)?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), field_back, false)?;
     let fuel_model = req.fuel.map(|m| crate::fuel::FuelModel { reserve: m.reserve.max(m.max_fuel_per_jump * RESERVE_FRACTION), ..m });
     let req = &RouteRequest { fuel: fuel_model, ..req.clone() };
     let start_fuel = fuel_model.map(|m| req.start_fuel.clamp(0.0, m.capacity)).unwrap_or(0.0);
@@ -2782,7 +2825,7 @@ fn plan_long_corridor(
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, ..req.clone() };
     let none = std::sync::atomic::AtomicBool::new(false);
-    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0])?;
+    let back = plan_long_with(g, neutrons, &rev, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), fields[0], false)?;
     let slack: f32 = std::env::var("ED_CORRIDOR_SLACK").ok().and_then(|v| v.parse().ok()).unwrap_or(1.05);
     anchor.store(((back.jumps as f32) * slack + 2.0).ceil() as u32, std::sync::atomic::Ordering::Relaxed);
     // Pins: the descent's own highway stars, reversed to start -> goal
@@ -2825,7 +2868,7 @@ fn plan_long_corridor(
         let sreq = RouteRequest { from: at, to: pin, start_fuel: fuel, ..req.clone() };
         // Segments run field-less: the plot's goal field prices toward
         // the FINAL goal and would poison a segment's heuristic.
-        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None)?;
+        let leg = plan_long_with(g, neutrons, &sreq, ctl, COARSE_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, false, None, &none, &CoarseStats::default(), None, false)?;
         fuel = leg.hops.last().and_then(|h| h.fuel_after).unwrap_or(full_tank);
         at = pin;
         whole = Some(match whole {
@@ -2847,7 +2890,7 @@ fn plan_long_corridor(
     Ok(route)
 }
 
-fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>) -> Result<Route, RouteError> {
+fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, coarse_weight: f32, reserve_f: f32, bucket_f: f32, cap_mult: u64, greedy: bool, off_ramp_on: bool, lean_scan: bool, corridor: Option<&[([f32; 3], f32)]>, stalled: &std::sync::atomic::AtomicBool, stats: &CoarseStats, field: Option<&crate::cgraph::GoalField>, thin: bool) -> Result<Route, RouteError> {
 
     let started = std::time::Instant::now();
     // Keep a hop's worth of fuel in hand: a route may never arrive at a
@@ -3089,7 +3132,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
     let sector_keep: usize = std::env::var("ED_COARSE_SECTOR_KEEP").ok().and_then(|v| v.parse().ok()).unwrap_or(COARSE_SECTOR_KEEP);
     let mut bucket: HashMap<u64, usize> = HashMap::default();
     let goal_run_bridge: f32 = std::env::var("ED_GOAL_RUN_BRIDGE").ok().and_then(|v| v.parse().ok()).unwrap_or(1.6);
-    let fanout: usize = std::env::var("ED_COARSE_FANOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(COARSE_FANOUT);
+    let fanout: usize = std::env::var("ED_COARSE_FANOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(if thin { THIN_FANOUT } else { COARSE_FANOUT });
     // Item 13: density-adaptive greedy cone. In dense space the full
     // scan sees thousands of near-equivalent candidates per expansion
     // and RELAX dominates coarse time (43.8 of 65 ms on Colonia->
@@ -3678,7 +3721,7 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         // gets the allowance. ED_STALL_HANDOFF_REACHES tunes it.
         let end = waypoints.last().map(|w| w.0).unwrap_or(req.from);
         let remaining = dist(g.pos_of(end), true_goal_pos);
-        let handoff_reaches: f32 = std::env::var("ED_STALL_HANDOFF_REACHES").ok().and_then(|v| v.parse().ok()).unwrap_or(STALL_HANDOFF_REACHES);
+        let handoff_reaches: f32 = std::env::var("ED_STALL_HANDOFF_REACHES").ok().and_then(|v| v.parse().ok()).unwrap_or(if thin { THIN_HANDOFF_REACHES } else { STALL_HANDOFF_REACHES });
         if remaining > full_range * neutron_boost * handoff_reaches {
             if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                 eprintln!("    coarse stall {remaining:.0} ly out exceeds the exact hand-off ({handoff_reaches} reaches): variant fails fast");
@@ -4233,6 +4276,25 @@ mod tests {
         // Results come back by variant index whatever the start order.
         let (results, _, _) = pool.install(|| run_variants(3, None, None, &|| false, |r: &Route| r.jumps as u64, |i, _| (Ok(Route { jumps: i + 10, ..dummy() }), true), &[2, 0, 1]));
         assert_eq!(results.iter().map(|r| r.as_ref().unwrap().jumps).collect::<Vec<_>>(), vec![10, 11, 12]);
+    }
+
+    /// The thin family (2026-10-17, the rim pair): a fanout-capped, weight-3
+    /// single and a weight-3 bidi lead the portfolio at indices 0 and 1, so
+    /// rayon's range split starts them first on any thread count; every
+    /// other family keeps its place behind them. ED_NO_THIN=1 restores the
+    /// old numbering for A/B.
+    #[test]
+    fn the_thin_family_leads_the_portfolio() {
+        // nb 6 singles, bidi, no retro, 2 greedy, 2 offramp, 6 twins, no corridor: 17 + 2 thin.
+        assert_eq!(variant_kind(0, 2, 6, true, false, 2, 2, 6, false, 19), "thin single");
+        assert_eq!(variant_kind(1, 2, 6, true, false, 2, 2, 6, false, 19), "thin bidi");
+        assert_eq!(variant_kind(2, 2, 6, true, false, 2, 2, 6, false, 19), "single");
+        assert_eq!(variant_kind(8, 2, 6, true, false, 2, 2, 6, false, 19), "bidi");
+        assert_eq!(variant_kind(9, 2, 6, true, false, 2, 2, 6, false, 19), "greedy single");
+        assert_eq!(variant_kind(18, 2, 6, true, true, 2, 2, 5, false, 19), "retro", "the last slot is still the retro one");
+        assert_eq!(variant_kind(0, 0, 6, true, false, 2, 2, 6, false, 17), "single", "ED_NO_THIN: the old numbering");
+        assert_eq!(&KIND_ORDER[..2], &["thin single", "thin bidi"]);
+        assert_eq!(&variant_order(19, 2, 6, true, false, 2, 2, 6, false)[..2], &[0, 1]);
     }
 
     /// The declared start order is a knob, off by default (2026-10-17, the
@@ -5083,7 +5145,7 @@ mod tests {
         let hw = highway();
         let r = req(&hw, "K0", "K3000", 60.0);
         let none = std::sync::atomic::AtomicBool::new(false);
-        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None).unwrap();
+        let single = plan_long_with(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false).unwrap();
         let both = plan_long_bidi(&hw.g, &hw.neutrons, &r, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "K0");
         assert_eq!(both.hops.last().unwrap().name, "K3000");
@@ -5112,7 +5174,7 @@ mod tests {
         stars.push(star("Goal", 4_200.0, 0.0, 90.0, K));
         let fan = build(&stars);
         let rf = req(&fan, "Start", "Goal", 70.0);
-        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None).unwrap();
+        let single = plan_long_with(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, RESERVE_FRACTION, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false).unwrap();
         let both = plan_long_bidi(&fan.g, &fan.neutrons, &rf, &Control::none(), COARSE_WEIGHT, 1, false, false, [None, None]).unwrap();
         assert_eq!(both.hops.first().unwrap().name, "Start");
         assert_eq!(both.hops.last().unwrap().name, "Goal");
