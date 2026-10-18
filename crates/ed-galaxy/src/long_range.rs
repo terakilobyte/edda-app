@@ -109,6 +109,13 @@ const COARSE_FANOUT: usize = usize::MAX;
 const THIN_FANOUT: usize = 32;
 const THIN_WEIGHT: f32 = 3.0;
 const THIN_HANDOFF_REACHES: f32 = 10.0;
+/// The thin single's reserve fraction and thinning bucket: with the
+/// portfolio under the thin knobs the quick single-direction finishers on
+/// the rim were all reserve 0.4 / bucket 0.5 (a scan twin at 2.9 s, a
+/// single at 9.4 s, an off-ramp at 9.2 s) while the 0.75 / 0.75 shape did
+/// not finish in 100 s beside them.
+const THIN_RESERVE: f32 = 0.4;
+const THIN_BUCKET: f32 = 0.5;
 
 /// Sector k-best thinning per coarse expansion; 0 = the bucket thinning.
 /// Shipped at 0 until the 28-route matrix blesses a value (R1, 2026-10-17).
@@ -1507,7 +1514,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 // The thin family (kind 7): the quick diggers, first on
                 // every thread count. See THIN_FANOUT.
                 if i == 0 {
-                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, RESERVE_FRACTION, 0.75, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], true), 7)
+                    (plan_long_with(g, neutrons, req, &ctl, THIN_WEIGHT, THIN_RESERVE, THIN_BUCKET, cap_mult, false, false, lean_base, None, &stalled, &coarse, fields[1], true), 7)
                 } else {
                     (plan_long_bidi(g, neutrons, req, &ctl, THIN_WEIGHT, cap_mult, false, lean_base, fields), 7)
                 }
