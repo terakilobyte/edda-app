@@ -381,7 +381,26 @@ verdicts live in the CSV headers under `docs/benches/`.
   both thread counts (the night's 910 / 1,054; the reference 477 / 516).
   The maintainer waived his flight for this release on the measurements
   ("I trust our measurements at this point"); the plot_fuzz same-seed
-  replay is owed against the deployed server. OPEN: the 1,209 ly Jongua XV-E ->
+  replay is owed against the deployed server.
+  **2026-10-19, the data gap and the geometry.** `class_census.rs`: 62.1 %
+  of the 199 M systems are class Unknown (no star body in the dump);
+  neutrons 1.75 %. The neutrons the reference knows and we do not are
+  neutron primaries whose records have no bodies on either side: its
+  knowledge is the NavRoute stream, which `ed-eddn` already ingests into
+  the stars table and the daily overlay teaches into the index (the box
+  knows 3 of the 29 we checked); the gap closes with time on that stream,
+  not a new source; the bench index should carry the box's overlay. THE
+  DESCENT SEED (on by default for crossings): the forward direction's
+  coarse chain, taken before refinement through a chain sink (six shapes,
+  3 s each, a complete chain preferred, a stalled one within 15 kly of
+  the start accepted), reversed and segmented at 24 kly, with a PREFIX
+  SPLICE onto the witness route's tail where the forward chain's approach
+  into the goal cannot be planned (it is the lobe the reverse search
+  stalls in). Byoi AT-U -> Jongou AA-A 493 -> 444 j / 18 stops, UNDER the
+  reference's 477; Byoi CQ-G -> Jongou XM-W 563 -> 543 (reference 516);
+  arms w21 / w21-3 vs w20 / w20-3 2 / 26 / 0 and 3 / 22 / 3 (wall-only).
+  Gates: vs the shipped planner PC 18 / 5 / 5, three threads 17 / 4 / 7;
+  vs the R2 head 10 / 14 / 4 and 10 / 12 / 6. OPEN: the 1,209 ly Jongua XV-E ->
   Gonguae GW-C leg is flyable only at an empty tank (a standalone plot
   fails from 120 and 40 t) and costs 28 s wherever a chain uses it -- an
   exact-planner hole; the reverse crossings' remaining gap to the
