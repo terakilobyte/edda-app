@@ -1548,7 +1548,7 @@ fn single_arms(repaired: bool, jumps: f32, ceiling: f32, ceiling_gated: bool) ->
 /// planner; the settle rounds fly it with the real tank). Long where the
 /// greedy sides were weak, but a route -- on the reverse Jongou pair the
 /// only one (2026-10-18, `docs/benches/2026-10-18-witness.csv`).
-fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant, lean: bool, best_seen: &std::sync::atomic::AtomicU32) -> Result<Route, RouteError> {
+fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, started: std::time::Instant, lean: bool, best_seen: &std::sync::atomic::AtomicU32, goal_field: Option<&crate::cgraph::GoalField>) -> Result<Route, RouteError> {
     // The witness's waypoints are not coarse waypoints: its refinement does
     // not draw on the search trace (a plain hop through a white dwarf the
     // profile cannot boost is a witness hop, not a highway choice).
@@ -1627,7 +1627,7 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         // The witness passes: the raw witness, then the improved route, re-pinned.
         let witness_passes = |route: &mut Route, seed: &mut crate::feasible::Witness| {
             for pass in 0..passes {
-                match witness_segments(g, neutrons, seed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, segment_window(pass, first_ly, later_ly), true, seg_ms) {
+                match witness_segments(g, neutrons, seed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, segment_window(pass, first_ly, later_ly), true, seg_ms, goal_field) {
                     Some(better) => {
                         if debug {
                             eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1664,7 +1664,7 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
                     let dseed_ms: u64 = std::env::var("ED_DSEED_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(seg_ms);
                     let dseed_refine = std::env::var_os("ED_DSEED_REFINE").is_some();
                     for pass in 0..passes {
-                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0 || dseed_refine, if pass == 0 { dseed_ms } else { seg_ms }) {
+                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0 || dseed_refine, if pass == 0 { dseed_ms } else { seg_ms }, goal_field) {
                             Some(better) => {
                                 if debug {
                                     eprintln!("    descent seed pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1946,7 +1946,7 @@ fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
 /// worse than the witness. `None` when nothing improved or the plot was
 /// cancelled. ED_WSEG_LY (12,000) and ED_WSEG_MS (8,000) for the harness.
 #[allow(clippy::too_many_arguments)]
-fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32, seed_flyable: bool, seg_ms: u64) -> Option<Route> {
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32, seed_flyable: bool, seg_ms: u64, goal_field: Option<&crate::cgraph::GoalField>) -> Option<Route> {
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
     let mut pins = witness_pins(&pos, seg_ly);
@@ -1987,9 +1987,13 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
         let widened = widens > 0;
         let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: if widened { seg_ms * 2 } else { seg_ms }, ..req_left.clone() };
         let none = std::sync::atomic::AtomicBool::new(false);
-        let planned = plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT);
+        // The plot's goal field is sound only on the stretch whose goal IS the
+        // plot's goal (review A2, the maintainer's goal-end gate):
+        // ED_WSEG_LAST_FIELD=1 hands it to that stretch.
+        let last_field = if b == req.to && std::env::var_os("ED_WSEG_LAST_FIELD").is_some() { goal_field } else { None };
+        let planned = plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), last_field, false, &NO_BANS, &NO_INCUMBENT);
         if debug {
-            eprintln!("      segment {i}..{j} ({} seed hops, {:.0} ly, fuel {fuel:.0}): {} in {} ms", j - i, dist(pos[i], pos[j]), match &planned { Ok(r) => format!("{} j", r.jumps), Err(e) => format!("{e:?}") }, t_seg.elapsed().as_millis());
+            eprintln!("      segment {i}..{j} ({} seed hops, {:.0} ly, fuel {fuel:.0}): {} in {} ms{}", j - i, dist(pos[i], pos[j]), match &planned { Ok(r) => format!("{} j", r.jumps), Err(e) => format!("{e:?}") }, t_seg.elapsed().as_millis(), if last_field.is_some() { " (goal field)" } else { "" });
         }
         let seg = match planned {
             // A coarse-chain seed's hops are boosted edges, not jumps: a
@@ -2488,7 +2492,7 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
                 if cap_mult > 1 {
                     (Err(RouteError::Cancelled), 9)
                 } else {
-                    (plan_witness(g, neutrons, req, &ctl, started, prune_judge, &best_jumps), 9)
+                    (plan_witness(g, neutrons, req, &ctl, started, prune_judge, &best_jumps, fields[1]), 9)
                 }
             } else if thin > 0 && i < lead {
                 // The thin family (kind 7): the quick diggers, first on
@@ -5724,8 +5728,8 @@ pub(crate) mod tests {
         let r = RouteRequest { injection: Some((2.0, "premium", 22)), time_budget_ms: 20_000, fuel: Some(m), start_fuel: 32.0, ..req(&f, "K0", "Island", m.range_at(m.capacity)) };
         let started = std::time::Instant::now();
         let nobody = std::sync::atomic::AtomicU32::new(u32::MAX);
-        let eager = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, false, &nobody).unwrap();
-        let lean = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, true, &nobody).unwrap();
+        let eager = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, false, &nobody, None).unwrap();
+        let lean = plan_witness(&f.g, &f.neutrons, &r, &Control::none(), started, true, &nobody, None).unwrap();
         assert_eq!(names(&eager), names(&lean), "the same route in two currencies");
         assert!(eager.refuel_stops > lean.refuel_stops, "eager {} stops vs lean {}", eager.refuel_stops, lean.refuel_stops);
     }
