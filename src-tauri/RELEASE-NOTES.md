@@ -7,6 +7,42 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.7
+
+Long-range plotting gets three weeks of planner work. Every galaxy
+crossing we have tried now comes back as a route a ship can fly,
+including the rim-to-rim pairs that used to answer with a refusal or a
+thousand-jump walk, and routes across sparse space are far shorter: the
+two hardest crossings on our pinned list went from 910 and 1,054 jumps
+to 390 and 526. The first route still lands in seconds, and the Route tab
+now swaps in each better route as the server finds it instead of parking
+it behind a button. The Voice tab shows Kokoro's real state.
+
+Full notes:
+
+- **Every crossing flies.** The planner starts with a feasibility search
+  that finds a flyable route in seconds, shows it, and then improves it
+  stretch by stretch while the rest of the portfolio runs. A route that
+  needed FSD injections says exactly where; a stretch that no tank could
+  fly is refused in milliseconds, so the plan goes around a void instead
+  of into it.
+- **Shorter routes where it matters.** Across the thin regions a route
+  is rebuilt from the forward direction's chain and spliced onto its
+  approach, which is where the long crossings lost most of their jumps.
+  On our 28 pinned routes nothing got longer and the crossings lost
+  hundreds of jumps each.
+- **Better routes as they come.** While the server refines a plot, each
+  better route replaces the one on screen the moment it arrives, the
+  boxes and the jump table with it; the strip under the banner reads the
+  gain so far. A route you are following is never swapped underneath
+  you: for it the better route waits in the strip behind "Use it".
+- **A little more time when it buys jumps.** The planner no longer
+  stops on its first acceptable answer inside the first ten seconds when
+  a variant is still improving; short plots are unaffected.
+- **Voice tab.** Kokoro's installed, started and connected states come
+  from the engine itself, and the tab re-reads them every time it is
+  shown.
+
 ## 0.4.6
 
 The Engineers tab now plans a visit, not just a shopping list: the build
