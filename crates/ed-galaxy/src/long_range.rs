@@ -1639,9 +1639,13 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
                 None => break,
             }
         }
-        // The descent seed (ED_DESCENT_SEED=1): the forward chain, reversed,
-        // segmented the same way; it stands only where it beats the route.
-        if go && passes > 0 && std::env::var_os("ED_DESCENT_SEED").is_some() && segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
+        // The descent seed, ON by default (probes 2026-10-19: Byoi AT-U ->
+        // Jongou AA-A 493 -> 444 j, under the reference's 477; Byoi CQ-G ->
+        // Jongou XM-W 563 -> 543; ED_NO_DESCENT_SEED=1 ablates): the forward
+        // chain, reversed, segmented the same way, spliced onto this route's
+        // tail where its approach cannot be planned; it stands only where it
+        // beats the route.
+        if go && passes > 0 && std::env::var_os("ED_NO_DESCENT_SEED").is_none() && segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
             let t_desc = std::time::Instant::now();
             match descent_chain(g, neutrons, req, ctl) {
                 Some(chain) => {
@@ -1649,8 +1653,12 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
                         eprintln!("    descent seed: {} stars in {} ms", chain.len(), t_desc.elapsed().as_millis());
                     }
                     let mut dseed = crate::feasible::Witness { stars: chain, injections: Vec::new(), expansions: 0 };
+                    // The descent's pins: 12 kly (ED_DSEED_LY), so the prefix
+                    // reaches as far as the forward chain can be planned
+                    // before the splice.
+                    let dseed_ly: f32 = std::env::var("ED_DSEED_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(24_000.0);
                     for pass in 0..passes {
-                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly), pass > 0) {
+                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0) {
                             Some(better) => {
                                 if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                                     eprintln!("    descent seed pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1711,10 +1719,14 @@ fn descent_chain(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
     let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
     let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, min_fuel: false, ..req.clone() };
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
+    // The best stalled chain so far (gap to the start, chain), the fallback
+    // when no shape completes.
+    let mut stalled_best: Option<(f32, Vec<u32>)> = None;
     // The coarse loop has no deadline of its own (its caps are expansions):
-    // the cancel check carries one, 5 s per shape.
+    // the cancel check carries one, 3 s per shape (a crossing chain takes
+    // 0.6-1.3 s; a stalled one would run 20 s).
     for (w, r, b) in DESCENT_SHAPES {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(5_000);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(3_000);
         let timed = || (ctl.cancelled)() || std::time::Instant::now() > deadline;
         let tctl = Control { cancelled: &timed, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
         let none = std::sync::atomic::AtomicBool::new(false);
@@ -1730,19 +1742,48 @@ fn descent_chain(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         if (ctl.cancelled)() {
             return None;
         }
-        if chain.len() >= 2 && done && chain.first() == Some(&req.to) && chain.last() == Some(&req.from) {
+        // A complete chain, or a stalled one that got within reach of the
+        // hand-off (the forward Jongou AA-A -> Byoi AT-U crossing itself is a
+        // stall hand-off: the coarse reaches ~10 kly from Byoi and the exact
+        // planner flies the rest): reversed, with the plot's start prepended
+        // so the first segment plans that gap.
+        if chain.len() >= 2 && chain.first() == Some(&req.to) {
+            let last = *chain.last().unwrap();
+            let gap = dist(g.pos_of(last), g.pos_of(req.from));
             let mut out = chain;
             out.reverse();
-            return Some(out);
+            if out.first() != Some(&req.from) {
+                out.insert(0, req.from);
+            }
+            if done {
+                if debug {
+                    eprintln!("    descent chain: {} stars, complete", out.len());
+                }
+                return Some(out);
+            }
+            if gap <= DESCENT_STALL_GAP_LY && stalled_best.as_ref().is_none_or(|(g0, _)| gap < *g0) {
+                stalled_best = Some((gap, out));
+            }
         }
     }
-    None
+    // No shape completed: the stalled chain that got nearest the start.
+    let (gap, out) = stalled_best?;
+    if debug {
+        eprintln!("    descent chain: {} stars, stalled, accepted ({gap:.0} ly short of the start)", out.len());
+    }
+    Some(out)
 }
 
-/// The shapes the descent tries, first complete chain wins: the scan twins'
-/// three (the shapes that crossed Jongou XM-W -> Byoi CQ-G) and the base
-/// single's.
-const DESCENT_SHAPES: [(f32, f32, f32); 4] = [(1.8, 0.75, 0.5), (1.8, 0.75, 0.75), (1.8, 0.75, 0.0), (COARSE_WEIGHT, RESERVE_FRACTION, 0.75)];
+/// How far from the plot's start a stalled descent chain may end and still
+/// seed the segments (the stall hand-off's own reach is about this).
+const DESCENT_STALL_GAP_LY: f32 = 15_000.0;
+
+/// The shapes the descent tries, first complete chain wins, the quick ones
+/// first: the reserve-0.4 single and the 1.3 single (Jongou AA-A -> Byoi
+/// AT-U crosses in them in 1.1-1.3 s; the twins' shapes stall there), the
+/// scan twins' three (Jongou XM-W -> Byoi CQ-G crosses in them in 0.6 s),
+/// the base single's.
+const DESCENT_SHAPES: [(f32, f32, f32); 6] = [(COARSE_WEIGHT, 0.4, 0.5), (1.8, 0.75, 0.5), (1.3, 0.75, 0.5), (1.8, 0.75, 0.75), (1.8, 0.75, 0.0), (COARSE_WEIGHT, RESERVE_FRACTION, 0.75)];
 
 /// Join a planned `prefix` (ending with `fuel` in the tank) to `raw`'s tail
 /// at raw's star nearest the prefix's end: a connector segment planned
