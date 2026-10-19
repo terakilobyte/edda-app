@@ -1,0 +1,77 @@
+# 2026-10-19 NavRoute class audit: two hours of the live EDDN feed (09:40-11:40 PDT, navroute_tap, 5,099 navroute
+# messages, 26,433 hops, 13,216 an hour, every hop with a StarClass) against the production routing index
+# af6bc099 (navroute_audit: unique systems by id64, the index's main-star class beside the route's). Question:
+# is a route's StarClass the arrival star, i.e. may an Unknown be taught a class from a route? (The server has kept
+# positions only since the 2026-09-11 repair, after a blind teaching was measured changing 27 % of touched classes.)
+# Pre-registered: ~15k hops/h (HELD at 13.2k); 30-60 % of unique systems Unknown in the index (15 % Unknown + 30 %
+# not in the index at all = 45 % teachable-or-addable: HELD on the sum, the Unknown share alone under); agreement
+# among known systems well under 100 % (MISSED: 99.9 %); the neutron claim's precision at or above 95 % (HELD: 100 %,
+# 284 of 284; white dwarf 98.7 %, 76 of 77; black hole 7 of 7).
+# VERDICT: on today's index a route's StarClass IS the index's main star (8,567 of 8,578 agree; the 11 disagreements
+# are bubble catalogue systems: Medb, Prism, 36 Ophiuchi, Geras, Zhulong, LP 581-36, LAWD 74, LAWD 26, LP 245-17,
+# Oochoss VK-J c11-1, Outorst ZE-G b11-0). Yield if taught into Unknowns only: 2,347 classes (15 neutrons) and 4,752
+# new systems (82 neutrons, 16 white dwarfs) per two hours, ~1,100 boost stars a day the index does not have.
+# OPEN before the rule changes: this measurement and the 2026-09-10 one (27 % changed) disagree, so one instrument
+# is broken; the September method is to be found and rerun on this tap before NavRoute teaches a class again.
+# navroute_audit navroute_hops.tsv on D:\galos\index-prod-af6bc099
+# hops 26433, blank class 0, unique systems 15678, self-disagreeing 0
+# not in index (adds) 4752, name clash 1, index Unknown (teachable) 2347, index known 8578
+section,route_class,count
+adds,A,306
+adds,B,35
+adds,BlackHole,8
+adds,Exotic,2
+adds,F,527
+adds,G,387
+adds,K,1060
+adds,L,91
+adds,M,2004
+adds,Neutron,82
+adds,O,2
+adds,Proto,38
+adds,T,100
+adds,WhiteDwarf,16
+adds,Y,94
+teachable,A,205
+teachable,B,50
+teachable,BlackHole,1
+teachable,F,285
+teachable,G,192
+teachable,K,568
+teachable,L,60
+teachable,M,829
+teachable,Neutron,15
+teachable,Proto,37
+teachable,T,59
+teachable,WhiteDwarf,2
+teachable,Y,44
+route_class,index_class,count,examples
+A,A,336,
+B,B,54,
+BlackHole,BlackHole,7,
+Exotic,Exotic,1,
+F,F,765,
+G,A,1,Medb
+G,G,780,
+G,M,1,Oochoss VK-J c11-1
+K,B,1,Prism
+K,G,1,36 Ophiuchi
+K,K,1723,
+K,WhiteDwarf,1,Geras
+L,L,237,
+M,A,1,LP 245-17
+M,M,3571,
+M,T,1,Outorst ZE-G b11-0
+M,WhiteDwarf,2,Zhulong | LP 581-36
+Neutron,Neutron,284,
+O,O,4,
+Proto,Proto,347,
+T,M,1,LAWD 74
+T,T,228,
+WhiteDwarf,Exotic,1,LAWD 26
+WhiteDwarf,WhiteDwarf,76,
+Y,Y,154,
+# agreement among known: 8567 of 8578 (99.9 %)
+# Neutron: route claims 284, index agrees 284 (precision 100.0 %); index has 284, route says so for 284 (recall 100.0 %)
+# WhiteDwarf: route claims 77, index agrees 76 (precision 98.7 %); index has 79, route says so for 76 (recall 96.2 %)
+# BlackHole: route claims 7, index agrees 7 (precision 100.0 %); index has 7, route says so for 7 (recall 100.0 %)
