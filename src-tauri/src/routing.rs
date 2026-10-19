@@ -1637,6 +1637,7 @@ async fn plot_local(app: AppHandle, state: &AppState, routing: Arc<RoutingState>
         // Once a variant has a route the rest get a second to beat it.
         grace_ms: 1_000,
         min_fuel,
+        judge_lean: None,
         stop_weight,
         prize_k: try_hard.then_some(0.0),
         t_jump_s: time_fit.and_then(|f| f.t_jump_s),

@@ -1341,6 +1341,7 @@ fn plot_route(ctx: &Ctx, input: &Value) -> CapResult<Value> {
         // the panel does — lean by default (minimize time), the
         // commander's safe-margins choice, and their fitted clocks.
         min_fuel: true,
+        judge_lean: None,
         stop_weight: 1.0,
         prize_k: None,
         t_jump_s: time_fit.and_then(|f| f.t_jump_s),
