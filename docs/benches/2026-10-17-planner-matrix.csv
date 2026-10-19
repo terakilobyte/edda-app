@@ -401,6 +401,23 @@
 # within 10 %. Both arms vs w23p-3 (the same planner less judge_lean, one run): the same floor; a row outside it on
 # BOTH arms is the judge_lean plumbing's effect, which the probes found none of. These two arms are the baseline
 # the next default change is measured against.
+# VERDICT w24a-3 vs w24b-3 (2026-10-19 19:05; the first launch was contaminated by a surviving loop and repeated
+# cleanly): IDENTICAL jumps and stops on all 28 rows -- 0 apart everywhere, the crossings 390 / 526 and the knife
+# edges 444 / 446 included (tighter than the stated floor; at a fixed 100 s budget on three threads the planner
+# repeated itself exactly); walls within the floor (two wall-only "better"). HELD. Both arms vs w23p-3: 26 rows
+# same on jumps; Sol -> Beagle Point wall only; Ood Fleau -> Sphiesi 414 -> 444 jumps / 17 -> 20 stops on BOTH arms
+# -- the one planner change between the binaries is RouteRequest.judge_lean (f8d1965), so this is its effect on a
+# row the probes never ran: "none" MISSED. Next, pre-registered: a knob ED_NO_JUDGE_INHERIT=1 (the stamp stays None,
+# nested plots judge by their own min_fuel as before f8d1965) probed on Ood Fleau -> Sphiesi, three threads,
+# EXPECT 414 within the row's knife edge; if held the inheritance goes knob-only (default off) and the box gets it.
+# PROBE RESULT (14:46 PDT; the arms themselves ran 13:58-14:40, not the evening the ledger first wrote): control
+# (the same code, the stamp on) 414 / 17, ED_NO_JUDGE_INHERIT=1 414 / 17 -- the inheritance is CLEARED; the row is a
+# 100 s budget-cut knife edge: the arm's trace found 441 at 84 s and finished 444, the probe's found 422 at 87 s
+# and finished 414, same binary save the knob. LESSON for the two-run rule: interleaved same-session arms share
+# their timing and repeat each other exactly (28 of 28 here), so they catch drift but NOT a knife edge's
+# bimodality; the floor for a knife-edge row comes from runs in different sessions (414 / 444 here, 447-462 on the
+# PC), and a default change is judged on such a row only by a repeated probe in both states. The knob stays as the
+# probe instrument (default: the stamp on, as shipped).
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -1756,3 +1773,59 @@ w23p-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,399,18,27878,5202,74.5,
 w23p-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,526,22,34996,312,100.3,
 w23p-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,414,17,28599,13809,103.7,
 w23p-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,446,19,30393,453,102.5,
+w24a-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,30,0.9,
+w24a-3,Spase AA-A a108-0,Wongi,38200,102,5,7847,21,0.6,
+w24a-3,Sol,Byoomao AA-A c1,24621,65,3,4924,26,1.3,
+w24a-3,Byoomao AA-A c1,Sol,24621,62,3,4694,24,1.3,
+w24a-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2761,9,0.8,
+w24a-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2695,8,0.7,
+w24a-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,18,0.6,
+w24a-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,13,0.5,
+w24a-3,Wongi,Colonia,21939,58,2,4350,36,6.3,
+w24a-3,Colonia,Wongi,21939,54,2,4096,29,2.5,
+w24a-3,Sol,Sagittarius A*,25900,68,4,5140,67,3.1,
+w24a-3,Sagittarius A*,Sol,25900,73,3,5427,945,7.1,
+w24a-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,217,10.6,
+w24a-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,14,0.4,
+w24a-3,Wongi,Beagle Point,65182,191,10,14274,596,70.0,
+w24a-3,Beagle Point,Wongi,65182,196,10,14518,40,1.0,
+w24a-3,Colonia,Spase AA-A a108-0,31440,88,4,6582,640,15.8,
+w24a-3,Spase AA-A a108-0,Colonia,31440,88,5,6596,586,12.2,
+w24a-3,Sol,Colonia,22000,57,3,4320,35,5.6,
+w24a-3,Colonia,Sol,22000,55,2,4161,16,2.3,
+w24a-3,Sol,Beagle Point,65279,191,10,14273,599,53.5,
+w24a-3,Beagle Point,Sol,65279,197,9,14592,44,1.0,
+w24a-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,394,17,27391,1125,53.7,
+w24a-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,390,16,27380,173,105.4,
+w24a-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,399,18,27878,4548,76.4,
+w24a-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,526,22,34996,301,100.3,
+w24a-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,444,20,30095,10523,105.3,
+w24a-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,446,19,30393,435,102.5,
+w24b-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,40,1.0,
+w24b-3,Spase AA-A a108-0,Wongi,38200,102,5,7847,24,0.7,
+w24b-3,Sol,Byoomao AA-A c1,24621,65,3,4924,26,1.3,
+w24b-3,Byoomao AA-A c1,Sol,24621,62,3,4694,23,1.2,
+w24b-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2761,9,0.8,
+w24b-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2695,8,0.7,
+w24b-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,20,0.6,
+w24b-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,14,0.5,
+w24b-3,Wongi,Colonia,21939,58,2,4350,34,5.8,
+w24b-3,Colonia,Wongi,21939,54,2,4096,29,2.4,
+w24b-3,Sol,Sagittarius A*,25900,68,4,5140,68,3.6,
+w24b-3,Sagittarius A*,Sol,25900,73,3,5427,831,6.9,
+w24b-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,212,10.5,
+w24b-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,14,0.4,
+w24b-3,Wongi,Beagle Point,65182,191,10,14274,594,73.7,
+w24b-3,Beagle Point,Wongi,65182,196,10,14518,41,1.1,
+w24b-3,Colonia,Spase AA-A a108-0,31440,88,4,6582,592,15.6,
+w24b-3,Spase AA-A a108-0,Colonia,31440,88,5,6596,561,12.2,
+w24b-3,Sol,Colonia,22000,57,3,4320,36,5.7,
+w24b-3,Colonia,Sol,22000,55,2,4161,16,2.3,
+w24b-3,Sol,Beagle Point,65279,191,10,14273,576,46.3,
+w24b-3,Beagle Point,Sol,65279,197,9,14592,44,1.0,
+w24b-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,394,17,27391,1126,19.0,
+w24b-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,390,16,27380,170,100.3,
+w24b-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,399,18,27878,4996,73.8,
+w24b-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,526,22,34996,299,100.3,
+w24b-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,444,20,30095,10753,105.1,
+w24b-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,446,19,30393,434,101.7,

@@ -418,7 +418,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   arms, three short ones move one jump, the rim knife edges 11-17, the
   reverse crossings' segment results about 70. Rule from here: a default
   needs two interleaved same-code runs with the pre-registered row holding
-  in both. The reference re-examined: its reverse crossings at its own
+  in both. (First applied 2026-10-19, arms w24a-3 / w24b-3 on the current
+  code: 28 of 28 rows identical between the arms, so a same-session pair
+  catches drift but not a knife edge's bimodality -- Ood Fleau -> Sphiesi
+  sat at 444 in both arms and at 414 in two probes an hour later, the
+  100 s cut landing on different refinements; a knife-edge row is judged
+  by repeated probes in both states, and the inheritance plumbing that
+  the pair seemed to blame was cleared by the probe with it switched off.) The reference re-examined: its reverse crossings at its own
   range figure are 318 / 328 jumps, every one crossing the 3,864 ly void
   as plain jumps through empty space; the bench's reference column is the
   same plotter at the ship's 77.8 ly under a x4 boost assumption. Neither

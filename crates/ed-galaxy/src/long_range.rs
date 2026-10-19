@@ -2451,7 +2451,10 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         // Stamped on the request every nested plot clones (review B5): the
         // leg re-plans and the min-fuel rewrite's sub-plots judge as this
         // plot does.
-        let req_stamped = RouteRequest { judge_lean: Some(prune_judge), ..req.clone() };
+        // ED_NO_JUDGE_INHERIT=1 leaves the stamp off (nested plots judge by
+        // their own min_fuel, as before f8d1965): the probe knob for the
+        // w24 finding (Ood Fleau -> Sphiesi 414 -> 444 on three threads).
+        let req_stamped = RouteRequest { judge_lean: if std::env::var_os("ED_NO_JUDGE_INHERIT").is_some() { None } else { Some(prune_judge) }, ..req.clone() };
         let req = &req_stamped;
         let judge = |r: &Route| -> u64 {
             if prune_judge {
