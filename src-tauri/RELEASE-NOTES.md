@@ -39,6 +39,11 @@ Full notes:
 - **A little more time when it buys jumps.** The planner no longer
   stops on its first acceptable answer inside the first ten seconds when
   a variant is still improving; short plots are unaffected.
+- **More known stars.** The route server now learns a system's arrival
+  star from the routes commanders plot in the galaxy map, where it knew
+  nothing before and never over a scan: measured over two hours of the
+  feed, about a thousand neutron stars and white dwarfs a day that the
+  index was missing. Long routes get better as the data fills in.
 - **Voice tab.** Kokoro's installed, started and connected states come
   from the engine itself, and the tab re-reads them every time it is
   shown.
