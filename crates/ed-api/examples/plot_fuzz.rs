@@ -268,7 +268,18 @@ fn main() -> anyhow::Result<()> {
             let (status, v): (u16, Value) = match resp {
                 Ok(r) => {
                     let s = r.status().as_u16();
-                    (s, rt.block_on(r.json::<Value>()).unwrap_or(Value::Null))
+                    match rt.block_on(r.json::<Value>()) {
+                        Ok(v) => (s, v),
+                        Err(e) => {
+                            // A body that did not arrive whole is the transport's
+                            // problem, not a route with no hops (2026-10-19: one
+                            // 40 s poll of a refining plot read as "no hops" while
+                            // the box had served the cached 307-jump route).
+                            println!("{plots},{case},\"{from}\",\"{to}\",{straight:.0},{answer},{s},{wall:.1},,,,\"transport: body {e}\"");
+                            std::thread::sleep(Duration::from_secs(5));
+                            continue;
+                        }
+                    }
                 }
                 Err(e) => {
                     println!("{plots},{case},\"{from}\",\"{to}\",{straight:.0},{answer},0,{wall:.1},,,,\"transport: {e}\"");
