@@ -375,6 +375,22 @@
 # on each thread count, the one move Sphiesi -> Ood Fleau 447 -> 463 on
 # the PC inside its 447-462 knife-edge band. The release candidate for the
 # second deploy.
+# w23p-3 = the w22 binary on the PRODUCTION index (routing af6bc099, the
+# box's: 202.7 M systems, 3,540,787 neutrons against the bench index's
+# 199.0 M / 3,488,592; downloaded 2026-10-19, its neutron sub-index built
+# with build_highway.rs) vs w22-3 on the bench index: 7 / 15 / 6; jumps
+# fewer on 6 routes, same on 20, more on 2 -- Byoi AT-U -> Jongou AA-A
+# 444 -> 390, Byoi CQ-G -> Jongou XM-W 543 -> 526, Sphiesi -> Ood Fleau
+# 462 -> 446, Spase -> Colonia 91 -> 88, the Jongou forward pair 396 -> 394
+# and 401 -> 399; Sol -> Byoomao 64 -> 65 and Ood Fleau -> Sphiesi 410 ->
+# 414 (knife edge) against. Against the reference's jump counts: fewer on
+# 19, tied 1, more on 8 (Byoi CQ-G +10, Spase -> Wongi +6, Spase ->
+# Colonia +3, Sgr A* -> Sol +3, Wongi -> Plielou +2, three by one). The
+# three reference routes' neutron waypoints are still missing here too
+# (11 / 2 / 16): the gain is the production index's other 52k neutrons.
+# FROM HERE the harness measures on the production index (EDDA_INDEX
+# default); every arm above was on the bench index D:\galos\index-boost-
+# secondary.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
@@ -1702,3 +1718,31 @@ w22,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,401,17,27974,14664,22.8,
 w22,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,543,23,35805,875,63.5,
 w22,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,410,18,28432,3954,101.8,
 w22,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,463,20,32496,865,30.3,
+w23p-3,Wongi,Spase AA-A a108-0,38200,101,6,7726,27,0.9,
+w23p-3,Spase AA-A a108-0,Wongi,38200,102,5,7847,19,0.6,
+w23p-3,Sol,Byoomao AA-A c1,24621,65,3,4924,23,1.2,
+w23p-3,Byoomao AA-A c1,Sol,24621,62,3,4694,18,1.1,
+w23p-3,Pheia Auscs AA-A d0,Spase AA-A a108-0,13439,37,1,2761,8,0.9,
+w23p-3,Spase AA-A a108-0,Pheia Auscs AA-A d0,13439,36,1,2695,8,0.7,
+w23p-3,Wongi,Plielou RN-R d5-27,12117,38,1,2775,18,0.6,
+w23p-3,Plielou RN-R d5-27,Wongi,12117,37,1,2643,13,0.5,
+w23p-3,Wongi,Colonia,21939,58,2,4350,33,5.6,
+w23p-3,Colonia,Wongi,21939,54,2,4096,29,2.4,
+w23p-3,Sol,Sagittarius A*,25900,68,4,5140,69,3.4,
+w23p-3,Sagittarius A*,Sol,25900,73,3,5427,905,6.8,
+w23p-3,Wongi,Blaa Hypai AA-A a96-19,12712,38,1,2792,212,10.6,
+w23p-3,Blaa Hypai AA-A a96-19,Wongi,12712,36,1,2674,15,0.4,
+w23p-3,Wongi,Beagle Point,65182,191,10,14274,592,71.4,
+w23p-3,Beagle Point,Wongi,65182,196,10,14518,42,1.0,
+w23p-3,Colonia,Spase AA-A a108-0,31440,88,4,6582,597,14.4,
+w23p-3,Spase AA-A a108-0,Colonia,31440,88,5,6596,575,12.4,
+w23p-3,Sol,Colonia,22000,57,3,4320,34,5.6,
+w23p-3,Colonia,Sol,22000,55,2,4161,16,2.3,
+w23p-3,Sol,Beagle Point,65279,191,10,14273,592,46.3,
+w23p-3,Beagle Point,Sol,65279,197,9,14592,44,1.0,
+w23p-3,Jongou AA-A d0,Byoi Fraae AT-U d2-1,85526,394,17,27391,1125,54.2,
+w23p-3,Byoi Fraae AT-U d2-1,Jongou AA-A d0,85526,390,16,27380,176,100.3,
+w23p-3,Jongou XM-W d1-0,Byoi Fraae CQ-G d10-0,87012,399,18,27878,5202,74.5,
+w23p-3,Byoi Fraae CQ-G d10-0,Jongou XM-W d1-0,87012,526,22,34996,312,100.3,
+w23p-3,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,84599,414,17,28599,13809,103.7,
+w23p-3,Sphiesi HX-L d7-0,Ood Fleau ZJ-I d9-0,84599,446,19,30393,453,102.5,

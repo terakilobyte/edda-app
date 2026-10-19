@@ -4,7 +4,7 @@
 #   edda_matrix.sh <bench.exe> <tag> <routes.txt> <out_dir> [budget_s] [extra args]
 set -uo pipefail
 B="$1"; TAG="$2"; ROUTES="$3"; OUT="$4"; BUDGET="${5:-100}"; shift 5 || shift $#
-IDX="${EDDA_INDEX:-/d/galos/index-boost-secondary}"
+IDX="${EDDA_INDEX:-/d/galos/index-prod-af6bc099}"
 mkdir -p "$OUT"; : > "$OUT/$TAG.jsonl"
 # Warm the index in the page cache first (2026-10-17: the same baseline
 # binary plotted Sol -> Beagle Point in 18 s warm and 77 s after a build
