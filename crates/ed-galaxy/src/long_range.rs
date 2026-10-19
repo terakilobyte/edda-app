@@ -1658,6 +1658,11 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
                     // before the splice.
                     let dseed_ly: f32 = std::env::var("ED_DSEED_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(24_000.0);
                     for pass in 0..passes {
+                        // The first pass is a coarse-chain seed (no flyable hops to
+                        // fall back on: refining the reversed chain's own edges
+                        // measured Budget on the approach stretch, probe dseed7,
+                        // 2026-10-19, and lost the splice); the later passes
+                        // re-pin the spliced route, which is flyable.
                         match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0) {
                             Some(better) => {
                                 if std::env::var_os("ED_PLOT_DEBUG").is_some() {
@@ -1960,9 +1965,18 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
                     Err(RouteError::NoRoute)
                 };
                 match (fallback, planned) {
-                    (Ok(r), _) => {
+                    (Ok(f), Ok(r)) => {
+                        if r.jumps < f.jumps {
+                            improved += 1;
+                            r
+                        } else {
+                            fell_back += 1;
+                            f
+                        }
+                    }
+                    (Ok(f), Err(_)) => {
                         fell_back += 1;
-                        r
+                        f
                     }
                     (Err(_), Ok(r)) => {
                         improved += 1;
