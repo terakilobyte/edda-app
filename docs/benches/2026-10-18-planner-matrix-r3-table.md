@@ -52,7 +52,7 @@ better 17 · same 4 · WORSE 7 of 28
 | Colonia -> Wongi | 21939 | 55 / 54 | 3 / 2 | 4201 / 4096 | 0.1 / 0.1 | 1.1 / 2.4 | 54 / 16 | better |
 | Jongou AA-A d0 -> Byoi Fraae AT-U d2-1 | 85526 | 396 / 396 | 17 / 17 | 27517 / 27517 | 1.1 / 1.2 | 54.0 / 53.0 | 492 / 62 | same |
 | Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0 | 87012 | 401 / 401 | 17 / 17 | 27974 / 27974 | 14.2 / 4.1 | 100.9 / 69.2 | 530 / 61 | better |
-| Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0 | 84599 | 412 / 410 | 17 / 18 | 28490 / 28432 | 6.6 / 2.3 | 102.7 / 100.8 | 451 / 61 | WORSE |
+| Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0 | 84599 | 412 / 410 | 17 / 18 | 28490 / 28432 | 6.6 / 2.3 | 102.7 / 100.8 | 451 / 61 | better |
 | Pheia Auscs AA-A d0 -> Spase AA-A a108-0 | 13439 | 37 / 37 | 1 / 1 | 2760 / 2760 | 0.1 / 0.1 | 0.7 / 0.9 | 38 / 1 | same |
 | Plielou RN-R d5-27 -> Wongi | 12117 | 37 / 37 | 1 / 1 | 2643 / 2643 | 0.1 / 0.1 | 0.6 / 0.6 | 36 / 3 | same |
 | Sagittarius A* -> Sol | 25900 | 73 / 73 | 3 / 3 | 5427 / 5427 | 1.9 / 1.0 | 6.2 / 7.0 | 70 / 38 | same |
@@ -70,7 +70,7 @@ better 17 · same 4 · WORSE 7 of 28
 | Wongi -> Plielou RN-R d5-27 | 12117 | 37 / 38 | 2 / 1 | 2749 / 2775 | 0.1 / 0.1 | 0.9 / 0.7 | 36 / 47 | WORSE |
 | Wongi -> Spase AA-A a108-0 | 38200 | 101 / 101 | 6 / 6 | 7726 / 7726 | 0.1 / 0.1 | 1.0 / 1.1 | 104 / 61 | same |
 
-better 10 · same 12 · WORSE 6 of 28
+better 11 · same 12 · WORSE 5 of 28
 
 ## PC, 24 threads: the shipped planner (before) -> w21
 
@@ -94,7 +94,7 @@ better 10 · same 12 · WORSE 6 of 28
 | Sol -> Beagle Point | 65279 | 191 / 191 | 10 / 10 | 14273 / 14273 | 0.3 / 0.2 | 77.4 / 15.6 (same-day) | 205 / 61 | better |
 | Sol -> Byoomao AA-A c1 | 24621 | 64 / 64 | 3 / 3 | 4827 / 4871 | 0.2 / 0.1 | 0.6 / 1.1 | 74 / 61 | WORSE |
 | Sol -> Colonia | 22000 | 58 / 57 | 3 / 3 | 4360 / 4320 | 0.1 / 0.2 | 1.0 / 3.4 | 60 / 38 | better |
-| Sol -> Sagittarius A* | 25900 | 70 / 68 | 3 / 4 | 5283 / 5145 | 0.1 / 0.2 | 0.8 / 2.0 | 78 / 60 | WORSE |
+| Sol -> Sagittarius A* | 25900 | 70 / 68 | 3 / 4 | 5283 / 5145 | 0.1 / 0.2 | 0.8 / 2.0 | 78 / 60 | better |
 | Spase AA-A a108-0 -> Colonia | 31440 | 87 / 91 | 5 / 5 | 6516 / 6830 | 2.0 / 0.8 | 7.2 / 4.9 | 85 / 61 | WORSE |
 | Spase AA-A a108-0 -> Pheia Auscs AA-A d0 | 13439 | 36 / 36 | 1 / 1 | 2695 / 2694 | 0.0 / 0.1 | 0.3 / 0.7 | 38 / 2 | better |
 | Spase AA-A a108-0 -> Wongi | 38200 | 102 / 102 | 5 / 5 | 7790 / 7790 | 0.1 / 0.1 | 0.4 / 0.5 | 96 / 4 | same |
@@ -105,7 +105,7 @@ better 10 · same 12 · WORSE 6 of 28
 | Wongi -> Plielou RN-R d5-27 | 12117 | 37 / 38 | 2 / 1 | 2751 / 2775 | 0.1 / 0.1 | 0.6 / 0.6 | 36 / 47 | WORSE |
 | Wongi -> Spase AA-A a108-0 | 38200 | 101 / 101 | 6 / 6 | 7726 / 7726 | 0.1 / 0.1 | 0.6 / 1.0 | 104 / 61 | same |
 
-better 18 · same 5 · WORSE 5 of 28
+better 19 · same 5 · WORSE 4 of 28
 
 ## PC, 24 threads: the R2 branch head (thin6) -> w21
 
@@ -122,7 +122,7 @@ better 18 · same 5 · WORSE 5 of 28
 | Colonia -> Wongi | 21939 | 54 / 54 | 2 / 2 | 4096 / 4096 | 0.1 / 0.2 | 0.9 / 1.5 | 54 / 16 | same |
 | Jongou AA-A d0 -> Byoi Fraae AT-U d2-1 | 85526 | 396 / 396 | 17 / 17 | 27517 / 27517 | 1.7 / 1.9 | 100.3 / 100.3 | 492 / 62 | same |
 | Jongou XM-W d1-0 -> Byoi Fraae CQ-G d10-0 | 87012 | 401 / 401 | 17 / 17 | 27974 / 27974 | 14.4 / 14.8 | 58.0 / 22.9 | 530 / 61 | better |
-| Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0 | 84599 | 412 / 410 | 17 / 18 | 28490 / 28432 | 29.0 / 2.2 | 102.6 / 100.9 | 451 / 61 | WORSE |
+| Ood Fleau ZJ-I d9-0 -> Sphiesi HX-L d7-0 | 84599 | 412 / 410 | 17 / 18 | 28490 / 28432 | 29.0 / 2.2 | 102.6 / 100.9 | 451 / 61 | better |
 | Pheia Auscs AA-A d0 -> Spase AA-A a108-0 | 13439 | 37 / 37 | 1 / 1 | 2760 / 2760 | 0.1 / 0.1 | 0.7 / 0.8 | 38 / 1 | same |
 | Plielou RN-R d5-27 -> Wongi | 12117 | 37 / 37 | 1 / 1 | 2643 / 2643 | 0.1 / 0.1 | 0.4 / 0.4 | 36 / 3 | same |
 | Sagittarius A* -> Sol | 25900 | 73 / 73 | 3 / 3 | 5434 / 5427 | 1.0 / 1.0 | 2.9 / 6.0 | 70 / 38 | better |
@@ -140,4 +140,4 @@ better 18 · same 5 · WORSE 5 of 28
 | Wongi -> Plielou RN-R d5-27 | 12117 | 37 / 38 | 2 / 1 | 2749 / 2775 | 0.1 / 0.1 | 0.8 / 0.6 | 36 / 47 | WORSE |
 | Wongi -> Spase AA-A a108-0 | 38200 | 101 / 101 | 6 / 6 | 7726 / 7726 | 0.1 / 0.1 | 0.8 / 1.0 | 104 / 61 | same |
 
-better 10 · same 14 · WORSE 4 of 28
+better 11 · same 14 · WORSE 3 of 28

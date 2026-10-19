@@ -67,12 +67,12 @@ def verdict(b, a):
         return "better"
     if JUDGE == "seconds" and "seconds_v2" in a and "seconds_v2" in b:
         sa, sb = a["seconds_v2"], b["seconds_v2"]
-        if sa > sb * 1.002 or (a.get("stops") or 0) > (b.get("stops") or 0):
+        if sa > sb * 1.002:
             return "WORSE"
         wa, wb = wall(a, b), wall(b, a)
         if wa > wb * 1.10 and wa > wb + 1.0 and sa >= sb:
             return "WORSE"
-        if sa < sb or (a.get("stops") or 0) < (b.get("stops") or 0) or (wa < wb * 0.9 and wa + 1.0 < wb):
+        if sa < sb or (wa < wb * 0.9 and wa + 1.0 < wb):
             return "better"
         return "same"
     if a["jumps"] > b["jumps"] or (a.get("stops") or 0) > (b.get("stops") or 0):

@@ -203,7 +203,7 @@
 # wall-only, +1 to +4.5 s on short plots, Wongi -> Blaa Hypai 2 -> 11 s
 # (the floor holding a plot nothing improves), Jongou AA-A 60 -> 100 s
 # (inside the noise floor). Against the reference's jump counts: fewer on
-# 19, tied 1, more on 8 (was 17 / 1 / 10). -> both DEFAULT ON.
+# 18, tied 1, more on 9 (was 17 / 1 / 10; the audit of 2026-10-19 corrected this line from 19 / 1 / 8). -> both DEFAULT ON.
 # w11-3 = the slice's yield rule fixed (a single past its slice yields
 # unless its coarse chain reached the goal; the refine-stage exemption
 # had spared the five stalled singles 26 s each) vs w10-3: 2 better / 26
@@ -218,9 +218,9 @@
 # 4 better / 21 same / 3 WORSE. Jongou XM-W -> Byoi CQ-G 451 -> 401 j /
 # 17 stops (the R2 head's route back; pre-registered, HELD); Byoi AT-U ->
 # Jongou AA-A 919 -> 910, Ood Fleau -> Sphiesi 425 -> 421; Jongou AA-A ->
-# Byoi AT-U 392 -> 396 (wall 100 -> 66 s) and Spase -> Colonia 89 -> 90
-# moved against, both plots that move between same-code arms (probe
-# pending). The 401 -> 451 of last night was NOT the scheduling race the
+# Byoi AT-U 392 -> 396 (wall 100 -> 66 s; the audit of 2026-10-19: 392 on five arms then 396 on every later one on both thread counts, a real 4-jump regression of this change, not noise) and Spase -> Colonia 89 -> 90
+# (its 89-91 band) moved against.
+# The 401 -> 451 of last night was NOT the scheduling race the
 # w8 header below says: it was the witness's currency in a sub-plot.
 # w12-3 vs w8-3 (the day's work against last night's after table):
 # 11 better / 11 same / 6 WORSE; against the reference's jump counts
@@ -272,8 +272,8 @@
 # 596 / 627 on Byoi AT-U -> Jongou AA-A; passes 1,116 -> 753 -> 598 and
 # 943 -> 630 -> 516, a third pass 598 -> 593. vs w14-3: 5 better / 20 same
 # / 3 WORSE -- Byoi AT-U -> Jongou AA-A 910 -> 583 j / 24 stops, Byoi CQ-G
-# -> Jongou XM-W 1,054 -> 591 j / 23 stops, Spase -> Wongi 102 -> 101,
-# Wongi -> Plielou 38 -> 36 (= the reference; the judge calls it WORSE on
+# -> Jongou XM-W 1,054 -> 591 j / 23 stops, Spase -> Wongi 102 -> 101 and
+# Wongi -> Plielou 38 -> 36 (both transient, back to 102 / 38 from w16 on; the judge called the latter WORSE on
 # 1 -> 2 stops at fewer pilot seconds), Jongou XM-W -> Byoi wall 84 ->
 # 66 s; worse: Jongou AA-A -> Byoi wall 70 -> 100 s (its band), Sgr A* ->
 # Sol 7.4 -> 8.5 s. 0 rows worse on jumps. -> DEFAULT ON
@@ -338,10 +338,23 @@
 # tail where the forward chain's approach cannot be planned (the lobe the
 # reverse search stalls in). vs w20 / w20-3: 2 / 26 / 0 and 3 / 22 / 3
 # (wall-only worse); Byoi AT-U -> Jongou AA-A 493 -> 444 j / 18 stops --
-# UNDER THE REFERENCE'S 477 -- and Byoi CQ-G -> Jongou XM-W 563 -> 543 j
-# on both thread counts. FINAL GATES (w21 / w21-3): vs the shipped planner
+# UNDER THE REFERENCE'S 477 -- and Byoi CQ-G -> Jongou XM-W 563 -> 542 / 543 j
+# (three threads / PC). FINAL GATES (w21 / w21-3): vs the shipped planner
 # PC 18 / 5 / 5, three threads 17 / 4 / 7; vs the R2 head 10 / 14 / 4 and
 # 10 / 12 / 6. The after table regenerated from w21 / w21-3.
+# THE RENDERER'S GATE, corrected 2026-10-19 after the measurement audit:
+# under --judge seconds a row is WORSE when its pilot seconds rise by more
+# than 0.2 % (or it loses its route), better when they fall (or the wall
+# falls by 10 % and a second), same otherwise; stops are no longer a
+# separate veto (seconds_v2 prices every stop at 120 s plus the tonnes),
+# which had marked 38 -> 36 j at fewer seconds and 591 -> 563 j at fewer
+# seconds WORSE. Recomputed gates: before3 -> w21-3 17 / 4 / 7 (unchanged),
+# thin6-3 -> w21-3 11 / 12 / 5, before -> w21 19 / 5 / 4, thin6 -> w21
+# 11 / 14 / 3. Wall-only WORSE rows on the bimodal plots (Sol / Wongi ->
+# Beagle Point, the Jongou pairs, Ood Fleau <-> Sphiesi: 26 across the
+# day's adjacent three-thread pairs) carry no information from one run;
+# the rule for a default from here: two same-code runs, interleaved, the
+# pre-registered row holding in both.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
