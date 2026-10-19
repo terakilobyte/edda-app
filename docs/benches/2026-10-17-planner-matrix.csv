@@ -355,6 +355,14 @@
 # day's adjacent three-thread pairs) carry no information from one run;
 # the rule for a default from here: two same-code runs, interleaved, the
 # pre-registered row holding in both.
+# Gap probes 2026-10-19, knob-only, NEGATIVE: ED_DSEED_REFINE=1 with 30 s
+# per segment (the reversed forward chain's own edges refined on the
+# approach into Jongou: Budget at 20 s and again widened; CQ-G 562) and
+# ED_DSEED_FIRST=1 (the descent before the witness passes splices onto
+# the raw witness: CQ-G 563, AT-U 483 against 543 / 444). The reverse
+# approach into Jongou is a search hole in that direction: neither the
+# coarse planner nor the exact refinement crosses the last 20 kly in
+# reverse inside 30 s.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,

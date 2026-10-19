@@ -1617,73 +1617,80 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         // Passes: the improved route is the next pass's witness, pinned at
         // other stars, until a pass improves nothing (ED_WSEG_PASSES, 2).
         let passes: usize = if go { std::env::var("ED_WSEG_PASSES").ok().and_then(|v| v.parse().ok()).unwrap_or(2) } else { 0 };
-        // 12 kly windows (the sweep of 2026-10-18: 3 kly 867 j, 6 kly 803,
-        // 12 kly 691, 24 kly 562 on Byoi CQ-G -> Jongou XM-W; 696 / 629 /
-        // 596 / 627 on Byoi AT-U -> Jongou AA-A -- the greedy witness's
-        // macro-detour needs long windows, the far plot turned at 24);
-        // ED_WSEG_LY2 gives the later passes their own length.
-        // 24 kly first (the macro-detour), 12 kly after (local straightening):
-        // probes of 2026-10-18 -- Byoi CQ-G -> Jongou XM-W 591 -> 562 j, Byoi
-        // AT-U -> Jongou AA-A 514 -> 493 j against 12 / 12.
+        // 24 kly windows first (the macro-detour), 12 kly after (local
+        // straightening): probes of 2026-10-18 -- Byoi CQ-G -> Jongou XM-W
+        // 591 -> 562 j, Byoi AT-U -> Jongou AA-A 514 -> 493 j against 12 / 12.
         let first_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(24_000.0);
         let later_ly: Option<f32> = Some(std::env::var("ED_WSEG_LY2").ok().and_then(|v| v.parse().ok()).unwrap_or(12_000.0));
-        let mut seed = w;
-        for pass in 0..passes {
-            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly), true) {
-                Some(better) => {
-                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
-                        eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
+        let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(8_000);
+        let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
+        // The witness passes: the raw witness, then the improved route, re-pinned.
+        let witness_passes = |route: &mut Route, seed: &mut crate::feasible::Witness| {
+            for pass in 0..passes {
+                match witness_segments(g, neutrons, seed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, segment_window(pass, first_ly, later_ly), true, seg_ms) {
+                    Some(better) => {
+                        if debug {
+                            eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
+                        }
+                        (ctl.found)(&better);
+                        *seed = crate::feasible::Witness { stars: better.hops.iter().map(|h| h.idx).collect(), injections: Vec::new(), expansions: 0 };
+                        *route = better;
                     }
-                    (ctl.found)(&better);
-                    seed = crate::feasible::Witness { stars: better.hops.iter().map(|h| h.idx).collect(), injections: Vec::new(), expansions: 0 };
-                    route = better;
+                    None => break,
                 }
-                None => break,
             }
-        }
+        };
         // The descent seed, ON by default (probes 2026-10-19: Byoi AT-U ->
         // Jongou AA-A 493 -> 444 j, under the reference's 477; Byoi CQ-G ->
         // Jongou XM-W 563 -> 543; ED_NO_DESCENT_SEED=1 ablates): the forward
-        // chain, reversed, segmented the same way, spliced onto this route's
+        // chain, reversed, segmented the same way, spliced onto the route's
         // tail where its approach cannot be planned; it stands only where it
-        // beats the route.
-        if go && passes > 0 && std::env::var_os("ED_NO_DESCENT_SEED").is_none() && segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
+        // beats the route. ED_DSEED_REFINE=1 lets its first pass fall back to
+        // refining the reversed chain's own stars, with ED_DSEED_MS per
+        // segment (round 7 measured Budget at 8 s); ED_DSEED_FIRST=1 runs it
+        // before the witness passes.
+        let descent_pass = |route: &mut Route| {
+            if passes == 0 || std::env::var_os("ED_NO_DESCENT_SEED").is_some() || !segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
+                return;
+            }
             let t_desc = std::time::Instant::now();
             match descent_chain(g, neutrons, req, ctl) {
                 Some(chain) => {
-                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                    if debug {
                         eprintln!("    descent seed: {} stars in {} ms", chain.len(), t_desc.elapsed().as_millis());
                     }
                     let mut dseed = crate::feasible::Witness { stars: chain, injections: Vec::new(), expansions: 0 };
-                    // The descent's pins: 12 kly (ED_DSEED_LY), so the prefix
-                    // reaches as far as the forward chain can be planned
-                    // before the splice.
                     let dseed_ly: f32 = std::env::var("ED_DSEED_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(24_000.0);
+                    let dseed_ms: u64 = std::env::var("ED_DSEED_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(seg_ms);
+                    let dseed_refine = std::env::var_os("ED_DSEED_REFINE").is_some();
                     for pass in 0..passes {
-                        // The first pass is a coarse-chain seed (no flyable hops to
-                        // fall back on: refining the reversed chain's own edges
-                        // measured Budget on the approach stretch, probe dseed7,
-                        // 2026-10-19, and lost the splice); the later passes
-                        // re-pin the spliced route, which is flyable.
-                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0) {
+                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, route, best_seen, if pass == 0 { dseed_ly } else { segment_window(pass, first_ly, later_ly) }, pass > 0 || dseed_refine, if pass == 0 { dseed_ms } else { seg_ms }) {
                             Some(better) => {
-                                if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                                if debug {
                                     eprintln!("    descent seed pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
                                 }
                                 (ctl.found)(&better);
                                 dseed = crate::feasible::Witness { stars: better.hops.iter().map(|h| h.idx).collect(), injections: Vec::new(), expansions: 0 };
-                                route = better;
+                                *route = better;
                             }
                             None => break,
                         }
                     }
                 }
                 None => {
-                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                    if debug {
                         eprintln!("    descent seed: no complete chain ({} ms)", t_desc.elapsed().as_millis());
                     }
                 }
             }
+        };
+        let mut seed = w;
+        if std::env::var_os("ED_DSEED_FIRST").is_some() {
+            descent_pass(&mut route);
+            witness_passes(&mut route, &mut seed);
+        } else {
+            witness_passes(&mut route, &mut seed);
+            descent_pass(&mut route);
         }
     }
     // The eager refinement marks a stop at every scoopable star (683 on the
@@ -1939,8 +1946,7 @@ fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
 /// worse than the witness. `None` when nothing improved or the plot was
 /// cancelled. ED_WSEG_LY (12,000) and ED_WSEG_MS (8,000) for the harness.
 #[allow(clippy::too_many_arguments)]
-fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32, seed_flyable: bool) -> Option<Route> {
-    let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(8_000);
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32, seed_flyable: bool, seg_ms: u64) -> Option<Route> {
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
     let mut pins = witness_pins(&pos, seg_ly);
