@@ -1892,6 +1892,13 @@ fn splice_onto(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, req_left: &Rou
     (whole.jumps < raw.jumps).then_some(whole)
 }
 
+/// The plot's judging currency: the harness knob, else the currency a
+/// parent plot stamped on this request, else min-fuel judges lean and the
+/// default mode eager (review B5, 2026-10-19).
+fn judges_lean(req: &RouteRequest, knob: Option<bool>) -> bool {
+    knob.unwrap_or(req.judge_lean.unwrap_or(req.min_fuel))
+}
+
 /// Do the witness segments go on: only while no other variant has finished
 /// with as few jumps as the route they are improving.
 fn segments_continue(best_seen: u32, seed_jumps: usize) -> bool {
@@ -2440,11 +2447,12 @@ pub fn plan_long(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         // fitted seconds model was journal-fit on pilots who take
         // their marked stops), min-fuel judges lean.
         // ED_PRUNE_JUDGE=1/0 overrides for the harness.
-        let prune_judge = std::env::var("ED_PRUNE_JUDGE")
-            .ok()
-            .and_then(|v| v.parse::<i32>().ok())
-            .map(|v| v != 0)
-            .unwrap_or(req.min_fuel);
+        let prune_judge = judges_lean(req, std::env::var("ED_PRUNE_JUDGE").ok().and_then(|v| v.parse::<i32>().ok()).map(|v| v != 0));
+        // Stamped on the request every nested plot clones (review B5): the
+        // leg re-plans and the min-fuel rewrite's sub-plots judge as this
+        // plot does.
+        let req_stamped = RouteRequest { judge_lean: Some(prune_judge), ..req.clone() };
+        let req = &req_stamped;
         let judge = |r: &Route| -> u64 {
             if prune_judge {
                 if let Some(m) = &req.fuel {
@@ -5613,6 +5621,23 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// Review B5: the plot's judging currency is resolved once and inherited
+    /// by every nested request (the min-fuel rewrite's sub-plots carry
+    /// min_fuel: false and judged eager, where a pruned witness beat a
+    /// 28-hop leg carrying 23 eager stops: Jongou AA-A -> Byoi AT-U 392 ->
+    /// 396). The harness knob still overrides.
+    #[test]
+    fn a_nested_request_judges_in_its_parents_currency() {
+        let plot = RouteRequest { min_fuel: true, ..RouteRequest::default() };
+        assert!(judges_lean(&plot, None), "a min-fuel plot judges lean");
+        let stamped = RouteRequest { judge_lean: Some(judges_lean(&plot, None)), ..plot.clone() };
+        let nested = RouteRequest { min_fuel: false, ..stamped.clone() };
+        assert!(judges_lean(&nested, None), "its nested request, min_fuel off, still judges lean");
+        assert!(!judges_lean(&RouteRequest::default(), None), "an eager plot judges eager");
+        assert!(judges_lean(&RouteRequest::default(), Some(true)), "the knob overrides");
+        assert!(!judges_lean(&plot, Some(false)));
     }
 
     /// Review F1: a stitched route may not spend more injections than the

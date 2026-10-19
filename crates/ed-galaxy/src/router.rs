@@ -68,6 +68,12 @@ pub struct RouteRequest {
     /// a scoop stop can provide it. Off, the plan tops up at every
     /// scoopable arrival below capacity.
     pub min_fuel: bool,
+    /// The judging currency a plot resolved for itself, stamped on the
+    /// request every nested plot is cloned from so a leg re-plan or the
+    /// min-fuel rewrite's sub-plot (`min_fuel: false`) folds its
+    /// candidates the way the plot does (review B5, 2026-10-19). `None`:
+    /// resolve from `min_fuel`.
+    pub judge_lean: Option<bool>,
     /// Jumps-vs-refuels dial for route judging: multiplies the refuel
     /// term (stop overhead + fill time) of the pilot-seconds score.
     /// 1.0 = the journal-fit model as measured; 0.0 = judge by flying
@@ -99,7 +105,7 @@ pub struct RouteRequest {
 
 impl Default for RouteRequest {
     fn default() -> Self {
-        RouteRequest { from: 0, to: 0, range_ly: 30.0, supercharge: true, max_dry_jumps: 0, weight: 1.3, max_expansions: 0, thorough: false, boost: BoostProfile::default(), fuel: None, start_fuel: 0.0, injection: None, time_budget_ms: 0, grace_ms: 0, min_fuel: false, stop_weight: 1.0, prize_k: None, t_jump_s: None, stop_overhead_s: None, secondary_boost_ls: 0.0 }
+        RouteRequest { from: 0, to: 0, range_ly: 30.0, supercharge: true, max_dry_jumps: 0, weight: 1.3, max_expansions: 0, thorough: false, boost: BoostProfile::default(), fuel: None, start_fuel: 0.0, injection: None, time_budget_ms: 0, grace_ms: 0, min_fuel: false, judge_lean: None, stop_weight: 1.0, prize_k: None, t_jump_s: None, stop_overhead_s: None, secondary_boost_ls: 0.0 }
     }
 }
 

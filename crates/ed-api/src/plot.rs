@@ -464,6 +464,8 @@ pub fn resolve_endpoints(
         time_budget_ms: BUDGET_MS,
         grace_ms: 1_000,
         min_fuel: api.min_fuel.unwrap_or(true),
+
+        judge_lean: None,
         // The doc on `stop_weight` always said 1.0; the Route tab sends
         // none, so from the early answer (#198) to 2026-10-17 every served
         // route was ranked by jump count alone while bench and app judged
