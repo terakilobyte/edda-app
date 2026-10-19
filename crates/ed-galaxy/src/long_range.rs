@@ -1627,7 +1627,7 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         let later_ly: Option<f32> = Some(std::env::var("ED_WSEG_LY2").ok().and_then(|v| v.parse().ok()).unwrap_or(12_000.0));
         let mut seed = w;
         for pass in 0..passes {
-            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly)) {
+            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly), true) {
                 Some(better) => {
                     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                         eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1637,6 +1637,37 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
                     route = better;
                 }
                 None => break,
+            }
+        }
+        // The descent seed (ED_DESCENT_SEED=1): the forward chain, reversed,
+        // segmented the same way; it stands only where it beats the route.
+        if go && passes > 0 && std::env::var_os("ED_DESCENT_SEED").is_some() && segments_continue(best_seen.load(std::sync::atomic::Ordering::Relaxed), route.jumps) {
+            let t_desc = std::time::Instant::now();
+            match descent_chain(g, neutrons, req, ctl) {
+                Some(chain) => {
+                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                        eprintln!("    descent seed: {} stars in {} ms", chain.len(), t_desc.elapsed().as_millis());
+                    }
+                    let mut dseed = crate::feasible::Witness { stars: chain, injections: Vec::new(), expansions: 0 };
+                    for pass in 0..passes {
+                        match witness_segments(g, neutrons, &dseed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly), pass > 0) {
+                            Some(better) => {
+                                if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                                    eprintln!("    descent seed pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
+                                }
+                                (ctl.found)(&better);
+                                dseed = crate::feasible::Witness { stars: better.hops.iter().map(|h| h.idx).collect(), injections: Vec::new(), expansions: 0 };
+                                route = better;
+                            }
+                            None => break,
+                        }
+                    }
+                }
+                None => {
+                    if std::env::var_os("ED_PLOT_DEBUG").is_some() {
+                        eprintln!("    descent seed: no complete chain ({} ms)", t_desc.elapsed().as_millis());
+                    }
+                }
             }
         }
     }
@@ -1660,6 +1691,109 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
     // (2026-10-18, arm w4-3): the holding worker slept a third of the lane,
     // short routes' walls doubled, the delayed arming let the x4 waves fire.
     Ok(route)
+}
+
+thread_local! {
+    /// Armed (`Some(vec![])`) by [`descent_chain`]: the next `plan_long_with`
+    /// on this thread hands back its waypoint stars before refinement and
+    /// returns `Cancelled` -- a coarse-only plan.
+    static CHAIN_SINK: std::cell::RefCell<Option<Vec<u32>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The forward direction's coarse chain, reversed into start -> goal order
+/// (R4 geometry, 2026-10-19): on the reverse rim crossings the descent
+/// crosses in 0.6 s of coarse search in the scan twins' shape where the
+/// reverse search stalls 10 kly out, and its chain carries the
+/// macro-geometry the greedy witness lacks (Jongou -> Byoi 396 / 401 j
+/// against the witness's 943 / 1,116 hops). `None` when the descent's
+/// coarse stalled or found nothing.
+fn descent_chain(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control) -> Option<Vec<u32>> {
+    let full_tank = req.fuel.map(|m| m.capacity).unwrap_or(0.0);
+    let rev = RouteRequest { from: req.to, to: req.from, start_fuel: full_tank, min_fuel: false, ..req.clone() };
+    let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
+    // The coarse loop has no deadline of its own (its caps are expansions):
+    // the cancel check carries one, 5 s per shape.
+    for (w, r, b) in DESCENT_SHAPES {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(5_000);
+        let timed = || (ctl.cancelled)() || std::time::Instant::now() > deadline;
+        let tctl = Control { cancelled: &timed, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
+        let none = std::sync::atomic::AtomicBool::new(false);
+        let stats = CoarseStats::default();
+        CHAIN_SINK.with(|c| *c.borrow_mut() = Some(Vec::new()));
+        let t0 = std::time::Instant::now();
+        let _ = plan_long_with(g, neutrons, &rev, &tctl, w, r, b, 1, false, false, false, None, &none, &stats, None, false, &NO_BANS, &NO_INCUMBENT);
+        let chain = CHAIN_SINK.with(|c| c.borrow_mut().take()).unwrap_or_default();
+        let done = stats.coarse_done.load(std::sync::atomic::Ordering::Relaxed);
+        if debug {
+            eprintln!("    descent shape w{w} r{r} b{b}: {} stars, coarse {} in {} ms", chain.len(), if done { "complete" } else { "stalled" }, t0.elapsed().as_millis());
+        }
+        if (ctl.cancelled)() {
+            return None;
+        }
+        if chain.len() >= 2 && done && chain.first() == Some(&req.to) && chain.last() == Some(&req.from) {
+            let mut out = chain;
+            out.reverse();
+            return Some(out);
+        }
+    }
+    None
+}
+
+/// The shapes the descent tries, first complete chain wins: the scan twins'
+/// three (the shapes that crossed Jongou XM-W -> Byoi CQ-G) and the base
+/// single's.
+const DESCENT_SHAPES: [(f32, f32, f32); 4] = [(1.8, 0.75, 0.5), (1.8, 0.75, 0.75), (1.8, 0.75, 0.0), (COARSE_WEIGHT, RESERVE_FRACTION, 0.75)];
+
+/// Join a planned `prefix` (ending with `fuel` in the tank) to `raw`'s tail
+/// at raw's star nearest the prefix's end: a connector segment planned
+/// from the prefix's end to that star, then raw's hops from it re-flown
+/// with the real tank. `Some` only when the whole flies and beats `raw`.
+#[allow(clippy::too_many_arguments)]
+fn splice_onto(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, prefix: Route, fuel: f32, raw: &Route, seg_ms: u64, straight: f32, debug: bool) -> Option<Route> {
+    let end = prefix.hops.last()?;
+    // Raw's nearest star to the prefix's end, searched past the stretch
+    // raw has already covered (never splice backwards).
+    let (k, _) = raw.hops.iter().enumerate().skip(1).map(|(k, h)| (k, dist(h.pos, end.pos))).min_by(|a, b| a.1.total_cmp(&b.1))?;
+    let joint = raw.hops[k].idx;
+    let none = std::sync::atomic::AtomicBool::new(false);
+    let sreq = RouteRequest { from: end.idx, to: joint, start_fuel: fuel, time_budget_ms: seg_ms * 2, ..req.clone() };
+    let connector = match plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT) {
+        Ok(c) => c,
+        Err(e) => {
+            if debug {
+                eprintln!("    prefix splice: no connector {} -> {} ({:.0} ly): {e:?}", end.name, raw.hops[k].name, dist(end.pos, raw.hops[k].pos));
+            }
+            return None;
+        }
+    };
+    let fuel_at_joint = connector.hops.last().and_then(|h| h.fuel_after).unwrap_or(fuel);
+    let mut tail = raw.clone();
+    tail.hops.drain(..k);
+    let mut whole = prefix;
+    whole.hops.extend(connector.hops.into_iter().skip(1));
+    whole.hops.extend(tail.hops.into_iter().skip(1));
+    whole.jumps = whole.hops.len() - 1;
+    whole.boosted_jumps = whole.hops.iter().filter(|h| h.boosted).count();
+    whole.injections = whole.hops.iter().filter(|h| h.injection.is_some()).count();
+    let mut total = 0.0f32;
+    for h in whole.hops.iter_mut() {
+        total += h.distance_ly;
+        h.total_ly = total;
+    }
+    whole.total_ly = total;
+    whole.straight_ly = straight;
+    if let Some(m) = fuel_model {
+        if !refuel_hops(g, &m, req, &mut whole, req.start_fuel.clamp(0.0, m.capacity)) {
+            if debug {
+                eprintln!("    prefix splice: the joined route does not fly the tank (joint {} at {fuel_at_joint:.0} t)", raw.hops[k].name);
+            }
+            return None;
+        }
+    }
+    if debug {
+        eprintln!("    prefix splice: joined at {} (raw hop {k}): {} j vs raw {} j", raw.hops[k].name, whole.jumps, raw.jumps);
+    }
+    (whole.jumps < raw.jumps).then_some(whole)
 }
 
 /// Do the witness segments go on: only while no other variant has finished
@@ -1716,11 +1850,11 @@ fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
 /// worse than the witness. `None` when nothing improved or the plot was
 /// cancelled. ED_WSEG_LY (12,000) and ED_WSEG_MS (8,000) for the harness.
 #[allow(clippy::too_many_arguments)]
-fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32) -> Option<Route> {
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32, seed_flyable: bool) -> Option<Route> {
     let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(8_000);
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
-    let pins = witness_pins(&pos, seg_ly);
+    let mut pins = witness_pins(&pos, seg_ly);
     let capacity = fuel_model.map(|m| m.capacity).unwrap_or(0.0);
     let mut fuel = start_fuel;
     let mut used_inj: u32 = 0;
@@ -1729,10 +1863,12 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
     if debug {
         eprintln!("    witness segments: {} stars, {} pins of ~{seg_ly:.0} ly, {seg_ms} ms each, start fuel {start_fuel:.0}", w.stars.len(), pins.len());
     }
-    for win in pins.windows(2) {
+    let mut p = 0usize;
+    let mut widens = 0usize;
+    while p + 1 < pins.len() {
         if (ctl.cancelled)() {
             if debug {
-                eprintln!("    witness segments: cancelled at pin {}", win[0]);
+                eprintln!("    witness segments: cancelled at pin {}", pins[p]);
             }
             return None;
         }
@@ -1741,22 +1877,26 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
         let best = best_seen.load(std::sync::atomic::Ordering::Relaxed);
         if !segments_continue(best, raw.jumps) {
             if debug {
-                eprintln!("    witness segments: stopped at pin {} -- a {best} j route exists", win[0]);
+                eprintln!("    witness segments: stopped at pin {} -- a {best} j route exists", pins[p]);
             }
             return None;
         }
-        let (i, j) = (win[0], win[1]);
+        let (i, j) = (pins[p], pins[p + 1]);
         let (a, b) = (w.stars[i], w.stars[j]);
         let t_seg = std::time::Instant::now();
         let inj_left = req.injection.map(|(m, n, k)| (m, n, k.saturating_sub(used_inj)));
-        let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: seg_ms, injection: inj_left, ..req.clone() };
+        // A stretch widened after a failure gets twice the time.
+        let widened = widens > 0;
+        let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: if widened { seg_ms * 2 } else { seg_ms }, injection: inj_left, ..req.clone() };
         let none = std::sync::atomic::AtomicBool::new(false);
         let planned = plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT);
         if debug {
-            eprintln!("      segment {i}..{j} ({} witness hops, {:.0} ly, fuel {fuel:.0}): {} in {} ms", j - i, dist(pos[i], pos[j]), match &planned { Ok(r) => format!("{} j", r.jumps), Err(e) => format!("{e:?}") }, t_seg.elapsed().as_millis());
+            eprintln!("      segment {i}..{j} ({} seed hops, {:.0} ly, fuel {fuel:.0}): {} in {} ms", j - i, dist(pos[i], pos[j]), match &planned { Ok(r) => format!("{} j", r.jumps), Err(e) => format!("{e:?}") }, t_seg.elapsed().as_millis());
         }
         let seg = match planned {
-            Ok(r) if r.jumps <= j - i => {
+            // A coarse-chain seed's hops are boosted edges, not jumps: a
+            // planned segment is taken as it is.
+            Ok(r) if !seed_flyable || r.jumps <= j - i => {
                 improved += 1;
                 r
             }
@@ -1770,9 +1910,15 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
                 // The witness's own hops for this stretch -- flyable from a
                 // full tank by construction, not always from the tank this
                 // segment really starts with (219..227 began at 5 t): when
-                // they do not fly, a longer planned segment still stands.
-                let wps: Vec<(u32, f32)> = w.stars[i..=j].iter().map(|&s| (s, capacity)).collect();
-                match (refine_waypoints(g, req, ctl, wps, fuel, fuel_model, 0, straight, started), planned) {
+                // they do not fly, a longer planned segment still stands. A
+                // coarse-chain seed has no flyable hops to fall back on.
+                let fallback = if seed_flyable {
+                    let wps: Vec<(u32, f32)> = w.stars[i..=j].iter().map(|&s| (s, capacity)).collect();
+                    refine_waypoints(g, req, ctl, wps, fuel, fuel_model, 0, straight, started)
+                } else {
+                    Err(RouteError::NoRoute)
+                };
+                match (fallback, planned) {
                     (Ok(r), _) => {
                         fell_back += 1;
                         r
@@ -1782,14 +1928,39 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
                         r
                     }
                     (Err(e), Err(_)) => {
+                        // Widen: drop the next pin and plan the wider stretch,
+                        // up to twice; then the pass is abandoned (the CQ-G
+                        // probe had 228 j over 64 kly banked when one Budget
+                        // segment threw the pass away).
+                        if p + 2 < pins.len() && widens < 2 {
+                            if debug {
+                                eprintln!("    witness segments: {i}..{j} failed ({e:?}) from {fuel:.0} t; widening to pin {}", pins[p + 2]);
+                            }
+                            pins.remove(p + 1);
+                            widens += 1;
+                            continue;
+                        }
                         if debug {
-                            eprintln!("    witness segments: neither the planner nor the witness's hops fly {i}..{j} from {fuel:.0} t ({e:?})");
+                            eprintln!("    witness segments: neither the planner nor the seed's hops fly {i}..{j} from {fuel:.0} t ({e:?})");
+                        }
+                        // The prefix splice: a coarse-chain seed whose next
+                        // stretch cannot be planned keeps what it has and
+                        // joins the current best route's tail at the nearest
+                        // star (the forward chain's approach into Jongou is
+                        // the lobe the reverse search stalls in; the witness
+                        // route already has a flown approach).
+                        if !seed_flyable {
+                            if let Some(prefix) = whole.take() {
+                                return splice_onto(g, neutrons, req, ctl, fuel_model, prefix, fuel, raw, seg_ms, straight, debug);
+                            }
                         }
                         return None;
                     }
                 }
             }
         };
+        p += 1;
+        widens = 0;
         fuel = seg.hops.last().and_then(|h| h.fuel_after).unwrap_or(fuel);
         used_inj += seg.injections as u32;
         whole = Some(match whole {
@@ -4541,6 +4712,11 @@ fn plan_long_with(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contr
         waypoints.push((req.to, 0.0));
         wp_sub.push(None);
     }
+    // A caller that armed the chain sink wants the coarse chain only.
+    if CHAIN_SINK.with(|c| c.borrow().is_some()) {
+        CHAIN_SINK.with(|c| *c.borrow_mut() = Some(waypoints.iter().map(|w| w.0).collect()));
+        return Err(RouteError::Cancelled);
+    }
     let mut failed_leg = None;
     let refined = refine_waypoints_reporting(g, req, ctl, waypoints, start_fuel, fuel_model, expansions, straight, started, &mut failed_leg);
     if let (Err(_), Some(i)) = (&refined, failed_leg) {
@@ -5315,6 +5491,19 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// The descent seed: the forward direction's coarse chain, reversed, as
+    /// a star sequence from the plot's start to its goal (coarse only, no
+    /// refinement; a chain that stalled is no seed).
+    #[test]
+    fn the_descent_chain_runs_from_the_start_to_the_goal() {
+        let f = highway();
+        let r = req(&f, "K0", "K3000", 72.0);
+        let chain = descent_chain(&f.g, &f.neutrons, &r, &Control::none()).expect("the highway's descent crosses");
+        assert_eq!(chain.first().copied(), Some(r.from), "{:?}", chain.len());
+        assert_eq!(chain.last().copied(), Some(r.to));
+        assert!(chain.len() >= 3, "a chain of highway stars between: {}", chain.len());
     }
 
     /// The segment window per pass: the first pass's length, then the
