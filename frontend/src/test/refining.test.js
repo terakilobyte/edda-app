@@ -28,12 +28,39 @@ describe("refinement events", () => {
     expect(routing.route.jumps).toBe(478);
   });
 
-  it("a better route so far becomes the candidate in the boxes and on the map", () => {
+  // 2026-10-19, the boss plotting Byoi CQ-G -> Jongou XM-W (1,100 -> 709 ->
+  // 591 -> 550 -> 544 -> 526 over 82 s): "why aren't we auto updating on
+  // best so far?" A better route replaces the one on screen as it arrives.
+  it("a better route so far replaces the route on screen and says so", () => {
     routing.route = route(478); routing.refining = { earlyJumps: 478, best: null, done: false };
-    expect(applyRefining({ early_jumps: 478, done: false, route: route(412) })).toBe("better-so-far");
+    expect(applyRefining({ early_jumps: 478, done: false, route: route(412) })).toBe("better-applied");
+    expect(routing.route.jumps).toBe(412);
+    expect(routing.refining).toEqual({ earlyJumps: 478, best: null, done: false }, "still watching for the finish");
+    expect(routing.candidates).toEqual([]);
+    expect(routing.notice).toBe("Refining on the server: 478 → 412 jumps so far.");
+    expect(applyRefining({ early_jumps: 478, done: false, route: route(380) })).toBe("better-applied");
+    expect(routing.route.jumps).toBe(380);
+    expect(routing.notice).toBe("Refining on the server: 478 → 380 jumps so far.");
+  });
+
+  it("a followed route keeps better routes as candidates with Use it", () => {
+    routing.route = route(478); routing.refining = { earlyJumps: 478, best: null, done: false };
+    expect(applyRefining({ early_jumps: 478, done: false, route: route(412) }, true)).toBe("better-so-far");
+    expect(routing.route.jumps).toBe(478, "the followed route does not move by itself");
     expect(routing.refining.best.jumps).toBe(412);
     expect(routing.candidates.map((c) => c.jumps)).toEqual([412]);
-    expect(routing.route.jumps).toBe(478, "the route on screen does not move by itself");
+  });
+
+  it("a finish no better than the route already shown keeps it and says what was gained", () => {
+    routing.route = route(478); routing.refining = { earlyJumps: 478, best: null, done: false };
+    applyRefining({ early_jumps: 478, done: false, route: route(412) });
+    expect(applyRefining({ early_jumps: 478, done: true, route: route(412) })).toBe("final-same");
+    expect(routing.route.jumps).toBe(412);
+    expect(routing.refining).toBeNull();
+    expect(routing.notice).toBe("Refined: 478 → 412 jumps.");
+    routing.refining = { earlyJumps: 478, best: null, done: false };
+    expect(applyRefining({ early_jumps: 478, done: true, route: null })).toBe("final-same");
+    expect(routing.notice).toBe("Refinement did not finish in time; the best route so far stands.");
   });
 
   it("the finished route replaces the early one and says so", () => {

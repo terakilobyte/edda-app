@@ -227,10 +227,12 @@
       <p class="{injShort && injShort.short > 0 ? 'warn' : 'ok'} small bounded injection-banner" role="status" title="Synthesise the injection before each marked jump: Synthesis, FSD Injection, in the ship's Inventory panel.">{injBanner}</p>
     {/if}
     {#if routing.refining}
-      <p class="small muted bounded refining-strip" role="status" title="The route server answered with its first route and is still refining; the better route so far shows here and on the map. Use it to switch now, or wait: the finished route replaces this one unless you are following it.">
+      <p class="small muted bounded refining-strip" role="status" title="The route server answered with its first route and is still refining; each better route replaces this one as it arrives. While you are following the route it waits here instead, with Use it, so the next hop is never moved underneath you.">
         {#if routing.refining.best}
           {routing.refining.done ? "Refined on the server" : "Refining on the server…"} best so far {routing.refining.best.jumps} jumps · {routing.refining.best.boosted_jumps} boosted · {routing.refining.best.refuel_stops} scoop stops{#if routing.refining.best.injections > 0} · {routing.refining.best.injections} injections{/if}
           <button class="quiet tiny" onclick={useRefined}>Use it</button>
+        {:else if route.jumps < routing.refining.earlyJumps}
+          Refining on the server… {routing.refining.earlyJumps} → {route.jumps} jumps so far; the route updates as it improves
         {:else}
           Refining on the server… the first route is shown while the planner works
         {/if}

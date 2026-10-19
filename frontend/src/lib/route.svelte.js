@@ -148,11 +148,12 @@ export async function runPlot(query) {
 
 /** The server is refining the plot behind its early answer and the
  * backend relays what it finds (`route-refining`, see routing.rs):
- * `{ early_jumps, done, route }`. A better route so far becomes the
- * candidate in the boxes and on the map; the finished one replaces the
- * route on screen unless it is being followed, in which case it waits
- * for "Use it". Stale events (an older plot's watcher) are ignored by
- * the early jump count. Returns what it did, for the tests. */
+ * `{ early_jumps, done, route }`. A better route so far replaces the
+ * route on screen as it arrives (2026-10-19), and so does the finished
+ * one; a route being followed is never swapped underneath the commander,
+ * so for it the better route waits as the candidate in the boxes and on
+ * the map for "Use it". Stale events (an older plot's watcher) are
+ * ignored by the early jump count. Returns what it did, for the tests. */
 export function applyRefining(payload, following = false) {
   if (!payload) return "stale";
   if (!routing.refining) {
@@ -166,9 +167,22 @@ export function applyRefining(payload, following = false) {
   if (payload.early_jumps !== r.earlyJumps) return "stale";
   if (!payload.done) {
     if (!payload.route) return "watching";
-    r.best = payload.route;
-    routing.candidates = [payload.route];
-    return "better-so-far";
+    if (following) {
+      // Never swap a followed route underneath the commander: the
+      // better route waits in the strip for "Use it".
+      r.best = payload.route;
+      routing.candidates = [payload.route];
+      return "better-so-far";
+    }
+    // 2026-10-19 (the boss plotting Byoi CQ-G -> Jongou XM-W, 1,100 ->
+    // 709 -> 591 -> 550 -> 544 -> 526 over 82 s: "why aren't we auto
+    // updating on best so far?"): the better route replaces the one on
+    // screen as it arrives.
+    r.best = null;
+    routing.candidates = [];
+    setRoute(payload.route, "tab");
+    routing.notice = `Refining on the server: ${r.earlyJumps} → ${payload.route.jumps} jumps so far.`;
+    return "better-applied";
   }
   const final = payload.route;
   routing.candidates = [];
@@ -178,14 +192,20 @@ export function applyRefining(payload, following = false) {
       routing.notice = `Refined on the server: ${final.jumps} jumps (${routing.route.jumps} shown and being followed). Use it to switch.`;
       return "final-waiting";
     }
-    const before = routing.route?.jumps;
     setRoute(final, "tab");
     routing.refining = null;
-    routing.notice = `Refined: ${before} → ${final.jumps} jumps.`;
+    routing.notice = `Refined: ${r.earlyJumps} → ${final.jumps} jumps.`;
     return "final-applied";
   }
+  // The route on screen is already the refinement's best (applied as it
+  // arrived) or the first answer; say which.
+  const improved = Boolean(routing.route) && routing.route.jumps < r.earlyJumps;
   routing.refining = null;
-  routing.notice = final ? "Refined: the first answer stands." : "Refinement did not finish in time; the first answer stands.";
+  if (final) {
+    routing.notice = improved ? `Refined: ${r.earlyJumps} → ${routing.route.jumps} jumps.` : "Refined: the first answer stands.";
+  } else {
+    routing.notice = improved ? "Refinement did not finish in time; the best route so far stands." : "Refinement did not finish in time; the first answer stands.";
+  }
   return "final-same";
 }
 

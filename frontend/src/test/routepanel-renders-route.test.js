@@ -57,6 +57,19 @@ describe("RoutePanel with a plotted route in the store", () => {
     expect(body).toContain("Use it");
   });
 
+  // 2026-10-19: a better route so far replaces the one on screen as it
+  // arrives (the boss: "why aren't we auto updating on best so far?"); the
+  // strip then reads the gain, with no candidate to take.
+  it("shows the gain so far once a better route has replaced the early one", () => {
+    routing.lastQuery = { from: "HIP 90112", to: "Colonia", supercharge: true };
+    setRoute({ ...route, jumps: 51 }, "tab", "HIP 90112", "Colonia");
+    routing.refining = { earlyJumps: 58, best: null, done: false };
+    const { body } = render(RoutePanel);
+    routing.refining = null;
+    expect(body).toContain("58 → 51 jumps so far");
+    expect(body).not.toContain(">Use it</button>");
+  });
+
   it("offers the replot with injections on an island refusal made without them", () => {
     routing.route = null;
     routing.error = 'no known star within 37.1 ly of Byoi Fraae AE-T d3-0 (the origin): the nearest is 74.8 ly away; a route may be possible with FSD injections -- turn on "injections if required" and replot';
