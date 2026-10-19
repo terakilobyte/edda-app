@@ -75,21 +75,30 @@ pub struct DiffStats {
     /// arrival star on 99.9 % of known systems; the dump's and the scans'
     /// classes stand for the rest).
     pub weak_on_known: u64,
+    /// Weak rows the diff named for pruning: a route's class on a record
+    /// that already has one, agreeing or not -- it taught nothing and
+    /// would only grow the stars table and tomorrow's taught map (2026-10-19:
+    /// ~150k such rows a day).
+    pub weak_pruned: u64,
 }
 
 /// The overlay records for one reconcile day. Pure: index + inputs in,
 /// records out, so the whole diff is testable without a database.
 /// `weak` names the addresses whose teaching came from a route: those
-/// land on Unknown records only.
+/// land on Unknown records only. The third result is the weak rows that
+/// taught nothing (their record already has a class), for
+/// [`prune_weak_stars`] to drop; a weak row that fed an update or belongs
+/// to a system the base lacks is not named.
 pub fn diff(
     base: &Galaxy,
     candidates: &[Candidate],
     taught: &HashMap<u64, u8>,
     retracted: &HashSet<u64>,
     weak: &HashSet<u64>,
-) -> Result<(Vec<OverlayRecord>, DiffStats)> {
+) -> Result<(Vec<OverlayRecord>, DiffStats, Vec<u64>)> {
     let mut stats = DiffStats::default();
     let mut records = Vec::new();
+    let mut prune: Vec<u64> = Vec::new();
 
     // One sequential scan: updates for taught classes, and the id64s of
     // candidates that already exist under a (possibly moved) position.
@@ -108,14 +117,18 @@ pub fn diff(
                 } else {
                     stats.taught_unknown += 1;
                 }
+            } else if record.class != StarClass::Unknown.code() && weak.contains(&record.id64) {
+                // A route's class meets a record that has one: kept out
+                // where it differs, and either way it taught nothing.
+                if class != record.class {
+                    stats.weak_on_known += 1;
+                }
+                prune.push(record.id64);
+                stats.weak_pruned += 1;
             } else if class != record.class {
                 ensure!(class <= 0x0f, "taught class {class} exceeds the nibble");
-                if record.class != StarClass::Unknown.code() && weak.contains(&record.id64) {
-                    stats.weak_on_known += 1;
-                } else {
-                    records.push(update_at(record.pos(), class, record.flags));
-                    stats.updates += 1;
-                }
+                records.push(update_at(record.pos(), class, record.flags));
+                stats.updates += 1;
             }
         }
     }
@@ -162,7 +175,7 @@ pub fn diff(
         records.push(record);
         stats.adds += 1;
     }
-    Ok((records, stats))
+    Ok((records, stats, prune))
 }
 
 /// Is there a record within 0.1 ly of `pos`? Searches the cell and its 26
@@ -479,7 +492,7 @@ pub async fn reconcile_routing(
         "reconcile: inputs loaded"
     );
     let diff_started = std::time::Instant::now();
-    let (records, diff_stats) = {
+    let (records, diff_stats, prune) = {
         let base_dir = base_dir.clone();
         tokio::task::spawn_blocking(move || -> Result<_> {
             let base = Galaxy::open(&base_dir).context("opening the published base index")?;
@@ -493,6 +506,11 @@ pub async fn reconcile_routing(
     metrics::counter!("edda_reconcile_ops_total", "op" => "add").increment(diff_stats.adds);
     metrics::counter!("edda_reconcile_ops_total", "op" => "update").increment(diff_stats.updates);
     tracing::info!(?diff_stats, diff_seconds, "reconcile: diff complete");
+    // Weak rows that taught nothing go now, before any early return: the
+    // table and tomorrow's taught map stay the size of what teaches.
+    let pruned = prune_weak_stars(pool, &prune).await.context("pruning weak star rows")?;
+    metrics::counter!("edda_reconcile_ops_total", "op" => "prune").increment(pruned);
+    tracing::info!(named = prune.len(), pruned, "reconcile: weak star rows that taught nothing pruned");
     if records.is_empty() {
         metrics::counter!("edda_reconcile_runs_total", "outcome" => "quiet").increment(1);
         tracing::info!("reconcile: no changes today; nothing published");
@@ -541,6 +559,21 @@ pub async fn reconcile_routing(
     }
 }
 
+/// Delete the route-taught (`eddn:navroute`) rows among `addresses`; rows
+/// from any other source at those addresses stay. Returns how many went.
+pub async fn prune_weak_stars(pool: &sqlx::PgPool, addresses: &[u64]) -> Result<u64> {
+    let mut pruned = 0u64;
+    for chunk in addresses.chunks(50_000) {
+        let ids: Vec<i64> = chunk.iter().filter_map(|a| i64::try_from(*a).ok()).collect();
+        pruned += sqlx::query("DELETE FROM stars WHERE source = 'eddn:navroute' AND address = ANY($1)")
+            .bind(&ids)
+            .execute(pool)
+            .await?
+            .rows_affected();
+    }
+    Ok(pruned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -575,7 +608,7 @@ mod tests {
             (2u64, StarClass::Unknown.code()),      // never downgrade
             (999u64, StarClass::K.code()),          // not in the index: ignored
         ]);
-        let (records, stats) = diff(&base, &[], &taught, &HashSet::new(), &HashSet::new()).unwrap();
+        let (records, stats, _) = diff(&base, &[], &taught, &HashSet::new(), &HashSet::new()).unwrap();
         assert_eq!((stats.updates, stats.taught_unknown), (1, 1));
         assert_eq!(records.len(), 1);
         match &records[0].op {
@@ -603,7 +636,7 @@ mod tests {
             (1u64, StarClass::G.code()),       // Sol: a strong teaching, unchanged
         ]);
         let weak = HashSet::from([3u64, 2u64]);
-        let (records, stats) = diff(&base, &[], &taught, &HashSet::new(), &weak).unwrap();
+        let (records, stats, _) = diff(&base, &[], &taught, &HashSet::new(), &weak).unwrap();
         assert_eq!((stats.updates, stats.weak_on_known), (1, 1), "{stats:?}");
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].pos, [500.0, 0.0, 0.0], "the one update is Far Away");
@@ -611,6 +644,30 @@ mod tests {
             ed_galaxy::overlay::OverlayOp::Update { class, .. } => assert_eq!(*class, StarClass::Neutron.code()),
             other => panic!("expected an update, got {other:?}"),
         }
+    }
+
+    /// The diff names the weak rows that taught nothing, for the store to
+    /// drop: a route's class on a record that already has one, agreeing or
+    /// not. A weak row that fed an update stays (the overlay is rebuilt
+    /// from the store against the base every day), and so does one for a
+    /// system the base lacks (it is a candidate's class). Without this the
+    /// stars table grew by every plotted hop (~150k rows a day, 2026-10-19).
+    #[test]
+    fn weak_rows_that_taught_nothing_are_named_for_pruning() {
+        let dir = base_index();
+        let base = Galaxy::open(dir.path()).unwrap();
+        let taught = HashMap::from([
+            (1u64, StarClass::G.code()),       // Sol: the route agrees with the dump -- taught nothing
+            (2u64, StarClass::K.code()),       // Jackson's Lighthouse: kept out -- taught nothing
+            (3u64, StarClass::Neutron.code()), // Far Away: Unknown, the update -- stays
+            (999u64, StarClass::K.code()),     // not in the base -- stays
+        ]);
+        let weak = HashSet::from([1u64, 2, 3, 999]);
+        let (records, stats, mut prune) = diff(&base, &[], &taught, &HashSet::new(), &weak).unwrap();
+        prune.sort_unstable();
+        assert_eq!(prune, vec![1, 2]);
+        assert_eq!((stats.updates, stats.weak_on_known, stats.weak_pruned), (1, 1, 2), "{stats:?}");
+        assert_eq!(records.len(), 1);
     }
 
     /// A retraction is the one downgrade: a class-0 teaching for an address
@@ -625,7 +682,7 @@ mod tests {
             (3u64, StarClass::Unknown.code()),
         ]);
         let retracted = HashSet::from([2u64]);
-        let (records, stats) = diff(&base, &[], &taught, &retracted, &HashSet::new()).unwrap();
+        let (records, stats, _) = diff(&base, &[], &taught, &retracted, &HashSet::new()).unwrap();
         assert_eq!((stats.retracted, stats.taught_unknown, stats.updates), (1, 1, 0));
         assert_eq!(records.len(), 1);
         match &records[0].op {
@@ -651,7 +708,7 @@ mod tests {
             candidate(104, "", [1.0, 1.0, 1.0], None),                  // invalid
             candidate(105, "NaN Land", [f32::NAN, 0.0, 0.0], None),     // invalid
         ];
-        let (records, stats) = diff(&base, &candidates, &HashMap::new(), &HashSet::new(), &HashSet::new()).unwrap();
+        let (records, stats, _) = diff(&base, &candidates, &HashMap::new(), &HashSet::new(), &HashSet::new()).unwrap();
         assert_eq!(stats.adds, 3, "{stats:?}");
         assert_eq!(stats.present, 1);
         assert_eq!(stats.present_by_id64, 1);
@@ -721,7 +778,7 @@ mod tests {
             [1200.0, -40.0, 6000.0],
             None,
         )];
-        let (records, stats) = diff(&base, &candidates, &taught, &HashSet::new(), &HashSet::new()).unwrap();
+        let (records, stats, _) = diff(&base, &candidates, &taught, &HashSet::new(), &HashSet::new()).unwrap();
         drop(base);
         let publication =
             publish_overlay(artifact_dir.path(), "2", "2026-09-03T01:00:00Z", records, stats)
@@ -769,7 +826,7 @@ mod tests {
 
         // A quiet day publishes nothing.
         let base = Galaxy::open(&artifact_dir.path().join("routing").join("2")).unwrap();
-        let (records, _) = diff(&base, &candidates, &taught, &HashSet::new(), &HashSet::new()).unwrap();
+        let (records, _, _) = diff(&base, &candidates, &taught, &HashSet::new(), &HashSet::new()).unwrap();
         assert!(records.is_empty(), "yesterday's changes are in the base now");
     }
 }

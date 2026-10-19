@@ -456,7 +456,12 @@ verdicts live in the CSV headers under `docs/benches/`.
   a repair's class-0 row, replaces an older route's class, never replaces
   a scan however new, and any other source replaces it even when older;
   the bulk stars insert replaces it regardless of age; the reconcile puts
-  it on Unknown records only (`weak_on_known` counts the rest). No client
+  it on Unknown records only (`weak_on_known` counts the rest) and then
+  deletes the weak rows that taught nothing, agreeing or kept out
+  (`weak_pruned`; maintainer, the same afternoon, on the first box
+  numbers of ~150k such rows a day: "so we don't have rampant growth"),
+  so the table and the daily taught map stay the size of what teaches;
+  a weak row that fed an update stays until a base rebuild. No client
   upload: the feed carries everyone's routes already, and EDDA's own
   would add a handful. OPEN: the September 27 % against today's 0.13 %
   is a disagreement between two measurements; the suspect is that index
