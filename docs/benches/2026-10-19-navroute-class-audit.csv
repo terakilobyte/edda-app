@@ -11,8 +11,12 @@
 # are bubble catalogue systems: Medb, Prism, 36 Ophiuchi, Geras, Zhulong, LP 581-36, LAWD 74, LAWD 26, LP 245-17,
 # Oochoss VK-J c11-1, Outorst ZE-G b11-0). Yield if taught into Unknowns only: 2,347 classes (15 neutrons) and 4,752
 # new systems (82 neutrons, 16 white dwarfs) per two hours, ~1,100 boost stars a day the index does not have.
-# OPEN before the rule changes: this measurement and the 2026-09-10 one (27 % changed) disagree, so one instrument
-# is broken; the September method is to be found and rerun on this tap before NavRoute teaches a class again.
+# The 2026-09-10 figure (27 % changed) rerun the same afternoon on the SAME TAP against the September build itself
+# (D:\galos\index-boost-secondary, the 2026-08-30 dump build of 198,978,505 systems the box adopted as 3cff2b54 in
+# the repair): agreement 8,438 of 8,450 known systems (99.9 %), neutron 278 of 278, white dwarf 76 of 77, black hole
+# 5 of 5; adds 5,693, teachable Unknowns 1,534. CLOSED: the 27 % reproduces on neither build; the broken instrument
+# was the September measurement (how the taught rows were compared or attributed), not the stream and not an
+# index's main-star choice. The 17,000-row repair retraction rested on it; those rows re-teach under the weak rule.
 # navroute_audit navroute_hops.tsv on D:\galos\index-prod-af6bc099
 # hops 26433, blank class 0, unique systems 15678, self-disagreeing 0
 # not in index (adds) 4752, name clash 1, index Unknown (teachable) 2347, index known 8578

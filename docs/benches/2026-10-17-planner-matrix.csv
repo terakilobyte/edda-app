@@ -391,6 +391,16 @@
 # FROM HERE the harness measures on the production index (EDDA_INDEX
 # default); every arm above was on the bench index D:\galos\index-boost-
 # secondary.
+# w24a-3 / w24b-3 (2026-10-19 13:50, pre-registered) = the first pair of SAME-CODE arms under the audit's rule (a
+# default changes only when two interleaved same-code runs both hold the pre-registered row): the current code
+# c13469f (= the w22 planner + RouteRequest.judge_lean, the day's server changes touch no planning) on three
+# threads (RAYON_NUM_THREADS=3), the production index af6bc099, interleaved pair by pair by knobs/interleave_arms.sh
+# (arm a plots a pair's two directions, then arm b, down the list). EXPECT: a vs b inside the audit's noise floor
+# on every row -- twenty routes 0 jumps apart, the three short ones at most 1, the rim knife edges (Ood Fleau <->
+# Sphiesi, Jongou XM-W -> Byoi) inside 11-17, the two reverse crossings inside ~70 (390 / 526 on w23p-3); walls
+# within 10 %. Both arms vs w23p-3 (the same planner less judge_lean, one run): the same floor; a row outside it on
+# BOTH arms is the judge_lean plumbing's effect, which the probes found none of. These two arms are the baseline
+# the next default change is measured against.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,

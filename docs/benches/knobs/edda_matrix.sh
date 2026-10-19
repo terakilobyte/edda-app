@@ -5,7 +5,9 @@
 set -uo pipefail
 B="$1"; TAG="$2"; ROUTES="$3"; OUT="$4"; BUDGET="${5:-100}"; shift 5 || shift $#
 IDX="${EDDA_INDEX:-/d/galos/index-prod-af6bc099}"
-mkdir -p "$OUT"; : > "$OUT/$TAG.jsonl"
+# EDDA_APPEND=1 keeps an existing row file (interleave_arms.sh feeds one
+# pair at a time, alternating arms).
+mkdir -p "$OUT"; [ -n "${EDDA_APPEND:-}" ] || : > "$OUT/$TAG.jsonl"
 # Warm the index in the page cache first (2026-10-17: the same baseline
 # binary plotted Sol -> Beagle Point in 18 s warm and 77 s after a build
 # had evicted the index; wall times across arms are only comparable warm).

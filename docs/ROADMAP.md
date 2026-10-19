@@ -463,10 +463,13 @@ verdicts live in the CSV headers under `docs/benches/`.
   so the table and the daily taught map stay the size of what teaches;
   a weak row that fed an update stays until a base rebuild. No client
   upload: the feed carries everyone's routes already, and EDDA's own
-  would add a handful. OPEN: the September 27 % against today's 0.13 %
-  is a disagreement between two measurements; the suspect is that index
-  build's main-star choice, and the September method is to be rerun on
-  the tap before the number is cited again.
+  would add a handful. The September 27 % against today's 0.13 %: the
+  same tap run against the September build itself (the 2026-08-30 dump
+  build, the bench index) also agrees on 99.9 % of 8,450 known systems
+  and 278 of 278 neutrons, so the 27 % reproduces on neither build and
+  the broken instrument was the September measurement, not the stream
+  and not an index; the 17,000-row retraction rested on it, and those
+  rows re-teach under the weak rule as routes cross them. CLOSED.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and
