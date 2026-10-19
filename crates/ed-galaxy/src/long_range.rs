@@ -813,8 +813,13 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
             // second from Hypins), so both ends look. NoRoute is evidence,
             // not a verdict: the exact planner still runs, on a fifth of
             // its cap.
-            let plain_dead = |a: u32, b: u32| matches!(blind_leg(g, req, a, b, cap.min(1_000), longest, false, false), Err(RouteError::NoRoute));
-            if plain_dead(from, to) || plain_dead(to, from) {
+            let plain_dead = |a: u32, b: u32, range: f32| matches!(blind_leg(g, req, a, b, cap.min(1_000), range, false, false), Err(RouteError::NoRoute));
+            // ... and at the leg's REAL range: a plain skeleton that exists
+            // only with an empty tank (the 1,209 ly Jongua XV-E -> Gonguae
+            // GW-C, 75-77 ly hops on a 72.5 ly tank) dies in milliseconds
+            // here, where the fuel-aware search spent 25-28 s not proving
+            // it. Evidence, not a verdict: the exact planner still runs.
+            if plain_dead(from, to, longest) || plain_dead(to, from, longest) || plain_dead(from, to, real_range) {
                 void_evidence = true;
                 // The verdict: the empty-tank range with every boost and
                 // injection in hand, briefly. NoRoute here is final.
@@ -1610,9 +1615,19 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
         // Passes: the improved route is the next pass's witness, pinned at
         // other stars, until a pass improves nothing (ED_WSEG_PASSES, 2).
         let passes: usize = if go { std::env::var("ED_WSEG_PASSES").ok().and_then(|v| v.parse().ok()).unwrap_or(2) } else { 0 };
+        // 12 kly windows (the sweep of 2026-10-18: 3 kly 867 j, 6 kly 803,
+        // 12 kly 691, 24 kly 562 on Byoi CQ-G -> Jongou XM-W; 696 / 629 /
+        // 596 / 627 on Byoi AT-U -> Jongou AA-A -- the greedy witness's
+        // macro-detour needs long windows, the far plot turned at 24);
+        // ED_WSEG_LY2 gives the later passes their own length.
+        // 24 kly first (the macro-detour), 12 kly after (local straightening):
+        // probes of 2026-10-18 -- Byoi CQ-G -> Jongou XM-W 591 -> 562 j, Byoi
+        // AT-U -> Jongou AA-A 514 -> 493 j against 12 / 12.
+        let first_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(24_000.0);
+        let later_ly: Option<f32> = Some(std::env::var("ED_WSEG_LY2").ok().and_then(|v| v.parse().ok()).unwrap_or(12_000.0));
         let mut seed = w;
         for pass in 0..passes {
-            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen) {
+            match witness_segments(g, neutrons, &seed, req, ctl, fuel_model, start_fuel, straight, started, &route, best_seen, segment_window(pass, first_ly, later_ly)) {
                 Some(better) => {
                     if std::env::var_os("ED_PLOT_DEBUG").is_some() {
                         eprintln!("    witness segments pass {}: {} -> {} j at {} ms", pass + 1, route.jumps, better.jumps, started.elapsed().as_millis());
@@ -1651,6 +1666,12 @@ fn plan_witness(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control
 /// with as few jumps as the route they are improving.
 fn segments_continue(best_seen: u32, seed_jumps: usize) -> bool {
     best_seen as usize > seed_jumps
+}
+
+/// The segment window for `pass` (0-based): the first pass's `first_ly`,
+/// then `later_ly` when given (ED_WSEG_LY2) for every later pass.
+fn segment_window(pass: usize, first_ly: f32, later_ly: Option<f32>) -> f32 {
+    if pass == 0 { first_ly } else { later_ly.unwrap_or(first_ly) }
 }
 
 /// Are the segments worth starting: a crossing's witness (200 hops or
@@ -1695,12 +1716,7 @@ fn witness_pins(path: &[[f32; 3]], seg_ly: f32) -> Vec<usize> {
 /// worse than the witness. `None` when nothing improved or the plot was
 /// cancelled. ED_WSEG_LY (12,000) and ED_WSEG_MS (8,000) for the harness.
 #[allow(clippy::too_many_arguments)]
-fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32) -> Option<Route> {
-    // 12 kly windows (the sweep of 2026-10-18: 3 kly 867 j, 6 kly 803, 12 kly
-    // 691, 24 kly 562 on Byoi CQ-G -> Jongou XM-W; 696 / 629 / 596 / 627 on
-    // Byoi AT-U -> Jongou AA-A -- the greedy witness's macro-detour needs
-    // long windows, the far plot turned at 24), 8 s each.
-    let seg_ly: f32 = std::env::var("ED_WSEG_LY").ok().and_then(|v| v.parse().ok()).unwrap_or(12_000.0);
+fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, start_fuel: f32, straight: f32, started: std::time::Instant, raw: &Route, best_seen: &std::sync::atomic::AtomicU32, seg_ly: f32) -> Option<Route> {
     let seg_ms: u64 = std::env::var("ED_WSEG_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(8_000);
     let debug = std::env::var_os("ED_PLOT_DEBUG").is_some();
     let pos: Vec<[f32; 3]> = w.stars.iter().map(|&s| g.pos_of(s)).collect();
@@ -5299,6 +5315,17 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// The segment window per pass: the first pass's length, then the
+    /// second's for every later pass (a long first window recovers the
+    /// witness's macro-detour, a short second one straightens locally).
+    #[test]
+    fn the_segment_window_is_per_pass() {
+        assert_eq!(segment_window(0, 24_000.0, Some(12_000.0)), 24_000.0);
+        assert_eq!(segment_window(1, 24_000.0, Some(12_000.0)), 12_000.0);
+        assert_eq!(segment_window(2, 24_000.0, Some(12_000.0)), 12_000.0);
+        assert_eq!(segment_window(1, 12_000.0, None), 12_000.0, "no second length: the first's");
     }
 
     /// The segments are for crossings: a raw witness under 200 hops is a
