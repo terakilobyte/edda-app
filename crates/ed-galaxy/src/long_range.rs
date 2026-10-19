@@ -785,9 +785,7 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
             return other;
         }
     }
-    if leg_req.time_budget_ms > 0 {
-        leg_req.time_budget_ms = leg_req.time_budget_ms.saturating_sub(t0.elapsed().as_millis() as u64).max(1_000);
-    }
+
     // Pass 0 (R4 Task C): the skeleton at the leg's REAL range, no
     // injections -- flown with the real tank it is the leg.
     let real_range = req.fuel.map(|m| m.range_at(fuel)).unwrap_or(req.range_ly);
@@ -836,6 +834,10 @@ fn refine_leg_uncached(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &d
                 }
             }
         }
+    }
+    // The probe's and the passes' time comes off the leg's cap (review F5).
+    if leg_req.time_budget_ms > 0 {
+        leg_req.time_budget_ms = leg_req.time_budget_ms.saturating_sub(t0.elapsed().as_millis() as u64).max(1_000);
     }
     leg_req.time_budget_ms = exact_leg_budget_ms(leg_req.time_budget_ms, void_evidence);
     note(if void_evidence { "exact (a fifth of the cap)" } else { "exact" });
@@ -1713,6 +1715,40 @@ thread_local! {
     static CHAIN_SINK: std::cell::RefCell<Option<Vec<u32>>> = const { std::cell::RefCell::new(None) };
 }
 
+/// Arms the chain sink and disarms it when dropped, on every exit path
+/// (review F4, 2026-10-19: a panic inside the descent's coarse search would
+/// have left the sink armed and turned every later plan on that worker
+/// into a cancelled coarse-only plan).
+struct SinkGuard;
+impl SinkGuard {
+    fn arm() -> Self {
+        CHAIN_SINK.with(|c| *c.borrow_mut() = Some(Vec::new()));
+        SinkGuard
+    }
+    fn take(&self) -> Vec<u32> {
+        CHAIN_SINK.with(|c| c.borrow_mut().take()).unwrap_or_default()
+    }
+}
+impl Drop for SinkGuard {
+    fn drop(&mut self) {
+        CHAIN_SINK.with(|c| *c.borrow_mut() = None);
+    }
+}
+
+/// Review F2: a stalled coarse chain ends with the goal the stall hand-off
+/// pushed (every stalled single does, `STALL_HANDOFF_REACHES` being
+/// infinite); trimmed, the chain's real end measures the gap to the start.
+fn trim_pushed_goal(chain: &mut Vec<u32>, goal: u32, done: bool) {
+    if !done && chain.len() >= 2 && chain.last() == Some(&goal) {
+        chain.pop();
+    }
+}
+
+/// Review F1: may a stitched route spend this many injections?
+fn within_allowance(injections: usize, req: &RouteRequest) -> bool {
+    injections <= req.injection.map(|(_, _, k)| k as usize).unwrap_or(0)
+}
+
 /// The forward direction's coarse chain, reversed into start -> goal order
 /// (R4 geometry, 2026-10-19): on the reverse rim crossings the descent
 /// crosses in 0.6 s of coarse search in the scan twins' shape where the
@@ -1736,11 +1772,15 @@ fn descent_chain(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Contro
         let tctl = Control { cancelled: &timed, progress: ctl.progress, stage: ctl.stage, found: ctl.found, legs: ctl.legs, variant: ctl.variant, trace: ctl.trace };
         let none = std::sync::atomic::AtomicBool::new(false);
         let stats = CoarseStats::default();
-        CHAIN_SINK.with(|c| *c.borrow_mut() = Some(Vec::new()));
+        let guard = SinkGuard::arm();
         let t0 = std::time::Instant::now();
         let _ = plan_long_with(g, neutrons, &rev, &tctl, w, r, b, 1, false, false, false, None, &none, &stats, None, false, &NO_BANS, &NO_INCUMBENT);
-        let chain = CHAIN_SINK.with(|c| c.borrow_mut().take()).unwrap_or_default();
+        let mut chain = guard.take();
+        drop(guard);
         let done = stats.coarse_done.load(std::sync::atomic::Ordering::Relaxed);
+        // A stalled chain ends with the goal the hand-off pushed: the real
+        // end is the star before it (review F2).
+        trim_pushed_goal(&mut chain, rev.to, done);
         if debug {
             eprintln!("    descent shape w{w} r{r} b{b}: {} stars, coarse {} in {} ms", chain.len(), if done { "complete" } else { "stalled" }, t0.elapsed().as_millis());
         }
@@ -1795,14 +1835,14 @@ const DESCENT_SHAPES: [(f32, f32, f32); 6] = [(COARSE_WEIGHT, 0.4, 0.5), (1.8, 0
 /// from the prefix's end to that star, then raw's hops from it re-flown
 /// with the real tank. `Some` only when the whole flies and beats `raw`.
 #[allow(clippy::too_many_arguments)]
-fn splice_onto(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, prefix: Route, fuel: f32, raw: &Route, seg_ms: u64, straight: f32, debug: bool) -> Option<Route> {
+fn splice_onto(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, req_left: &RouteRequest, ctl: &Control, fuel_model: Option<crate::fuel::FuelModel>, prefix: Route, fuel: f32, raw: &Route, seg_ms: u64, straight: f32, debug: bool) -> Option<Route> {
     let end = prefix.hops.last()?;
     // Raw's nearest star to the prefix's end, searched past the stretch
     // raw has already covered (never splice backwards).
     let (k, _) = raw.hops.iter().enumerate().skip(1).map(|(k, h)| (k, dist(h.pos, end.pos))).min_by(|a, b| a.1.total_cmp(&b.1))?;
     let joint = raw.hops[k].idx;
     let none = std::sync::atomic::AtomicBool::new(false);
-    let sreq = RouteRequest { from: end.idx, to: joint, start_fuel: fuel, time_budget_ms: seg_ms * 2, ..req.clone() };
+    let sreq = RouteRequest { from: end.idx, to: joint, start_fuel: fuel, time_budget_ms: seg_ms * 2, ..req_left.clone() };
     let connector = match plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT) {
         Ok(c) => c,
         Err(e) => {
@@ -1837,7 +1877,10 @@ fn splice_onto(g: &Galaxy, neutrons: &Galaxy, req: &RouteRequest, ctl: &Control,
         }
     }
     if debug {
-        eprintln!("    prefix splice: joined at {} (raw hop {k}): {} j vs raw {} j", raw.hops[k].name, whole.jumps, raw.jumps);
+        eprintln!("    prefix splice: joined at {} (raw hop {k}): {} j vs raw {} j, {} injections", raw.hops[k].name, whole.jumps, raw.jumps, whole.injections);
+    }
+    if !within_allowance(whole.injections, req) {
+        return None;
     }
     (whole.jumps < raw.jumps).then_some(whole)
 }
@@ -1931,9 +1974,12 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
         let (a, b) = (w.stars[i], w.stars[j]);
         let t_seg = std::time::Instant::now();
         let inj_left = req.injection.map(|(m, n, k)| (m, n, k.saturating_sub(used_inj)));
+        // The request with the injections still in hand: the planned segment,
+        // the fallback and the splice connector all plan under it (review F1).
+        let req_left = RouteRequest { injection: inj_left, ..req.clone() };
         // A stretch widened after a failure gets twice the time.
         let widened = widens > 0;
-        let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: if widened { seg_ms * 2 } else { seg_ms }, injection: inj_left, ..req.clone() };
+        let sreq = RouteRequest { from: a, to: b, start_fuel: fuel, time_budget_ms: if widened { seg_ms * 2 } else { seg_ms }, ..req_left.clone() };
         let none = std::sync::atomic::AtomicBool::new(false);
         let planned = plan_long_with(g, neutrons, &sreq, ctl, 1.8, 0.75, 0.5, 1, false, false, false, None, &none, &CoarseStats::default(), None, false, &NO_BANS, &NO_INCUMBENT);
         if debug {
@@ -1960,7 +2006,7 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
                 // coarse-chain seed has no flyable hops to fall back on.
                 let fallback = if seed_flyable {
                     let wps: Vec<(u32, f32)> = w.stars[i..=j].iter().map(|&s| (s, capacity)).collect();
-                    refine_waypoints(g, req, ctl, wps, fuel, fuel_model, 0, straight, started)
+                    refine_waypoints(g, &req_left, ctl, wps, fuel, fuel_model, 0, straight, started)
                 } else {
                     Err(RouteError::NoRoute)
                 };
@@ -2006,7 +2052,7 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
                         // route already has a flown approach).
                         if !seed_flyable {
                             if let Some(prefix) = whole.take() {
-                                return splice_onto(g, neutrons, req, ctl, fuel_model, prefix, fuel, raw, seg_ms, straight, debug);
+                                return splice_onto(g, neutrons, req, &req_left, ctl, fuel_model, prefix, fuel, raw, seg_ms, straight, debug);
                             }
                         }
                         return None;
@@ -2021,7 +2067,12 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
         whole = Some(match whole {
             None => seg,
             Some(mut wh) => {
-                wh.hops.extend(seg.hops.into_iter().skip(1));
+                // Per-hop total_ly is cumulative from the start (review F3).
+                let base = wh.total_ly;
+                wh.hops.extend(seg.hops.into_iter().skip(1).map(|mut h| {
+                    h.total_ly += base;
+                    h
+                }));
                 wh.jumps += seg.jumps;
                 wh.total_ly += seg.total_ly;
                 wh.boosted_jumps += seg.boosted_jumps;
@@ -2036,6 +2087,12 @@ fn witness_segments(g: &Galaxy, neutrons: &Galaxy, w: &crate::feasible::Witness,
     route.straight_ly = straight;
     if debug {
         eprintln!("    witness segments: {} pins, {improved} improved, {fell_back} fell back; {} j vs the raw witness's {} j at {} ms", pins.len(), route.jumps, raw.jumps, started.elapsed().as_millis());
+    }
+    if !within_allowance(route.injections, req) {
+        if debug {
+            eprintln!("    witness segments: {} injections over the allowance; dropped", route.injections);
+        }
+        return None;
     }
     (route.jumps < raw.jumps).then_some(route)
 }
@@ -5546,6 +5603,43 @@ pub(crate) mod tests {
         let r = RouteRequest { min_fuel: true, ..Default::default() };
         assert!(!witness_refinement_request(&r).min_fuel);
         assert_eq!(witness_refinement_request(&r).range_ly, r.range_ly, "everything else is the request's");
+    }
+
+    /// Review F1: a stitched route may not spend more injections than the
+    /// request allows.
+    #[test]
+    fn a_stitched_route_keeps_the_injection_allowance() {
+        let none = RouteRequest::default();
+        assert!(within_allowance(0, &none));
+        assert!(!within_allowance(1, &none), "no allowance: no injections");
+        let three = RouteRequest { injection: Some((2.0, "premium", 3)), ..RouteRequest::default() };
+        assert!(within_allowance(3, &three));
+        assert!(!within_allowance(4, &three));
+    }
+
+    /// Review F2: a stalled coarse chain ends with the goal the stall
+    /// hand-off pushed; trimmed, its real end measures the gap.
+    #[test]
+    fn a_stalled_chain_is_trimmed_of_the_pushed_goal() {
+        let mut stalled = vec![10u32, 11, 12, 99];
+        trim_pushed_goal(&mut stalled, 99, false);
+        assert_eq!(stalled, vec![10, 11, 12]);
+        let mut complete = vec![10u32, 11, 12, 99];
+        trim_pushed_goal(&mut complete, 99, true);
+        assert_eq!(complete, vec![10, 11, 12, 99], "a complete chain keeps its goal");
+    }
+
+    /// Review F4: the chain sink is cleared on every exit from the descent,
+    /// a panic included -- an armed sink would turn every later plan on
+    /// that worker into a cancelled coarse-only plan.
+    #[test]
+    fn the_chain_sink_is_cleared_even_when_the_descent_panics() {
+        let r = std::panic::catch_unwind(|| {
+            let _guard = SinkGuard::arm();
+            panic!("a coarse search panicked");
+        });
+        assert!(r.is_err());
+        assert!(CHAIN_SINK.with(|c| c.borrow().is_none()), "the sink is disarmed after the panic");
     }
 
     /// The descent seed: the forward direction's coarse chain, reversed, as

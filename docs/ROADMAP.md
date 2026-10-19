@@ -400,7 +400,34 @@ verdicts live in the CSV headers under `docs/benches/`.
   reference's 477; Byoi CQ-G -> Jongou XM-W 563 -> 543 (reference 516);
   arms w21 / w21-3 vs w20 / w20-3 2 / 26 / 0 and 3 / 22 / 3 (wall-only).
   Gates: vs the shipped planner PC 18 / 5 / 5, three threads 17 / 4 / 7;
-  vs the R2 head 10 / 14 / 4 and 10 / 12 / 6. OPEN: the 1,209 ly Jongua XV-E ->
+  vs the R2 head 10 / 14 / 4 and 10 / 12 / 6.
+  **The holistic review of 2026-10-19 (three fresh reviewers: correctness,
+  measurement, techniques).** Fixed the same day: stitched routes now keep
+  the injection allowance; a stalled descent chain is trimmed of its
+  pushed goal so the 15 kly gate means what it says; per-hop distance is
+  rebased on stitching; the chain sink is disarmed by a guard on every
+  exit, panics included; the blind passes' time comes off the leg's cap.
+  The renderer's seconds gate no longer vetoes on stops (it double-counted
+  them and marked fewer-jumps-fewer-seconds rows worse); corrected gates
+  PC vs the shipped planner 19 / 5 / 4, three threads vs the R2 head
+  11 / 12 / 5. The record was corrected where the audit found it wrong,
+  the worst being Jongou AA-A -> Byoi AT-U's 392 -> 396 at the
+  witness-currency change: a real 4-jump regression, not noise (OPEN).
+  The noise floor, stated: twenty routes never move between same-code
+  arms, three short ones move one jump, the rim knife edges 11-17, the
+  reverse crossings' segment results about 70. Rule from here: a default
+  needs two interleaved same-code runs with the pre-registered row holding
+  in both. The reference re-examined: its reverse crossings at its own
+  range figure are 318 / 328 jumps, every one crossing the 3,864 ly void
+  as plain jumps through empty space; the bench's reference column is the
+  same plotter at the ship's 77.8 ly under a x4 boost assumption. Neither
+  is a flyable route. Open from the techniques review: the goal field for
+  a crossing's last segment only, bisecting a failed stretch before
+  widening, the descent seed first, the bidirectional variant's injected
+  goal-side seed, continuing from a stall point (the maintainer's "hop on
+  stall", half done), the goal field gated by goal-end density (never
+  built). The production fuzz replay: 82 answers, one final with no route
+  after six valid early answers (OPEN, server log needed). OPEN: the 1,209 ly Jongua XV-E ->
   Gonguae GW-C leg is flyable only at an empty tank (a standalone plot
   fails from 120 and 40 t) and costs 28 s wherever a chain uses it -- an
   exact-planner hole; the reverse crossings' remaining gap to the
