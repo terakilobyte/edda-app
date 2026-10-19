@@ -205,6 +205,31 @@ async fn feed_scans_teach_stars_bodies_and_hotspots() {
     let stats = ed_api::eddn::apply_operations(&pool, &older).await.unwrap();
     assert_eq!((stats.stars, stats.skipped), (0, 1));
 
+    // A route's class is weak (2026-10-19): it never replaces a scan, however
+    // new; it fills a blank; a newer route replaces an older route's class;
+    // and a scan replaces a route's class even when the scan is older.
+    let route = |address: i64, class: &str, when: i64| Operation::Star(StarTeaching { system_address: address, system_name: None, position: None, star_type: class.into(), observed_at: at(when), source: "eddn:navroute".into() });
+    let scan = |address: i64, class: &str, when: i64| Operation::Star(StarTeaching { system_address: address, system_name: None, position: None, star_type: class.into(), observed_at: at(when), source: "eddn:scan".into() });
+    let class_of = |address: i64| {
+        let pool = pool.clone();
+        async move { sqlx::query_as::<_, (i16, String)>("SELECT class, source FROM stars WHERE address = $1").bind(address).fetch_one(&pool).await.unwrap() }
+    };
+    let stats = ed_api::eddn::apply_operations(&pool, &[route(address, "M", 500)]).await.unwrap();
+    assert_eq!((stats.stars, stats.skipped), (0, 1), "a newer route does not replace the scan");
+    assert_eq!(class_of(address).await, (6, "eddn:scan".to_string()));
+    let blank = address + 1;
+    let stats = ed_api::eddn::apply_operations(&pool, &[route(blank, "N", 10)]).await.unwrap();
+    assert_eq!(stats.stars, 1, "a route fills a blank");
+    assert_eq!(class_of(blank).await, (14, "eddn:navroute".to_string()), "N is code 14");
+    let stats = ed_api::eddn::apply_operations(&pool, &[route(blank, "DA", 20)]).await.unwrap();
+    assert_eq!(stats.stars, 1, "a newer route replaces an older route's class");
+    assert_eq!(class_of(blank).await.1, "eddn:navroute");
+    let stats = ed_api::eddn::apply_operations(&pool, &[route(blank, "M", 5)]).await.unwrap();
+    assert_eq!((stats.stars, stats.skipped), (0, 1), "an older route does not");
+    let stats = ed_api::eddn::apply_operations(&pool, &[scan(blank, "K", -100)]).await.unwrap();
+    assert_eq!(stats.stars, 1, "a scan replaces a route's class even when older");
+    assert_eq!(class_of(blank).await, (6, "eddn:scan".to_string()));
+
     // And the mining search sees what the feed taught.
     let req = MiningSearchRequest { text: "painite".into(), system: Some("Deciat".into()), coords: None, radius_ly: Some(10.0), limit: None };
     let answer = search(&pool, &req).await.unwrap();

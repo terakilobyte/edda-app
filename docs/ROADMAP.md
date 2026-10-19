@@ -386,10 +386,11 @@ verdicts live in the CSV headers under `docs/benches/`.
   of the 199 M systems are class Unknown (no star body in the dump);
   neutrons 1.75 %. The neutrons the reference knows and we do not are
   neutron primaries whose records have no bodies on either side: its
-  knowledge is the NavRoute stream, which `ed-eddn` already ingests into
-  the stars table and the daily overlay teaches into the index (the box
-  knows 3 of the 29 we checked); the gap closes with time on that stream,
-  not a new source; the bench index should carry the box's overlay. THE
+  knowledge is the NavRoute stream. (Written that day as "which `ed-eddn`
+  already ingests into the stars table": WRONG for classes, see the
+  NavRoute entry below; since the 2026-09-11 repair the feed kept a
+  route's positions and threw its classes away.) The bench index should
+  carry the box's overlay. THE
   DESCENT SEED (on by default for crossings): the forward direction's
   coarse chain, taken before refinement through a chain sink (six shapes,
   3 s each, a complete chain preferred, a stalled one within 15 kly of
@@ -433,6 +434,34 @@ verdicts live in the CSV headers under `docs/benches/`.
   exact-planner hole; the reverse crossings' remaining gap to the
   reference (583 / 591 vs 477 / 516); Jongou AA-A -> Byoi AT-U's 396 vs
   the R2 head's 392.
+  **NavRoute classes come back as the one weak source (2026-10-19,
+  maintainer: "we should not be throwing these boost stars away, at
+  all").** The premise check before building anything: since the
+  2026-09-11 repair the feed kept a route's positions and dropped its
+  classes, because the 2026-09-10 blind teaching had been measured
+  changing 27 % of the classes it touched against that day's index
+  build. Measured again, two hours of the live feed (26,433 hops,
+  15,678 systems, 13.2k hops an hour) against the production index
+  (`navroute_tap`, `navroute_audit`,
+  `docs/benches/2026-10-19-navroute-class-audit.csv`): a route's
+  StarClass is the index's main star on 8,567 of 8,578 known systems
+  (99.9 %), neutron claims 284 of 284, white dwarfs 76 of 77; the eleven
+  disagreements are bubble catalogue systems whose distant companion is
+  named first (Lalande 25224 on EDSM: a neutron at arrival, the route's
+  F at 6,156 ls -- the September pattern, at 0.13 %). Per two hours the
+  index lacked 4,752 of the systems (82 neutrons) and held 2,347 as
+  Unknown (15 neutrons): about 1,100 boost stars a day thrown away. The
+  rule, each piece RED first: a route's class is taught as
+  `eddn:navroute`, the one weak source; in the store it fills a blank or
+  a repair's class-0 row, replaces an older route's class, never replaces
+  a scan however new, and any other source replaces it even when older;
+  the bulk stars insert replaces it regardless of age; the reconcile puts
+  it on Unknown records only (`weak_on_known` counts the rest). No client
+  upload: the feed carries everyone's routes already, and EDDA's own
+  would add a handful. OPEN: the September 27 % against today's 0.13 %
+  is a disagreement between two measurements; the suspect is that index
+  build's main-star choice, and the September method is to be rerun on
+  the tap before the number is cited again.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

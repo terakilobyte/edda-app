@@ -900,8 +900,13 @@ pub struct BodiesWritten {
     pub hotspots: u64,
 }
 
-/// The arrival star's class into `stars`, newer-wins. An unknown class
-/// spelling teaches nothing (the index has no code for it).
+/// The arrival star's class into `stars`, newer-wins among equals. A
+/// route's class (`eddn:navroute`, the one weak source; 2026-10-19) fills
+/// a blank, replaces an older route's class or a repair's class-0 row,
+/// and never replaces a scan or a dump class however new; any other
+/// source replaces a route's class even when older (a scan is first
+/// hand). An unknown class spelling teaches nothing (the index has no
+/// code for it).
 async fn apply_star(transaction: &mut Transaction<'_, Postgres>, star: &ed_domain::StarTeaching) -> Result<Applied> {
     use ed_domain::star::{StarClass, StarClassCode as _};
     if star.system_address <= 0 {
@@ -917,7 +922,12 @@ async fn apply_star(transaction: &mut Transaction<'_, Postgres>, star: &ed_domai
          ON CONFLICT (address) DO UPDATE SET \
            class = EXCLUDED.class, scoopable = EXCLUDED.scoopable, subtype = EXCLUDED.subtype, \
            source = EXCLUDED.source, observed_at = EXCLUDED.observed_at \
-         WHERE stars.observed_at < EXCLUDED.observed_at",
+         WHERE CASE \
+           WHEN EXCLUDED.source = 'eddn:navroute' THEN \
+             stars.class = 0 OR (stars.source = 'eddn:navroute' AND stars.observed_at < EXCLUDED.observed_at) \
+           WHEN stars.source = 'eddn:navroute' THEN true \
+           ELSE stars.observed_at < EXCLUDED.observed_at \
+         END",
     )
     .bind(star.system_address)
     .bind(i16::from(class.code()))

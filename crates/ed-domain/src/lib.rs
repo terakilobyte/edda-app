@@ -70,8 +70,10 @@ pub struct StarTeaching {
     pub position: Option<[f64; 3]>,
     pub star_type: String,
     pub observed_at: ObservedAt,
-    /// `eddn:scan` (a navroute hop's StarClass is not the main star and
-    /// is never taught; see ed-eddn).
+    /// `eddn:scan` (first-hand: the arrival star at 0 ls) or
+    /// `eddn:navroute` (weak: a route hop's StarClass, right on 99.9 % of
+    /// known systems in the 2026-10-19 audit; it fills a blank and never
+    /// replaces a scan; see ed-eddn and the store's precedence).
     pub source: String,
 }
 

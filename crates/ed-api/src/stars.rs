@@ -163,7 +163,7 @@ pub async fn apply_stars(pool: &PgPool, stars: &[StarObservation]) -> Result<u64
          ON CONFLICT (address) DO UPDATE SET \
            class = EXCLUDED.class, scoopable = EXCLUDED.scoopable, subtype = EXCLUDED.subtype, \
            source = EXCLUDED.source, observed_at = EXCLUDED.observed_at \
-         WHERE stars.observed_at < EXCLUDED.observed_at",
+         WHERE stars.source = 'eddn:navroute' OR stars.observed_at < EXCLUDED.observed_at",
     )
     .bind(&addresses)
     .bind(&classes)

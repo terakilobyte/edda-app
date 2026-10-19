@@ -261,6 +261,12 @@ pub struct ScanSignal {
     pub count: i64,
 }
 
+/// The source a route's star class is stored under: the one weak source
+/// (it fills a blank and never replaces a scan; the reconcile keeps it
+/// off records that have a class). The store and the reconcile match it
+/// by this exact string.
+pub const NAVROUTE_SOURCE: &str = "eddn:navroute";
+
 /// The `navroute/1` schema: every system on a plotted route with its
 /// star class and position — the feed's richest source of star classes
 /// for systems nobody has scanned.
@@ -395,17 +401,30 @@ impl Envelope {
                             allegiance: None,
                         }));
                     }
-                    // A hop's `StarClass` is NOT the main star. Measured
-                    // 2026-09-10 against the pre-navroute index: of 49,746
-                    // systems navroute touched it changed the class of
-                    // 13,571 (27%), demoting 6 neutron/white-dwarf primaries
-                    // and promoting 151 systems to a boost class they do not
-                    // have; EDSM shows the taught class is a secondary star
-                    // thousands of light seconds out (Lalande 25224: F at
-                    // 6,061 ls, neutron primary at 0). Positions are kept —
-                    // a plotted route is how undiscovered systems get one —
-                    // the class is not taught from here at all.
-                    let _ = &hop.star_class;
+                    // A hop's `StarClass` is a WEAK teaching (`eddn:navroute`).
+                    // 2026-09-10, taught blindly over scanned classes, it was
+                    // measured changing 27 % of the classes it touched against
+                    // that day's index build and switched off. 2026-10-19,
+                    // measured again over two hours of the feed against the
+                    // production index: the arrival star on 8,567 of 8,578
+                    // known systems (99.9 %), 284 of 284 neutron claims; the
+                    // exceptions are catalogue systems whose distant companion
+                    // is named first (Lalande 25224: the route says F, the
+                    // arrival star is a neutron, the F sits 6,156 ls out). So
+                    // the store lets a route's class fill a blank and never
+                    // replace a scan, and the reconcile puts it on Unknown
+                    // records only (docs/benches/2026-10-19-navroute-class-
+                    // audit.csv: ~1,100 boost stars a day the index lacked).
+                    if let Some(class) = hop.star_class.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+                        out.push(Operation::Star(ed_domain::StarTeaching {
+                            system_address: address,
+                            system_name: Some(name),
+                            position: hop.star_pos,
+                            star_type: class.to_string(),
+                            observed_at: observed.clone(),
+                            source: NAVROUTE_SOURCE.into(),
+                        }));
+                    }
                 }
                 out
             }
@@ -1521,28 +1540,41 @@ mod teaching_tests {
         assert_eq!(id.primary_economy, None);
     }
 
+    /// A route teaches a system per hop and, where the hop names a class,
+    /// a WEAK star teaching (`eddn:navroute`): measured 2026-10-19 against
+    /// the production index over two hours of the feed, a route's
+    /// StarClass is the arrival star on 99.9 % of 8,578 known systems and
+    /// 284 of 284 neutron claims (docs/benches/2026-10-19-navroute-class-
+    /// audit.csv); the store lets it fill a blank and never replace a
+    /// scan, and the reconcile lets it onto Unknown records only. (The
+    /// 2026-09-10 blind teaching, which replaced scanned classes, is what
+    /// the weak source prevents.) A hop with an empty class teaches no
+    /// star, and a hop without a position still teaches its star.
     #[test]
-    fn a_navroute_teaches_a_system_per_hop_and_never_a_star() {
-        let raw = r#"{"$schemaRef":"https://eddn.edcd.io/schemas/navroute/1","header":{"uploaderID":"x","softwareName":"t","softwareVersion":"1"},"message":{"timestamp":"2026-09-09T10:02:00Z","event":"NavRoute","Route":[{"StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"StarClass":"K"},{"StarSystem":"Jackson's Lighthouse","SystemAddress":9999,"StarPos":[-8.6,52.7,4.0],"StarClass":"N"},{"StarSystem":"Nameless","SystemAddress":1,"StarPos":[0,0,0],"StarClass":""}]}}"#;
+    fn a_navroute_teaches_a_system_and_a_weak_star_per_hop() {
+        let raw = r#"{"$schemaRef":"https://eddn.edcd.io/schemas/navroute/1","header":{"uploaderID":"x","softwareName":"t","softwareVersion":"1"},"message":{"timestamp":"2026-09-09T10:02:00Z","event":"NavRoute","Route":[{"StarSystem":"Deciat","SystemAddress":6681123623626,"StarPos":[122.1875,-0.8125,-47.28125],"StarClass":"K"},{"StarSystem":"Jackson's Lighthouse","SystemAddress":9999,"StarPos":[-8.6,52.7,4.0],"StarClass":"N"},{"StarSystem":"Nameless","SystemAddress":1,"StarPos":[0,0,0],"StarClass":""},{"StarSystem":"Unplaced","SystemAddress":2,"StarClass":"DA"}]}}"#;
         let env = decode(raw.as_bytes()).unwrap();
         assert_eq!(env.schema(), "navroute/1");
         let ops = env.operations();
+        let systems: Vec<i64> = ops.iter().filter_map(|o| match o { Operation::System(s) => s.system_address, _ => None }).collect();
+        assert_eq!(systems, vec![6681123623626, 9999, 1], "a system per hop with a position");
+        let stars: Vec<(i64, &str, &str)> = ops
+            .iter()
+            .filter_map(|o| match o {
+                Operation::Star(s) => Some((s.system_address, s.star_type.as_str(), s.source.as_str())),
+                _ => None,
+            })
+            .collect();
         assert_eq!(
-            ops.len(),
-            3,
-            "one system per hop with a position, and no star: {ops:?}"
+            stars,
+            vec![(6681123623626, "K", "eddn:navroute"), (9999, "N", "eddn:navroute"), (2, "DA", "eddn:navroute")],
+            "a weak star per hop that names a class, none for the empty class: {ops:?}"
         );
-        // The hop's StarClass names a secondary star as often as not (27% of
-        // systems changed class when it was taught, 2026-09-10); it must
-        // never reach the stars table, even where it happens to say "N".
-        assert!(
-            !ops.iter().any(|o| matches!(o, Operation::Star(_))),
-            "{ops:?}"
-        );
-        assert!(ops.iter().all(|o| matches!(o, Operation::System(_))));
+        let star = ops.iter().find_map(|o| match o { Operation::Star(s) if s.system_address == 9999 => Some(s), _ => None }).unwrap();
+        assert_eq!((star.system_name.as_deref(), star.position), (Some("Jackson's Lighthouse"), Some([-8.6, 52.7, 4.0])));
         let mut stats = FeedStats::default();
         stats.count(&env);
-        assert_eq!(stats.journal_events.get("NavRoute.hops"), Some(&3));
+        assert_eq!(stats.journal_events.get("NavRoute.hops"), Some(&4));
     }
 
     #[test]
