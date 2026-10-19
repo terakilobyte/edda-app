@@ -363,6 +363,13 @@
 # approach into Jongou is a search hole in that direction: neither the
 # coarse planner nor the exact refinement crosses the last 20 kly in
 # reverse inside 30 s.
+# Also knob-only, 2026-10-19: ED_WSEG_LAST_FIELD=1 (the goal field on the
+# descent seed's last stretch: nothing new planned, 543) and ED_BIDI_RATIO=1
+# (the bidi frontiers now MEET on CQ-G but their chains die on the same
+# legs -- the 11 kly stall hand-off into Jongou, the two voids, the 1,209 ly
+# Jongua leg -- 542). The remaining gap on that crossing is the last 10 kly
+# into Jongou: 204 jumps on the reverse route against the forward route's
+# 78, unreachable in reverse by every technique tried.
 arm,route_from,route_to,straight_ly,jumps,stops,pilot_s,first_found_ms,wall_s,note
 before,Wongi,Spase AA-A a108-0,38200,101,6,6780,55,0.6,
 before,Spase AA-A a108-0,Wongi,38200,102,5,6720,143,0.4,
