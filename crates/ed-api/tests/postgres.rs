@@ -537,145 +537,6 @@ async fn cross_database_contract(pool: &PgPool) {
     assert_eq!(postgres_power, sqlite_power);
     assert_eq!(postgres_power, "Aisling Duval");
 
-    verify_market_publication(pool).await;
-}
-
-async fn verify_market_publication(pool: &PgPool) {
-    // Display metadata rides once hydrated: FDevIDs names/categories must
-    // reach both the market dictionary and section 4. The CSV symbol is
-    // CamelCase exactly as FDevIDs publishes it; the metadata must land
-    // on the lowercase row the market ingest created, not beside it
-    // (the first real hydrate grew the catalog 399 -> 656 that way).
-    let fdev = TempDir::new().unwrap();
-    let csv = fdev.path().join("commodity.csv");
-    std::fs::write(&csv, "id,symbol,category,name\n1,Gold,Metals,Gold\n").unwrap();
-    assert_eq!(ed_api::fdev_ids::hydrate_commodities(pool, &csv).await.unwrap(), 1);
-
-    let artifacts = TempDir::new().unwrap();
-    let publication = ed_api::snapshot::publish_market(pool, artifacts.path())
-        .await
-        .unwrap();
-    assert_eq!(publication.rows, 1);
-    assert!(publication
-        .artifact
-        .to_string_lossy()
-        .ends_with(".ebex.zst"));
-    let compressed = tokio::fs::read(artifacts.path().join(&publication.artifact))
-        .await
-        .unwrap();
-    assert_eq!(compressed.len() as u64, publication.bytes);
-    let decoded = ed_ebex::decompress(&compressed).unwrap();
-    let metadata = ed_ebex::validate_snapshot(&decoded).unwrap();
-    assert_eq!(metadata.sequence, publication.sequence as u64);
-    // 8 original sections + station details + prohibited (the
-    // 2026-09-04 addendum; this pin lagged until the full ignored
-    // suite ran again on 2026-09-06).
-    assert_eq!(metadata.section_count, 10);
-    for section in ed_ebex::sections(&decoded).unwrap() {
-        assert_eq!(
-            section.required,
-            section.id == ed_ebex::SECTION_MARKETS,
-            "section {} required flag",
-            section.id
-        );
-    }
-    ed_ebex::validate_market_baseline(&decoded, ed_ebex::MARKET_BASELINE_SECTIONS).unwrap();
-    assert_eq!(&decoded[..8], b"EBEX\0\0\0\0");
-    let systems = ed_ebex::section(&decoded, ed_ebex::SECTION_SYSTEMS)
-        .unwrap()
-        .unwrap();
-    let stations = ed_ebex::section(&decoded, ed_ebex::SECTION_STATIONS)
-        .unwrap()
-        .unwrap();
-    assert_eq!(ed_ebex::system_records(systems).unwrap().count(), 2);
-    // Galileo and Empty Port; the latter has a market watermark but no rows.
-    assert_eq!(ed_ebex::station_records(stations).unwrap().count(), 2);
-    let commodities = ed_ebex::section(&decoded, ed_ebex::SECTION_COMMODITIES)
-        .unwrap()
-        .unwrap();
-    let commodity_strings: std::collections::BTreeMap<u32, String> =
-        ed_ebex::string_table(commodities)
-            .unwrap()
-            .into_iter()
-            .map(|s| (s.id, s.value))
-            .collect();
-    let catalog: Vec<(String, String, String)> = ed_ebex::commodity_records(commodities)
-        .unwrap()
-        .map(|r| {
-            let resolve = |id: u32| commodity_strings.get(&id).cloned().unwrap_or_default();
-            (resolve(r.symbol_id), resolve(r.name_id), resolve(r.category_id))
-        })
-        .collect();
-    assert_eq!(
-        catalog,
-        vec![
-            ("gold".into(), "Gold".into(), "Metals".into()),
-            ("silver".into(), String::new(), String::new()),
-        ],
-        "hydrated metadata reaches section 4; unhydrated symbols stay absent"
-    );
-    let dictionary = ed_ebex::market_auxiliary(
-        ed_ebex::section(&decoded, ed_ebex::SECTION_MARKETS).unwrap().unwrap(),
-    )
-    .unwrap();
-    assert_eq!(
-        dictionary
-            .commodities
-            .iter()
-            .map(|c| (c.symbol.as_str(), c.name.as_str(), c.category.as_str()))
-            .collect::<Vec<_>>(),
-        vec![("gold", "Gold", "Metals"), ("silver", "", "")],
-        "the market dictionary the client hydrates carries the same names"
-    );
-    assert_eq!(
-        ed_ebex::module_records(
-            ed_ebex::section(&decoded, ed_ebex::SECTION_MODULES)
-                .unwrap()
-                .unwrap()
-        )
-        .unwrap()
-        .count(),
-        1
-    );
-    let outfitting = ed_ebex::section(&decoded, ed_ebex::SECTION_OUTFITTING)
-        .unwrap()
-        .unwrap();
-    assert_eq!(ed_ebex::outfitting_records(outfitting).unwrap().count(), 1);
-    assert_eq!(ed_ebex::station_snapshots(outfitting).unwrap().len(), 1);
-    assert_eq!(
-        ed_ebex::ship_records(
-            ed_ebex::section(&decoded, ed_ebex::SECTION_SHIPS)
-                .unwrap()
-                .unwrap()
-        )
-        .unwrap()
-        .count(),
-        1
-    );
-    let shipyard = ed_ebex::section(&decoded, ed_ebex::SECTION_SHIPYARDS)
-        .unwrap()
-        .unwrap();
-    assert_eq!(ed_ebex::shipyard_records(shipyard).unwrap().count(), 1);
-    assert_eq!(ed_ebex::station_snapshots(shipyard).unwrap().len(), 1);
-
-    let app = http::router(AppState::new(pool.clone(), artifacts.path().to_owned(), test_metrics()));
-    let manifest = app
-        .clone()
-        .oneshot(Request::get("/v1/manifest").body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    assert_eq!(manifest.status(), 200);
-    let artifact = app
-        .oneshot(
-            Request::get(format!("/v1/artifacts/{}", publication.artifact.display()))
-                .header("range", "bytes=0-7")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(artifact.status(), 206);
-    assert_eq!(artifact.headers()["accept-ranges"], "bytes");
 }
 
 fn contract_operations() -> Vec<Operation> {
@@ -732,18 +593,17 @@ async fn write_manifest(artifact_dir: &Path, protocol: u32) {
         generated_at: "2026-08-30T00:00:00Z".to_owned(),
         eddn_watermark: Some("2026-08-29T23:59:59Z".to_owned()),
         products: BTreeMap::from([(
-            ProductKey::Bootstrap,
+            ProductKey::Stars,
             Product {
                 version: "2026-08-30.1".to_owned(),
                 schema: 1,
                 minimum_client: Some("0.1.0".to_owned()),
                 files: vec![ArtifactFile {
-                    path: "community-1.ebex.zst".to_owned(),
+                    path: "stars/1/stars-1.ebex.zst".to_owned(),
                     bytes: 123,
                     sha256: "0".repeat(64),
                 }],
                 overlays: Vec::new(),
-                covers_from: None,
             },
         )]),
     };
@@ -953,7 +813,7 @@ async fn a_system_whose_name_another_address_holds_is_left_out_with_its_stations
 #[tokio::test]
 #[ignore = "requires EDDA_API_TEST_DATABASE_URL"]
 async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
-    use ed_api::{hydration::hydrate_spansh, routing, snapshot};
+    use ed_api::{hydration::hydrate_spansh, routing};
     use std::io::Write as _;
 
     let _serial = DATABASE.lock().await;
@@ -1089,10 +949,8 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     assert_eq!(again.snapshots_applied, 0);
     assert_eq!(again.snapshots_skipped, 4);
 
-    // Both products publish from what was hydrated, and each keeps the other.
+    // The routing product publishes from what was hydrated.
     let artifacts = TempDir::new().unwrap();
-    let community = snapshot::publish_community(&pool, artifacts.path()).await.unwrap();
-    assert!(community.rows >= 4);
     let routing = routing::publish_routing(&pool, artifacts.path(), &dump).await.unwrap();
     assert_eq!(routing.stats.systems, 2);
     let manifest: Manifest = serde_json::from_slice(
@@ -1100,7 +958,6 @@ async fn spansh_hydration_never_regresses_fresher_eddn_rows() {
     )
     .unwrap();
     manifest.validate().unwrap();
-    assert!(manifest.products.contains_key(&ProductKey::Community));
     assert_eq!(manifest.products[&ProductKey::Routing].version, routing.version);
     let publications: Vec<(String, String)> = sqlx::query_as(
         "SELECT product, status FROM artifact_publications ORDER BY id",

@@ -10,7 +10,6 @@ pub mod manifest;
 pub use chunks::{Chunk, ChunkManifest, ChunkedFile, CHUNKS_FILE};
 pub use digest::{is_sha256_hex, sha256_hex, sha256_hex_reader, verify_sha256_reader};
 pub use manifest::{
-    ArtifactFile, Manifest, OverlayLink, Product, ProductKey, SelectedArtifact, API_V1_PREFIX,
-    ARTIFACT_ROUTE_PREFIX, COMMUNITY_SCHEMA_V1, MANIFEST_PROTOCOL_V1, MANIFEST_ROUTE,
-    STARS_SCHEMA_V1,
+    ArtifactFile, Manifest, OverlayLink, Product, ProductKey, API_V1_PREFIX,
+    ARTIFACT_ROUTE_PREFIX, MANIFEST_PROTOCOL_V1, MANIFEST_ROUTE, STARS_SCHEMA_V1,
 };

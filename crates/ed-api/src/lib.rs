@@ -18,7 +18,6 @@ pub mod mining;
 pub mod plot;
 pub mod reconcile;
 pub mod routing;
-pub mod snapshot;
 pub mod stars;
 pub mod stations;
 pub mod surface_mining;

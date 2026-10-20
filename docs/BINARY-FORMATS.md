@@ -46,7 +46,8 @@ The words MUST, MUST NOT, SHOULD, and MAY are normative.
 
 Filename conventions, by manifest product:
 
-- `community` baseline: `community/<version>/community-<version>.ebex.zst`
+- `community` baseline (retired 2026-10-20; the market sections below stay
+  documented for the record): `community/<version>/community-<version>.ebex.zst`
 - `stars` product: `stars/<version>/stars-<version>.ebex.zst`
 
 The complete EBEX byte stream is compressed as one standard zstd frame. The
@@ -493,8 +494,9 @@ where `<path>` is the `path` field of a manifest file entry, verbatim.
 
 - `protocol` is the manifest protocol version; readers MUST reject an
   unknown value. Current value: `1`.
-- Product keys are a closed vocabulary: `bootstrap`, `community`, `routing`,
-  `stars`. Unknown keys are skipped, not errors.
+- Product keys are a closed vocabulary: `routing`, `stars` (`bootstrap`,
+  `community` and `market_daily` were retired 2026-10-20). Unknown keys are
+  skipped, not errors.
 - `schema` is the product's payload version — the EBEX section schema for
   `community`/`stars`, the EDGX version for `routing`. A client MUST skip a
   product whose schema it does not read.

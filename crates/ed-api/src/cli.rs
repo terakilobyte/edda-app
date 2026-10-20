@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 pub const USAGE: &str =
     "usage: ed-api [serve | ingest | migrate | hydrate <fixture.json> | hydrate --spansh <dump.json[.gz]> \
                          | hydrate --edsm-bodies <bodies.json[.gz]> | hydrate --fdev-ids [commodity.csv] \
-                         | publish-community | publish-market-daily | publish-stars \
+                         | publish-stars \
                          | build-routing <galaxy.json[.gz]> [artifact_dir] | adopt-routing <index-dir> [artifact_dir] \
                          | reconcile-routing [artifact_dir]]";
 
@@ -35,10 +35,6 @@ pub enum Command {
     /// Commodity display names and categories from EDCD/FDevIDs: the
     /// baked-in table by default, or a downloaded `commodity.csv`.
     HydrateFdevIds(Option<PathBuf>),
-    PublishCommunity,
-    /// Item 49: publish the rolling-window `market_daily` product (the
-    /// boards observed in the last ~8 days; a few MB vs the full ~500).
-    PublishMarketDaily,
     /// Publish the `stars` product from the stars table.
     PublishStars,
     /// Build the EDGX routing index from a galaxy dump and publish it as
@@ -81,8 +77,6 @@ pub fn parse_command(args: Vec<String>) -> Result<Command> {
             }
             _ => bail!("{USAGE}"),
         },
-        "publish-community" | "publish-market" => Command::PublishCommunity,
-        "publish-market-daily" => Command::PublishMarketDaily,
         "publish-stars" => Command::PublishStars,
         "build-routing" | "publish-routing" => {
             let Some(source) = args.next() else {

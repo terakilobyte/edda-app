@@ -9,10 +9,10 @@
 //!   "generated_at": "2026-08-30T07:00:00Z",
 //!   "eddn_watermark": "2026-08-30T06:59:58Z",
 //!   "products": {
-//!     "community": {
-//!       "version": "2026-08-30.1",
+//!     "stars": {
+//!       "version": "997953b4",
 //!       "schema": 1,
-//!       "files": [{"path": "community-2026-08-30.1.ebex.zst", "bytes": 5000000, "sha256": "..."}]
+//!       "files": [{"path": "stars/997953b4/stars-997953b4.ebex.zst", "bytes": 14575452, "sha256": "..."}]
 //!     }
 //!   }
 //! }
@@ -20,7 +20,10 @@
 //!
 //! Product keys are a closed enum so the producer and the consumer cannot
 //! disagree on the string a product is published under. Unknown product keys
-//! in a received manifest are ignored, as the compatibility policy requires.
+//! in a received manifest are ignored, as the compatibility policy requires;
+//! that is also how the retired keys (`bootstrap`, `community`,
+//! `market_daily`, the market baselines a hydrating client installed until
+//! 0.3.0; retired 2026-10-20) read when an old manifest still names them.
 
 use std::{collections::BTreeMap, fmt, io::Read, path::Path, str::FromStr};
 
@@ -30,9 +33,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::digest::{is_sha256_hex, sha256_hex, verify_sha256_reader};
 
 pub const MANIFEST_PROTOCOL_V1: u32 = 1;
-/// Schema of the community-data product. It is the EBEX market relation
-/// version because that is what a client must understand to hydrate it.
-pub const COMMUNITY_SCHEMA_V1: u32 = ed_ebex::MARKET_SCHEMA_V1 as u32;
 /// The `stars` product's schema: the stars section schema.
 pub const STARS_SCHEMA_V1: u32 = ed_ebex::STAR_SCHEMA_V1 as u32;
 pub const API_V1_PREFIX: &str = "/v1";
@@ -44,42 +44,18 @@ pub const ARTIFACT_ROUTE_PREFIX: &str = "/v1/artifacts/";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ProductKey {
-    /// Compact bootstrap catalog (systems only).
-    Bootstrap,
-    /// Community EBEX baseline (systems, stations, markets, ...).
-    Community,
-    /// Rolling-window market freshness (item 49): the boards EDDN saw in
-    /// the last ~8 days, same EBEX shape as `community`, a few MB. A
-    /// client synced within the window applies this instead of the full
-    /// snapshot; `Product::covers_from` says how far back it reaches.
-    #[serde(rename = "market_daily")]
-    MarketDaily,
     /// Versioned `ed-galaxy` routing index.
     Routing,
-    /// Main-star classes learned beyond the bootstrap dump (one stars
-    /// section); small, refreshed independently of the community baseline.
+    /// Main-star classes learned beyond the routing base (one stars
+    /// section); small, published weekly.
     Stars,
 }
 
 impl ProductKey {
-    pub const ALL: [ProductKey; 5] = [
-        ProductKey::Bootstrap,
-        ProductKey::Community,
-        ProductKey::MarketDaily,
-        ProductKey::Routing,
-        ProductKey::Stars,
-    ];
-
-    /// Products a market-hydrating client will accept as its community
-    /// baseline, most preferred first.
-    pub const COMMUNITY_PREFERENCE: [ProductKey; 2] =
-        [ProductKey::Community, ProductKey::Bootstrap];
+    pub const ALL: [ProductKey; 2] = [ProductKey::Routing, ProductKey::Stars];
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            ProductKey::Bootstrap => "bootstrap",
-            ProductKey::Community => "community",
-            ProductKey::MarketDaily => "market_daily",
             ProductKey::Routing => "routing",
             ProductKey::Stars => "stars",
         }
@@ -129,11 +105,6 @@ pub struct Product {
     /// ignore the unknown field).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub overlays: Vec<OverlayLink>,
-    /// For windowed products (`market_daily`): the epoch this window
-    /// reaches back to. A client whose install is older than this must
-    /// take the full product instead — decidable before any download.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub covers_from: Option<i64>,
 }
 
 /// One link of a product's overlay chain: the delta artifact that carries
@@ -156,14 +127,6 @@ pub struct ArtifactFile {
     pub sha256: String,
 }
 
-/// The product and artifact a client decided to install.
-#[derive(Clone, Copy, Debug)]
-pub struct SelectedArtifact<'a> {
-    pub key: ProductKey,
-    pub product: &'a Product,
-    pub artifact: &'a ArtifactFile,
-}
-
 /// Unknown product keys are skipped rather than failing the whole manifest.
 fn known_products<'de, D: Deserializer<'de>>(
     deserializer: D,
@@ -180,31 +143,6 @@ fn known_products<'de, D: Deserializer<'de>>(
 }
 
 impl Manifest {
-    /// The manifest `ed-api` publishes for one community baseline.
-    pub fn community_publication(
-        generated_at: impl Into<String>,
-        eddn_watermark: Option<String>,
-        version: impl Into<String>,
-        artifact: ArtifactFile,
-    ) -> Self {
-        Manifest {
-            protocol: MANIFEST_PROTOCOL_V1,
-            generated_at: generated_at.into(),
-            eddn_watermark,
-            products: BTreeMap::from([(
-                ProductKey::Community,
-                Product {
-                    version: version.into(),
-                    schema: COMMUNITY_SCHEMA_V1,
-                    minimum_client: None,
-                    files: vec![artifact],
-                    overlays: Vec::new(),
-                    covers_from: None,
-                },
-            )]),
-        }
-    }
-
     /// The manifest after publishing `product` under `key`: every other
     /// product of `existing` is carried forward unchanged, so publishing
     /// one product never unpublishes another. `eddn_watermark` replaces
@@ -248,35 +186,6 @@ impl Manifest {
                 .with_context(|| format!("manifest product {key} is invalid"))?;
         }
         Ok(())
-    }
-
-    /// The first product present from `preference`.
-    pub fn select(&self, preference: &[ProductKey]) -> Option<(ProductKey, &Product)> {
-        preference
-            .iter()
-            .find_map(|key| self.products.get(key).map(|product| (*key, product)))
-    }
-
-    /// The community baseline a market-hydrating client can install: the
-    /// preferred product with a schema this crate understands.
-    pub fn community_baseline(&self) -> Result<SelectedArtifact<'_>> {
-        let (key, product) = self
-            .select(&ProductKey::COMMUNITY_PREFERENCE)
-            .context("manifest has no supported community-data product")?;
-        ensure!(
-            product.schema == COMMUNITY_SCHEMA_V1,
-            "unsupported community-data schema {}",
-            product.schema
-        );
-        let artifact = product
-            .files
-            .first()
-            .context("community-data product has no artifact")?;
-        Ok(SelectedArtifact {
-            key,
-            product,
-            artifact,
-        })
     }
 
     /// Every artifact across every product — full files and overlay
@@ -416,18 +325,25 @@ mod tests {
 
     fn artifact() -> ArtifactFile {
         ArtifactFile {
-            path: "community/1/community-1.ebex.zst".into(),
+            path: "stars/1/stars-1.ebex.zst".into(),
             bytes: 123,
             sha256: "0".repeat(64),
         }
     }
 
     fn valid_manifest() -> Manifest {
-        Manifest::community_publication(
+        Manifest::with_product(
+            None,
             "2026-08-29T12:00:00Z",
             Some("2026-08-29T11:59:00Z".into()),
-            "1",
-            artifact(),
+            ProductKey::Stars,
+            Product {
+                version: "1".into(),
+                schema: STARS_SCHEMA_V1,
+                minimum_client: None,
+                files: vec![artifact()],
+                overlays: Vec::new(),
+            },
         )
     }
 
@@ -440,31 +356,33 @@ mod tests {
             assert_eq!(key.as_str().parse::<ProductKey>().unwrap(), key);
         }
         assert!("market".parse::<ProductKey>().is_err());
+        for retired in ["bootstrap", "community", "market_daily"] {
+            assert!(retired.parse::<ProductKey>().is_err(), "{retired} was retired 2026-10-20");
+        }
     }
 
-    /// The end-to-end contract: what the server publishes is what the
-    /// client looks for. This is the test that would have caught the
-    /// `"community"` vs `"market"` drift.
+    /// The wire contract of a publication: the serialized key is the
+    /// string the server publishes under and the reader parses back.
     #[test]
-    fn server_publication_is_selected_by_client_baseline_logic() {
+    fn server_publication_round_trips_through_the_reader() {
         let published = serde_json::to_vec_pretty(&valid_manifest()).unwrap();
         let text = std::str::from_utf8(&published).unwrap();
-        assert!(text.contains("\"community\""), "{text}");
+        assert!(text.contains("\"stars\""), "{text}");
 
         let received: Manifest = serde_json::from_slice(&published).unwrap();
         received.validate().unwrap();
-        let selected = received.community_baseline().unwrap();
-        assert_eq!(selected.key, ProductKey::Community);
-        assert_eq!(selected.product.version, "1");
-        assert_eq!(selected.artifact, &artifact());
-        assert_eq!(
-            selected.artifact.route(),
-            "/v1/artifacts/community/1/community-1.ebex.zst"
-        );
+        let product = &received.products[&ProductKey::Stars];
+        assert_eq!(product.version, "1");
+        assert_eq!(product.files[0], artifact());
+        assert_eq!(product.files[0].route(), "/v1/artifacts/stars/1/stars-1.ebex.zst");
     }
 
+    /// Retired keys and keys from the future read the same way: skipped.
+    /// The box's `current.json` named `community` and `market_daily` until
+    /// the 2026-10-20 one-off removed them; a reader built after the
+    /// retirement must serve and parse it without them.
     #[test]
-    fn design_doc_sketch_parses_and_bootstrap_is_a_fallback() {
+    fn retired_and_unknown_products_are_skipped() {
         let sketch = r#"{
           "protocol": 1,
           "generated_at": "2026-08-30T07:00:00Z",
@@ -474,6 +392,17 @@ mod tests {
               "version": "2026-08-30.1",
               "schema": 1,
               "files": [{"path": "community-2026-08-30.1.ebex.zst", "bytes": 5000000, "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]
+            },
+            "community": {
+              "version": "4703de92",
+              "schema": 1,
+              "files": [{"path": "community/4703de92/community-4703de92.ebex.zst", "bytes": 692785616, "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]
+            },
+            "market_daily": {
+              "version": "9435b656",
+              "schema": 1,
+              "covers_from": 1760000000,
+              "files": [{"path": "market_daily/9435b656/market-daily-9435b656.ebex.zst", "bytes": 59396789, "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]
             },
             "routing": {
               "version": "2026-08-30.1",
@@ -485,21 +414,12 @@ mod tests {
         }"#;
         let manifest: Manifest = serde_json::from_str(sketch).unwrap();
         manifest.validate().unwrap();
-        assert_eq!(manifest.products.len(), 2, "unknown products are ignored");
-        let selected = manifest.community_baseline().unwrap();
-        assert_eq!(selected.key, ProductKey::Bootstrap);
-        assert_eq!(selected.product.version, "2026-08-30.1");
-    }
-
-    #[test]
-    fn community_baseline_requires_a_supported_schema() {
-        let mut manifest = valid_manifest();
-        manifest
-            .products
-            .get_mut(&ProductKey::Community)
-            .unwrap()
-            .schema = COMMUNITY_SCHEMA_V1 + 1;
-        assert!(manifest.community_baseline().is_err());
+        assert_eq!(
+            manifest.products.keys().copied().collect::<Vec<_>>(),
+            [ProductKey::Routing],
+            "retired and unknown products are ignored"
+        );
+        assert!(manifest.artifact("community/4703de92/community-4703de92.ebex.zst").is_none());
     }
 
     #[test]
@@ -517,7 +437,7 @@ mod tests {
         let mut manifest = valid_manifest();
         manifest
             .products
-            .get_mut(&ProductKey::Community)
+            .get_mut(&ProductKey::Stars)
             .unwrap()
             .files
             .clear();
@@ -531,7 +451,7 @@ mod tests {
             ("ok/file", 1, "not-a-hash".to_owned()),
             ("ok/file", 1, "0".repeat(63)),
             ("../secret", 1, "0".repeat(64)),
-            ("community\\..\\secret", 1, "0".repeat(64)),
+            ("stars\\..\\secret", 1, "0".repeat(64)),
             ("/etc/passwd", 1, "0".repeat(64)),
             ("a//b", 1, "0".repeat(64)),
             ("./a", 1, "0".repeat(64)),
@@ -544,7 +464,7 @@ mod tests {
             };
             assert!(file.validate().is_err(), "accepted {file:?}");
         }
-        assert!(is_safe_relative_path("community/1/community-1.ebex.zst"));
+        assert!(is_safe_relative_path("stars/1/stars-1.ebex.zst"));
     }
 
     #[test]
@@ -586,7 +506,6 @@ mod tests {
             schema: 3,
             minimum_client: None,
             files: vec![artifact()],
-            covers_from: None,
             overlays: vec![overlay("45", "46"), overlay("46", "47")],
         }
     }
@@ -653,10 +572,8 @@ mod tests {
     #[test]
     fn manifest_serves_artifacts_by_path() {
         let mut manifest = valid_manifest();
-        assert!(manifest
-            .artifact("community/1/community-1.ebex.zst")
-            .is_some());
-        assert!(manifest.artifact("community/1/other").is_none());
+        assert!(manifest.artifact("stars/1/stars-1.ebex.zst").is_some());
+        assert!(manifest.artifact("stars/1/other").is_none());
 
         manifest
             .products

@@ -30,7 +30,7 @@ target/release/ed-api hydrate crates/ed-api/fixtures/synthetic-galaxy.json   # t
 target/release/ed-api hydrate --spansh ~/dumps/galaxy_populated.json.gz      # real seed
 
 # 4. publish the products
-target/release/ed-api publish-community                       # community EBEX baseline
+target/release/ed-api publish-stars                           # stars EBEX product
 target/release/ed-api build-routing ~/dumps/galaxy.json.gz    # routing EDGX index
 
 # 5. serve and check
@@ -72,7 +72,7 @@ into a staging directory under the artifact root, validates the index by
 opening it (`Galaxy::validate_dir`), hashes `stars.bin`, `cells.bin`,
 `names.bin` and `byname.bin`, renames the directory to
 `routing/<version>/` and merges the product into `current.json` as
-`routing` (schema = EDGX format version) next to `community`. The run is
+`routing` (schema = EDGX format version) next to `stars`. The run is
 recorded in `artifact_publications`. Building the full galaxy needs ~8 GB
 of RAM; `galaxy_populated.json.gz` builds a bubble-only index in a minute
 for testing. Publishing either product keeps the other.
@@ -119,10 +119,11 @@ Optional variables:
   backpressure rather than dropping observations.
 - `RUST_LOG` controls structured JSON log filtering.
 
-`publish-community` takes a repeatable-read PostgreSQL snapshot, emits and
-independently validates systems, stations, commodity/module/ship catalogs,
-market, outfitting, and shipyard EBEX sections, zstd-compresses and hashes the
-artifact, then publishes the immutable file and `current.json` atomically.
+`publish-stars` writes the stars table as one EBEX stars section,
+zstd-compresses and hashes the artifact, then publishes the immutable file
+and `current.json` atomically. (`publish-community` and
+`publish-market-daily`, the market baselines a hydrating client installed
+until 0.3.0, were retired 2026-10-20.)
 
 `GET /healthz` only reports process liveness. `GET /readyz` also checks
 PostgreSQL, a completed hydration, and a valid protocol-1 `current.json`

@@ -339,7 +339,6 @@ pub fn publish_overlay(
             minimum_client: None,
             files: files.clone(),
             overlays,
-            covers_from: None,
         },
     );
     write_manifest(artifact_dir, &next, &format!("routing-{version}"))?;
@@ -693,7 +692,6 @@ mod tests {
                 minimum_client: None,
                 files,
                 overlays: Vec::new(),
-            covers_from: None,
             },
         );
         write_manifest(artifact_dir.path(), &manifest, "test").unwrap();

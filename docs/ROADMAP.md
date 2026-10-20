@@ -498,6 +498,26 @@ verdicts live in the CSV headers under `docs/benches/`.
   scan or a dump -- audit `ed-eddn`'s Scan teaching (BodyID,
   DistanceFromArrivalLS) against those nine first. Until then the weak
   rule stands as written above, minus the prune.
+- **The community and market_daily products are retired (2026-10-20,
+  maintainer: "kill it with fire").** The community baseline (the full
+  EBEX market export: systems, stations, boards) and the daily market
+  window existed so the desktop app could hydrate a local market store;
+  B.4 cut that path on 2026-09-09 and 0.3.0 shipped it the next day. The
+  current client has no dependency on the sync crate and fetches no
+  artifact; its one star lookup is the `/v1/stars` query. Nothing on the
+  server read either product back. Measured on the box the night of the
+  decision: the weekly build took 12 min wall and 482 CPU-s to stream
+  104 M rows into a 690 MB file, two versions kept (1.3 GB); market_daily
+  59 MB a day (115 MB kept); the API keeps no request log and no
+  per-client-version counter, so a pre-0.3.0 client still asking for a
+  baseline cannot be counted and is accepted as the risk (the updater has
+  moved everyone forward since September). Gone: the `snapshot` module
+  and its two commands, the `bootstrap`/`community`/`market_daily` keys
+  and `covers_from` from the manifest crate, the two publish lines from
+  the timers; the EBEX market format stays in `ed-ebex` and
+  `docs/BINARY-FORMATS.md` as a library and a record. The box's
+  `current.json` and the two directories go by
+  `deploy/retire-market-products.sh`, run by the maintainer.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

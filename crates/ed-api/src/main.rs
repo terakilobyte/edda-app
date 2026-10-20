@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use ed_api::{
     cli::{parse_command, Command},
     config::ServiceConfig,
-    database_pool, http, hydration, routing, snapshot,
+    database_pool, http, hydration, routing,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -56,15 +56,6 @@ async fn main() -> Result<()> {
             println!("{{\"migrated\":true,\"ms\":{}}}", started.elapsed().as_millis());
             Ok(())
         }
-        Command::PublishCommunity => publish_community(config).await,
-        Command::PublishMarketDaily => {
-            let pool = database_pool(&config).await?;
-            tokio::fs::create_dir_all(&config.artifact_dir).await?;
-            let publication =
-                ed_api::snapshot::publish_market_daily(&pool, &config.artifact_dir).await?;
-            println!("{}", serde_json::to_string(&publication)?);
-            Ok(())
-        }
         Command::PublishStars => {
             let pool = database_pool(&config).await?;
             tokio::fs::create_dir_all(&config.artifact_dir).await?;
@@ -94,14 +85,6 @@ async fn main() -> Result<()> {
             Ok(())
         }
     }
-}
-
-async fn publish_community(config: ServiceConfig) -> Result<()> {
-    let pool = database_pool(&config).await?;
-    tokio::fs::create_dir_all(&config.artifact_dir).await?;
-    let publication = snapshot::publish_community(&pool, &config.artifact_dir).await?;
-    println!("{}", serde_json::to_string(&publication)?);
-    Ok(())
 }
 
 async fn build_routing(

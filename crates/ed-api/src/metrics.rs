@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn publication_rows_fan_out_to_labelled_gauges() {
         let row = PublicationCost {
-            product: "market_daily".to_owned(),
+            product: "stars".to_owned(),
             build_seconds: 42.5,
             cpu_seconds: Some(37.2),
             bytes: Some(9_000_000),
@@ -282,7 +282,7 @@ mod tests {
             .collect();
         assert_eq!(phases.len(), 3);
         for (_, labels, _) in &phases {
-            assert!(labels.iter().any(|l| l.key() == "product" && l.value() == "market_daily"));
+            assert!(labels.iter().any(|l| l.key() == "product" && l.value() == "stars"));
             assert!(labels.iter().any(|l| l.key() == "phase"));
         }
     }
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn pre_migration_rows_emit_no_fabricated_zeroes() {
         let row = PublicationCost {
-            product: "community".to_owned(),
+            product: "routing".to_owned(),
             build_seconds: 300.0,
             cpu_seconds: None,
             bytes: None,

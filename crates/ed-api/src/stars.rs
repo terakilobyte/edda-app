@@ -361,7 +361,7 @@ async fn build_stars(pool: &PgPool, artifact_dir: &Path, sequence: i64, created_
         generated_at,
         None,
         ProductKey::Stars,
-        Product { version: version.clone(), schema: ed_sync::STARS_SCHEMA_V1, minimum_client: None, files: vec![artifact.clone()], overlays: Vec::new(), covers_from: None },
+        Product { version: version.clone(), schema: ed_sync::STARS_SCHEMA_V1, minimum_client: None, files: vec![artifact.clone()], overlays: Vec::new() },
     );
     crate::routing::write_manifest(artifact_dir, &manifest, &format!("stars-{version}"))?;
     Ok(StarsPublication { version, stars: count, artifact })

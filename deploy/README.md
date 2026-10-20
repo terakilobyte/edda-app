@@ -33,11 +33,10 @@ msgs/day at 0.4% core, first installs ~11 GB egress each).
    `ed-api hydrate --fdev-ids` then
    `ed-api hydrate --spansh /var/lib/edda/dumps/galaxy_stations.json.gz`
    (download from Spansh first; ~1-2 h import at WSL-measured rates).
-4. First publishes: `ed-api publish-community && ed-api publish-stars &&
-   ed-api publish-market-daily`, then `ed-api build-routing <galaxy
-   dump>` when routing should be served (11 GB product; can wait).
-5. Point a dev client's Settings -> Community API at
-   `https://api.edda-app.com` and watch a sync.
+4. First publishes: `ed-api publish-stars`, then `ed-api build-routing
+   <galaxy dump>` when routing should be served (11 GB product; can wait).
+5. Point a dev client at it (`EDDA_API_URL=https://api.edda-app.com` in
+   the shell before launch) and plot a route.
 
 After EVERY deploy or hydrate that rebuilds an index (runbook step,
 2026-09-06): run `ANALYZE market; ANALYZE systems; ANALYZE stations;`
@@ -67,9 +66,13 @@ are broken".
 ## Cron (systemd timers)
 
 - daily 00:05 UTC: fetch `galaxy_1day` (Spansh, ~1.35 GB) and hydrate it
-  (systems, stations, pads, services, boards), then `reconcile-routing` +
-  `publish-market-daily` (`edda-daily.sh`; maintainer, 2026-09-08)
-- weekly Sun 01:00 UTC: `publish-community` + `publish-stars` only. The
+  (systems, stations, pads, services, boards), then `reconcile-routing`
+  (`edda-daily.sh`; maintainer, 2026-09-08)
+- weekly Sun 01:00 UTC: `publish-stars` and the market index reindex only.
+  `publish-community` and `publish-market-daily` were retired 2026-10-20
+  (maintainer: "kill it with fire"): no client has fetched either since
+  0.3.0; `retire-market-products.sh` is the one-off that removed them from
+  the box's manifest and disk. The
   weekly syncs (`galaxy_7days`, EDSM `bodies7days`) were retired
   2026-09-09 (maintainer: "Why are we syncing any more than daily?") — EDDN
   is its own unit and survives a swap; the nightly carries the rest.

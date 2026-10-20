@@ -1,8 +1,7 @@
 //! The `routing` product: a versioned EDGX index built from a Spansh galaxy
-//! dump and published next to the community baseline.
+//! dump and published next to the stars product.
 //!
-//! Publication is atomic in the same way as `snapshot::publish_community`:
-//! build into a staging directory, validate by opening the index, hash
+//! Publication is atomic: build into a staging directory, validate by opening the index, hash
 //! every file, rename the directory into place, then replace the manifest
 //! pointer. A failed build never touches the published manifest.
 
@@ -162,7 +161,6 @@ fn publish_from(
             // A full build is a rebase: the fresh version starts a fresh
             // overlay chain (Item 47 — the overlay publisher extends it).
             overlays: Vec::new(),
-        covers_from: None,
         },
     );
     write_manifest(artifact_dir, &manifest, &format!("routing-{version}"))?;

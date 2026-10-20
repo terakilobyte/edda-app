@@ -10,7 +10,6 @@ use ed_api::{
     cli::{parse_command, Command},
     hydration::spansh::{source_system, station_operations},
     routing::{build_routing, ROUTING_FILES, ROUTING_SCHEMA},
-    snapshot::community_manifest_over,
 };
 use ed_domain::Operation;
 use ed_store::galaxy::spansh;
@@ -92,41 +91,65 @@ fn spansh_records_become_domain_operations_with_epoch_timestamps() {
     assert_eq!(identity.observed_at.epoch_seconds, 0, "no updateTime: epoch 0, outranked by any dated identity");
 }
 
-/// Finding: `community_manifest` built a manifest containing only the
-/// community product, so publishing community after routing silently
-/// unpublished the routing index.
+/// Finding: an early community publisher built a manifest containing only
+/// its own product, so publishing it after routing silently unpublished the
+/// routing index. Every publisher goes through `Manifest::with_product`,
+/// which carries the other products forward (the community product itself
+/// was retired 2026-10-20; stars stands in for it here).
 #[test]
-fn community_publication_keeps_a_published_routing_product() {
+fn publishing_one_product_keeps_the_others() {
     let routing = ed_sync::Product {
         version: "7".to_owned(),
         schema: ROUTING_SCHEMA,
         minimum_client: None,
         files: vec![ArtifactFile::for_bytes("routing/7/stars.bin", b"stars")],
         overlays: Vec::new(),
-        covers_from: None,
     };
-    let mut existing = Manifest::community_publication(
+    let stars = |version: &str, bytes: &[u8]| ed_sync::Product {
+        version: version.to_owned(),
+        schema: ed_sync::STARS_SCHEMA_V1,
+        minimum_client: None,
+        files: vec![ArtifactFile::for_bytes(
+            format!("stars/{version}/stars-{version}.ebex.zst"),
+            bytes,
+        )],
+        overlays: Vec::new(),
+    };
+    let existing = Manifest::with_product(
+        None,
         "2026-08-29T10:00:00Z",
         Some("2026-08-29T09:00:00Z".to_owned()),
-        "2",
-        ArtifactFile::for_bytes("community/2/community-2.ebex.zst", b"old"),
+        ProductKey::Stars,
+        stars("2", b"old"),
     );
-    existing
-        .products
-        .insert(ProductKey::Routing, routing.clone());
+    let existing = Manifest::with_product(
+        Some(existing),
+        "2026-08-29T11:00:00Z",
+        None,
+        ProductKey::Routing,
+        routing.clone(),
+    );
+    assert_eq!(
+        existing.eddn_watermark.as_deref(),
+        Some("2026-08-29T09:00:00Z"),
+        "a publication without a watermark keeps the existing one"
+    );
 
-    let published = community_manifest_over(
+    let published = Manifest::with_product(
         Some(existing),
         "2026-08-29T12:00:00Z",
-        "2026-08-29T11:59:00Z".to_owned(),
-        "3",
-        ArtifactFile::for_bytes("community/3/community-3.ebex.zst", b"new"),
+        Some("2026-08-29T11:59:00Z".to_owned()),
+        ProductKey::Stars,
+        stars("3", b"new"),
     );
     published.validate().unwrap();
     assert_eq!(published.generated_at, "2026-08-29T12:00:00Z");
+    assert_eq!(published.eddn_watermark.as_deref(), Some("2026-08-29T11:59:00Z"));
     assert_eq!(published.products[&ProductKey::Routing], routing);
-    assert_eq!(published.products[&ProductKey::Community].version, "3");
+    assert_eq!(published.products[&ProductKey::Stars].version, "3");
     assert!(published.artifact("routing/7/stars.bin").is_some());
+    assert!(published.artifact("stars/3/stars-3.ebex.zst").is_some());
+    assert!(published.artifact("stars/2/stars-2.ebex.zst").is_none());
 }
 
 const GALAXY_DUMP: &str = concat!(
@@ -156,15 +179,22 @@ fn routing_publication_is_atomic_and_verifiable() {
     write_galaxy_dump(&dump);
     let artifacts = dir.path().join("artifacts");
     std::fs::create_dir_all(&artifacts).unwrap();
-    let community = Manifest::community_publication(
+    let stars = Manifest::with_product(
+        None,
         "2026-08-29T10:00:00Z",
         Some("2026-08-29T09:00:00Z".to_owned()),
-        "2",
-        ArtifactFile::for_bytes("community/2/community-2.ebex.zst", b"old"),
+        ProductKey::Stars,
+        ed_sync::Product {
+            version: "2".to_owned(),
+            schema: ed_sync::STARS_SCHEMA_V1,
+            minimum_client: None,
+            files: vec![ArtifactFile::for_bytes("stars/2/stars-2.ebex.zst", b"old")],
+            overlays: Vec::new(),
+        },
     );
     std::fs::write(
         artifacts.join("current.json"),
-        serde_json::to_vec_pretty(&community).unwrap(),
+        serde_json::to_vec_pretty(&stars).unwrap(),
     )
     .unwrap();
 
@@ -203,17 +233,13 @@ fn routing_publication_is_atomic_and_verifiable() {
         file.verify_file(&artifacts.join(&file.path)).unwrap();
     }
     assert_eq!(
-        manifest.products[&ProductKey::Community],
-        community.products[&ProductKey::Community]
+        manifest.products[&ProductKey::Stars],
+        stars.products[&ProductKey::Stars],
+        "publishing routing keeps the stars product as it was"
     );
     assert_eq!(
         manifest.eddn_watermark.as_deref(),
         Some("2026-08-29T09:00:00Z")
-    );
-    // A market-only client still selects the community baseline.
-    assert_eq!(
-        manifest.community_baseline().unwrap().key,
-        ProductKey::Community
     );
 }
 
@@ -244,10 +270,10 @@ fn cli_accepts_spansh_hydration_and_routing_builds() {
             artifact_dir: Some(PathBuf::from("out"))
         }
     );
-    assert_eq!(
-        parse_command(args(&["publish-community"])).unwrap(),
-        Command::PublishCommunity
-    );
+    assert_eq!(parse_command(args(&["publish-stars"])).unwrap(), Command::PublishStars);
+    // Retired 2026-10-20 with the community baseline: unknown commands now.
+    assert!(parse_command(args(&["publish-community"])).is_err());
+    assert!(parse_command(args(&["publish-market-daily"])).is_err());
     assert!(parse_command(args(&["hydrate"])).is_err());
     assert!(parse_command(args(&["hydrate", "--spansh"])).is_err());
     assert!(parse_command(args(&["hydrate", "a", "b"])).is_err());

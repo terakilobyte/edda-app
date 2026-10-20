@@ -7,7 +7,10 @@
 # manual line (deploy/README.md, "Break glass").
 set -euo pipefail
 
-/usr/local/bin/ed-api publish-community
+# publish-community was retired 2026-10-20 (maintainer: "kill it with fire"):
+# no client has fetched the community baseline since 0.3.0 made the client
+# journal-only (B.4, 2026-09-09), and the build cost 12 min and 482 CPU-s a
+# week for a 690 MB file nobody downloaded. market_daily went with it.
 /usr/local/bin/ed-api publish-stars
 
 # The market freshness index bloats without bound: the board writer
