@@ -462,12 +462,7 @@ verdicts live in the CSV headers under `docs/benches/`.
   a repair's class-0 row, replaces an older route's class, never replaces
   a scan however new, and any other source replaces it even when older;
   the bulk stars insert replaces it regardless of age; the reconcile puts
-  it on Unknown records only (`weak_on_known` counts the rest) and then
-  deletes the weak rows that taught nothing, agreeing or kept out
-  (`weak_pruned`; maintainer, the same afternoon, on the first box
-  numbers of ~150k such rows a day: "so we don't have rampant growth"),
-  so the table and the daily taught map stay the size of what teaches;
-  a weak row that fed an update stays until a base rebuild. No client
+  it on Unknown records only (`weak_on_known` counts the rest). No client
   upload: the feed carries everyone's routes already, and EDDA's own
   would add a handful. The September 27 % against today's 0.13 %: the
   same tap run against the September build itself (the 2026-08-30 dump
@@ -476,6 +471,33 @@ verdicts live in the CSV headers under `docs/benches/`.
   the broken instrument was the September measurement, not the stream
   and not an index; the 17,000-row retraction rested on it, and those
   rows re-teach under the weak rule as routes cross them. CLOSED.
+  **The prune is gone (2026-10-20, maintainer: "we're deleting info?
+  EDDN is fresh and should be considered a source of truth").** The
+  2026-10-19 reconcile prune (c13469f) deleted every `eddn:navroute` row
+  whose base record already had a class; its first and only night named
+  6,289 and deleted 6,285 (nine disagreed with the base, 0.14 %, the
+  audit's figure; updates 8,567 against 3,200-5,400 the seven nights
+  before, so routes gave about 3,000 Unknown records a class in one
+  night). What a deleted row took with it: the system's only row in the
+  `stars` table, which `/v1/stars` answers from and the client asks
+  (`spansh.rs`), and the stars product is built from -- the routing base
+  knew the class, the API no longer did. Reverted; the rows come back as
+  routes cross those systems again, the 6,285 are not restorable (the
+  05:00Z backup predates them). Growth is the information: one row per
+  routed system, bounded by the systems routes visit. Measured the same
+  night, the tap's 15,678 systems against the `stars` table
+  (`docs/benches/2026-10-20-navroute-vs-stars-table.csv`): 8,046 have a
+  row; against first-hand scans 6,245 of 6,250 agree (99.92 %), against
+  Spansh's daily 1,532 of 1,536. The nine disagreements are multi-star
+  systems where the scan or the dump named a star that is not the
+  arrival star (LAWD 26: the route's DA against a scan's Exotic; Zhulong,
+  LP 581-36, Geras: the route's M or K against a white dwarf). A route's
+  StarClass is the arrival star by construction, which is the star the
+  planner drops at; the scan path's choice of star in a multi-star system
+  is the OPEN question before `eddn:navroute` is allowed to outrank a
+  scan or a dump -- audit `ed-eddn`'s Scan teaching (BodyID,
+  DistanceFromArrivalLS) against those nine first. Until then the weak
+  rule stands as written above, minus the prune.
 - **Crossings answer early and refine behind the answer** (2026-10-07,
   shipped #198 + #207, measured on prod). A Sol → Beagle Point plot
   answers in ~7 s (first route plus a 5 s grace, marked `refining`) and

@@ -1,0 +1,23 @@
+# 2026-10-20 — a route's StarClass against the stars table (the source of /v1/stars), on the box.
+# Question: when the 2026-10-19 prune deletes an eddn:navroute row because the routing base already has a class, is the row's class trustworthy enough that deleting it loses information?
+# Instrument: the 2026-10-19 two-hour NavRoute tap (26,433 hops, 15,678 unique systems, navroute_tap) loaded as a temp table on the box, letters mapped by StarClass::from_journal, joined to stars by address, grouped by the stars row's source.
+# Verdict: 8,046 of the 15,678 systems have a stars row; against first-hand scans the route agrees on 6,245 of 6,250 (99.92 %), against Spansh's daily dump on 1,532 of 1,536; no blanks. The nine disagreements are multi-star systems where the scan or dump named a star other than the arrival star (LAWD 26 route DA vs scan Exotic; Zhulong, LP 581-36, Geras route M/K vs white dwarf). A route's class is the arrival star by construction. Deleting the row deleted the API's only class for that system. Prune reverted; whether eddn:navroute may outrank a scan in multi-star systems is OPEN pending an audit of the Scan teaching's star choice.
+# Pre-registered: >99 % agreement with scans (the 2026-10-19 audit against the index gave 99.9 %). Met.
+source,systems_with_row,agree,disagree,blank
+eddn:scan,6250,6245,5,0
+spansh:galaxy:galaxy_1day.json.gz,1536,1532,4,0
+eddn:navroute,109,109,0,0
+spansh:galaxy:galaxy_7days.json.gz,65,65,0,0
+spansh:galaxy_stations:galaxy_stations.json.gz,50,50,0,0
+edsm,29,29,0,0
+edsm:bodies:bodies7days.json.gz,7,7,0,0
+# disagreements: system,route_class,stars_class_code,stars_source,stars_observed
+# 36 Ophiuchi,K,5 (G),eddn:scan,2026-10-19
+# LAWD 26,DA,12 (Exotic),eddn:scan,2026-10-19
+# LAWD 74,T,7 (M),eddn:scan,2026-10-19
+# LP 245-17,M,3 (A),eddn:scan,2026-10-16
+# Zhulong,M,13 (WhiteDwarf),eddn:scan,2026-10-16
+# Geras,K,13 (WhiteDwarf),spansh:galaxy:galaxy_1day.json.gz,2026-10-18
+# LP 581-36,M,13 (WhiteDwarf),spansh:galaxy:galaxy_1day.json.gz,2026-10-18
+# Medb,G,3 (A),spansh:galaxy:galaxy_1day.json.gz,2026-10-17
+# Prism,K,2 (B),spansh:galaxy:galaxy_1day.json.gz,2026-10-17

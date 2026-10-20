@@ -230,16 +230,6 @@ async fn feed_scans_teach_stars_bodies_and_hotspots() {
     assert_eq!(stats.stars, 1, "a scan replaces a route's class even when older");
     assert_eq!(class_of(blank).await, (6, "eddn:scan".to_string()));
 
-    // The reconcile prunes weak rows that taught nothing: only route rows go,
-    // and only the named ones; a scan row named by mistake stays.
-    let weak_a = address + 10;
-    let weak_b = address + 11;
-    ed_api::eddn::apply_operations(&pool, &[route(weak_a, "M", 1), route(weak_b, "M", 1)]).await.unwrap();
-    let pruned = ed_api::reconcile::prune_weak_stars(&pool, &[weak_a as u64, blank as u64, 123456789]).await.unwrap();
-    assert_eq!(pruned, 1, "the one weak row among the named addresses");
-    let left: Vec<i64> = sqlx::query_scalar("SELECT address FROM stars WHERE address IN ($1, $2, $3) ORDER BY address").bind(weak_a).bind(weak_b).bind(blank).fetch_all(&pool).await.unwrap();
-    assert_eq!(left, vec![blank, weak_b], "the scan stays, the unnamed weak row stays");
-
     // And the mining search sees what the feed taught.
     let req = MiningSearchRequest { text: "painite".into(), system: Some("Deciat".into()), coords: None, radius_ly: Some(10.0), limit: None };
     let answer = search(&pool, &req).await.unwrap();
