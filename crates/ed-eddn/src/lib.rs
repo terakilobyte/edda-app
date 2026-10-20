@@ -1577,7 +1577,6 @@ mod teaching_tests {
         assert_eq!(stats.journal_events.get("NavRoute.hops"), Some(&4));
     }
 
-    #[test]
     /// A DSS scan that found ONLY surface mining locations used to produce
     /// no operation at all, because the `$`-prefix filter meant for ring
     /// hotspot names swallowed it. It teaches the count now; a scan with
