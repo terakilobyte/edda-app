@@ -181,6 +181,7 @@ impl PadSize {
             | "typex_2"
             | "typex_3" => PadSize::Medium,
             "anaconda"
+            | "anacondamkii"
             | "belugaliner"
             | "cutter"
             | "empire_trader"
@@ -265,6 +266,8 @@ mod pad_tests {
         assert_eq!(PadSize::for_journal_ship("mandalay"), Some(PadSize::Medium));
         assert_eq!(PadSize::for_journal_ship("dolphin"), Some(PadSize::Small));
         assert_eq!(PadSize::for_journal_ship("shiny_new_ship"), None);
+        // Anaconda Mk II (2026-10-20): a large pad, as Frontier's dev log of 2026-10-14 says.
+        assert_eq!(PadSize::for_journal_ship("anacondamkii"), Some(PadSize::Large));
     }
 }
 

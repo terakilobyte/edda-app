@@ -1296,8 +1296,27 @@ verdicts live in the CSV headers under `docs/benches/`.
     190/250, shields 450, armour 745, 372.0 M. OPEN: EDSY also admits the
     Panther's 7D/8D Mk II racks (1006 t if so; EDCD adds only the 6D), the
     outfitting screen decides. coriolis-data has nothing for the hull
-    (no commit since 2026-09-26). Nothing vendored yet: the Loadout first,
-    then PR #114's rows when it merges.
+    (no commit since 2026-09-26).
+    **Shipped the same night (0.4.8).** The maintainer bought the ship
+    at 03:05Z and his Loadout (game 4.4.2.0, ShipID 43) agreed with the
+    EDSY-generated table entry on all 38 slots
+    (`docs/benches/2026-10-20-anaconda-mkii-loadout-pin.csv`), and the
+    as-flown test pins the catalog to it: EDSY's 940 t hull plus Coriolis's
+    module masses reproduce UnladenMass 2145.8 t within 0.1 t, and the 8A SCO's
+    27.40 ly within 0.01 ly. Vendored: EDCD PR #114's rows (byte-identical to
+    the PR branch), `ed_journal::ships` (search, completion, name), a large
+    pad, the hull row at `crates/ed-ships/data/hulls/anacondamkii.json`
+    (Coriolis shape, EDSY figures, deleted when coriolis-data carries it),
+    the 6D Mk II rack and the Mk II large vehicle hangar at
+    `crates/ed-ships/data/modules/extra.json`, the slot table regenerated
+    from EDSY 4.24.2.2 (pin 5: `2026-10-20-ship-slots-pin.csv`). Found on
+    the way: the Caspian's Mk II Ablative grade 1 weighed 0 t in the Build
+    Planner (the six-bulkhead index counted from the default alloy), fixed
+    for both hulls; the ship-kit hologram slot is cosmetic;
+    `new_hull_from_loadout.py` learned the `Cargo01` slot. His drive is a
+    plain 8A SCO (standard boost), not the Mk II variant. Still OPEN: the
+    7D/8D Mk II racks on the hull (outfitting screen); Frontier's own notes
+    are pinned at `docs/benches/2026-10-20-update-notes-4.4.2.0.txt`.
   - **Ship rebalance, 2026-10-20** (Asp Scout, Federal Dropship,
     Imperial Clipper, Type-6, Type-7, Viper Mk IV, Sidewinder, Eagle,
     Caspian, Mandalay: extra internals/utility, jump range, speed,
@@ -1325,6 +1344,20 @@ verdicts live in the CSV headers under `docs/benches/`.
     masslock 19/21, Mandalay heat 250/245, Type-7 shields 155/156.
     coriolis-data carries none of the patch yet, so the refresh above
     waits on it or on EDSY-derived rows.
+    **Frontier's 4.4.2.0 notes, read 2026-10-21 (pinned verbatim at
+    `docs/benches/2026-10-20-update-notes-4.4.2.0.txt`):** the Clipper's
+    fuel tank 4 -> 5 is official; the Type-7 gains exactly one slot (size
+    7), so EDSY's second is excluded by `gen_ship_slots.py` (EXCLUDE, the
+    first Frontier-over-EDSY override); the slot table shipped in 0.4.8
+    carries the five ships' new slots under EDSY's `Slot00_*` names,
+    unverified until a Loadout of each. Frontier's speed lines (Asp Scout
+    110 -> 220, Viper Mk IV 175 -> 180, Dropship 100 -> 160) match no
+    tool's top speed: OPEN as to what they measure. Hull masses and speeds
+    in the Coriolis rows are still pre-patch (Caspian 950 t, Mandalay 230 t,
+    ...): the Build Planner's jump figures for those ten hulls are stale
+    until coriolis-data moves or the rows are refreshed from EDSY the way
+    the Anaconda Mk II's was. Pre-existing EDSY oddity: the Type-7's slot
+    names and sizes do not line up (Slot03_Size5 carries a size 6).
   - **Law & Disorder, December** (details next month). Touchpoints found
     by grep, each an OPEN item until the journal manual for the update:
     (1) the kill warrant scanner is removed -- `outfitting.csv` rows,

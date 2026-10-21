@@ -1,0 +1,142 @@
+{
+  "anacondamkii": {
+    "edID": 129046025,
+    "retailCost": 384958850,
+    "properties": {
+      "name": "Anaconda Mk II",
+      "manufacturer": "Faulcon DeLacy",
+      "class": 3,
+      "hullCost": 372041780,
+      "speed": 190,
+      "boost": 250,
+      "minthrust": 47,
+      "boostEnergy": 27,
+      "boostInt": 6,
+      "baseShieldStrength": 450,
+      "baseArmour": 745,
+      "hardness": 65,
+      "hullMass": 940,
+      "pitch": 27,
+      "roll": 65,
+      "yaw": 14,
+      "crew": 4,
+      "reserveFuelCapacity": 1.08,
+      "fighterHangars": true
+    },
+    "slots": {
+      "standard": [
+        8,
+        7,
+        8,
+        5,
+        8,
+        8,
+        6
+      ],
+      "hardpoints": [
+        4,
+        3,
+        3,
+        3,
+        3,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "internal": [
+        8,
+        7,
+        7,
+        {
+          "class": 6,
+          "name": "Cargo",
+          "eligible": {
+            "cr": 1,
+            "crl": 1,
+            "ft": 1
+          }
+        },
+        5,
+        5,
+        5,
+        {
+          "class": 5,
+          "name": "Military",
+          "eligible": {
+            "mahr": 1,
+            "hr": 1,
+            "scb": 1,
+            "mrp": 1,
+            "gsrp": 1,
+            "gmrp": 1,
+            "ghrp": 1
+          }
+        },
+        {
+          "class": 5,
+          "name": "Military",
+          "eligible": {
+            "mahr": 1,
+            "hr": 1,
+            "scb": 1,
+            "mrp": 1,
+            "gsrp": 1,
+            "gmrp": 1,
+            "ghrp": 1
+          }
+        },
+        4,
+        4,
+        3,
+        2,
+        1,
+        {
+          "class": 1,
+          "name": "PlanetaryApproachSuite",
+          "eligible": {
+            "pas": 1
+          }
+        }
+      ]
+    },
+    "bulkheads": [
+      {
+        "name": "Lightweight Alloy",
+        "mass": 0,
+        "edID": 129046028
+      },
+      {
+        "name": "Mk II Ablative Lightweight Alloys",
+        "mass": 15,
+        "edID": 129046027
+      },
+      {
+        "name": "Mk II Ablative Reinforced Alloys",
+        "mass": 30,
+        "edID": 129046029
+      },
+      {
+        "name": "Mk II Ablative Military Grade Composite",
+        "mass": 60,
+        "edID": 129046030
+      },
+      {
+        "name": "Mk II Ablative Mirrored Surface Composite",
+        "mass": 60,
+        "edID": 129046031
+      },
+      {
+        "name": "Mk II Ablative Reactive Surface Composite",
+        "mass": 60,
+        "edID": 129046032
+      }
+    ]
+  }
+}

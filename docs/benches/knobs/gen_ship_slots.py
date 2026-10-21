@@ -33,6 +33,12 @@ CORIOLIS = os.path.join(ROOT, "crates", "ed-ships", "data", "coriolis", "ships",
 SHIPYARD = os.path.join(ROOT, "crates", "ed-journal", "data", "shipyard.csv")
 OUTFITTING = os.path.join(ROOT, "crates", "ed-journal", "data", "outfitting.csv")
 
+# Slots EDSY lists that a higher source denies (ground-every-fact: the journal,
+# then Frontier's own notes, then EDCD, then EDSY). Frontier's 4.4.2.0 notes
+# (2026-10-20) give the Type-7 one new internal, a size 7; EDSY 4.24.2.2 adds a
+# size 6 too, under a second "Slot00". Dropped until a Type-7 Loadout shows it.
+EXCLUDE = {"type7": {"Slot00_Size6"}}
+
 # Journal names for the core slots, in the reference's component order
 # (index 0 is the bulkhead).
 CORE = ["Armour", "PowerPlant", "MainEngines", "FrameShiftDrive", "LifeSupport", "PowerDistributor", "Radar", "FuelTank"]
@@ -159,6 +165,8 @@ def main():
                 if fd:
                     stock[slot_names[i]] = fd
         entry["stock"] = stock
+        drop = EXCLUDE.get(s["fdname"].lower(), ())
+        entry["slots"] = [x for x in entry["slots"] if x["slot"] not in drop]
         out[s["fdname"].lower()] = entry
 
     # The Planetary Approach Suite is its own module kind in the journal; the

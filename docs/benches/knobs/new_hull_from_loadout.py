@@ -11,7 +11,7 @@ each. This knob derives the entry from that and diffs it against the specs
 Frontier printed, so a slot the dev log promised and the Loadout lacks (or
 the reverse) is a row, not a surprise.
 
-    python docs/benches/knobs/new_hull_from_loadout.py <Loadout.json> [--expect anaconda_mkii] [--stock] [--write]
+    python docs/benches/knobs/new_hull_from_loadout.py <Loadout.json> [--expect anacondamkii] [--stock] [--write]
 
 --stock: this Loadout is the ship as sold (written at the shipyard before
 any outfitting), so its modules become the table's stock fit; without it
@@ -40,7 +40,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 SLOTS = os.path.join(ROOT, "crates", "ed-ships", "data", "ship_slots.json")
 
 EXPECTED = {
-    "anaconda_mkii": {
+    "anacondamkii": {  # the symbol EDCD FDevIDs PR #114 published 2026-10-20 (the journal lowercases it)
         "core": {"PowerPlant": 8, "MainEngines": 7, "FrameShiftDrive": 8, "LifeSupport": 5, "PowerDistributor": 8, "Radar": 8},
         "internal": {1: 1, 2: 1, 3: 1, 4: 2, 5: 5, 6: 1, 7: 2, 8: 1},
         "military": 2,
@@ -77,7 +77,7 @@ def derive(loadout, stock_fit=False):
     slots, stock, notes = [], {}, []
     for m in loadout.get("Modules", []):
         slot, item = m["Slot"], (m.get("Item") or "").lower()
-        if re.match(r"^(Decal|PaintJob|Bobble|ShipName|ShipID|ShipKit|WeaponColour|EngineColour|VesselVoice|StringLights)", slot, re.I):
+        if re.match(r"^(Decal|PaintJob|Bobble|ShipName|ShipID|ShipKit|WeaponColour|EngineColour|VesselVoice|StringLights|Hologram)", slot, re.I):
             continue
         if slot in CORE:
             only, exact = CORE[slot]
@@ -95,6 +95,13 @@ def derive(loadout, stock_fit=False):
             if size is None:
                 notes.append(f"{slot}: military slot size unknown from {item!r} (fit a module to learn it)")
             slots.append({"slot": slot, "group": "military", "size": size or 0})
+        elif re.match(r"^Cargo\d+$", slot):
+            # The cargo-only slot (Panther Clipper Mk II, Anaconda Mk II): racks
+            # and fuel tanks only; its size from the fitted rack, else unknown.
+            size = core_size(item)
+            if size is None:
+                notes.append(f"{slot}: cargo slot size unknown from {item!r} (fit a rack to learn it)")
+            slots.append({"slot": slot, "group": "internal", "size": size or 0, "only": ["cft", "icr"]})
         elif slot == "PlanetaryApproachSuite":
             # The table keeps it as a size-1 internal that takes only the suite.
             slots.append({"slot": slot, "group": "internal", "size": 1, "only": ["ipas"]})

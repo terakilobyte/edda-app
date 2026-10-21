@@ -1,0 +1,351 @@
+{
+ "timestamp": "2026-10-21T03:05:30Z",
+ "event": "Loadout",
+ "Ship": "anacondamkii",
+ "ShipID": 43,
+ "ShipName": "",
+ "ShipIdent": "WI-21A",
+ "HullHealth": 1.0,
+ "UnladenMass": 2145.800049,
+ "CargoCapacity": 96,
+ "MaxJumpRange": 27.397148,
+ "FuelCapacity": {
+  "Main": 64.0,
+  "Reserve": 1.08
+ },
+ "Rebuy": 0,
+ "Modules": [
+  {
+   "Slot": "HugeHardpoint1",
+   "Item": "hpt_multicannon_gimbal_huge",
+   "On": true,
+   "Priority": 2,
+   "AmmoInClip": 90,
+   "AmmoInHopper": 2100,
+   "Health": 1.0
+  },
+  {
+   "Slot": "LargeHardpoint1",
+   "Item": "hpt_pulselaser_gimbal_large",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "LargeHardpoint2",
+   "Item": "hpt_pulselaser_gimbal_large",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "LargeHardpoint3",
+   "Item": "hpt_multicannon_gimbal_large",
+   "On": true,
+   "Priority": 2,
+   "AmmoInClip": 90,
+   "AmmoInHopper": 2100,
+   "Health": 1.0
+  },
+  {
+   "Slot": "LargeHardpoint4",
+   "Item": "hpt_pulselaser_gimbal_large",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "SmallHardpoint1",
+   "Item": "hpt_multicannon_gimbal_small",
+   "On": true,
+   "Priority": 2,
+   "AmmoInClip": 90,
+   "AmmoInHopper": 2100,
+   "Health": 1.0
+  },
+  {
+   "Slot": "SmallHardpoint2",
+   "Item": "hpt_pulselaser_gimbal_small",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint1",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint2",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint3",
+   "Item": "hpt_plasmapointdefence_turret_tiny",
+   "On": true,
+   "Priority": 2,
+   "AmmoInClip": 12,
+   "AmmoInHopper": 10000,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint4",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint5",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint6",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint7",
+   "Item": "hpt_shieldbooster_size0_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "TinyHardpoint8",
+   "Item": "hpt_heatsinklauncher_turret_tiny",
+   "On": true,
+   "Priority": 2,
+   "AmmoInClip": 1,
+   "AmmoInHopper": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "PaintJob",
+   "Item": "paintjob_anacondamkii_03_01",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Armour",
+   "Item": "anacondamkii_armour_grade3",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "PowerPlant",
+   "Item": "int_powerplant_size8_class5",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "MainEngines",
+   "Item": "int_engine_size7_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "FrameShiftDrive",
+   "Item": "int_hyperdrive_overcharge_size8_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "LifeSupport",
+   "Item": "int_lifesupport_size5_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "PowerDistributor",
+   "Item": "int_powerdistributor_size8_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Radar",
+   "Item": "int_sensors_size8_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "FuelTank",
+   "Item": "int_fueltank_size6_class3",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot01_Size8",
+   "Item": "int_shieldgenerator_size8_class3_fast",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot02_Size7",
+   "Item": "int_fuelscoop_size7_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot03_Size7",
+   "Item": "int_multidronecontrol_universal_size7_class5",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot04_Size5",
+   "Item": "int_fighterbay_size5_class1",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot05_Size5",
+   "Item": "int_hullreinforcement_size5_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot06_Size5",
+   "Item": "int_hullreinforcement_size5_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot07_Size4",
+   "Item": "int_hullreinforcement_size4_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot08_Size4",
+   "Item": "int_mkiilargebuggybay_size4_class3",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot09_Size3",
+   "Item": "int_hullreinforcement_size3_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot10_Size2",
+   "Item": "int_detailedsurfacescanner_tiny",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Slot11_Size1",
+   "Item": "int_dockingcomputer_advanced",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Cargo01",
+   "Item": "int_largecargorack_size6_class1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Military01",
+   "Item": "int_hullreinforcement_size5_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Military02",
+   "Item": "int_hullreinforcement_size5_class2",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "ShipKitBumper",
+   "Item": "anacondamkii_shipkitb_bumper1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "ShipKitSpoiler",
+   "Item": "anacondamkii_shipkitb_spoiler1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "ShipKitWings",
+   "Item": "anacondamkii_shipkitb_wings1",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "Hologram",
+   "Item": "anacondamkii_holograma_01",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "PlanetaryApproachSuite",
+   "Item": "int_planetapproachsuite_advanced",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "VesselVoice",
+   "Item": "voicepack_verity",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "ShipCockpit",
+   "Item": "anacondamkii_cockpit",
+   "On": true,
+   "Priority": 1,
+   "Health": 1.0
+  },
+  {
+   "Slot": "CargoHatch",
+   "Item": "modularcargobaydoor",
+   "On": true,
+   "Priority": 2,
+   "Health": 1.0
+  }
+ ]
+}

@@ -790,6 +790,7 @@ pub fn is_cosmetic_slot(slot: &str) -> bool {
         || slot.starts_with("ShipName")
         || slot.starts_with("ShipID")
         || slot == "VesselVoice"
+        || slot.starts_with("Hologram")
         || slot.starts_with("DataLinkScanner")
         || slot.starts_with("CodexScanner")
         || slot.starts_with("DiscoveryScanner")
@@ -846,5 +847,6 @@ mod tests {
         assert_eq!(slot_name("TinyHardpoint2"), "Utility 2");
         assert_eq!(slot_name("MainEngines"), "Thrusters");
         assert!(is_cosmetic_slot("PaintJob"));
+        assert!(is_cosmetic_slot("Hologram"), "the ship-kit hologram (anacondamkii_holograma_01, 2026-10-21 Loadout)");
     }
 }

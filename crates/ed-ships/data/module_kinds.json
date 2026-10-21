@@ -89,6 +89,60 @@
    "anaconda"
   ]
  },
+ "anacondamkii_armour_grade1": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mk II Ablative Lightweight Alloys",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
+ "anacondamkii_armour_grade1_default": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Lightweight Alloy",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
+ "anacondamkii_armour_grade2": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mk II Ablative Reinforced Alloys",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
+ "anacondamkii_armour_grade3": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mk II Ablative Military Grade Composite",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
+ "anacondamkii_armour_mirrored": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mk II Ablative Mirrored Surface Composite",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
+ "anacondamkii_armour_reactive": {
+  "class": 1,
+  "kind": "cbh",
+  "name": "Mk II Ablative Reactive Surface Composite",
+  "rating": "",
+  "ships": [
+   "anacondamkii"
+  ]
+ },
  "asp_armour_grade1": {
   "class": 1,
   "kind": "cbh",
@@ -1968,6 +2022,7 @@
   "name": "Mining Volley Repeater",
   "rating": "C",
   "ships": [
+   "anacondamkii",
    "lakonminer"
   ]
  },
@@ -3615,6 +3670,7 @@
   "rating": "D",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -3638,6 +3694,7 @@
   "rating": "D",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -3661,6 +3718,7 @@
   "rating": "D",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -3683,6 +3741,7 @@
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"
@@ -3696,6 +3755,7 @@
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"
@@ -3709,6 +3769,7 @@
   "name": "Mk II Vessel Hangar",
   "rating": "D",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"
@@ -5054,6 +5115,7 @@
   "rating": "F",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -5075,6 +5137,7 @@
   "rating": "F",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -5096,6 +5159,7 @@
   "rating": "F",
   "ships": [
    "anaconda",
+   "anacondamkii",
    "belugaliner",
    "cutter",
    "explorer_nx",
@@ -5110,12 +5174,23 @@
    "typex_2"
   ]
  },
+ "int_largecargorack_size6_class1": {
+  "class": 6,
+  "kind": "icr",
+  "name": "Mk II Cargo Rack (Cap: 96)",
+  "rating": "D",
+  "ships": [
+   "anacondamkii",
+   "panthermkii"
+  ]
+ },
  "int_largecargorack_size7_class1": {
   "class": 7,
   "kind": "icr",
   "name": "Mk II Cargo Rack (Cap: 192)",
   "rating": "D",
   "ships": [
+   "anacondamkii",
    "panthermkii"
   ]
  },
@@ -5125,6 +5200,7 @@
   "name": "Mk II Cargo Rack (Cap: 384)",
   "rating": "D",
   "ships": [
+   "anacondamkii",
    "panthermkii"
   ]
  },
@@ -5524,6 +5600,7 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"
@@ -5535,6 +5612,7 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"
@@ -5546,6 +5624,7 @@
   "name": "Mk II Large Planetary Vehicle Hangar",
   "rating": "F",
   "ships": [
+   "anacondamkii",
    "explorer_nx",
    "lakonminer",
    "panthermkii"

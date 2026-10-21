@@ -196,12 +196,17 @@ fn base_for(catalog: &Catalog, ship: Option<&Ship>, item: &str) -> Option<(Strin
     }
     let lower = item.to_ascii_lowercase();
     if lower.contains("_armour_") {
+        // A six-bulkhead hull (the Caspian, the Anaconda Mk II) lists the
+        // default Lightweight Alloy first and its Mk II Ablative grades after
+        // it; on a five-bulkhead hull grade 1 is the 0 t alloy itself.
+        let offset = usize::from(ship.is_some_and(|s| s.bulkhead_mass.len() == 6));
         let index = match () {
-            _ if lower.contains("grade1") => 0,
-            _ if lower.contains("grade2") => 1,
-            _ if lower.contains("grade3") => 2,
-            _ if lower.contains("mirrored") => 3,
-            _ if lower.contains("reactive") => 4,
+            _ if lower.contains("grade1_default") => 0,
+            _ if lower.contains("grade1") => offset,
+            _ if lower.contains("grade2") => 1 + offset,
+            _ if lower.contains("grade3") => 2 + offset,
+            _ if lower.contains("mirrored") => 3 + offset,
+            _ if lower.contains("reactive") => 4 + offset,
             _ => 0,
         };
         let mass = ship.and_then(|s| s.bulkhead_mass.get(index)).copied().unwrap_or(0.0);
@@ -484,6 +489,29 @@ mod tests {
         assert!(c.blueprint("FSD_LongRange").is_some());
     }
 
+    /// The Anaconda Mk II (2026-10-20), from EDSY 4.24.2.2 and EDCD PR #114 until
+    /// the maintainer's Loadout pins it: 940 t, 190/250, and six bulkheads where
+    /// the default Lightweight Alloy weighs nothing and the Mk II Ablative grade 1
+    /// weighs 15 t. The Caspian has the same six (Coriolis lists the default
+    /// first), and its ablative grade 1 read as the default's 0 t until now.
+    #[test]
+    fn the_anaconda_mk_ii_and_the_six_bulkhead_hulls() {
+        let c = Catalog::load();
+        let hull = c.ship("anacondamkii").expect("Anaconda Mk II by journal symbol");
+        assert_eq!((hull.name.as_str(), hull.hull_mass, hull.speed, hull.boost), ("Anaconda Mk II", 940.0, 190.0, 250.0));
+        let mass = |ship: &Ship, item: &str| base_for(&c, Some(ship), item).map(|(_, s)| s["mass"]).expect(item);
+        assert_eq!(mass(hull, "anacondamkii_armour_grade1_default"), 0.0);
+        assert_eq!(mass(hull, "anacondamkii_armour_grade1"), 15.0);
+        assert_eq!(mass(hull, "anacondamkii_armour_grade2"), 30.0);
+        assert_eq!(mass(hull, "anacondamkii_armour_reactive"), 60.0);
+        let caspian = c.ship("explorer_nx").unwrap();
+        assert_eq!(mass(caspian, "explorer_nx_armour_grade1_default"), 0.0);
+        assert_eq!(mass(caspian, "explorer_nx_armour_grade1"), 15.0, "the Caspian's ablative grade 1 is 15 t, not the default's 0");
+        let t10 = c.ship("type9_military").unwrap();
+        assert_eq!(mass(t10, "type9_military_armour_grade1"), 0.0, "a five-bulkhead hull's grade 1 is the 0 t alloy");
+        assert_eq!(mass(t10, "type9_military_armour_grade1_default"), 0.0);
+    }
+
     /// The pin: the maintainer's Type-10 as flown (journal ShipID 37) against
     /// EDSY 4.24.1.1 the same day. Mass to a tenth of a tonne, jump to a
     /// hundredth of a light-year, power to a tenth of a percent.
@@ -506,6 +534,22 @@ mod tests {
         let pct = |draw: f64| 100.0 * draw / s.power_capacity;
         near(pct(s.power_retracted), pin["edsy"]["power"]["retracted_pct"].as_f64().unwrap(), 0.1, "power retracted %");
         near(pct(s.power_deployed), pin["edsy"]["power"]["deployed_pct"].as_f64().unwrap(), 0.1, "power deployed %");
+    }
+
+    /// The pin: the maintainer's Anaconda Mk II as bought and fitted (journal
+    /// ShipID 43, 2026-10-21T03:05Z, game 4.4.2.0) against the journal's own
+    /// figures: the hull row's 940 t from EDSY plus Coriolis's module masses
+    /// must reproduce UnladenMass, and the 8A SCO's range MaxJumpRange.
+    #[test]
+    fn the_anaconda_mk_ii_as_flown_matches_the_journal_on_mass_and_jump() {
+        let c = Catalog::load();
+        let loadout = fixture("loadout_43.json");
+        let build = Build::from_loadout(&c, &loadout);
+        assert!(build.unknown_items.is_empty(), "the tables lack: {:?}", build.unknown_items);
+        let s = build.summary();
+        let near = |a: f64, b: f64, tol: f64, what: &str| assert!((a - b).abs() <= tol, "{what}: ours {a} vs the journal {b}");
+        near(s.unladen_mass, loadout["UnladenMass"].as_f64().unwrap(), 0.1, "unladen mass");
+        near(s.jump_max.unwrap(), loadout["MaxJumpRange"].as_f64().unwrap(), 0.01, "jump, max");
     }
 
     /// An imported build's swap: a heavier module in a slot weighs more

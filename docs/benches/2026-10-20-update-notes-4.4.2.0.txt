@@ -1,0 +1,116 @@
+# Source pin: Frontier, "Elite Dangerous: Anaconda MK II Update" (4.4.2.0),
+# https://www.elitedangerous.com/en-GB/news/updates/4-4-2-0
+# published 2026-10-20, read in the maintainer's browser 2026-10-21 03:20Z (the page
+# is client-rendered; a server fetch returns only the update list). Verbatim
+# page text from the title to the end of the notes; store bundles kept as they
+# name the ship kits and paintjobs the journal will carry. Frontier's figures
+# are the record where they and EDSY disagree (the Clipper's fuel tank 4->5 and
+# the Type-7's single new slot); its speed lines (Asp Scout 110->220, Viper Mk IV
+# 175->180, Federal Dropship 100->160) match no tool's top speed and are OPEN.
+ELITE DANGEROUS: ANACONDA MK II UPDATE
+
+Greetings Commanders,
+
+The Anaconda Mk II Update is now live.
+
+Faulcon DeLacy's legend has been reborn with the arrival of the Anaconda Mk II. A modern evolution of one of the galaxy's most iconic vessels. This next-generation ship retains the power, versatility, and commanding presence that made the original a favourite among Commanders, while introducing a all-new design and improved visibility.
+
+Available now via ARX Early Access, alongside a range of fixes and improvements in this update. 
+
+FEATURES OF NOTE:
+Added Faulcon DeLacy's Anaconda Mk II:
+Mk II Ablative Armour
+Mk II Mining Volley Repeater 
+Mk II Cargo Racks
+Added Pre-built Vessel:
+Anaconda Mk.II Standard (19,020 Arx)
+Standard Anaconda Mk.II
+Owners Club Decal.
+Anaconda Mk.II Stellar (38,000 Arx)
+Eunectes Ship Kit
+ Resurgent Ochre Paintjob
+Owners Club Decal
+Anaconda Mk.II Galactic (69,000 Arx)
+All Stellar Content
+Zenith Ship Kit
+4x Faulcon Paintjob variants
+Ember Green Holo-Kit Pack
+Owners Club Decal
+New Operation "Found Adrift" added.
+"An Abandoned megaship carrying a high value asset has reappeared. Navigate the wreck and secure the item before other scavengers do." 
+Improvements to the cutting tool's tracking.
+Rebalance for various ships:
+Mandalay
+Standard jump range increased to ~95Ly
+Caspian Explorer
+Standard jump range increased to ~90Ly
+Asp Scout
+Added 1x Utility Slot 
+Reduced Mass (150→140)
+Increased Max Speed (110→220)
+Increased Max Boost Speed (300→360)
+Increased Forward Acceleration (35→40)
+Increased Reverse Acceleration (20→30)
+Increased Yaw Rate (15→18) 
+Reduced Pitch Acceleration (0.15→0.1)
+Reduced Yaw Acceleration (0.25→0.12)
+Sidewinder Mk I
+Increased base shield (40->55)
+Adjustments to flight model
+Increased pitch & yaw rates
+Eagle Mk II
+Increased base shield (60→80)
+Viper Mk IV
+Increased base shield (150→160)
+Adjustments to flight model
+Increased maximum speed (175→180)
+Increased max boost speed (340→360)
+Increased Pitch & Yaw rates
+Type- 6 Transporter
+Added 1x Size 6 Internal Slot
+Increased base shield (90→125)
+Type-7 Transporter
+Added 1x Size 7 Internal Slot
+Reduced Mass (350→300)
+Increased Heat Capacity (226→232)
+Increased Min & Max Heat Dissipation 
+Imperial Clipper
+Added 1x Size 7 Internal Slot
+Increased Fuel Tank size (4→5)
+Reduced Mass (400→350)
+Increased Base Shield (180→200)
+Federal Dropship
+Added 1x Size 6 Internal Slot 
+Reduced Mass (580→500)
+Increased Max speed (100→160)
+Added the following ships to various AI spawn buckets:
+Python Mk II
+Type-8 Transporter
+Mandalay
+Cobra Mk V
+Corsair
+Panther Mk II
+Type-11 Prospector
+Caspian Explorer
+ISSUE TRACKER FIXES:
+Resolved an issue where engineering Mk II Cargo Racks could result in a rounding error. (Issue ID: 86375) 
+Resolved an issue where Conflict Zones could fail to end as expected. (Issue ID: 85560) 
+BUG FIXES:
+Resolved an issue where on foot wing UI could sometimes fail to display correctly. 
+Resolved an issue where the final wave of on foot AI were not spawning correctly during the Reclamation Point Operation. 
+Resolved an issue where the New Starter Systems permit was being granted when ranking up in CQC.
+Resolved an issue where Powerplay Modules could not unlock correctly when reaching the required rank. 
+Resolved an issue where debug text could display when viewing Mission Giver details if their faction had the Feudal government type and the pending state of Retreat.
+Resolved issues with Squadron Leader boards could not display the "Operations" category.
+Resolved an issue where Planetary Mining resources were not being displayed in the Info Panel when scanning a planet with FSS. 
+Resolved an issue where the destination lock for Planetary Ring Hotspots was no longer working.
+Resolved an issue where text could overlap in the on foot mining UI when using the Rhino's mining rigs.
+Resolved a disconnect caused by jettisoning cargo the player whilst collecting minerals from a Rhino mining rig.
+Resolved an issue where vents on the side of dockable Megaships could visibly exhibit LoD transitions.
+Resolved an issue where bloom could be too bright on certain objects.
+Resolved an issue where light could bleed from the hangars on Megaships, resulting in it being visible around the landing pads. 
+Adjustments made to spawn cupboards hitcheck to stop AI clipping through the cupboards doors.
+Adjustments made to the lighting for the Rhino bundles in the Store previews. 
+Resolved an issue with 'Edmund Mahon' Powerplay decals would drop below the intended level of detail. 
+Adjustments made to various Powerplay decals to reduce clashing with various paintjobs.
+Adjustments made to 'Archon Delaine' & 'Jerome Archer' Powerplay decals to improve quality.

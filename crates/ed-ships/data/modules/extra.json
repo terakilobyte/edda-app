@@ -1,0 +1,36 @@
+{
+  "crl": [
+    {
+      "cargo": 96,
+      "class": 6,
+      "cost": 587400,
+      "edID": 129051593,
+      "grp": "crl",
+      "id": "",
+      "rating": "D",
+      "mass": 0,
+      "name": "MkII Cargo Rack",
+      "symbol": "Int_LargeCargoRack_Size6_Class1",
+      "ukName": "Mk II Cargo Rack",
+      "ukDiscript": "Storage rack for the cargo slot of the Panther Clipper Mk II and the Anaconda Mk II.",
+      "restriction": "Cargo"
+    }
+  ],
+  "pv": [
+    {
+      "bays": 1,
+      "class": 4,
+      "cost": 129600,
+      "edID": 129046059,
+      "grp": "pv",
+      "id": "",
+      "integrity": 30,
+      "mass": 15,
+      "power": 0.8,
+      "rating": "F",
+      "symbol": "Int_MkIILargeBuggyBay_Size4_Class3",
+      "ukName": "Mk II Large Planetary Vehicle Hangar",
+      "ukDiscript": "A module designed to house ground-based vehicles, including the Rhino."
+    }
+  ]
+}

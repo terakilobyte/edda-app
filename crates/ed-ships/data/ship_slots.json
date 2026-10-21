@@ -399,6 +399,253 @@
    "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
   }
  },
+ "anacondamkii": {
+  "name": "Anaconda Mk II",
+  "slots": [
+   {
+    "group": "hardpoint",
+    "size": 4,
+    "slot": "HugeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint2"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint3"
+   },
+   {
+    "group": "hardpoint",
+    "size": 3,
+    "slot": "LargeHardpoint4"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint1"
+   },
+   {
+    "group": "hardpoint",
+    "size": 1,
+    "slot": "SmallHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint1"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint4"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint5"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint6"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint7"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint8"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cbh"
+    ],
+    "size": 1,
+    "slot": "Armour"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpp"
+    ],
+    "size": 8,
+    "slot": "PowerPlant"
+   },
+   {
+    "group": "core",
+    "only": [
+     "ct"
+    ],
+    "size": 7,
+    "slot": "MainEngines"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cfsd",
+     "cfsdo"
+    ],
+    "size": 8,
+    "slot": "FrameShiftDrive"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cls"
+    ],
+    "size": 5,
+    "slot": "LifeSupport"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cpd"
+    ],
+    "size": 8,
+    "slot": "PowerDistributor"
+   },
+   {
+    "exact_size": true,
+    "group": "core",
+    "only": [
+     "cs"
+    ],
+    "size": 8,
+    "slot": "Radar"
+   },
+   {
+    "group": "core",
+    "only": [
+     "cft"
+    ],
+    "size": 6,
+    "slot": "FuelTank"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military01"
+   },
+   {
+    "group": "military",
+    "size": 5,
+    "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 8,
+    "slot": "Slot01_Size8"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot02_Size7"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot03_Size7"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "cft",
+     "icr"
+    ],
+    "size": 6,
+    "slot": "Cargo01"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot04_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot05_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 5,
+    "slot": "Slot06_Size5"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot07_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 4,
+    "slot": "Slot08_Size4"
+   },
+   {
+    "group": "internal",
+    "size": 3,
+    "slot": "Slot09_Size3"
+   },
+   {
+    "group": "internal",
+    "size": 2,
+    "slot": "Slot10_Size2"
+   },
+   {
+    "group": "internal",
+    "size": 1,
+    "slot": "Slot11_Size1"
+   },
+   {
+    "group": "internal",
+    "only": [
+     "ipas"
+    ],
+    "size": 1,
+    "slot": "PlanetaryApproachSuite"
+   }
+  ],
+  "stock": {
+   "Armour": "AnacondaMkII_Armour_Grade1_Default",
+   "FrameShiftDrive": "Int_Hyperdrive_Overcharge_Size8_Class1",
+   "FuelTank": "Int_FuelTank_Size6_Class3",
+   "LifeSupport": "Int_LifeSupport_Size5_Class1",
+   "MainEngines": "Int_Engine_Size7_Class1",
+   "PowerDistributor": "Int_PowerDistributor_Size8_Class1",
+   "PowerPlant": "Int_Powerplant_Size8_Class1",
+   "Radar": "Int_Sensors_Size8_Class1",
+   "Slot01_Size8": "Int_CargoRack_Size7_Class1",
+   "Slot02_Size7": "Int_CargoRack_Size6_Class1",
+   "Slot03_Size7": "Int_ShieldGenerator_Size7_Class1",
+   "Slot04_Size5": "Int_CargoRack_Size4_Class1",
+   "Slot10_Size2": "Int_SuperCruiseAssist",
+   "Slot11_Size1": "Int_DockingComputer_Advanced",
+   "SmallHardpoint1": "Hpt_PulseLaser_Fixed_Small",
+   "SmallHardpoint2": "Hpt_PulseLaser_Fixed_Small"
+  }
+ },
  "asp": {
   "name": "Asp Explorer",
   "slots": [
@@ -618,6 +865,11 @@
     "group": "utility",
     "size": 0,
     "slot": "TinyHardpoint2"
+   },
+   {
+    "group": "utility",
+    "size": 0,
+    "slot": "TinyHardpoint3"
    },
    {
     "group": "core",
@@ -3020,8 +3272,13 @@
     "only": [
      "cft"
     ],
-    "size": 4,
+    "size": 5,
     "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot00_Size7"
    },
    {
     "group": "internal",
@@ -3080,7 +3337,7 @@
   "stock": {
    "Armour": "Empire_Trader_Armour_Grade1",
    "FrameShiftDrive": "Int_Hyperdrive_Size5_Class1",
-   "FuelTank": "Int_FuelTank_Size4_Class3",
+   "FuelTank": "Int_FuelTank_Size5_Class3",
    "LifeSupport": "Int_LifeSupport_Size5_Class1",
    "MainEngines": "Int_Engine_Size6_Class1",
    "MediumHardpoint1": "Hpt_PulseLaser_Fixed_Small",
@@ -3688,6 +3945,11 @@
     "group": "military",
     "size": 4,
     "slot": "Military02"
+   },
+   {
+    "group": "internal",
+    "size": 6,
+    "slot": "Slot00_Size6"
    },
    {
     "group": "internal",
@@ -7047,6 +7309,11 @@
    },
    {
     "group": "internal",
+    "size": 6,
+    "slot": "Slot00_Size6"
+   },
+   {
+    "group": "internal",
     "size": 5,
     "slot": "Slot01_Size5"
    },
@@ -7223,6 +7490,11 @@
     ],
     "size": 5,
     "slot": "FuelTank"
+   },
+   {
+    "group": "internal",
+    "size": 7,
+    "slot": "Slot00_Size7"
    },
    {
     "group": "internal",

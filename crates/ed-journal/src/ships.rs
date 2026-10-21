@@ -9,6 +9,7 @@
 pub const SHIPS: &[(&str, &str)] = &[
     ("adder", "Adder"),
     ("anaconda", "Anaconda"),
+    ("anacondamkii", "Anaconda Mk II"),
     ("asp", "Asp Explorer"),
     ("asp_scout", "Asp Scout"),
     ("belugaliner", "Beluga Liner"),
@@ -157,6 +158,7 @@ fn display_name_fallback(symbol: &str) -> String {
         "diamondbackxl" => "Diamondback Explorer",
         "dolphin" => "Dolphin",
         "eagle" => "Eagle",
+        "anacondamkii" => "Anaconda Mk II",
         "empire_courier" => "Imperial Courier",
         "empire_eagle" => "Imperial Eagle",
         "empire_trader" => "Imperial Clipper",
@@ -239,6 +241,11 @@ mod market_name_tests {
         assert_eq!(resolve("Fer-de-Lance"), Some("ferdelance"));
         assert_eq!(resolve("Keelback"), Some("independant_trader"));
         assert_eq!(resolve("Panther Clipper Mk II"), Some("panthermkii"));
+        // The Anaconda Mk II (2026-10-20): its own symbol, and the plain
+        // Anaconda still resolves exactly rather than falling to a two-hull hit.
+        assert_eq!(resolve("Anaconda Mk II"), Some("anacondamkii"));
+        assert_eq!(resolve("anaconda mkii"), Some("anacondamkii"));
+        assert_eq!(resolve("Anaconda"), Some("anaconda"));
         // A symbol typed straight in still works, and so does a unique part.
         assert_eq!(resolve("type9_military"), Some("type9_military"));
         assert_eq!(resolve("defender"), Some("type9_military"));
@@ -258,6 +265,7 @@ mod market_name_tests {
         assert_eq!(complete("krait", 10), vec!["Krait Mk II", "Krait Phantom"]);
         assert_eq!(complete("imperial", 10), vec!["Imperial Clipper", "Imperial Courier", "Imperial Cutter", "Imperial Eagle"]);
         assert_eq!(complete("cutter", 10), vec!["Imperial Cutter"], "by symbol too");
+        assert_eq!(complete("anaconda", 10), vec!["Anaconda", "Anaconda Mk II"]);
         assert_eq!(complete("zzz", 10), Vec::<&str>::new());
         assert_eq!(complete("", 3).len(), 3, "empty prefix offers the head of the catalog");
         assert!(complete("", 999).len() == SHIPS.len());
@@ -281,6 +289,7 @@ mod tests {
         assert_eq!(display_name("eagle"), "Eagle");
         assert_eq!(display_name("federation_dropship_mkii"), "Federal Assault Ship");
         assert_eq!(display_name("smallcombat01_nx"), "Kestrel Mk II");
+        assert_eq!(display_name("anacondamkii"), "Anaconda Mk II");
         assert_eq!(display_name("Anaconda"), "Anaconda");
     }
 

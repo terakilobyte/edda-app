@@ -484,6 +484,37 @@ mod tests {
         assert!(s.fits(prospector, mining, "hpt_pulselaser_fixed_medium").is_err(), "a mining hardpoint takes mining tools only");
     }
 
+    /// The Anaconda Mk II's entry (2026-10-20): the slots Frontier's dev log
+    /// published, the cargo-only slot named Cargo01 as on the Panther and
+    /// taking the new 6D Mk II rack, eight utilities, the six bulkheads.
+    #[test]
+    fn the_anaconda_mk_ii_as_published() {
+        let s = slots();
+        let hull = s.hull("anacondamkii").expect("Anaconda Mk II in the slot table");
+        assert_eq!(hull.name, "Anaconda Mk II");
+        let sizes = |group: &str| {
+            let mut v: Vec<_> = hull.slots.iter().filter(|x| x.group == group && x.slot != "PlanetaryApproachSuite").map(|x| x.size).collect();
+            v.sort();
+            v
+        };
+        assert_eq!(sizes("hardpoint"), vec![1, 1, 3, 3, 3, 3, 4], "two small, four large, one huge");
+        assert_eq!(sizes("utility").len(), 8);
+        assert_eq!(sizes("military"), vec![5, 5]);
+        assert_eq!(sizes("internal"), vec![1, 2, 3, 4, 4, 5, 5, 5, 6, 7, 7, 8]);
+        let core: Vec<_> = hull.slots.iter().filter(|x| x.group == "core").map(|x| x.size).collect();
+        assert_eq!(core, vec![1, 8, 7, 8, 5, 8, 8, 6], "armour, power plant, thrusters, FSD, life support, distributor, sensors, fuel tank");
+        let cargo = hull.slot("Cargo01").unwrap();
+        assert_eq!(cargo.size, 6);
+        assert!(s.fits(hull, cargo, "int_largecargorack_size6_class1").is_ok(), "the 6D Mk II rack in the cargo slot");
+        assert!(s.fits(hull, cargo, "int_cargorack_size6_class1").is_ok(), "a plain rack too");
+        assert!(s.fits(hull, cargo, "int_shieldgenerator_size6_class5").is_err(), "cargo and fuel only");
+        assert!(s.fits(hull, hull.slot("Slot01_Size8").unwrap(), "int_largecargorack_size6_class1").is_err(), "and the Mk II rack nowhere else");
+        let armour = s.candidates(hull, hull.slot("Armour").unwrap());
+        let items: Vec<&str> = armour.iter().map(|(i, _)| *i).collect();
+        assert_eq!(armour.len(), 6, "{items:?}");
+        assert!(items.contains(&"anacondamkii_armour_grade1_default") && items.contains(&"anacondamkii_armour_grade1"), "{items:?}");
+    }
+
     /// The Armour slot offers the hull's own five bulkheads and nobody
     /// else's (maintainer, 2026-09-20: "we seem to be missing the various
     /// bulkheads").
@@ -678,6 +709,6 @@ mod tests {
                 assert!(mods.iter().any(|m| m["Slot"] == core), "{}: stock {core}", h.name);
             }
         }
-        assert_eq!(s.hulls().len(), 48);
+        assert_eq!(s.hulls().len(), 49, "48 hulls plus the Anaconda Mk II (2026-10-20)");
     }
 }

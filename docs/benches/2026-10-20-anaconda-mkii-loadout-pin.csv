@@ -1,0 +1,26 @@
+# Anaconda Mk II, the maintainer's first Loadout (journal 2026-10-21T03:05:30Z, ShipID 43, game 4.4.2.0) against the pre-registered dev-log specs and the EDSY-generated slot-table entry, by knobs/new_hull_from_loadout.py --expect anacondamkii.
+# Verdict: the journal agrees with the table on all 38 slots (names, sizes, groups, kinds); symbol anacondamkii, Ship_Localised "Anaconda Mk II"; fuel tank 6C 64 t, Cargo01 holds the 6D Mk II rack (CargoCapacity 96 with nothing else fitted); the drive sold is a plain 8A SCO (int_hyperdrive_overcharge_size8_class5), so the supercharge boost is the standard x4 unless a Mk II SCO is fitted. UnladenMass 2145.8 t with his fit, MaxJumpRange 27.40 ly. The rows below are the knob's slot-by-slot comparison.
+# entry (not written; pass --write):
+# anacondamkii: anacondamkii; 38 slots from the Loadout of 2026-10-21T03:05:30Z; UnladenMass 2145.800049 CargoCapacity 96 MaxJumpRange 27.397148 FuelCapacity {"Main": 64.0, "Reserve": 1.08}
+# expected: Frontier October 2026 dev log (2026-10-14): Anaconda Mk II Specs
+group,slot,expected,loadout,verdict
+core,PowerPlant,8,8,same
+core,MainEngines,7,7,same
+core,FrameShiftDrive,8,8,same
+core,LifeSupport,5,5,same
+core,PowerDistributor,8,8,same
+core,Radar,8,8,same
+internal,size 1,1,2,DIFFER
+internal,size 2,1,1,same
+internal,size 3,1,1,same
+internal,size 4,2,2,same
+internal,size 5,5,3,fewer in Loadout: empty slots are not written, check the outfitting screen
+internal,size 6,1,1,same
+internal,size 7,2,2,same
+internal,size 8,1,1,same
+military,count,2,2,same
+hardpoint,Small,2,2,same
+hardpoint,Large,4,4,same
+hardpoint,Huge,1,1,same
+utility,count,unpublished,8,from the Loadout
+cargo,fitted,750 max,96,as fitted (max needs every internal a cargo rack)
