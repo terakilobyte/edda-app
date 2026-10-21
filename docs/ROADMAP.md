@@ -1277,6 +1277,27 @@ verdicts live in the CSV headers under `docs/benches/`.
     the FDevIDs shipyard row, `ed_journal::ships` name + "Mk II" spacing,
     the Coriolis hull row (mass, shields, speed: the performance figures
     read 0 hull mass until it exists), SCO boost class.
+    **Launch-day cross-reference (2026-10-20, the boss: "cross reference
+    what we looked up with anything in EDCD";
+    `docs/benches/2026-10-20-anaconda-mkii-edcd-crossref.csv`).** EDCD
+    FDevIDs master is unchanged since 2026-09-05 (our vendored tables are
+    byte-identical to it); open PR #114 (2026-10-20) adds the ship:
+    symbol `AnacondaMkII`, id 129046025, name "Anaconda Mk II" with the
+    spaces, entitlement `ELITE_V_ANACONDA_MKII`, six armours (a grade-1
+    "Mk II Ablative Lightweight Alloys" C plus a `_Grade1_Default` plain
+    "Lightweight Alloy", then B/A/A/A), and a new 6D
+    `Int_LargeCargoRack_Size6_Class1` "Mk II Cargo Rack" (96 t). EDSY
+    added the hull the same day (4.24.2.2): every published spec agrees
+    three ways, and the 750 t is exactly standard racks plus that 6D Mk II
+    rack in the cargo-only slot, which is named `Cargo01` as on the
+    Panther (the slot table and `ed_ships::slots` already know the name;
+    `new_hull_from_loadout.py` does not and would skip it: fix before day
+    one). EDSY alone adds 8 utilities, a class 6 fuel tank, 940 t,
+    190/250, shields 450, armour 745, 372.0 M. OPEN: EDSY also admits the
+    Panther's 7D/8D Mk II racks (1006 t if so; EDCD adds only the 6D), the
+    outfitting screen decides. coriolis-data has nothing for the hull
+    (no commit since 2026-09-26). Nothing vendored yet: the Loadout first,
+    then PR #114's rows when it merges.
   - **Ship rebalance, 2026-10-20** (Asp Scout, Federal Dropship,
     Imperial Clipper, Type-6, Type-7, Viper Mk IV, Sidewinder, Eagle,
     Caspian, Mandalay: extra internals/utility, jump range, speed,
@@ -1288,6 +1309,22 @@ verdicts live in the CSV headers under `docs/benches/`.
     slot table, rerun, diff. Note from the baseline itself: Coriolis
     counts military slots among the internals (Dropship 4x3 vs the slot
     table's 4x1), which is why the two columns differ today.
+    **EDSY's reading of the patch (2026-10-20, same CSV, by
+    `knobs/edsy_ship_diff.py` between its hull-added and patch commits):**
+    all ten ships moved as announced (Asp Scout 220/300 -> 270/360 and a
+    third utility; Dropship 580 -> 500 t, 180 -> 200; Clipper 400 -> 350 t,
+    shields 180 -> 200; Type-6 shields 90 -> 125; Type-7 350 -> 300 t;
+    Viper Mk IV 270/340 -> 280/360; Sidewinder shields 40 -> 55; Eagle
+    60 -> 80; Caspian 950 -> 825 t; Mandalay 230 -> 190 t), each of the
+    four "additional internal" ships gaining a `Slot00_*`. Three things
+    the journal must settle before the tables move: the Clipper's fuel
+    tank class 4 -> 5 (unannounced), the Type-7 gaining a size 6 as well
+    as the size 7 (two slots both named `Slot00`, likely an EDSY slip),
+    the Asp Scout's third utility. Pre-existing Coriolis-vs-EDSY
+    disagreements that are not patch changes: Caspian heat 250/341 and
+    masslock 19/21, Mandalay heat 250/245, Type-7 shields 155/156.
+    coriolis-data carries none of the patch yet, so the refresh above
+    waits on it or on EDSY-derived rows.
   - **Law & Disorder, December** (details next month). Touchpoints found
     by grep, each an OPEN item until the journal manual for the update:
     (1) the kill warrant scanner is removed -- `outfitting.csv` rows,

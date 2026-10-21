@@ -1,0 +1,32 @@
+# Anaconda Mk II and the 4.4.2.0 rebalance: what we pinned from the dev log (2026-10-14) against what EDCD and EDSY hold on launch day (2026-10-20, read 2026-10-21T02:50Z).
+# Sources: EDCD FDevIDs master (last commit 2026-09-05; our vendored shipyard.csv/outfitting.csv are byte-identical to it) and open PR #114 (bgol, 2026-10-20T16:28Z, 9 lines, mergeable); EDCD coriolis-data (no commit since 2026-09-26, nothing for the ship or the patch); EDSY master at ea787cf8 (4.24.2.2), ship diff between 42dfa51e (hull added) and a0942192 ("updated many ship attributes and internal slots for game patch 4.4.2.0") by knobs/edsy_ship_diff.py.
+# Verdict: every published fact of the hull agrees three ways (dev log = EDCD PR = EDSY): symbol AnacondaMkII, name "Anaconda Mk II" (spaces, as Kestrel Mk II), core 8/7/8/5/8/8, internals 8 7 7 6c 5 5 5 4 4 3 2 1 plus two military 5, hardpoints 1 huge 4 large 2 small, max cargo 750 = standard racks + the new 6D Mk II rack (96) in the cargo-only slot. New from EDSY only: 8 utilities, class 6 fuel tank, mass 940, 190/250, shields 450, armour 745, hardness 65, 372.0 M (retail 385.0 M); the cargo-only slot is named Cargo01 as on the Panther. OPEN: EDSY also lets the Panther's 7D/8D Mk II racks (192/384) into the Anaconda Mk II, which would make 1006 t; EDCD adds only the 6D; the outfitting screen decides. The rebalance: EDSY's before/after matches the dev log's list on all ten ships; three slot-count surprises for the journal to settle (Clipper fuel tank 4->5, Type-7 gains a size 6 as well as the size 7 with a duplicated slot name, Asp Scout +1 utility). Pre-existing Coriolis-vs-EDSY disagreements, not patch changes: Caspian heat 250/341 and masslock 19/21, Mandalay heat 250/245, Type-7 shields 155/156. Nothing vendored yet: the journal's Loadout is the first source (ground-every-fact), then EDCD's rows once PR #114 merges.
+fact,dev_log_2026-10-14,edcd_pr114,edsy_4.24.2.2,agree
+symbol,unpublished,AnacondaMkII (id 129046025),AnacondaMkII (fdid 129046025),yes
+name,Anaconda Mk II,Anaconda Mk II,Anaconda Mk II,yes
+entitlement,ARX early access,ELITE_V_ANACONDA_MKII (sku.csv: early access purchase in the arx store),-,yes
+core PP/thr/FSD/LS/PD/sensors,8/7/8/5/8/8,-,8/7/8/5/8/8,yes
+fuel tank class,unpublished,-,6,edsy only
+internals,1xS1 1xS2 1xS3 2xS4 5xS5 (2 military) 1xS6 cargo-only 2xS7 1xS8,-,Slot01_Size8 Slot02_Size7 Slot03_Size7 Cargo01(6; cft+icr) Slot04-06_Size5 Slot07-08_Size4 Slot09_Size3 Slot10_Size2 Slot11_Size1 + Military 5 5,yes
+hardpoints,2 small 4 large 1 huge,-,4 3 3 3 3 1 1,yes
+utilities,unpublished,-,8,edsy only
+max cargo,750,-,750 with standard racks + 6D Mk II rack; 1006 if the 7D/8D Mk II racks fit (EDSY reserves them to ships 18 and 63),OPEN
+armour grade1,Mk II ablative armour,AnacondaMkII_Armour_Grade1 "Mk II Ablative Lightweight Alloys" C (129046027) + AnacondaMkII_Armour_Grade1_Default "Lightweight Alloy" C (129046028),fdid 129046027 (mass 15; 19.2 M) + 129046028 default (0 t; 0 Cr),yes
+armour grade2/3/mirrored/reactive,-,129046029 B / 129046030 A / 129046031 A / 129046032 A "Mk II Ablative ...",same fdids (30 t 154.0 M / 60 t 346.5 M / 60 t 818.8 M / 60 t 907.3 M),yes
+new module,-,Int_LargeCargoRack_Size6_Class1 "Mk II Cargo Rack" 6D (129051593; no entitlement),module 640 "Mk II Cargo Rack (Cap: 96)" 6D 587400 Cr,yes
+mass / speed / boost,unpublished,-,940 t / 190 / 250,edsy only
+shields / armour / hardness,unpublished,-,450 / 745 / 65,edsy only
+crew / price,4 seats / unpublished,-,4 / 372041780 (retail 384958850),edsy only
+coriolis-data,-,no commit since 2026-09-26; no hull row,-,n/a
+# The 4.4.2.0 rebalance as EDSY read it (42dfa51e -> a0942192), against the dev log's announced list.
+ship,announced,edsy_before_to_after,agree
+Asp Scout,additional utility slot; improved jump range; increased speed; additional maneuverability,utilities 2->3; mass 150->140; speed 220->270; boost 300->360; yaw 15->18; accel fwd 35->40 rev 20->30,yes
+Federal Dropship,additional size 6 internal; improved jump range; increased speed,+Slot00_Size6 (internals 6 6 5 5 4 3 3 2 1); mass 580->500; speed 180->200,yes
+Imperial Clipper,additional size 7 internal; improved jump range; increased shield capacity,+Slot00_Size7 (internals 7 7 6 4 4 3 3 2 2 1); mass 400->350; shields 180->200; fuel tank class 4->5 (not announced),yes + 1 OPEN
+Type-6 Transporter,additional size 6 internal; increased shield capacity,+Slot00_Size6 (internals 6 5 5 4 4 3 2 2 1); shields 90->125,yes
+Type-7 Transporter,additional size 7 internal; improved jump range; greater thermal,+Slot00_Size7 AND +Slot00_Size6 (internals 7 6 6 6 6 5 5 5 3 3 2 1; two slots named Slot00); mass 350->300; heat 226->232,one extra slot OPEN
+Viper Mk IV,increased shield capacity; increased speed; additional maneuverability,shields 150->160; speed 270->280; boost 340->360; pitch 30->33; yaw 12->13,yes
+Sidewinder,increased shield capacity; additional maneuverability,shields 40->55; pitch 42->43; yaw 16->17; mnv 5->6,yes
+Eagle,increased shield capacity,shields 60->80,yes
+Caspian Explorer,improved jump range,mass 950->825,yes
+Mandalay,improved jump range,mass 230->190,yes
