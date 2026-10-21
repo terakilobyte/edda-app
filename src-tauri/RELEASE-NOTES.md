@@ -7,6 +7,41 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.8
+
+The Anaconda Mk II is supported on its launch day. EDDA names it, finds
+it in shipyard and market searches, knows its landing pad, its slots and
+its stock fit, and the Build Planner plans it with the new 6D Mk II Cargo
+Rack and the six Mk II Ablative bulkheads. The ship's own Loadout,
+read the hour it was bought, agrees with the table on every one of its
+38 slots. The 4.4.2.0 rebalance of ten ships is in the slot table where
+Frontier's notes and EDSY agree.
+
+Full notes:
+
+- **Anaconda Mk II.** Symbol `anacondamkii`, printed "Anaconda Mk II"
+  as the game writes it. Name search and completion know it; the plain
+  Anaconda still resolves exactly. A large pad. The slot table carries
+  its 12 internals (the cargo-only slot `Cargo01` takes racks and fuel
+  tanks only, as on the Panther), two size-5 military slots, eight
+  utilities, two small, four large and one huge hardpoint, and the 6C
+  fuel tank. Hull figures (940 t, 190/250) from EDSY until Coriolis
+  carries the ship; EDCD's shipyard and outfitting rows from their
+  pull request of the same day.
+- **Six bulkheads.** The Anaconda Mk II and the Caspian Explorer sell a
+  plain Lightweight Alloy and a Mk II Ablative set. The Build Planner
+  now weighs the ablative grade 1 at its 15 t instead of the default's
+  0 t, on both hulls.
+- **New modules.** The 6D Mk II Cargo Rack (96 t) and the Mk II Large
+  Planetary Vehicle Hangar are in the tables, so a build carrying them
+  sums to the journal's mass. The ship kit hologram slot is cosmetic.
+- **4.4.2.0 rebalance.** The slot table gains the announced internals
+  (Federal Dropship size 6, Imperial Clipper size 7 and a class 5 fuel
+  tank, Type-6 size 6, Type-7 size 7) and the Asp Scout's third
+  utility. Hull masses and speeds wait on Coriolis data; the Caspian
+  and Mandalay jump-range figures in the planner are therefore still
+  the pre-patch masses.
+
 ## 0.4.7
 
 Long-range plotting gets three weeks of planner work. Every galaxy
