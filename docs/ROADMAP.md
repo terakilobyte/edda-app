@@ -172,7 +172,14 @@ verdicts live in the CSV headers under `docs/benches/`.
   planner can take (instead of exact-planning 45k ly) lets the x4/x16 waves
   cross; (3) bidi seeding from the gateway neutrons at injection ends.
   Harness: `docs/benches/knobs/stress_route.sh` (prod), `stress_pc.sh` and
-  `stress_halves.sh` (PC, full index, per-leg debug). **Design (same
+  `stress_halves.sh` (PC, full index, per-leg debug). **Prod answers it
+  since 0.4.8 (2026-10-23, the maintainer from the app; the box's journal
+  in the CSV's postscript):** Ood Fleau -> Sphiesi first route 809 j at
+  22 s, final 444 j / 11 injections at the 100 s budget (the witness
+  variant's 441 j at 89 s; every coarse variant still stalls at its 30k
+  cap ~44k ly short, 12-16 s each on 2 threads); Sphiesi -> Ood Fleau
+  first 746 j at 6.8 s, final 451 j / 8 injections. The reference's 453.
+  The structural questions below stay open. **Design (same
   day, five read-only audits + the weight sweep):**
   `docs/superpowers/specs/2026-10-17-planner-unification-design.md` -- one
   pilot-seconds currency in judge and search, one anytime search over a

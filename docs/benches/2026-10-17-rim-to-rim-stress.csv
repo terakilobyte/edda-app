@@ -41,6 +41,18 @@
 # tax on the 20-65k ly pins and non-monotone on crossings (2.5 loses Jongou
 # XM-W that 2.0 finds in 13 s); both rim directions fail at every weight in
 # 100 s on the PC. Design: superpowers/specs/2026-10-17-planner-unification-design.md.
+# POSTSCRIPT 2026-10-23 (prod, 0.4.8 server, the maintainer plotting from the
+# app; read from the box's edda-api journal): both directions now answer.
+# Ood Fleau -> Sphiesi: first route 809 j at 22.0 s wall (planner 17.0 s),
+# better-so-far 479 j at 61 s and 441 j / 20 stops at 89 s (the witness
+# variant), final 444 j / 11 injections at the 100 s budget (variants 1/20:
+# every coarse variant stalled at 30,001 expansions 43,966-45,036 ly short,
+# 12.5-16 s each, two at a time on the box's 2 planner threads; the witness
+# carried it). Sphiesi -> Ood Fleau: first 746 j at 6.8 s, 469 j at 45 s,
+# 453 j at 69 s, final 451 j / 8 injections at 102.5 s. PC the same day's
+# code: 410 / 447 j with first routes at 2.3 / 1.6 s on 24 threads. OPEN:
+# the forward final (444 j) is 3 jumps over its last better-so-far (441 j)
+# -- the judge is seconds, the stop counts of the two were not logged.
 where,case,from,to,budget_s,outcome,wall_s,jumps,boosted,injections,refuels,total_ly,note
 reference,exact plotter 60 s,Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,60,route,61,453,251,22,19,114668,optimistic algo; closest approach to Sgr A* 13277 ly; plain runs >4 jumps: 16 (max 24)
 prod,no injection (canary body range 72.06),Ood Fleau ZJ-I d9-0,Sphiesi HX-L d7-0,100,422 island,0.6,,,,,,nearest 80.3 ly beyond reach 72.06
