@@ -55,7 +55,7 @@ if sorted(m["products"]) != before:
 print("manifest after:", sorted(m["products"]))
 PY
 chown edda:edda "$A/current.json"
-echo "served: $(curl -fsS http://127.0.0.1:8788/v1/manifest | python3 -c 'import sys,json;print(sorted(json.load(sys.stdin)["products"]))')"
+echo "served: $(curl -fsS http://127.0.0.1:8787/v1/manifest | python3 -c 'import sys,json;print(sorted(json.load(sys.stdin)["products"]))')"
 
 for d in community market_daily market; do
     if [ -d "$A/$d" ]; then
