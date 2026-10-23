@@ -48,6 +48,12 @@ Full notes:
   (Asp Scout, Caspian Explorer, Federal Dropship, Imperial Clipper,
   Mandalay, Type-7), so those six jump-range figures are now the
   post-patch ones. Speed, boost and shields are unchanged.
+- **TLS trust.** The eMudhra (emSign) certificate authority's keys were
+  compromised in October 2026. Every HTTPS connection EDDA makes, from
+  the app and from the route server, validates certificates with rustls;
+  its trust store and path validation are updated to the releases that
+  remove those roots and reject their intermediates (webpki-roots
+  1.0.11, rustls-webpki 0.103.16).
 
 ## 0.4.7
 
