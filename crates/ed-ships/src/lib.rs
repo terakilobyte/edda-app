@@ -72,9 +72,18 @@ fn f(v: &Value, k: &str) -> Option<f64> {
 impl Catalog {
     pub fn load() -> Self {
         let mut ships = HashMap::new();
+        // Hull mass is EDSY's (maintainer, 2026-10-23): Coriolis and EDSY
+        // agreed on 42 of 48 hulls and differed on exactly the six the
+        // 4.4.2.0 patch lightened, which coriolis-data had not carried.
+        let hull_masses: HashMap<String, f64> =
+            serde_json::from_str::<HashMap<String, Value>>(data::HULL_MASSES)
+                .expect("hull masses JSON parses")
+                .into_iter()
+                .filter_map(|(k, v)| Some((k, v.as_f64()?)))
+                .collect();
         for text in data::SHIPS {
             let v: Value = serde_json::from_str(text).expect("vendored ship JSON parses");
-            for (_, ship) in v.as_object().into_iter().flatten() {
+            for (key, ship) in v.as_object().into_iter().flatten() {
                 let p = &ship["properties"];
                 let name = p["name"].as_str().unwrap_or_default().to_string();
                 let bulkhead_mass = ship["bulkheads"]
@@ -84,7 +93,7 @@ impl Catalog {
                 ships.insert(
                     name.to_ascii_lowercase(),
                     Ship {
-                        hull_mass: f(p, "hullMass").unwrap_or(0.0),
+                        hull_mass: hull_masses.get(key).copied().or_else(|| f(p, "hullMass")).unwrap_or(0.0),
                         speed: f(p, "speed").unwrap_or(0.0),
                         boost: f(p, "boost").unwrap_or(0.0),
                         reserve_fuel: f(p, "reserveFuelCapacity").unwrap_or(0.0),
@@ -570,6 +579,26 @@ mod tests {
         assert_eq!(paid.stats.get("mass"), free.stats.get("mass"));
         assert!(c.module("Int_PowerPlant_Size2_Class1_free").is_some(), "a starter core module");
         assert!(c.module("int_nothing_free").is_none());
+    }
+
+    /// Hull masses are EDSY's (the maintainer, 2026-10-23: "then maybe we
+    /// should use edsy hull masses"), measured first: Coriolis and EDSY agree
+    /// on 42 of 48 hulls and differ on exactly the six the 4.4.2.0 patch
+    /// lightened (docs/benches/2026-10-23-hull-mass-coriolis-vs-edsy.csv).
+    /// The six move; a hull the patch left alone keeps its figure.
+    #[test]
+    fn hull_masses_are_edsys_after_the_4_4_2_0_patch() {
+        let c = Catalog::load();
+        let mass = |symbol: &str| c.ship(symbol).unwrap_or_else(|| panic!("{symbol}")).hull_mass;
+        assert_eq!(mass("explorer_nx"), 825.0, "Caspian Explorer 950 -> 825");
+        assert_eq!(mass("mandalay"), 190.0, "Mandalay 230 -> 190");
+        assert_eq!(mass("asp_scout"), 140.0, "Asp Scout 150 -> 140");
+        assert_eq!(mass("federation_dropship"), 500.0, "Federal Dropship 580 -> 500");
+        assert_eq!(mass("empire_trader"), 350.0, "Imperial Clipper 400 -> 350");
+        assert_eq!(mass("type7"), 300.0, "Type-7 350 -> 300");
+        assert_eq!(mass("anaconda"), 400.0, "untouched by the patch");
+        assert_eq!(mass("type9_military"), 1200.0, "untouched by the patch");
+        assert_eq!(mass("anacondamkii"), 940.0, "already EDSY's");
     }
 
     /// An imported build's swap: a heavier module in a slot weighs more

@@ -1,0 +1,55 @@
+# Hull mass, Coriolis vs EDSY, every hull in the Build Planner (2026-10-23). The maintainer, on the six hulls the 4.4.2.0 patch lightened while EDCD's coriolis-data sat at 2026-09-26: "then maybe we should use edsy hull masses".
+# Pre-registered: the two sources agree on hull mass everywhere except the hulls the patch rebalanced (dev log 2026-10-14; EDSY commit a0942192). Inputs: vendored coriolis-data 0db9234 (47 rows) + data/hulls/anacondamkii.json (already EDSY's), EDSY live eddb.js 2026-10-23 (sha1 d7c5e55, = repo ea787cf8). Knob: docs/benches/knobs/edsy_hull_masses.py --csv.
+# Verdict: as pre-registered. 42 of 48 masses identical; the 6 that differ are exactly the patch's six (Asp Scout 150->140, Caspian 950->825, Federal Dropship 580->500, Imperial Clipper 400->350, Mandalay 230->190, Type-7 350->300). EDSY's mass is now the planner's for every hull (data/hulls/edsy_masses.json, generated; Catalog::load overrides hullMass by Coriolis row key), test hull_masses_are_edsys_after_the_4_4_2_0_patch RED->GREEN; the Anaconda Mk II and Type-10 as-flown pins unchanged.
+# Not adopted (OPEN): speed/boost differ on 10 hulls -- 3 are the patch (Asp Scout, Dropship, Viper Mk IV), 7 are a unit or two apart for reasons older than the patch (Coriolis 204/291/271/181/179/272 vs EDSY 200/290/270/180/180/270; Coriolis looks measured, EDSY rounded); shields differ on 7 -- 5 are the patch (Eagle, Clipper, Sidewinder, Type-6, Viper Mk IV), Type-7 155/156 is older. A journal Loadout carries neither, so no pin is possible from here; the planner does not use speed for jump.
+# Side finding: Coriolis's Frontier ids for the Caspian (129036570), Corsair (129031321), Kestrel (129041381) and Python Mk II (129030464 vs EDSY's 128666762) do not match EDSY's; EDCD shipyard.csv sides with EDSY on the first three (129036569, 129031320, 129039241) and with Coriolis on the Python Mk II (129030464). The knob matches by id, then by name. Coriolis's "Viper" is Frontier's "Viper MkIII".
+# Journal pins to come: the maintainer's Caspian (ShipID 34, last Loadout 2026-09-05, UnladenMass 1323.3) and Mandalay (ShipID 31, 2026-10-14, 316.76) are pre-patch; pre-registered for his next swap into each, fit unchanged: 1198.3 t and 276.76 t. A miss means EDSY's mass is wrong and this file's verdict is reopened.
+hull,name,coriolis_mass,edsy_mass,coriolis_speed_boost,edsy_speed_boost,coriolis_shields,edsy_shields,differs
+adder,Adder,35,35,220/320,220/320,60,60,no
+alliance_challenger,Alliance Challenger,450,450,204/310,200/310,220,220,speed
+alliance_chieftain,Alliance Chieftain,400,400,230/330,230/330,200,200,no
+alliance_crusader,Alliance Crusader,500,500,180/300,180/300,200,200,no
+anaconda,Anaconda,400,400,180/240,180/240,350,350,no
+asp,Asp Explorer,280,280,250/340,250/340,140,140,no
+asp_scout,Asp Scout,150,140,220/300,270/360,120,120,mass speed
+beluga,Beluga Liner,950,950,200/280,200/280,280,280,no
+cobra_mk_iii,Cobra Mk III,180,180,280/400,280/400,80,80,no
+cobra_mk_iv,Cobra Mk IV,210,210,200/300,200/300,120,120,no
+cobramkv,Cobra Mk V,150,150,291/412,290/410,160,160,speed
+diamondback_explorer,Diamondback Explorer,260,260,260/340,260/340,150,150,no
+diamondback,Diamondback Scout,170,170,280/380,280/380,120,120,no
+dolphin,Dolphin,140,140,250/350,250/350,110,110,no
+eagle,Eagle,50,50,240/350,240/350,60,80,shields
+explorer_nx,Caspian Explorer,950,825,210/290,210/290,500,500,mass
+federal_assault_ship,Federal Assault Ship,480,480,210/350,210/350,200,200,no
+federal_corvette,Federal Corvette,900,900,200/260,200/260,555,555,no
+federal_dropship,Federal Dropship,580,500,180/300,200/300,200,200,mass speed
+federal_gunship,Federal Gunship,580,580,170/280,170/280,250,250,no
+fer_de_lance,Fer-de-Lance,250,250,260/350,260/350,300,300,no
+hauler,Hauler,14,14,200/300,200/300,50,50,no
+imperial_clipper,Imperial Clipper,400,350,300/380,300/380,180,200,mass shields
+imperial_corsair,Corsair,265,265,280/355,280/355,235,235,no
+imperial_courier,Imperial Courier,35,35,280/380,280/380,200,200,no
+imperial_cutter,Imperial Cutter,1100,1100,200/320,200/320,600,600,no
+imperial_eagle,Imperial Eagle,50,50,300/400,300/400,80,80,no
+keelback,Keelback,180,180,200/300,200/300,135,135,no
+kestrel,Kestrel Mk II,190,190,271/360,270/360,225,225,speed
+krait_mkii,Krait Mk II,320,320,240/330,240/330,220,220,no
+krait_phantom,Krait Phantom,270,270,250/350,250/350,200,200,no
+mamba,Mamba,250,250,310/380,310/380,270,270,no
+mandalay,Mandalay,230,190,280/350,280/350,220,220,mass
+orca,Orca,290,290,300/380,300/380,220,220,no
+panthermkii,Panther Clipper Mk II,1200,1200,181/250,180/250,350,350,speed
+python,Python,350,350,230/300,230/300,260,260,no
+python_nx,Python Mk II,450,450,256/345,256/345,335,335,no
+sidewinder,Sidewinder,25,25,220/320,220/320,40,55,shields
+type_10_defender,Type-10 Defender,1200,1200,179/219,180/220,320,320,speed
+type_11_prospector,Type-11 Prospector,320,320,272/367,270/365,275,275,speed
+type_6_transporter,Type-6 Transporter,155,155,220/350,220/350,90,125,shields
+type_7_transport,Type-7 Transporter,350,300,180/300,180/300,155,156,mass shields
+type_8_transport,Type-8 Transporter,400,400,200/340,200/340,228,228,no
+type_9_heavy,Type-9 Heavy,850,850,130/200,130/200,240,240,no
+viper,Viper,50,50,320/400,320/400,105,105,no
+viper_mk_iv,Viper Mk IV,190,190,270/340,280/360,150,160,speed shields
+vulture,Vulture,230,230,210/340,210/340,240,240,no
+anacondamkii,Anaconda Mk II,940,940,190/250,190/250,450,450,no

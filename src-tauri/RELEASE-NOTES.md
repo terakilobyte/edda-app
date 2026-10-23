@@ -15,7 +15,8 @@ its stock fit, and the Build Planner plans it with the new 6D Mk II Cargo
 Rack and the six Mk II Ablative bulkheads. The ship's own Loadout,
 read the hour it was bought, agrees with the table on every one of its
 38 slots. The 4.4.2.0 rebalance of ten ships is in the slot table where
-Frontier's notes and EDSY agree.
+Frontier's notes and EDSY agree, and the six lightened hulls carry
+their new masses in the Build Planner.
 
 Full notes:
 
@@ -40,9 +41,13 @@ Full notes:
 - **4.4.2.0 rebalance.** The slot table gains the announced internals
   (Federal Dropship size 6, Imperial Clipper size 7 and a class 5 fuel
   tank, Type-6 size 6, Type-7 size 7) and the Asp Scout's third
-  utility. Hull masses and speeds wait on Coriolis data; the Caspian
-  and Mandalay jump-range figures in the planner are therefore still
-  the pre-patch masses.
+  utility.
+- **Hull masses from EDSY.** The Build Planner's hull mass now comes
+  from EDSY for every ship. Measured first: the two sources agreed on
+  42 of 48 hulls and differed on exactly the six the patch lightened
+  (Asp Scout, Caspian Explorer, Federal Dropship, Imperial Clipper,
+  Mandalay, Type-7), so those six jump-range figures are now the
+  post-patch ones. Speed, boost and shields are unchanged.
 
 ## 0.4.7
 
