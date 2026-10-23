@@ -158,8 +158,12 @@ impl Catalog {
     }
 
     /// By the journal's item symbol (`int_hyperdrive_size7_class5`).
+    /// By journal symbol. The `_free` early-access variant of a module is
+    /// that module (a starter ship's cores, the Mk II hangars as a carrier's
+    /// board delivers them).
     pub fn module(&self, item: &str) -> Option<&Module> {
-        self.modules.get(&item.to_ascii_lowercase())
+        let lower = item.to_ascii_lowercase();
+        self.modules.get(&lower).or_else(|| self.modules.get(lower.strip_suffix("_free")?))
     }
 
     pub fn blueprint(&self, fdname: &str) -> Option<&BlueprintEffects> {
@@ -550,6 +554,22 @@ mod tests {
         let near = |a: f64, b: f64, tol: f64, what: &str| assert!((a - b).abs() <= tol, "{what}: ours {a} vs the journal {b}");
         near(s.unladen_mass, loadout["UnladenMass"].as_f64().unwrap(), 0.1, "unladen mass");
         near(s.jump_max.unwrap(), loadout["MaxJumpRange"].as_f64().unwrap(), 0.01, "jump, max");
+    }
+
+    /// A module delivered free is that module: the carrier's outfitting board
+    /// on 2026-10-21 listed the Anaconda Mk II's hangars only as the `_free`
+    /// variants (Outfitting.json: int_mkiilargebuggybay_size4_class3_free),
+    /// and a starter Sidewinder's Loadout carries `_free` on every core
+    /// module. The slot table already reads them so (slots.rs); the catalog
+    /// must too, or such a Loadout cannot sum.
+    #[test]
+    fn a_module_delivered_free_is_that_module() {
+        let c = Catalog::load();
+        let paid = c.module("int_mkiilargebuggybay_size4_class3").expect("the hangar as bought");
+        let free = c.module("int_mkiilargebuggybay_size4_class3_free").expect("the hangar as delivered free");
+        assert_eq!(paid.stats.get("mass"), free.stats.get("mass"));
+        assert!(c.module("Int_PowerPlant_Size2_Class1_free").is_some(), "a starter core module");
+        assert!(c.module("int_nothing_free").is_none());
     }
 
     /// An imported build's swap: a heavier module in a slot weighs more

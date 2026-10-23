@@ -35,6 +35,8 @@ Full notes:
 - **New modules.** The 6D Mk II Cargo Rack (96 t) and the Mk II Large
   Planetary Vehicle Hangar are in the tables, so a build carrying them
   sums to the journal's mass. The ship kit hologram slot is cosmetic.
+  A module delivered free (a carrier's board lists the Mk II hangars
+  only as `_free`; a starter ship's cores) is read as that module.
 - **4.4.2.0 rebalance.** The slot table gains the announced internals
   (Federal Dropship size 6, Imperial Clipper size 7 and a class 5 fuel
   tank, Type-6 size 6, Type-7 size 7) and the Asp Scout's third
