@@ -1352,7 +1352,12 @@ verdicts live in the CSV headers under `docs/benches/`.
     carries the five ships' new slots under EDSY's `Slot00_*` names,
     unverified until a Loadout of each. Frontier's speed lines (Asp Scout
     110 -> 220, Viper Mk IV 175 -> 180, Dropship 100 -> 160) match no
-    tool's top speed: OPEN as to what they measure. Hull mass is EDSY's for
+    tool's top speed: OPEN as to what they measure. **0.4.8 cut 2026-10-23
+    unflown** (the maintainer: "I don't have time to fly it, but I trust
+    edcd and edsy") -- the first release since the 2026-09-06 rule without
+    his flight, waived by him for this one on the cross-reference and the
+    Loadout pin; the API redeployed the same hour for the TLS trust update.
+    Hull mass is EDSY's for
     every hull since 2026-10-23 (the maintainer: "then maybe we should use
     edsy hull masses"), measured first: Coriolis and EDSY agreed on 42 of
     48 and differed on exactly the patch's six
