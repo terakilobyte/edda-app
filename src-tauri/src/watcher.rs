@@ -12,7 +12,6 @@
 
 use crate::callouts::{self, Callout, CalloutState};
 use crate::state::{remember, AppState};
-use ed_store::Store;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use std::path::Path;
@@ -41,7 +40,7 @@ const POLL: Duration = Duration::from_millis(500);
 /// Still holds an `AppHandle` for the callout pass, which reaches into
 /// `follow` and `knowledge`; the sync-and-announce path itself goes
 /// through the [`Announcer`].
-pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, journal_dir: &Path) {
+pub fn run(token: CancellationToken, app: AppHandle, registry: Arc<ed_store::registry::Registry>, journal_dir: &Path) {
     let journal_dir = journal_dir.to_path_buf();
     {
         let (tx, rx) = channel();
@@ -58,14 +57,13 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
             return;
         }
 
-        // Callout context seeded from what the store already knows.
-        let (mut watermark, mut cstate) = {
-            let guard = store.lock().unwrap_or_else(|e| e.into_inner());
-            (
-                ed_store::session::last_event_key(guard.conn()).ok().flatten(),
-                seed_state(guard.conn()),
-            )
-        };
+        // Callout context per commander's store, seeded from what that
+        // store already knows the first time the loop meets it.
+        struct PerStore {
+            watermark: Option<ed_store::session::Watermark>,
+            cstate: CalloutState,
+        }
+        let mut per: std::collections::HashMap<String, PerStore> = std::collections::HashMap::new();
 
         let mut idle = Duration::ZERO;
         // Noise rows older than the grace window are pruned once an hour
@@ -90,35 +88,60 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                     // Drain the burst before doing any work.
                     while rx.recv_timeout(Duration::from_millis(400)).is_ok() {}
 
-                    let synced = {
-                        let guard = store.lock().unwrap_or_else(|e| e.into_inner());
-                        guard.sync()
-                    };
+                    let synced = registry.sync_all(|_, _, _| {});
                     match synced {
-                        Ok(stats) => {
+                        Ok(sync) => {
+                            let (selected, alerts_on) = {
+                                let state = app.state::<AppState>();
+                                // A fresh install's first Commander line: follow it.
+                                state.adopt_new_commanders(&sync.new_fids);
+                                let alerts = state.config.lock().unwrap_or_else(|e| e.into_inner()).other_commander_alerts;
+                                (state.selected_fid(), alerts)
+                            };
                             // Emit for a companion-only change (Status.json,
                             // Cargo.json) so panels refresh fuel and cargo — but
                             // not for a quiet pass: every panel re-derives on this
-                            // signal (2026-10-03: 153 MB read per idle sync).
-                            if stats.ingest.events_inserted > 0 || stats.ingest.snapshots_updated > 0 {
-                                let _ = app.emit(crate::events::JOURNAL_CHANGED, stats.ingest.events_inserted);
+                            // signal (2026-10-03: 153 MB read per idle sync). Only
+                            // the SELECTED store's changes count; a new commander
+                            // appearing does too, so the strip learns of it.
+                            let (sel_events, sel_snaps) = sync
+                                .per_store
+                                .get(&selected)
+                                .map(|s| (s.ingest.events_inserted, s.ingest.snapshots_updated))
+                                .unwrap_or((0, 0));
+                            if sel_events > 0 || sel_snaps > 0 || !sync.new_fids.is_empty() {
+                                let _ = app.emit(crate::events::JOURNAL_CHANGED, sel_events);
                             }
 
                             if last_prune.is_none_or(|t| t.elapsed() >= Duration::from_secs(3600)) {
                                 last_prune = Some(std::time::Instant::now());
                                 let cutoff = (chrono::Utc::now() - chrono::Duration::hours(ed_store::maintenance::NOISE_GRACE_HOURS)).format("%Y-%m-%dT%H:%M:%SZ").to_string();
-                                let guard = store.lock().unwrap_or_else(|e| e.into_inner());
-                                match ed_store::maintenance::prune_noise(guard.conn(), &cutoff) {
-                                    Ok(0) => {}
-                                    Ok(n) => tracing::info!(rows = n, %cutoff, "pruned noise events older than the grace window"),
-                                    Err(e) => tracing::warn!(error = %e, "noise prune failed"),
+                                for (_, store) in registry.stores() {
+                                    let guard = store.lock().unwrap_or_else(|e| e.into_inner());
+                                    match ed_store::maintenance::prune_noise(guard.conn(), &cutoff) {
+                                        Ok(0) => {}
+                                        Ok(n) => tracing::info!(rows = n, %cutoff, "pruned noise events older than the grace window"),
+                                        Err(e) => tracing::warn!(error = %e, "noise prune failed"),
+                                    }
                                 }
                             }
 
+                            // One pass per commander. The selected commander keeps
+                            // the whole pipeline; the others keep only the danger
+                            // set, and only when asked (maintainer, 2026-10-24).
+                            for (fid, store) in registry.stores() {
+                            let Some(stats) = sync.per_store.get(&fid).copied() else { continue };
+                            let is_selected = fid == selected;
                             let mut out: Vec<Sourced> = Vec::new();
                             {
                                 let guard = store.lock().unwrap_or_else(|e| e.into_inner());
                                 let conn = guard.conn();
+                                let st = per.entry(fid.clone()).or_insert_with(|| PerStore {
+                                    watermark: ed_store::session::last_event_key(conn).ok().flatten(),
+                                    cstate: seed_state(conn),
+                                });
+                                let watermark = &mut st.watermark;
+                                let cstate = &mut st.cstate;
                                 if stats.ingest.events_inserted > 0 {
                                     // The watermark is the last event we *announced*, which
                                     // can lag the store when a pass hits the cap; the next
@@ -138,10 +161,10 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                 pass_events.push(v.clone());
                                                 // Item 43: a real supercharge lights the HUD's
                                                 // next-target box; the journal is the truth.
-                                                if v.get("event").and_then(Value::as_str) == Some("JetConeBoost") {
+                                                if is_selected && v.get("event").and_then(Value::as_str) == Some("JetConeBoost") {
                                                     let _ = app.emit(crate::events::SUPERCHARGE, ());
                                                 }
-                                                for mut c in callouts::from_event(&v, &mut cstate) {
+                                                for mut c in callouts::from_event(&v, cstate) {
                                                     // Catch-up is history, not news: an app booted
                                                     // mid-session replays the whole day's journal, and
                                                     // speaking it flooded the voice queue (dev flight
@@ -167,8 +190,10 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                     out.push((c, Some(v.clone())));
                                                 }
                                                 // These need the store, so they live here
-                                                // rather than in the pure rules.
-                                                match v.get("event").and_then(Value::as_str) {
+                                                // rather than in the pure rules. The selected
+                                                // commander's only: route following, trade and
+                                                // carrier follow, traps and summaries are theirs.
+                                                if is_selected { match v.get("event").and_then(Value::as_str) {
                                                     // The trade layer: arrival at a stop's pad speaks
                                                     // the briefing and re-targets the next system;
                                                     // departing replans at the true laden mass.
@@ -381,9 +406,9 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                                         }
                                                     }
                                                     _ => {}
-                                                }
+                                                } }
                                             }
-                                            watermark = Some(mark);
+                                            *watermark = Some(mark);
                                         }
                                         // One completion line for the pass, from the game's
                                         // own signal. Kills are not counted (2026-09-19), so
@@ -404,7 +429,7 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                     // sensors."); the freshness gate applies the same
                                     // as everywhere — a replayed backlog is shown
                                     // silently, whatever its count.
-                                    for mut c in callouts::flush_signals(&mut cstate) {
+                                    for mut c in callouts::flush_signals(cstate) {
                                         if c.speak && stale_for_speech(&c.ts) {
                                             c.speak = false;
                                         }
@@ -417,11 +442,11 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                     if let Err(e) = ed_store::outfitting_seen::record_latest(conn) {
                                         tracing::warn!(error = %e, "outfitting board not recorded");
                                     }
-                                    if let Ok(Some(raw)) =
-                                        ed_store::session::snapshot_raw(conn, "Status.json")
+                                    if let (true, Ok(Some(raw))) =
+                                        (is_selected, ed_store::session::snapshot_raw(conn, "Status.json"))
                                     {
                                         if let Ok(v) = serde_json::from_str::<Value>(&raw) {
-                                            let mut fuel_calls = callouts::from_status(&v, &mut cstate);
+                                            let mut fuel_calls = callouts::from_status(&v, cstate);
                                             // "Fuel low" on a followed route only when the plan does not cover it.
                                             if let Some(ar) = crate::follow::load(conn) {
                                                 let fuel_now = v.pointer("/Fuel/FuelMain").and_then(Value::as_f64).map(|f| f as f32);
@@ -442,15 +467,27 @@ pub fn run(token: CancellationToken, app: AppHandle, store: Arc<Mutex<Store>>, j
                                             out.extend(fuel_calls.into_iter().map(|c| (c, None)));
                                             // Overcharge burning toward a strand: warn while
                                             // aborting still leaves the fuel to escape.
-                                            if let Some(c) = crate::trap::on_status(&app, conn, &v, &mut cstate) {
+                                            if let Some(c) = crate::trap::on_status(&app, conn, &v, cstate) {
                                                 out.push((c, None));
                                             }
                                         }
                                     }
                                 }
                                 crate::follow::filter_callouts(conn, &mut out, cstate.fuel_main.map(|f| f as f32));
+                                if !is_selected {
+                                    if alerts_on {
+                                        let name = ed_store::session::commander_name(conn).ok().flatten();
+                                        out.retain(|(c, ev)| callouts::is_for_other_commander(c, ev.as_ref()));
+                                        for (c, _) in out.iter_mut() {
+                                            callouts::prefix_for_other(name.as_deref(), c);
+                                        }
+                                    } else {
+                                        out.clear();
+                                    }
+                                }
                             }
                             deliver(&app, out);
+                            }
                         }
                         Err(e) => tracing::warn!(error = format!("{e:#}"), "journal sync failed"),
                     }

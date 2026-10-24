@@ -373,12 +373,11 @@ pub fn run() {
             }
 
             {
-                // Task 7 replaces this with the registry.
-                let store = registry_handle.store(&registry_handle.keys()[0]).expect("the registry always holds a store");
+                let registry = registry_handle.clone();
                 let app = handle.clone();
                 let journal_dir = journal_dir.clone();
                 let _ = jobs.spawn_blocking(jobs::JOURNAL_WATCHER, move |token| {
-                    watcher::run(token, app, store, &journal_dir);
+                    watcher::run(token, app, registry, &journal_dir);
                 });
             }
             if let Some(note) = journal.note.clone() {

@@ -940,6 +940,23 @@ pub fn from_status(status: &Value, st: &mut CalloutState) -> Vec<Callout> {
     out
 }
 
+/// What an UNSELECTED commander may say (maintainer, 2026-10-24: "danger
+/// only"): the spoken danger callouts and a carrier jump being scheduled.
+/// Everything else from that account stays in its store, unspoken.
+pub fn is_for_other_commander(c: &Callout, event: Option<&serde_json::Value>) -> bool {
+    if !c.speak {
+        return false;
+    }
+    c.kind == "danger"
+        || event.and_then(|v| v.get("event")).and_then(serde_json::Value::as_str) == Some("CarrierJumpRequest")
+}
+
+/// The other account's line says whose it is.
+pub fn prefix_for_other(name: Option<&str>, c: &mut Callout) {
+    let who = name.filter(|n| !n.trim().is_empty()).unwrap_or("Other commander");
+    c.text = format!("{who}: {}", c.text);
+}
+
 #[cfg(test)]
 mod tests {
     /// Item 52 A: the carrier speaks the countdown, the cancel, the
@@ -1315,6 +1332,34 @@ mod tests {
         assert_eq!(spoken_credits(45_000), "45 thousand credits");
         assert_eq!(spoken_credits(1_250_000), "1.2 million credits");
         assert_eq!(spoken_credits(2_100_000_000), "2.10 billion credits");
+    }
+
+    #[test]
+    fn other_commander_keeps_only_danger() {
+        let ts = "2026-10-17T18:06:55Z";
+        let attack = Callout::new("danger", ts, 3, true, "Under attack.".into());
+        let fuel = Callout::new("fuel", ts, 2, true, "Fuel low.".into());
+        let mission = Callout::new("mission", ts, 1, true, "Mission complete.".into());
+        let silent_danger = Callout::new("danger", ts, 1, false, "Danger flag: hostile contacts nearby".into());
+        let carrier = Callout::new("carrier", ts, 1, true, "Carrier jump to X scheduled, departure in 15 minutes.".into());
+        let jump_req = serde_json::json!({"event":"CarrierJumpRequest"});
+        let jump_done = serde_json::json!({"event":"CarrierJump"});
+        assert!(is_for_other_commander(&attack, None));
+        assert!(!is_for_other_commander(&fuel, None));
+        assert!(!is_for_other_commander(&mission, None));
+        assert!(!is_for_other_commander(&silent_danger, None), "a callout that is not spoken is not an alert");
+        assert!(is_for_other_commander(&carrier, Some(&jump_req)));
+        assert!(!is_for_other_commander(&carrier, Some(&jump_done)));
+    }
+
+    #[test]
+    fn other_commander_lines_carry_the_name() {
+        let mut c = Callout::new("danger", "2026-10-17T18:06:55Z", 3, true, "Under attack.".into());
+        prefix_for_other(Some("Beta"), &mut c);
+        assert_eq!(c.text, "Beta: Under attack.");
+        let mut d = Callout::new("danger", "2026-10-17T18:06:55Z", 3, true, "Ship destroyed.".into());
+        prefix_for_other(None, &mut d);
+        assert_eq!(d.text, "Other commander: Ship destroyed.");
     }
 }
 
