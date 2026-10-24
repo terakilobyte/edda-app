@@ -108,6 +108,27 @@ pub fn score(conn: &Connection, name: &str, v: &Value) -> Result<Score> {
     })
 }
 
+/// A tie on a hold or a locker: `Exact` compares totals, not goods, so an
+/// equal nonzero total with different contents is right for one commander
+/// and wrong for the other. Nobody gets it (the unknown state, never a
+/// wrong panel). Two empty holds are the same empty hold. Other files keep
+/// the spec's rule: equal content goes to both.
+pub fn resolve_tie(name: &str, v: &Value, chosen: Vec<String>) -> Vec<String> {
+    if chosen.len() < 2 {
+        return chosen;
+    }
+    let total = match name {
+        "Cargo.json" => v.get("Count").and_then(Value::as_i64),
+        "ShipLocker.json" | "Backpack.json" => item_total(v),
+        _ => return chosen,
+    };
+    if total.unwrap_or(0) > 0 {
+        Vec::new()
+    } else {
+        chosen
+    }
+}
+
 /// Which stores receive the file. One store gets everything (a single
 /// commander is today's app). Otherwise every `Exact` store does; failing
 /// that, the clearly nearest Balance (the runner-up at least twice as far).
@@ -223,6 +244,22 @@ mod tests {
     #[test]
     fn an_unlisted_companion_is_unknown() {
         assert_eq!(score(&mem(), "FCMaterials.json", &json!({})).unwrap(), Score::Unknown);
+    }
+
+    #[test]
+    fn a_nonzero_cargo_tie_is_unknown_an_empty_one_goes_to_both() {
+        // Two haulers at equal tonnage with different goods: the file is
+        // right for one and wrong for the other, so neither gets it. Both
+        // empty: the same empty hold, harmless.
+        let f = |s: &str| s.to_string();
+        let both = vec![f("F1"), f("F2")];
+        assert_eq!(resolve_tie("Cargo.json", &json!({"Count": 64, "Inventory": [{"Name":"gold","Count":64}]}), both.clone()), Vec::<String>::new());
+        assert_eq!(resolve_tie("Cargo.json", &json!({"Count": 0, "Inventory": []}), both.clone()), both);
+        assert_eq!(resolve_tie("ShipLocker.json", &json!({"Items":[{"Name":"a","Count":2}],"Components":[],"Consumables":[],"Data":[]}), both.clone()), Vec::<String>::new());
+        assert_eq!(resolve_tie("Backpack.json", &json!({"Items":[],"Components":[],"Consumables":[],"Data":[]}), both.clone()), both);
+        // One store, or a file the rule does not cover (the spec: equal content goes to both): unchanged.
+        assert_eq!(resolve_tie("Cargo.json", &json!({"Count": 64}), vec![f("F1")]), vec![f("F1")]);
+        assert_eq!(resolve_tie("NavRoute.json", &json!({"Route":[{"SystemAddress":11}]}), both.clone()), both);
     }
 
     #[test]

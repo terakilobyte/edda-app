@@ -50,6 +50,17 @@ pub struct RegistrySync {
 struct Inner {
     stores: BTreeMap<String, Arc<Mutex<Store>>>,
     owners: HashMap<String, Owner>,
+    /// Files called MenuOnly for being stale, with the (mtime, size) that
+    /// earned it: if either moves, the file is classified again.
+    stale: HashMap<String, (std::time::SystemTime, u64)>,
+    /// Each companion file's mtime when it was last dispatched; an
+    /// unchanged file is not read, parsed or scored again.
+    companion_mtimes: HashMap<String, Option<i64>>,
+}
+
+fn file_key(path: &Path) -> Option<(std::time::SystemTime, u64)> {
+    let md = std::fs::metadata(path).ok()?;
+    Some((md.modified().ok()?, md.len()))
 }
 
 pub struct Registry {
@@ -78,7 +89,7 @@ impl Registry {
         Ok(Registry {
             base: base.to_path_buf(),
             journal_dir: journal_dir.to_path_buf(),
-            inner: Mutex::new(Inner { stores, owners: HashMap::new() }),
+            inner: Mutex::new(Inner { stores, owners: HashMap::new(), stale: HashMap::new(), companion_mtimes: HashMap::new() }),
         })
     }
 
@@ -118,19 +129,29 @@ impl Registry {
         self.inner().stores.iter().map(|(k, s)| (k.clone(), s.clone())).collect()
     }
 
-    /// The commander whose journal file was modified most recently.
+    /// The commander whose journal file was modified most recently. Works
+    /// before the first sync (the launch selection needs it): the folder
+    /// is listed by mtime and the newest files are read for their owner
+    /// until one names a commander.
     pub fn last_writer(&self) -> Option<String> {
+        let names = ingest::journal_file_names(&self.journal_dir).ok()?;
+        let mut by_mtime: Vec<(std::time::SystemTime, String)> = names
+            .into_iter()
+            .filter_map(|n| std::fs::metadata(self.journal_dir.join(&n)).and_then(|m| m.modified()).ok().map(|t| (t, n)))
+            .collect();
+        by_mtime.sort_by(|a, b| b.0.cmp(&a.0));
         let inner = self.inner();
-        let mut best: Option<(std::time::SystemTime, String)> = None;
-        for (name, owner) in &inner.owners {
-            let Owner::Fid(fid) = owner else { continue };
-            let Ok(md) = std::fs::metadata(self.journal_dir.join(name)) else { continue };
-            let Ok(m) = md.modified() else { continue };
-            if best.as_ref().is_none_or(|(t, _)| m > *t) {
-                best = Some((m, fid.clone()));
+        for (_, name) in by_mtime {
+            let known = inner.owners.get(&name).cloned();
+            let o = match known {
+                Some(o) => o,
+                None => owner(&self.journal_dir.join(&name)).unwrap_or(Owner::Pending),
+            };
+            if let Owner::Fid(fid) = o {
+                return Some(fid);
             }
         }
-        best.map(|(_, f)| f)
+        None
     }
 
     /// Attribute new files, ingest each store's own, dispatch the
@@ -146,15 +167,23 @@ impl Registry {
         {
             let mut inner = self.inner();
             for name in &names {
+                let path = self.journal_dir.join(name);
                 let known = inner.owners.get(name).cloned();
+                // A stale MenuOnly whose file moved since is classified again:
+                // the player sat at the menu for an hour, then logged in.
+                let moved = inner.stale.get(name).is_some_and(|k| file_key(&path).as_ref() != Some(k));
                 let o = match known {
                     Some(Owner::Fid(f)) => Owner::Fid(f),
-                    Some(Owner::MenuOnly) => Owner::MenuOnly,
+                    Some(Owner::MenuOnly) if !moved => Owner::MenuOnly,
                     _ => {
-                        let path = self.journal_dir.join(name);
                         let mut o = owner(&path).unwrap_or(Owner::Pending);
                         if o == Owner::Pending && is_stale(&path) {
                             o = Owner::MenuOnly;
+                            if let Some(k) = file_key(&path) {
+                                inner.stale.insert(name.clone(), k);
+                            }
+                        } else {
+                            inner.stale.remove(name);
                         }
                         inner.owners.insert(name.clone(), o.clone());
                         o
@@ -215,24 +244,37 @@ impl Registry {
             ingested.insert(fid.clone(), stats);
         }
 
-        // 3. Companions by content.
+        // 3. Companions by content. An unchanged file (same mtime as when
+        // it was last dispatched) is not read: nine files against every
+        // store on every idle pass is the cost the 2026-10-03 fix removed.
+        let seen = self.inner().companion_mtimes.clone();
         for name in ingest::COMPANION_FILES {
             let path = self.journal_dir.join(name);
+            let Ok(md) = std::fs::metadata(&path) else { continue };
+            let mtime = md
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64);
+            if seen.get(*name) == Some(&mtime) {
+                continue;
+            }
             let Ok(raw) = std::fs::read_to_string(&path) else { continue };
             let raw = raw.trim().trim_start_matches('\u{feff}').to_string();
             let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else { continue };
             let ts = v.get("timestamp").and_then(|x| x.as_str());
-            let mtime = std::fs::metadata(&path)
-                .ok()
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs() as i64);
             let mut scores = Vec::new();
-            for (fid, store) in &stores {
-                let guard = store.lock().unwrap_or_else(|e| e.into_inner());
-                scores.push((fid.clone(), crate::companions::score(guard.conn(), name, &v)?));
+            if stores.len() == 1 {
+                // One commander takes everything: nothing to score.
+                scores.push((stores[0].0.clone(), crate::companions::Score::Unknown));
+            } else {
+                for (fid, store) in &stores {
+                    let guard = store.lock().unwrap_or_else(|e| e.into_inner());
+                    scores.push((fid.clone(), crate::companions::score(guard.conn(), name, &v)?));
+                }
             }
-            let chosen = crate::companions::choose(&scores);
+            let chosen = crate::companions::resolve_tie(name, &v, crate::companions::choose(&scores));
+            self.inner().companion_mtimes.insert((*name).to_string(), mtime);
             for (fid, store) in &stores {
                 let guard = store.lock().unwrap_or_else(|e| e.into_inner());
                 // Unchanged since the stored copy: nothing to do (same mtime rule as ingest_companions).
@@ -490,6 +532,8 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(50));
         std::fs::write(journal.join("Journal.2026-10-17T180748.01.log"), format!("{CMDR_B}\n{LOAD_B}\n")).unwrap();
         let reg = Registry::open(&base, &journal).unwrap();
+        // Before any sync (launch): the app picks its commander from this.
+        assert_eq!(reg.last_writer(), Some("F0000002".to_string()), "the last writer is known before the first sync");
         reg.sync_all(|_, _, _| {}).unwrap();
         assert_eq!(reg.last_writer(), Some("F0000002".to_string()));
         let (_d2, journal2, base2) = folder();
@@ -512,5 +556,48 @@ mod tests {
         let reg = Registry::open(&base, &journal).unwrap();
         let out = reg.sync_all(|_, _, _| {}).unwrap();
         assert_eq!((out.menu_only_files, out.pending_files), (1, 1), "the stale file is menu-only, the fresh one pending");
+        // The player sat at the menu for an hour, then logged in: the file
+        // grew and its mtime moved, so it is read again, not ignored for
+        // the rest of the session.
+        std::fs::write(&stale, format!("{{\"timestamp\":\"2026-10-17T19:00:00Z\",\"event\":\"Fileheader\",\"part\":1}}\n{CMDR_A}\n{LOAD_A}\n")).unwrap();
+        let out = reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!(out.new_fids, vec!["F0000001".to_string()], "a stale file that grows is classified again");
+        assert_eq!(count(&reg.store("F0000001").unwrap(), "SELECT COUNT(*) FROM events"), 3);
+    }
+
+    #[test]
+    fn a_commander_store_refuses_to_sync_on_its_own() {
+        // Store::sync ingests every file in the folder with no FID check:
+        // on a commander's store that would blend the other account in
+        // (the reviewer's finding, 2026-10-24: Settings > Sync now did it).
+        let (_d, journal, base) = folder();
+        std::fs::write(journal.join("Journal.2026-10-17T180648.01.log"), format!("{CMDR_A}\n{LOAD_A}\n")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T180748.01.log"), format!("{CMDR_B}\n{LOAD_B}\n")).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        reg.sync_all(|_, _, _| {}).unwrap();
+        let a = reg.store("F0000001").unwrap();
+        assert!(a.lock().unwrap().sync().is_err(), "a commander's store syncs only through the registry");
+        assert_eq!(count(&a, "SELECT COUNT(*) FROM events WHERE json_extract(raw,'$.FID') = 'F0000002'"), 0);
+        assert_eq!(count(&a, "SELECT COUNT(*) FROM events"), 2);
+    }
+
+    #[test]
+    fn a_quiet_pass_dispatches_no_companion() {
+        // Idle syncs must not read, parse and score nine files against
+        // every store (2026-10-03: the idle re-read cost 153 MB per sync).
+        let (_d, journal, base) = folder();
+        std::fs::write(journal.join("Journal.2026-10-17T180648.01.log"), format!("{CMDR_A}\n{LOAD_A}\n{CARGO_A}\n")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T180748.01.log"), format!("{CMDR_B}\n{LOAD_B}\n{CARGO_B}\n")).unwrap();
+        std::fs::write(journal.join("Status.json"), r#"{"timestamp":"2026-10-17T18:09:00Z","event":"Status","Balance":9000012345,"Fuel":{"FuelMain":30.0}}"#).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        let first = reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!(first.companions.len(), 1, "the first pass dispatches the file");
+        let quiet = reg.sync_all(|_, _, _| {}).unwrap();
+        assert!(quiet.companions.is_empty(), "an unchanged companion is not dispatched again: {:?}", quiet.companions);
+        // The file is written again (new mtime): dispatched once more.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        std::fs::write(journal.join("Status.json"), r#"{"timestamp":"2026-10-17T18:10:00Z","event":"Status","Balance":9000012345,"Fuel":{"FuelMain":29.0}}"#).unwrap();
+        let again = reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!(again.companions.len(), 1);
     }
 }

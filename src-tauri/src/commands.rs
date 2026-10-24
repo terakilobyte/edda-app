@@ -1966,13 +1966,12 @@ pub async fn powerplay_seen(state: State<'_, AppState>) -> Result<Vec<ed_store::
 /// Force a journal re-sync. Normally the watcher does this.
 #[tauri::command]
 pub async fn sync_now(state: State<'_, AppState>) -> Result<String, String> {
-    state.with_store(|s| {
-        let stats = s.sync().map_err(err)?;
-        Ok(format!(
-            "{} new events, {} ms",
-            stats.ingest.events_inserted, stats.elapsed_ms
-        ))
-    })
+    // Through the registry, never a single store: a commander's store
+    // reading the whole folder would blend the other account in.
+    let out = state.commanders.sync_all(|_, _, _| {}).map_err(err)?;
+    state.adopt_new_commanders(&out.new_fids);
+    let inserted: u64 = out.per_store.values().map(|s| s.ingest.events_inserted).sum();
+    Ok(format!("{} new events, {} ms", inserted, out.elapsed_ms))
 }
 
 #[tauri::command]
@@ -3356,6 +3355,8 @@ pub async fn list_commanders(state: State<'_, AppState>) -> Result<Vec<Commander
 pub async fn select_commander(state: State<'_, AppState>, fid: String) -> Result<Vec<CommanderRow>, String> {
     state.select(&fid)?;
     state.events.emit(crate::events::JOURNAL_CHANGED, 0u64);
+    // The Frontier card re-reads the link for this commander's slot.
+    state.events.emit(crate::events::CAPI_STATE, crate::capi::status(&state));
     Ok(commander_rows(&state))
 }
 

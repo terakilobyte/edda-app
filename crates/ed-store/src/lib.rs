@@ -211,6 +211,13 @@ impl Store {
         &self,
         progress: impl FnMut(&str, usize, usize),
     ) -> Result<SyncStats> {
+        // A commander's store must never read the whole folder: the other
+        // account's files would land in it with no FID check. The registry
+        // routes files to their owner (reviewer, 2026-10-24: Sync now did
+        // exactly this blend through `Store::sync`).
+        if let Some(fid) = &self.fid {
+            anyhow::bail!("the store of commander {fid} syncs only through the registry");
+        }
         let started = std::time::Instant::now();
         let ingest = ingest::ingest_all(&self.conn, &self.journal_dir, progress)?;
         self.finish_sync(ingest, started)

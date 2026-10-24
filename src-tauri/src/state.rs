@@ -349,6 +349,10 @@ impl AppState {
         *self.selected.lock().unwrap_or_else(|e| e.into_inner()) = fid.to_string();
         self.readers.lock().unwrap_or_else(|e| e.into_inner()).1.clear();
         *self.dock_memo.lock().unwrap_or_else(|e| e.into_inner()) = crate::routing::DockMemo::default();
+        // The Frontier link's cache (access token, link state, profile,
+        // carrier flags) belongs to the account that was selected when it
+        // was fetched; the new commander's slot is read afresh.
+        *self.capi.lock().unwrap_or_else(|e| e.into_inner()) = crate::capi::CapiState::default();
         let mut cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
         if cfg.selected_commander.as_deref() != Some(fid) {
             cfg.selected_commander = Some(fid.to_string());
@@ -365,7 +369,13 @@ impl AppState {
     pub fn adopt_new_commanders(&self, new_fids: &[String]) {
         let current = self.selected_fid();
         if (current == ed_store::registry::PLACEHOLDER || self.commanders.store(&current).is_none()) && !new_fids.is_empty() {
-            let _ = self.select(&new_fids[0]);
+            // The commander whose journal wrote last, as at launch; else the first.
+            let pick = self
+                .commanders
+                .last_writer()
+                .filter(|f| new_fids.contains(f))
+                .unwrap_or_else(|| new_fids[0].clone());
+            let _ = self.select(&pick);
         }
     }
 
@@ -700,28 +710,78 @@ mod commander_tests {
         let journal = dir.path().join("journal");
         std::fs::create_dir_all(&journal).unwrap();
         for (i, fid) in fids.iter().enumerate() {
+            if i > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
             std::fs::write(
                 journal.join(format!("Journal.2026-10-17T18{i:02}000.01.log")),
                 format!("{{\"timestamp\":\"2026-10-17T18:{i:02}:00Z\",\"event\":\"Commander\",\"FID\":\"{fid}\",\"Name\":\"C{i}\"}}\n"),
             )
             .unwrap();
         }
+        // The stores exist on disk from an earlier run; this process has not
+        // synced yet (launch order: the selection is made before the first sync).
+        {
+            let warm = ed_store::registry::Registry::open(&dir.path().join("edda.sqlite3"), &journal).unwrap();
+            warm.sync_all(|_, _, _| {}).unwrap();
+        }
         let reg = ed_store::registry::Registry::open(&dir.path().join("edda.sqlite3"), &journal).unwrap();
-        reg.sync_all(|_, _, _| {}).unwrap();
         (dir, std::sync::Arc::new(reg))
     }
 
     #[test]
     fn initial_selection_prefers_the_saved_commander_then_the_last_writer_then_the_first() {
         let (_d, reg) = registry_with(&["F0000001", "F0000002"]);
+        reg.sync_all(|_, _, _| {}).unwrap();
         let mut cfg = AppConfig::default();
-        cfg.selected_commander = Some("F0000002".into());
-        assert_eq!(AppState::initial_selection(&cfg, &reg), "F0000002");
+        cfg.selected_commander = Some("F0000001".into());
+        assert_eq!(AppState::initial_selection(&cfg, &reg), "F0000001", "the saved commander wins over the last writer");
         cfg.selected_commander = Some("F9999999".into());
-        let fallback = AppState::initial_selection(&cfg, &reg);
-        assert!(reg.fids().contains(&fallback), "a saved commander that is gone falls back to a real one");
+        assert_eq!(AppState::initial_selection(&cfg, &reg), "F0000002", "a saved commander that is gone falls back to the last writer");
+        // Launch order: the stores exist on disk, nothing has synced yet.
+        let (_d3, cold) = registry_with(&["F0000001", "F0000002"]);
+        assert_eq!(AppState::initial_selection(&AppConfig::default(), &cold), "F0000002", "the last writer is known before the first sync");
         let (_d2, empty) = registry_with(&[]);
         assert_eq!(AppState::initial_selection(&AppConfig::default(), &empty), ed_store::registry::PLACEHOLDER);
+    }
+
+    #[test]
+    fn a_fresh_install_adopts_the_commander_who_wrote_last() {
+        // No store on disk yet: the registry opens on the placeholder, the
+        // first sync finds both commanders, and the app follows the one in
+        // game now (the last writer), not the lexically first FID.
+        let dir = tempfile::tempdir().unwrap();
+        let journal = dir.path().join("journal");
+        std::fs::create_dir_all(&journal).unwrap();
+        for (i, fid) in ["F0000002", "F0000001"].iter().enumerate() {
+            if i > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            std::fs::write(
+                journal.join(format!("Journal.2026-10-17T18{i:02}000.01.log")),
+                format!("{{\"timestamp\":\"2026-10-17T18:{i:02}:00Z\",\"event\":\"Commander\",\"FID\":\"{fid}\",\"Name\":\"C{i}\"}}\n"),
+            )
+            .unwrap();
+        }
+        let reg = std::sync::Arc::new(ed_store::registry::Registry::open(&dir.path().join("edda.sqlite3"), &journal).unwrap());
+        let state = AppState::new(reg.clone(), dir.path().to_path_buf());
+        #[cfg(not(feature = "test-voice"))]
+        state.voice.set_muted(true);
+        assert_eq!(state.selected_fid(), ed_store::registry::PLACEHOLDER);
+        let out = reg.sync_all(|_, _, _| {}).unwrap();
+        state.adopt_new_commanders(&out.new_fids);
+        assert_eq!(state.selected_fid(), "F0000001", "the newer file's commander, not the smaller FID");
+    }
+
+    #[test]
+    fn selecting_a_commander_forgets_the_frontier_link_cache() {
+        // The access token, link state and profile belong to the account
+        // that was selected when they were fetched (reviewer, 2026-10-24).
+        let dir = tempfile::tempdir().unwrap();
+        let state = test_state(dir.path());
+        state.capi.lock().unwrap().last_error = Some("stale".into());
+        state.select(ed_store::registry::PLACEHOLDER).unwrap();
+        assert_eq!(state.capi.lock().unwrap().last_error, None);
     }
 
     #[test]
