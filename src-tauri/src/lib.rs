@@ -191,7 +191,20 @@ pub fn run() {
     }
 
     let db = db_path();
-    let fresh_database = !db.exists();
+    // No store at all, under either name: today's `edda.sqlite3` or a
+    // commander's `edda.<FID>.sqlite3` (the registry renames the former
+    // once, so its absence alone no longer means a fresh install).
+    let fresh_database = !db.exists()
+        && db
+            .parent()
+            .and_then(|p| std::fs::read_dir(p).ok())
+            .map(|rd| {
+                !rd.flatten().any(|e| {
+                    let n = e.file_name().to_string_lossy().to_string();
+                    n.starts_with("edda.") && n.ends_with(".sqlite3")
+                })
+            })
+            .unwrap_or(true);
     let data_dir = db
         .parent()
         .map(PathBuf::from)
@@ -233,16 +246,17 @@ pub fn run() {
         "starting"
     );
 
-    let store = match Store::open(&db, &journal_dir) {
-        Ok(s) => s,
+    let commanders = match ed_store::registry::Registry::open(&db, &journal_dir) {
+        Ok(r) => std::sync::Arc::new(r),
         Err(e) => {
             eprintln!("[edda] fatal: could not open the database: {e:#}");
             std::process::exit(1);
         }
     };
+    tracing::info!(commanders = commanders.fids().len(), "stores opened");
 
-    let app_state = AppState::new(store, data_dir, db.clone());
-    let store_handle = app_state.store.clone();
+    let app_state = AppState::new(commanders.clone(), data_dir);
+    let registry_handle = commanders.clone();
     let routing_handle = app_state.routing.clone();
 
     // ONE INSTANCE, IN EVERY BUILD. This guard used to sit under
@@ -338,20 +352,29 @@ pub fn run() {
                 tracing::warn!(error = %e, "overlay setup failed; continuing without hotkeys");
             }
 
+            // An install linked to Frontier before multiple commanders
+            // kept its refresh token in the FID-less slot: move it to the
+            // commander's, once.
+            if state.commanders.fids().len() == 1 {
+                capi::migrate_legacy_slot(&state.selected_fid());
+            }
+
             // First run backfills the whole journal folder, which takes long
             // enough to be visible. Off the main thread so the window paints
             // immediately and reports progress rather than hanging.
             {
-                let store = store_handle.clone();
+                let registry = registry_handle.clone();
+                let app = handle.clone();
                 let announcer = announcer.clone();
                 let events = state.events.clone();
                 let _ = jobs.spawn_blocking(jobs::INITIAL_SYNC, move |_token| {
-                    initial_sync(&store, &*events, &announcer, fresh_database);
+                    initial_sync(&app, &registry, &*events, &announcer, fresh_database);
                 });
             }
 
             {
-                let store = store_handle.clone();
+                // Task 7 replaces this with the registry.
+                let store = registry_handle.store(&registry_handle.keys()[0]).expect("the registry always holds a store");
                 let app = handle.clone();
                 let journal_dir = journal_dir.clone();
                 let _ = jobs.spawn_blocking(jobs::JOURNAL_WATCHER, move |token| {
@@ -588,6 +611,10 @@ pub fn run() {
             commands::set_overlay_interactive,
             commands::overlay_visible,
             commands::db_stats,
+            commands::list_commanders,
+            commands::select_commander,
+            commands::other_commander_alerts,
+            commands::other_commander_alerts_set,
             commands::vacuum,
             commands::missions,
             commands::mission_stack,
@@ -752,23 +779,32 @@ const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(7
 /// The first-run backfill and the one-off market index build, then the
 /// greeting. Reports progress through the emitter; a supervised job.
 fn initial_sync(
-    store: &std::sync::Mutex<Store>,
+    app: &tauri::AppHandle,
+    registry: &ed_store::registry::Registry,
     events: &dyn events::Emitter,
     announcer: &watcher::Announcer,
     fresh_database: bool,
 ) {
-    let result = {
-        let guard = store.lock().unwrap_or_else(|e| e.into_inner());
-        guard.sync_with_progress(|name, i, total| {
-            if i % 10 == 0 || i == total {
-                events.emit(events::SYNC_PROGRESS, serde_json::json!({ "file": name, "done": i, "total": total }));
-            }
-        })
-    };
+    let result = registry.sync_all(|name, i, total| {
+        if i % 10 == 0 || i == total {
+            events.emit(events::SYNC_PROGRESS, serde_json::json!({ "file": name, "done": i, "total": total }));
+        }
+    });
     match result {
-        Ok(stats) => {
-            tracing::info!(events = stats.ingest.events_inserted, ms = stats.elapsed_ms, "initial sync complete");
-            events.emit(events::SYNC_COMPLETE, stats.ingest.events_inserted);
+        Ok(out) => {
+            let state = app.state::<AppState>();
+            // A fresh install's first Commander line: follow that commander.
+            state.adopt_new_commanders(&out.new_fids);
+            let inserted: u64 = out.per_store.values().map(|s| s.ingest.events_inserted).sum();
+            tracing::info!(
+                events = inserted,
+                commanders = registry.fids().len(),
+                menu_only = out.menu_only_files,
+                ms = out.elapsed_ms,
+                "initial sync complete"
+            );
+            events.emit(events::SYNC_COMPLETE, inserted);
+            let store = state.selected_store();
             // Jumps flown while the app was down reached the store but
             // never the watcher: align the followed route's cursor with
             // the commander's actual system, silently.
@@ -779,7 +815,7 @@ fn initial_sync(
             // A brand-new install is greeted by the setup UI, not by stale
             // journal state from a game that is not currently running.
             if !fresh_database {
-                greet(announcer, store);
+                greet(announcer, &store);
             }
             // The local market index build that used to run here (minutes
             // on a 100M-row table, "market index built" in the header) is

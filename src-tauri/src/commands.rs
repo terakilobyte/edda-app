@@ -1,4 +1,5 @@
 use crate::capabilities::{carrier, commander, galaxy, CapError};
+use crate::events::EmitExt as _;
 use crate::state::AppState;
 use ed_engineering::{Blueprint, GapReport};
 use ed_store::lookup::{self, StationInfo, StationWithService, SystemInfo};
@@ -3285,12 +3286,13 @@ fn sqlite_family_bytes(path: &std::path::Path) -> u64 {
 
 #[tauri::command]
 pub async fn db_stats(state: State<'_, AppState>) -> Result<DbStats, String> {
-    let journal_bytes = sqlite_family_bytes(&state.db_path);
+    let db_path = state.db_path();
+    let journal_bytes = sqlite_family_bytes(&db_path);
     state.with_read(|s| {
         let conn = s.conn();
         let count = |sql: &str| conn.query_row(sql, [], |r| r.get::<_, i64>(0)).unwrap_or(0);
         Ok(DbStats {
-            path: state.db_path.display().to_string(),
+            path: db_path.display().to_string(),
             journal_bytes,
             total_bytes: journal_bytes,
             events: count("SELECT COUNT(*) FROM events"),
@@ -3302,10 +3304,77 @@ pub async fn db_stats(state: State<'_, AppState>) -> Result<DbStats, String> {
     })
 }
 
+/// One of the player's own commanders, for the strip above the tabs.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CommanderRow {
+    pub fid: String,
+    pub name: Option<String>,
+    pub ship: Option<String>,
+    pub system: Option<String>,
+    pub selected: bool,
+    /// Seconds since this commander's journal last wrote, if ever.
+    pub wrote_s_ago: Option<i64>,
+    pub store_bytes: u64,
+}
+
+pub fn commander_rows(state: &AppState) -> Vec<CommanderRow> {
+    let selected = state.selected_fid();
+    let now = chrono::Utc::now();
+    state
+        .commanders
+        .stores()
+        .into_iter()
+        .filter(|(fid, _)| !fid.is_empty())
+        .map(|(fid, store)| {
+            let guard = store.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = guard.conn();
+            let name = ed_store::session::commander_name(conn).ok().flatten();
+            let ship = ed_store::session::current_ship(conn)
+                .ok()
+                .flatten()
+                .and_then(|s| s.spoken(ed_route::ships::display_name));
+            let system = ed_store::query::location(conn).ok().flatten().and_then(|l| l.system_name);
+            let wrote_s_ago = ed_store::session::last_event_key(conn)
+                .ok()
+                .flatten()
+                .and_then(|k| chrono::DateTime::parse_from_rfc3339(&k.ts).ok())
+                .map(|t| (now - t.with_timezone(&chrono::Utc)).num_seconds());
+            let store_bytes = sqlite_family_bytes(&ed_store::registry::Registry::db_path_for(state.commanders.base(), &fid));
+            CommanderRow { selected: fid == selected, fid, name, ship, system, wrote_s_ago, store_bytes }
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn list_commanders(state: State<'_, AppState>) -> Result<Vec<CommanderRow>, String> {
+    Ok(commander_rows(&state))
+}
+
+/// Switch the panels, HUD and voice to another of the player's own
+/// commanders. Every panel re-derives on the journal-changed signal.
+#[tauri::command]
+pub async fn select_commander(state: State<'_, AppState>, fid: String) -> Result<Vec<CommanderRow>, String> {
+    state.select(&fid)?;
+    state.events.emit(crate::events::JOURNAL_CHANGED, 0u64);
+    Ok(commander_rows(&state))
+}
+
+#[tauri::command]
+pub async fn other_commander_alerts(state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(state.config.lock().unwrap_or_else(|e| e.into_inner()).other_commander_alerts)
+}
+
+#[tauri::command]
+pub async fn other_commander_alerts_set(state: State<'_, AppState>, enabled: bool) -> Result<(), String> {
+    let mut config = state.config.lock().unwrap_or_else(|e| e.into_inner());
+    config.other_commander_alerts = enabled;
+    config.save(&state.data_dir).map_err(|e| e.to_string())
+}
+
 /// Reclaim space from the journal database.
 #[tauri::command]
 pub async fn vacuum(state: State<'_, AppState>) -> Result<String, String> {
-    let store = state.store.clone();
+    let store = state.selected_store();
     tauri::async_runtime::spawn_blocking(move || {
         let guard = store.lock().unwrap_or_else(|e| e.into_inner());
         let conn = guard.conn();

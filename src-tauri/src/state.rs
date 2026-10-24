@@ -117,6 +117,16 @@ pub struct AppConfig {
     /// events the journal saw (a floor; see `ed_store::missions`). Off by
     /// default (boss, 2026-10-03: "let's make it a checkbox").
     pub speculative_missions: Option<bool>,
+    /// The commander the panels, HUD and voice follow when the journal
+    /// folder holds more than one (maintainer, 2026-10-24: manual
+    /// selection first). A FID; `None` means the last writer at launch.
+    #[serde(default)]
+    pub selected_commander: Option<String>,
+    /// Speak the danger set for the commanders NOT selected (under
+    /// attack, interdicted, overheating, destroyed, carrier jump
+    /// scheduled), prefixed with their name. Off by default.
+    #[serde(default)]
+    pub other_commander_alerts: bool,
 }
 
 fn default_game_route_ly() -> u32 { 1_000 }
@@ -171,7 +181,10 @@ impl AppConfig {
 /// background EDDN task can write through the same connection rather than
 /// opening a second writer against the same file.
 pub struct AppState {
-    pub store: Arc<Mutex<Store>>,
+    /// Every commander's store, one SQLite file each.
+    pub commanders: Arc<ed_store::registry::Registry>,
+    /// The FID the app follows (ed_store::registry::PLACEHOLDER before any).
+    selected: Mutex<String>,
     pub engineering: EngineeringCatalog,
     /// The one async HTTP client, `EDDA/<version>` user agent. Every
     /// async HTTP site borrows it; per-request timeouts go on the request.
@@ -190,7 +203,6 @@ pub struct AppState {
     /// profile. The refresh token lives in the keychain, not here.
     pub capi: crate::capi::CapiHandle,
     pub config: Arc<Mutex<AppConfig>>,
-    pub db_path: PathBuf,
     /// Galaxy index caches; also managed separately for the routing commands.
     pub routing: Arc<crate::routing::RoutingState>,
     /// Where events go. The live adapter is installed once the app is up;
@@ -208,9 +220,14 @@ pub struct AppState {
     /// text only, never the tool traffic), sent with every question so it can
     /// refer back. Cleared by `ai_reset`.
     pub chat: Mutex<Vec<serde_json::Value>>,
-    /// Idle read-only connections, galaxy already attached. Opening one
-    /// costs a few ms (and the 31 GB attach); reusing costs nothing.
-    pub readers: Mutex<Vec<rusqlite::Connection>>,
+    /// Idle read-only connections to the SELECTED store (its FID first),
+    /// galaxy already attached. Opening one costs a few ms (and the 31 GB
+    /// attach); reusing costs nothing. Dropped on a switch.
+    pub readers: Mutex<(String, Vec<rusqlite::Connection>)>,
+    /// Tests only: a path `read_conn` opens instead of the selected store,
+    /// to exercise the fallback when no private reader can be opened.
+    #[cfg(test)]
+    pub(crate) read_path_override: Mutex<Option<PathBuf>>,
     /// Times `with_read` could not open a private connection and ran on the
     /// shared writer instead. Shown by `db_stats`; a non-zero count means
     /// readers are queueing behind the writer again.
@@ -232,9 +249,13 @@ pub const USER_AGENT: &str = concat!("EDDA/", env!("CARGO_PKG_VERSION"), " (Elit
 pub const READ_POOL: usize = 8;
 
 impl AppState {
-    pub fn new(store: Store, data_dir: PathBuf, db_path: PathBuf) -> Self {
+    pub fn new(commanders: Arc<ed_store::registry::Registry>, data_dir: PathBuf) -> Self {
         let voice = Arc::new(VoiceHandle::spawn(&data_dir, USER_AGENT));
         let config = Arc::new(Mutex::new(AppConfig::load(&data_dir)));
+        let selected = Mutex::new(Self::initial_selection(
+            &config.lock().unwrap_or_else(|e| e.into_inner()),
+            &commanders,
+        ));
         // Before anything can speak: the greeting fires after the initial
         // sync, and a commander who muted everything must not hear it.
         if config.lock().unwrap_or_else(|e| e.into_inner()).voice_muted {
@@ -252,18 +273,20 @@ impl AppState {
         let jobs = Arc::new(crate::jobs::Supervisor::new(runtime));
         AppState {
             config,
-            db_path,
+            commanders,
+            selected,
+            #[cfg(test)]
+            read_path_override: Mutex::new(None),
             routing: { let r = Arc::new(crate::routing::RoutingState::new()); r.attach_jobs(jobs.clone()); r },
             events: Arc::new(crate::events::EventBus::default()),
             jobs: jobs.clone(),
             game_running: Arc::new(AtomicBool::new(false)),
             listen: Mutex::new(crate::listen::ListenState::default()),
             chat: Mutex::new(Vec::new()),
-            readers: Mutex::new(Vec::new()),
+            readers: Mutex::new((String::new(), Vec::new())),
             read_fallbacks: std::sync::atomic::AtomicU64::new(0),
             helpers: crate::helpers::HelperManager::new(),
             dock_memo: Mutex::new(crate::routing::DockMemo::default()),
-            store: Arc::new(Mutex::new(store)),
             engineering: EngineeringCatalog::load(),
             http: reqwest::Client::builder()
                 .user_agent(USER_AGENT)
@@ -281,6 +304,68 @@ impl AppState {
             data_dir,
             overlay_interactive: AtomicBool::new(false),
             capi: Default::default(),
+        }
+    }
+
+    /// Which commander to follow at launch: the saved one if it still
+    /// exists, else the one whose journal wrote last, else the first.
+    pub fn initial_selection(config: &AppConfig, commanders: &ed_store::registry::Registry) -> String {
+        let keys = commanders.keys();
+        if let Some(saved) = config.selected_commander.as_deref() {
+            if keys.iter().any(|k| k == saved) {
+                return saved.to_string();
+            }
+        }
+        if let Some(last) = commanders.last_writer() {
+            if keys.iter().any(|k| *k == last) {
+                return last;
+            }
+        }
+        keys.into_iter().next().unwrap_or_else(|| ed_store::registry::PLACEHOLDER.to_string())
+    }
+
+    pub fn selected_fid(&self) -> String {
+        self.selected.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    pub fn selected_store(&self) -> Arc<Mutex<Store>> {
+        let fid = self.selected_fid();
+        self.commanders
+            .store(&fid)
+            .or_else(|| self.commanders.stores().into_iter().next().map(|(_, s)| s))
+            .expect("the registry always holds a store")
+    }
+
+    /// The selected store's database file.
+    pub fn db_path(&self) -> PathBuf {
+        ed_store::registry::Registry::db_path_for(self.commanders.base(), &self.selected_fid())
+    }
+
+    /// Switch commanders: every later read goes to that store.
+    pub fn select(&self, fid: &str) -> Result<(), String> {
+        if self.commanders.store(fid).is_none() {
+            return Err(format!("no commander {fid} in the journal folder"));
+        }
+        *self.selected.lock().unwrap_or_else(|e| e.into_inner()) = fid.to_string();
+        self.readers.lock().unwrap_or_else(|e| e.into_inner()).1.clear();
+        *self.dock_memo.lock().unwrap_or_else(|e| e.into_inner()) = crate::routing::DockMemo::default();
+        let mut cfg = self.config.lock().unwrap_or_else(|e| e.into_inner());
+        if cfg.selected_commander.as_deref() != Some(fid) {
+            cfg.selected_commander = Some(fid.to_string());
+            if let Err(error) = cfg.save(&self.data_dir) {
+                tracing::warn!(%error, "commander selected but not remembered");
+            }
+        }
+        tracing::info!(fid, "commander selected");
+        Ok(())
+    }
+
+    /// A first Commander line arrived (fresh install) or the selected
+    /// store vanished: follow the first real commander.
+    pub fn adopt_new_commanders(&self, new_fids: &[String]) {
+        let current = self.selected_fid();
+        if (current == ed_store::registry::PLACEHOLDER || self.commanders.store(&current).is_none()) && !new_fids.is_empty() {
+            let _ = self.select(&new_fids[0]);
         }
     }
 
@@ -302,8 +387,11 @@ impl AppState {
     /// heavy reads open their own connection and never touch the lock.
     pub fn read_conn(&self) -> Result<rusqlite::Connection, String> {
         use rusqlite::OpenFlags;
+        let path = self.db_path();
+        #[cfg(test)]
+        let path = self.read_path_override.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or(path);
         let conn = rusqlite::Connection::open_with_flags(
-            &self.db_path,
+            &path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(|e| e.to_string())?;
@@ -314,7 +402,7 @@ impl AppState {
         // call (2026-10-03). In memory it is free.
         conn.execute_batch("PRAGMA temp_store = MEMORY; PRAGMA cache_size = -16000;")
             .map_err(|e| e.to_string())?;
-        ed_store::schema::attach_galaxy(&conn, Some(&ed_store::schema::galaxy_path(&self.db_path)))
+        ed_store::schema::attach_galaxy(&conn, Some(&ed_store::schema::galaxy_path(&path)))
             .map_err(|e| e.to_string())?;
         Ok(conn)
     }
@@ -323,7 +411,16 @@ impl AppState {
     /// queue behind the writer or behind each other. Falls back to the
     /// shared connection only if a new one cannot be opened.
     pub fn with_read<T>(&self, f: impl FnOnce(&Reader<'_>) -> T) -> T {
-        let pooled = self.readers.lock().unwrap_or_else(|e| e.into_inner()).pop();
+        let fid = self.selected_fid();
+        let pooled = {
+            let mut pool = self.readers.lock().unwrap_or_else(|e| e.into_inner());
+            if pool.0 != fid {
+                // Another commander's connections: worthless now.
+                pool.1.clear();
+                pool.0 = fid.clone();
+            }
+            pool.1.pop()
+        };
         let conn = match pooled {
             Some(c) => Ok(c),
             None => self.read_conn(),
@@ -332,8 +429,8 @@ impl AppState {
             Ok(conn) => {
                 let out = f(&Reader { conn: &conn });
                 let mut pool = self.readers.lock().unwrap_or_else(|e| e.into_inner());
-                if pool.len() < READ_POOL {
-                    pool.push(conn);
+                if pool.0 == fid && pool.1.len() < READ_POOL {
+                    pool.1.push(conn);
                 }
                 out
             }
@@ -342,7 +439,8 @@ impl AppState {
                 // the exact regression the pool exists to prevent.
                 let n = self.read_fallbacks.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
                 tracing::error!(error = %e, fallbacks = n, "read connection failed; using the shared writer");
-                let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
+                let store = self.selected_store();
+                let guard = store.lock().unwrap_or_else(|e| e.into_inner());
                 f(&Reader { conn: guard.conn() })
             }
         }
@@ -360,7 +458,8 @@ impl AppState {
     /// guarantee consistency, so recovering beats taking the whole app down
     /// over one failed command.
     pub fn with_store<T>(&self, f: impl FnOnce(&Store) -> T) -> T {
-        let guard = self.store.lock().unwrap_or_else(|e| e.into_inner());
+        let store = self.selected_store();
+        let guard = store.lock().unwrap_or_else(|e| e.into_inner());
         f(&guard)
     }
 }
@@ -461,8 +560,8 @@ pub(crate) fn test_state(dir: &std::path::Path) -> AppState {
     let db = dir.join("edda.sqlite3");
     let journal = dir.join("journal");
     std::fs::create_dir_all(&journal).unwrap();
-    let store = Store::open(&db, &journal).unwrap();
-    let state = AppState::new(store, dir.to_path_buf(), db);
+    let commanders = Arc::new(ed_store::registry::Registry::open(&db, &journal).unwrap());
+    let state = AppState::new(commanders, dir.to_path_buf());
     // A test state discovers SAPI (no models in a tempdir), so a delivered
     // callout would be spoken aloud in Windows voice by `cargo test`. Mute
     // it -- unless the test-voice feature asks to actually hear output.
@@ -519,7 +618,7 @@ mod read_pool_tests {
             state.with_read(|_| nest(state, depth - 1));
         }
         nest(&state, READ_POOL + 4);
-        let idle = state.readers.lock().unwrap().len();
+        let idle = state.readers.lock().unwrap().1.len();
         assert_eq!(idle, READ_POOL, "pool must cap at {READ_POOL}, held {idle}");
         assert_eq!(state.read_fallbacks(), 0);
     }
@@ -530,10 +629,11 @@ mod read_pool_tests {
         let db = dir.path().join("edda.sqlite3");
         let journal = dir.path().join("journal");
         std::fs::create_dir_all(&journal).unwrap();
-        let store = Store::open(&db, &journal).unwrap();
+        let commanders = Arc::new(ed_store::registry::Registry::open(&db, &journal).unwrap());
+        let state = AppState::new(commanders, dir.path().to_path_buf());
         // A db_path nobody can open read-only: every private read fails.
         let missing = dir.path().join("nope").join("edda.sqlite3");
-        let state = AppState::new(store, dir.path().to_path_buf(), missing);
+        *state.read_path_override.lock().unwrap() = Some(missing);
         let writer = state.with_store(|s| s.conn() as *const rusqlite::Connection);
         let reader = state.with_read(|r| r.conn() as *const rusqlite::Connection);
         assert_eq!(reader, writer, "must still answer, on the shared writer");
@@ -588,5 +688,58 @@ mod install_id_tests {
         cfg.save(dir.path()).unwrap();
         let replaced = AppConfig::load(dir.path()).install_id.unwrap();
         assert!(is_install_id(&replaced) && replaced != first);
+    }
+}
+
+#[cfg(test)]
+mod commander_tests {
+    use super::*;
+
+    fn registry_with(fids: &[&str]) -> (tempfile::TempDir, std::sync::Arc<ed_store::registry::Registry>) {
+        let dir = tempfile::tempdir().unwrap();
+        let journal = dir.path().join("journal");
+        std::fs::create_dir_all(&journal).unwrap();
+        for (i, fid) in fids.iter().enumerate() {
+            std::fs::write(
+                journal.join(format!("Journal.2026-10-17T18{i:02}000.01.log")),
+                format!("{{\"timestamp\":\"2026-10-17T18:{i:02}:00Z\",\"event\":\"Commander\",\"FID\":\"{fid}\",\"Name\":\"C{i}\"}}\n"),
+            )
+            .unwrap();
+        }
+        let reg = ed_store::registry::Registry::open(&dir.path().join("edda.sqlite3"), &journal).unwrap();
+        reg.sync_all(|_, _, _| {}).unwrap();
+        (dir, std::sync::Arc::new(reg))
+    }
+
+    #[test]
+    fn initial_selection_prefers_the_saved_commander_then_the_last_writer_then_the_first() {
+        let (_d, reg) = registry_with(&["F0000001", "F0000002"]);
+        let mut cfg = AppConfig::default();
+        cfg.selected_commander = Some("F0000002".into());
+        assert_eq!(AppState::initial_selection(&cfg, &reg), "F0000002");
+        cfg.selected_commander = Some("F9999999".into());
+        let fallback = AppState::initial_selection(&cfg, &reg);
+        assert!(reg.fids().contains(&fallback), "a saved commander that is gone falls back to a real one");
+        let (_d2, empty) = registry_with(&[]);
+        assert_eq!(AppState::initial_selection(&AppConfig::default(), &empty), ed_store::registry::PLACEHOLDER);
+    }
+
+    #[test]
+    fn config_round_trips_the_new_fields_and_defaults_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cfg = AppConfig::default();
+        assert_eq!(cfg.selected_commander, None);
+        assert!(!cfg.other_commander_alerts);
+        cfg.selected_commander = Some("F0000001".into());
+        cfg.other_commander_alerts = true;
+        cfg.save(dir.path()).unwrap();
+        let back = AppConfig::load(dir.path());
+        assert_eq!(back.selected_commander.as_deref(), Some("F0000001"));
+        assert!(back.other_commander_alerts);
+        // An old config.json without the fields loads with the defaults.
+        std::fs::write(dir.path().join("config.json"), r#"{"voice_muted":true}"#).unwrap();
+        let old = AppConfig::load(dir.path());
+        assert_eq!(old.selected_commander, None);
+        assert!(!old.other_commander_alerts);
     }
 }

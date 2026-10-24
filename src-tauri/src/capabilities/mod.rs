@@ -249,8 +249,10 @@ pub(crate) mod testing {
         let journal = dir.path().join("journal");
         std::fs::create_dir_all(&journal).unwrap();
         let db = data.join("edda.sqlite3");
-        let store = ed_store::Store::open(&db, &journal).unwrap();
-        let conn = store.conn();
+        let commanders = std::sync::Arc::new(ed_store::registry::Registry::open(&db, &journal).unwrap());
+        let store = commanders.store(ed_store::registry::PLACEHOLDER).unwrap();
+        let guard = store.lock().unwrap();
+        let conn = guard.conn();
         conn.execute_batch(&format!(
             "INSERT INTO sys_systems (id64,name,x,y,z) VALUES (1,'Origin',0,0,0),(2,'Near',10,0,0);
              INSERT INTO sys_stations (id,system_id64,name,type,distance_to_arrival,pad_large,pad_medium,pad_small,has_market,is_carrier) VALUES
@@ -268,7 +270,8 @@ pub(crate) mod testing {
                '{{\"event\":\"Loadout\",\"ShipID\":1,\"Ship\":\"{hull}\",\"CargoCapacity\":200,\"MaxJumpRange\":20.0,\"UnladenMass\":400.0,\"FuelCapacity\":{{\"Main\":16.0}}}}');"
         ))
         .unwrap();
-        let state = AppState::new(store, data, db);
+        drop(guard);
+        let state = AppState::new(commanders, data);
         Fixture { state, _dir: dir }
     }
 }

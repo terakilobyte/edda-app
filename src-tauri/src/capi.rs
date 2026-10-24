@@ -38,6 +38,33 @@ const CAPI_HOST: &str = "https://companion.orerve.net";
 const REDIRECT: &str = "edda://auth";
 /// Keychain slot for the refresh token (the one durable secret).
 pub const REFRESH_SLOT: &str = "frontier_refresh_token";
+
+/// The keychain slot of one commander's refresh token. The legacy slot
+/// (no FID) is what every install before multiple commanders used.
+pub fn refresh_slot(fid: &str) -> String {
+    if fid.is_empty() {
+        REFRESH_SLOT.to_string()
+    } else {
+        format!("{REFRESH_SLOT}:{fid}")
+    }
+}
+
+/// Move the legacy slot's token to the commander's slot, once.
+pub fn migrate_legacy_slot(fid: &str) {
+    if fid.is_empty() {
+        return;
+    }
+    let slot = refresh_slot(fid);
+    if secrets::get_key(&slot).is_some() {
+        return;
+    }
+    if let Some(token) = secrets::get_key(REFRESH_SLOT) {
+        if secrets::set_key(&slot, &token).is_ok() {
+            let _ = secrets::clear_key(REFRESH_SLOT);
+            tracing::info!("frontier link: refresh token moved to the commander's slot");
+        }
+    }
+}
 /// EDCD: "try not to issue more than one query a minute"; a carrier does
 /// not change faster than this, and the journal events that mean it did
 /// bypass the cooldown.
@@ -329,7 +356,8 @@ fn capi(app: &tauri::AppHandle) -> tauri::State<'_, AppState> {
 
 /// A write on the store, under its lock (the read pool is read-only).
 fn with_store<T>(state: &AppState, f: impl FnOnce(&rusqlite::Connection) -> anyhow::Result<T>) -> anyhow::Result<T> {
-    let guard = state.store.lock().unwrap_or_else(|e| e.into_inner());
+    let store = state.selected_store();
+    let guard = store.lock().unwrap_or_else(|e| e.into_inner());
     f(guard.conn())
 }
 
@@ -349,7 +377,7 @@ pub fn status(state: &AppState) -> Status {
     if s.link.is_none() {
         s.link = Some(if client_id().is_none() {
             LinkState::Unavailable
-        } else if secrets::get_key(REFRESH_SLOT).is_some() {
+        } else if secrets::get_key(&refresh_slot(&state.selected_fid())).is_some() {
             LinkState::Linked
         } else {
             LinkState::Unlinked
@@ -441,7 +469,7 @@ pub async fn link_with_callback(app: &tauri::AppHandle, text: &str) -> Result<St
         emit_state(app);
         return Err("that Frontier login is not the account this journal belongs to; nothing was kept".into());
     }
-    secrets::set_key(REFRESH_SLOT, &tokens.refresh)?;
+    secrets::set_key(&refresh_slot(&st.selected_fid()), &tokens.refresh)?;
     {
         let mut s = st.capi.lock().unwrap_or_else(|e| e.into_inner());
         s.access = Some(Access { token: tokens.access.clone(), expires_at: Instant::now() + tokens.lifetime });
@@ -464,7 +492,7 @@ pub async fn link_with_callback(app: &tauri::AppHandle, text: &str) -> Result<St
 /// carrier. Nothing else knows the account existed.
 pub fn unlink(app: &tauri::AppHandle) -> Result<Status, String> {
     let st = capi(app);
-    secrets::clear_key(REFRESH_SLOT)?;
+    secrets::clear_key(&refresh_slot(&st.selected_fid()))?;
     {
         let mut s = st.capi.lock().unwrap_or_else(|e| e.into_inner());
         s.access = None;
@@ -519,7 +547,7 @@ async fn ensure_access(state: &AppState) -> Result<String, String> {
             return Ok(a.token.clone());
         }
     }
-    let Some(refresh) = secrets::get_key(REFRESH_SLOT) else {
+    let Some(refresh) = secrets::get_key(&refresh_slot(&state.selected_fid())) else {
         set_link(state, LinkState::Unlinked);
         return Err("not linked".into());
     };
@@ -529,7 +557,7 @@ async fn ensure_access(state: &AppState) -> Result<String, String> {
     };
     match token_request(state, &[("grant_type", "refresh_token"), ("client_id", &client_id), ("refresh_token", &refresh)]).await {
         Ok(tokens) => {
-            secrets::set_key(REFRESH_SLOT, &tokens.refresh)?;
+            secrets::set_key(&refresh_slot(&state.selected_fid()), &tokens.refresh)?;
             let mut s = state.capi.lock().unwrap_or_else(|e| e.into_inner());
             s.access = Some(Access { token: tokens.access.clone(), expires_at: Instant::now() + tokens.lifetime });
             s.link = Some(LinkState::Linked);
@@ -657,7 +685,7 @@ async fn fetch_carrier_inner(st: &AppState) -> Result<Option<CarrierLive>, Strin
 /// CarrierBuy, CarrierTradeOrder, CarrierDepositFuel): refresh, bypassing
 /// the cooldown, if linked. Fire-and-forget from the watcher.
 pub fn on_carrier_event(app: &tauri::AppHandle, event: &str) {
-    if secrets::get_key(REFRESH_SLOT).is_none() {
+    if secrets::get_key(&refresh_slot(&capi(app).selected_fid())).is_none() {
         return;
     }
     let app = app.clone();
@@ -770,5 +798,11 @@ mod tests {
         assert_eq!(p.ship_name.as_deref(), Some("Colonia Bus"));
         assert_eq!(p.docked_at.as_deref(), Some("K3G-43N"));
         assert_eq!(p.system.as_deref(), Some("HIP 90112"));
+    }
+
+    #[test]
+    fn the_refresh_slot_is_per_commander_and_the_legacy_slot_for_none() {
+        assert_eq!(refresh_slot(""), REFRESH_SLOT);
+        assert_eq!(refresh_slot("F0000001"), "frontier_refresh_token:F0000001");
     }
 }
