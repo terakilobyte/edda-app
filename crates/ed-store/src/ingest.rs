@@ -100,7 +100,7 @@ fn archive_name(conn: &Connection, name: &str) -> Result<String> {
 ///   to the final newline are consumed; the remainder is left for next time.
 /// * **Re-reads** -- `(file, offset)` is the primary key and inserts are
 ///   `OR IGNORE`, so re-ingesting a file is a no-op rather than a duplicate.
-pub fn ingest_file(conn: &Connection, dir: &Path, name: &str) -> Result<u64> {
+pub fn ingest_file_for(conn: &Connection, dir: &Path, name: &str, expect_fid: Option<&str>) -> Result<u64> {
     let path = dir.join(name);
     let size = std::fs::metadata(&path)
         .with_context(|| format!("stat {}", path.display()))?
@@ -186,6 +186,20 @@ pub fn ingest_file(conn: &Connection, dir: &Path, name: &str) -> Result<u64> {
             let Some(event) = v.get("event").and_then(|x| x.as_str()) else {
                 continue;
             };
+            // A file belongs to one commander. A later line naming another
+            // FID has never been seen (0 of 1,396 files, 2026-10-24); if a
+            // game build ever does it, the rest of the file is refused with
+            // one warning, never blended into this store.
+            if let Some(expect) = expect_fid {
+                if matches!(event, "Commander" | "LoadGame") {
+                    if let Some(fid) = v.get("FID").and_then(|f| f.as_str()) {
+                        if fid != expect {
+                            tracing::warn!(file = name, offset = abs, found = fid, expected = expect, "journal line names another commander; the rest of this file is refused");
+                            break;
+                        }
+                    }
+                }
+            }
             let ts = v
                 .get("timestamp")
                 .and_then(|x| x.as_str())
@@ -221,6 +235,54 @@ pub fn ingest_file(conn: &Connection, dir: &Path, name: &str) -> Result<u64> {
     tx.commit()?;
 
     Ok(inserted)
+}
+
+/// Tail one journal file into the store, every line (the single-store path).
+pub fn ingest_file(conn: &Connection, dir: &Path, name: &str) -> Result<u64> {
+    ingest_file_for(conn, dir, name, None)
+}
+
+/// Ingest the given journal files only (no companions). The registry hands
+/// each store the names it owns; `expect_fid` is that store's commander.
+pub fn ingest_files(
+    conn: &Connection,
+    dir: &Path,
+    names: &[String],
+    expect_fid: Option<&str>,
+    mut progress: impl FnMut(&str, usize, usize),
+) -> Result<IngestStats> {
+    let total = names.len();
+    let mut stats = IngestStats { files_scanned: total, ..Default::default() };
+    for (i, name) in names.iter().enumerate() {
+        progress(name, i + 1, total);
+        let n = ingest_file_for(conn, dir, name, expect_fid)?;
+        if n > 0 {
+            stats.files_changed += 1;
+            stats.events_inserted += n;
+        }
+    }
+    Ok(stats)
+}
+
+/// The snapshot a store holds when a companion file could not be
+/// attributed to it: every `json_extract` on it is NULL, so the fuel
+/// gauge, flags and nav target show nothing rather than another
+/// commander's values.
+pub const UNKNOWN_SNAPSHOT: &str = "{}";
+
+/// Upsert one companion snapshot.
+pub fn write_snapshot(conn: &Connection, name: &str, ts: Option<&str>, mtime: Option<i64>, raw: &str) -> Result<()> {
+    conn.execute(
+        "INSERT INTO snapshots (name, ts, mtime, raw) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(name) DO UPDATE SET ts = excluded.ts, mtime = excluded.mtime, raw = excluded.raw",
+        params![name, ts, mtime, raw],
+    )?;
+    Ok(())
+}
+
+/// This store does not know whose `name` is right now.
+pub fn mark_unknown(conn: &Connection, name: &str) -> Result<()> {
+    write_snapshot(conn, name, None, None, UNKNOWN_SNAPSHOT)
 }
 
 /// Re-read the whole-file JSON companions and upsert them.
@@ -266,12 +328,7 @@ pub fn ingest_companions(conn: &Connection, dir: &Path) -> Result<usize> {
         };
         let ts = v.get("timestamp").and_then(|x| x.as_str());
 
-        tx.execute(
-            "INSERT INTO snapshots (name, ts, mtime, raw) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(name) DO UPDATE SET
-                 ts = excluded.ts, mtime = excluded.mtime, raw = excluded.raw",
-            params![name, ts, mtime, raw],
-        )?;
+        write_snapshot(&tx, name, ts, mtime, &raw)?;
         updated += 1;
     }
     tx.commit()?;
@@ -287,24 +344,10 @@ pub fn ingest_companions(conn: &Connection, dir: &Path) -> Result<usize> {
 pub fn ingest_all(
     conn: &Connection,
     dir: &Path,
-    mut progress: impl FnMut(&str, usize, usize),
+    progress: impl FnMut(&str, usize, usize),
 ) -> Result<IngestStats> {
     let names = journal_file_names(dir)?;
-    let total = names.len();
-    let mut stats = IngestStats {
-        files_scanned: total,
-        ..Default::default()
-    };
-
-    for (i, name) in names.iter().enumerate() {
-        progress(name, i + 1, total);
-        let n = ingest_file(conn, dir, name)?;
-        if n > 0 {
-            stats.files_changed += 1;
-            stats.events_inserted += n;
-        }
-    }
-
+    let mut stats = ingest_files(conn, dir, &names, None, progress)?;
     stats.snapshots_updated = ingest_companions(conn, dir)?;
     Ok(stats)
 }
@@ -414,5 +457,74 @@ mod tests {
             2,
             "second truncation archives the previous incarnation under the next letter"
         );
+    }
+
+    fn mem() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::schema::migrate(&conn).unwrap();
+        crate::schema::attach_galaxy(&conn, None).unwrap();
+        conn
+    }
+
+    #[test]
+    fn a_line_naming_a_second_fid_is_refused_from_that_line_on() {
+        let dir = tempfile::tempdir().unwrap();
+        let name = "Journal.2026-10-17T180648.01.log";
+        std::fs::write(dir.path().join(name), concat!(
+            r#"{"timestamp":"2026-10-17T18:06:55Z","event":"Commander","FID":"F0000001","Name":"Alpha"}"#, "\n",
+            r#"{"timestamp":"2026-10-17T18:06:56Z","event":"LoadGame","FID":"F0000001","Commander":"Alpha","Ship":"Mandalay","ShipID":31}"#, "\n",
+            r#"{"timestamp":"2026-10-17T18:30:00Z","event":"Commander","FID":"F0000002","Name":"Beta"}"#, "\n",
+            r#"{"timestamp":"2026-10-17T18:30:01Z","event":"LoadGame","FID":"F0000002","Commander":"Beta","Ship":"Type9","ShipID":4}"#, "\n",
+        )).unwrap();
+        let conn = mem();
+        let n = ingest_file_for(&conn, dir.path(), name, Some("F0000001")).unwrap();
+        assert_eq!(n, 2, "the two lines before the foreign FID land");
+        let count = |sql: &str| -> i64 { conn.query_row(sql, [], |r| r.get(0)).unwrap() };
+        assert_eq!(count("SELECT COUNT(*) FROM events WHERE json_extract(raw,'$.FID') = 'F0000002'"), 0);
+        // The checkpoint moved past the refused lines: a second pass reads nothing.
+        assert_eq!(ingest_file_for(&conn, dir.path(), name, Some("F0000001")).unwrap(), 0);
+    }
+
+    #[test]
+    fn without_an_expected_fid_every_line_lands_as_today() {
+        let dir = tempfile::tempdir().unwrap();
+        let name = "Journal.2026-10-17T180648.01.log";
+        std::fs::write(dir.path().join(name), concat!(
+            r#"{"timestamp":"2026-10-17T18:06:55Z","event":"Commander","FID":"F0000001","Name":"Alpha"}"#, "\n",
+            r#"{"timestamp":"2026-10-17T18:30:00Z","event":"Commander","FID":"F0000002","Name":"Beta"}"#, "\n",
+        )).unwrap();
+        let conn = mem();
+        assert_eq!(ingest_file(&conn, dir.path(), name).unwrap(), 2);
+    }
+
+    #[test]
+    fn ingest_files_reads_only_the_names_it_is_given() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = "Journal.2026-10-17T180648.01.log";
+        let b = "Journal.2026-10-17T181000.01.log";
+        std::fs::write(dir.path().join(a), concat!(r#"{"timestamp":"2026-10-17T18:06:55Z","event":"Commander","FID":"F0000001","Name":"Alpha"}"#, "\n")).unwrap();
+        std::fs::write(dir.path().join(b), concat!(r#"{"timestamp":"2026-10-17T18:10:00Z","event":"Commander","FID":"F0000002","Name":"Beta"}"#, "\n")).unwrap();
+        let conn = mem();
+        let stats = ingest_files(&conn, dir.path(), &[a.to_string()], Some("F0000001"), |_, _, _| {}).unwrap();
+        assert_eq!((stats.files_scanned, stats.files_changed, stats.events_inserted, stats.snapshots_updated), (1, 1, 1, 0));
+        let count = |sql: &str| -> i64 { conn.query_row(sql, [], |r| r.get(0)).unwrap() };
+        assert_eq!(count("SELECT COUNT(*) FROM events WHERE file = 'Journal.2026-10-17T181000.01.log'"), 0);
+    }
+
+    #[test]
+    fn a_snapshot_can_be_written_and_marked_unknown() {
+        let conn = mem();
+        write_snapshot(&conn, "Status.json", Some("2026-10-17T18:06:55Z"), Some(1), r#"{"Fuel":{"FuelMain":12.5}}"#).unwrap();
+        let fuel: Option<f64> = conn.query_row("SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name='Status.json'", [], |r| r.get(0)).unwrap();
+        assert_eq!(fuel, Some(12.5));
+        mark_unknown(&conn, "Status.json").unwrap();
+        let fuel: Option<f64> = conn.query_row("SELECT json_extract(raw,'$.Fuel.FuelMain') FROM snapshots WHERE name='Status.json'", [], |r| r.get(0)).unwrap();
+        assert_eq!(fuel, None, "an unknown snapshot reads as no value, never as the other commander's");
+        let raw: String = conn.query_row("SELECT raw FROM snapshots WHERE name='Status.json'", [], |r| r.get(0)).unwrap();
+        assert_eq!(raw, UNKNOWN_SNAPSHOT);
+        // Marking a name that was never written is fine and leaves a row.
+        mark_unknown(&conn, "Cargo.json").unwrap();
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM snapshots WHERE name='Cargo.json'", [], |r| r.get(0)).unwrap();
+        assert_eq!(n, 1);
     }
 }
