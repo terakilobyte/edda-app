@@ -1010,6 +1010,24 @@ verdicts live in the CSV headers under `docs/benches/`.
 
 ## App
 
+- **Multiple commanders (2026-10-24, the maintainer: "multiple accounts /
+  multiboxing"; branch `multi-commander`):** one store per FID
+  (`edda.<FID>.sqlite3`), journal files attributed by their first Commander
+  line, companion files by content (Status.json by Balance), a manual
+  commander strip, one HUD and voice on the selected commander, danger-only
+  alerts from the others behind an off-by-default toggle. Measured first:
+  the shipped store blended a two-account folder 263 commander flips in 90
+  days (`docs/benches/2026-10-24-two-account-folder-baseline.csv`); the
+  registry replay: `docs/benches/2026-10-24-multibox-replay.csv` (run 1
+  missed one pre-registered line, 87 launcher-only files held pending
+  because they never wrote Shutdown; a pending file idle for an hour is
+  menu-only since; run 2 met all five). Spec:
+  `docs/superpowers/specs/2026-10-24-multi-commander-design.md`. OPEN:
+  selection following the focused game window (process start time against
+  the Fileheader timestamp, unverified); a both-at-once wing view; separate
+  journal folders on one machine; the release waits on a flight on a real
+  two-instance machine (the donor is the natural tester). Release notes are
+  written at the cut, not here (the newest section must equal the version).
 - **The 3D map, measured; the Galaxy tab can drop it; the arrival
   clipboard option** (2026-10-16, the boss: "if we hide the map it's not
   rendered, right? ... I'm not sure how heavyweight our 3d map is";

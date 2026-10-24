@@ -1,8 +1,10 @@
 # Multiple commanders: one EDDA, one store per account, one HUD
 
-Design, 2026-10-24. Status: DRAFT for the maintainer's review. Nothing
-below is built; the baseline is measured and on record
-(`docs/benches/2026-10-24-two-account-folder-baseline.csv`).
+Design, 2026-10-24. Status: APPROVED 2026-10-24; implemented on branch
+`multi-commander` (plan `docs/superpowers/plans/2026-10-24-multi-commander.md`).
+The baseline is measured and on record
+(`docs/benches/2026-10-24-two-account-folder-baseline.csv`); the replay
+verdict is `docs/benches/2026-10-24-multibox-replay.csv`.
 
 ## The ask (maintainer, 2026-10-24)
 
