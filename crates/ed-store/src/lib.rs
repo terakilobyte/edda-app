@@ -40,6 +40,7 @@ pub mod outfitting_seen;
 pub mod postgres;
 pub mod presets;
 pub mod query;
+pub mod registry;
 pub mod route;
 pub mod schema;
 pub mod session;
@@ -66,6 +67,9 @@ pub struct Store {
     /// `None` for an in-memory store, which cannot be reopened.
     db_path: Option<PathBuf>,
     journal_dir: PathBuf,
+    /// The commander this store belongs to; `None` for the single-store
+    /// path (examples, tests, a fresh install before any journal).
+    fid: Option<String>,
     /// Sale keys already written to the observation journal. Sync runs on
     /// every journal write, so without this a single sale would be recorded
     /// dozens of times over a session.
@@ -78,6 +82,12 @@ const BUSY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 impl Store {
     pub fn open(db_path: &Path, journal_dir: &Path) -> Result<Self> {
+        Self::open_for(db_path, journal_dir, None)
+    }
+
+    /// Open the store of one commander. `fid` is checked on ingest: a
+    /// journal line naming another FID is refused (ingest::ingest_file_for).
+    pub fn open_for(db_path: &Path, journal_dir: &Path, fid: Option<&str>) -> Result<Self> {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
@@ -90,8 +100,19 @@ impl Store {
             conn,
             db_path: Some(db_path.to_path_buf()),
             journal_dir: journal_dir.to_path_buf(),
+            fid: fid.map(str::to_string),
             observed: std::sync::Mutex::new(merit_capture::CaptureState::new(observe::seen_award_keys())),
         })
+    }
+
+    /// The commander this store belongs to, when it is one of a registry.
+    pub fn fid(&self) -> Option<&str> {
+        self.fid.as_deref()
+    }
+
+    /// The file this store lives in; `None` for an in-memory store.
+    pub fn db_path(&self) -> Option<&Path> {
+        self.db_path.as_deref()
     }
 
     /// In-memory store, for tests and for one-shot analysis.
@@ -103,6 +124,7 @@ impl Store {
             conn,
             db_path: None,
             journal_dir: journal_dir.to_path_buf(),
+            fid: None,
             observed: Default::default(),
         })
     }
@@ -191,6 +213,21 @@ impl Store {
     ) -> Result<SyncStats> {
         let started = std::time::Instant::now();
         let ingest = ingest::ingest_all(&self.conn, &self.journal_dir, progress)?;
+        self.finish_sync(ingest, started)
+    }
+
+    /// Ingest only the journal files this store owns; no companions, no
+    /// derive. The registry dispatches companions and calls `finish_sync`.
+    pub fn ingest_owned(
+        &self,
+        names: &[String],
+        progress: impl FnMut(&str, usize, usize),
+    ) -> Result<ingest::IngestStats> {
+        ingest::ingest_files(&self.conn, &self.journal_dir, names, self.fid.as_deref(), progress)
+    }
+
+    /// Derive and capture after an ingest; the second half of a sync.
+    pub fn finish_sync(&self, ingest: ingest::IngestStats, started: std::time::Instant) -> Result<SyncStats> {
         // Derive unconditionally: the whole-file companions (Cargo.json and
         // friends) can change without a single new journal line, so "no new
         // events" does not mean "nothing to re-derive".
