@@ -206,3 +206,8 @@ dl.kv dd { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* The commander strip above the tabs: one .pill per account in the
+   journal folder, a dot when that journal wrote in the last minute. */
+.commanders { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 0.5rem; }
+.commanders .live { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; margin-right: 0.35rem; vertical-align: middle; }

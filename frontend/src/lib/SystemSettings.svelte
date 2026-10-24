@@ -17,7 +17,7 @@
     ["setup", "Setup"],
   ];
   import { capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, onCapiState } from "./api.js";
-  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet, apiProbe } from "./api.js";
+  import { getAiConfig, setAiConfig, aiEval, dbStats, vacuum, syncNow, overlayVisible, setOverlayInteractive, telemetryPrefs, telemetryPrefsSet, apiProbe, listCommanders } from "./api.js";
   // Which community API this build is on, and what it says about itself.
   // One knob (boss, 2026-10-07): EDDA_API_URL in the shell before launch,
   // else production. The probe shows the server is up and answering.
@@ -33,6 +33,9 @@
   // Anonymous usage data — the maintainer's opt-out consent (2026-09-05).
   let telemetry = $state(true);
   onMount(async () => { try { telemetry = await telemetryPrefs(); } catch {} });
+  // One database per commander in the journal folder; listed when there are two or more.
+  let commanders = $state([]);
+  onMount(async () => { try { commanders = await listCommanders(); } catch {} });
   async function setTelemetry(enabled) {
     telemetry = enabled;
     try { await telemetryPrefsSet(enabled); } catch {}
@@ -299,6 +302,11 @@
       <dt>Total on disk</dt><dd class="num">{(db.total_bytes / 1073741824).toFixed(2)} GiB</dd>
       <dt>Journal events</dt><dd class="num">{fmtInt(db.events)}</dd>
       <dt>Combat</dt><dd class="num">{fmtInt(db.kills)} kills · {fmtInt(db.merit_awards)} merit awards</dd>
+      {#if commanders.length > 1}
+        <dt>Commanders</dt>
+        <dd>{#each commanders as c (c.fid)}<div><strong>{c.name || c.fid}</strong> <span class="muted">{(c.store_bytes / 1e6).toFixed(1)} MB{c.selected ? " · selected" : ""}</span></div>{/each}
+          <p class="muted small" style="margin:0.3rem 0 0">Each account in this PC's journal folder has its own database; the selector above the tabs picks which one EDDA shows, speaks and overlays.</p></dd>
+      {/if}
     </dl>
   {/if}
   <div class="row" style="margin-top:0.6rem">
