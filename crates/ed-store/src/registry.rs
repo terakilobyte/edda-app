@@ -17,6 +17,20 @@ use std::sync::{Arc, Mutex};
 /// Commander line arrives (today's `edda.sqlite3`).
 pub const PLACEHOLDER: &str = "";
 
+/// A file with no Commander line that nobody has written to for this long
+/// is a launcher opened and killed at the menu, not a session still
+/// loading: 87 of the donor's 164 launcher-only files never wrote
+/// `Shutdown` (replay, 2026-10-24) and would otherwise stay pending, and
+/// be re-read, forever. A file the game is still writing has a fresh mtime.
+const STALE_PENDING: std::time::Duration = std::time::Duration::from_secs(3600);
+
+fn is_stale(path: &Path) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .map(|m| m.elapsed().unwrap_or_default() > STALE_PENDING)
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Attribution {
     To(Vec<String>),
@@ -137,7 +151,11 @@ impl Registry {
                     Some(Owner::Fid(f)) => Owner::Fid(f),
                     Some(Owner::MenuOnly) => Owner::MenuOnly,
                     _ => {
-                        let o = owner(&self.journal_dir.join(name)).unwrap_or(Owner::Pending);
+                        let path = self.journal_dir.join(name);
+                        let mut o = owner(&path).unwrap_or(Owner::Pending);
+                        if o == Owner::Pending && is_stale(&path) {
+                            o = Owner::MenuOnly;
+                        }
                         inner.owners.insert(name.clone(), o.clone());
                         o
                     }
@@ -477,5 +495,22 @@ mod tests {
         let (_d2, journal2, base2) = folder();
         let empty = Registry::open(&base2, &journal2).unwrap();
         assert_eq!(empty.last_writer(), None);
+    }
+
+    #[test]
+    fn a_stale_file_without_a_commander_is_menu_only_not_pending_forever() {
+        // 87 of the donor's 164 launcher-only files never wrote Shutdown
+        // (replay, 2026-10-24): the game was killed at the menu. A file
+        // nobody has written to for an hour that never named a commander
+        // is dead, not pending; a fresh one may still get its Commander line.
+        let (_d, journal, base) = folder();
+        let stale = journal.join("Journal.2026-10-17T190000.01.log");
+        std::fs::write(&stale, concat!(r#"{"timestamp":"2026-10-17T19:00:00Z","event":"Fileheader","part":1}"#, "\n")).unwrap();
+        let old = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
+        std::fs::File::options().write(true).open(&stale).unwrap().set_modified(old).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T191000.01.log"), concat!(r#"{"timestamp":"2026-10-17T19:10:00Z","event":"Fileheader","part":1}"#, "\n")).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        let out = reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!((out.menu_only_files, out.pending_files), (1, 1), "the stale file is menu-only, the fresh one pending");
     }
 }

@@ -12,3 +12,6 @@ no name, FID, system or balance is printed. Record:
 
 `<store>` is the folder replayed through
 `cargo run -p ed-store --release --example first_sync -- <folder> <scratch.sqlite3>`.
+- `cargo run -p ed-store --release --example multibox_replay -- <folder> <scratch>` -- the
+  folder through the registry: stores, purity, companion attribution, quiet-sync cost.
+  Record: `docs/benches/2026-10-24-multibox-replay.csv`.
