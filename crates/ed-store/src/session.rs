@@ -540,6 +540,64 @@ pub fn ranks(conn: &Connection) -> Result<Ranks> {
     })
 }
 
+/// The commander's credits as the journal lets us estimate them: the last
+/// `LoadGame`'s `Credits` plus every paid-out or paid-in amount since.
+/// Vouchers (`Bounty`, `FactionKillBond`) are not money until redeemed.
+/// Used to tell whose Status.json a Balance belongs to when two accounts
+/// share one folder (their balances were never within 5.3 M Cr of each
+/// other on the donor data, median gap 2.4 B Cr).
+pub fn credits_estimate(conn: &Connection) -> Result<Option<i64>> {
+    let Some((ts, file, offset, credits)) = conn
+        .query_row(
+            "SELECT ts, file, offset, json_extract(raw, '$.Credits') FROM events
+             WHERE event = 'LoadGame' AND json_extract(raw, '$.Credits') IS NOT NULL
+             ORDER BY ts DESC, file DESC, offset DESC LIMIT 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?)),
+        )
+        .optional()?
+    else {
+        return Ok(None);
+    };
+    // (event, json field, sign)
+    const MONEY: &[(&str, &str, i64)] = &[
+        ("MissionCompleted", "$.Reward", 1),
+        ("RedeemVoucher", "$.Amount", 1),
+        ("MarketSell", "$.TotalSale", 1),
+        ("MarketBuy", "$.TotalCost", -1),
+        ("RefuelAll", "$.Cost", -1),
+        ("BuyAmmo", "$.Cost", -1),
+        ("RepairAll", "$.Cost", -1),
+        ("Repair", "$.Cost", -1),
+        ("ShipyardBuy", "$.ShipPrice", -1),
+        ("ShipyardSell", "$.ShipPrice", 1),
+        ("ModuleBuy", "$.BuyPrice", -1),
+        ("ModuleSell", "$.SellPrice", 1),
+        ("PayFines", "$.Amount", -1),
+        ("PayBounties", "$.Amount", -1),
+        ("BuyDrones", "$.TotalCost", -1),
+        ("SellDrones", "$.TotalSale", 1),
+        ("SellExplorationData", "$.TotalEarnings", 1),
+        ("MultiSellExplorationData", "$.TotalEarnings", 1),
+        ("Resurrect", "$.Cost", -1),
+        ("CarrierDepositFuel", "$.Total", -1),
+        ("CarrierBankTransfer", "$.Deposit", -1),
+        ("CarrierBankTransfer", "$.Withdraw", 1),
+        ("CommunityGoalReward", "$.Reward", 1),
+        ("PowerplaySalary", "$.Amount", 1),
+    ];
+    let mut total = credits;
+    let mut stmt = conn.prepare_cached(
+        "SELECT COALESCE(SUM(json_extract(raw, ?1)), 0) FROM events
+         WHERE event = ?2 AND (ts > ?3 OR (ts = ?3 AND (file > ?4 OR (file = ?4 AND offset > ?5))))",
+    )?;
+    for (event, field, sign) in MONEY {
+        let sum: i64 = stmt.query_row(rusqlite::params![field, event, ts, file, offset], |r| r.get::<_, f64>(0).map(|f| f as i64))?;
+        total += sign * sum;
+    }
+    Ok(Some(total))
+}
+
 #[cfg(test)]
 mod tests {
 

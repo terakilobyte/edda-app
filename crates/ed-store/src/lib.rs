@@ -22,6 +22,7 @@
 pub mod carrier;
 pub mod carrier_capi;
 pub mod combat;
+pub mod companions;
 pub mod derive;
 pub mod eddn;
 pub mod galaxy;
