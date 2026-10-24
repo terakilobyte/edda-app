@@ -59,6 +59,79 @@ fn is_new_format(date: &str) -> bool {
         && b.iter().enumerate().all(|(i, c)| matches!(i, 4 | 7 | 10) || c.is_ascii_digit())
 }
 
+/// Who a journal file belongs to. The game writes one file per launch and
+/// names the account in its `Commander` line (and again in `LoadGame`),
+/// within the first ~45 lines; `Friends` and `Music` can precede it. A
+/// file never changes hands (0 of a two-account player's 1,396 files did,
+/// 2026-10-24): the first FID is the owner for the file's life.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Owner {
+    /// The account's Frontier ID, e.g. `F1234567`.
+    Fid(String),
+    /// No FID yet and the file has not ended: read it again later.
+    Pending,
+    /// Ended (`Shutdown`) without ever naming a commander: the launcher
+    /// was opened and closed at the menu. Nothing of value inside.
+    MenuOnly,
+}
+
+/// Decide the owner from a file's lines, in order. Unparsable lines are
+/// skipped, as the ingest skips them.
+pub fn owner_of_lines<'a>(lines: impl IntoIterator<Item = &'a str>) -> Owner {
+    let mut last_event: Option<String> = None;
+    for line in lines {
+        let text = line.trim().trim_start_matches('\u{feff}');
+        if text.is_empty() {
+            continue;
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
+            continue;
+        };
+        let Some(event) = v.get("event").and_then(|e| e.as_str()) else {
+            continue;
+        };
+        if matches!(event, "Commander" | "LoadGame") {
+            if let Some(fid) = v.get("FID").and_then(|f| f.as_str()).filter(|f| !f.is_empty()) {
+                return Owner::Fid(fid.to_string());
+            }
+        }
+        last_event = Some(event.to_string());
+    }
+    if last_event.as_deref() == Some("Shutdown") {
+        Owner::MenuOnly
+    } else {
+        Owner::Pending
+    }
+}
+
+/// `owner_of_lines` over a file on disk. Stops at the first FID, so an
+/// active file costs its first few kilobytes; a menu-only file is small.
+pub fn owner(path: &std::path::Path) -> std::io::Result<Owner> {
+    use std::io::BufRead as _;
+    let f = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::new(f);
+    let mut last_event: Option<String> = None;
+    for line in reader.split(b'\n') {
+        let line = line?;
+        let Ok(text) = std::str::from_utf8(&line) else { continue };
+        match owner_of_lines([text]) {
+            Owner::Fid(fid) => return Ok(Owner::Fid(fid)),
+            Owner::MenuOnly => last_event = Some("Shutdown".into()),
+            Owner::Pending => {
+                let t = text.trim().trim_start_matches('\u{feff}');
+                if !t.is_empty() {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
+                        if let Some(e) = v.get("event").and_then(|e| e.as_str()) {
+                            last_event = Some(e.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(if last_event.as_deref() == Some("Shutdown") { Owner::MenuOnly } else { Owner::Pending })
+}
+
 #[cfg(test)]
 mod tests {
     use super::sort_key;
@@ -180,5 +253,69 @@ mod tests {
         // zero-padded so it compares as a number, and `z` standing in for
         // the absent archive suffix so a real one sorts first.
         assert_eq!(sort_key("Journal.221231235959.01.log"), "2022-12-31T235959.0001.z");
+    }
+}
+
+#[cfg(test)]
+mod owner_tests {
+    use super::*;
+
+    const HEAD: &str = r#"{"timestamp":"2026-10-17T18:06:48Z","event":"Fileheader","part":1,"language":"English/UK","Odyssey":true,"gameversion":"4.4.2.0","build":"r318000/r0 "}"#;
+    const FRIEND: &str = r#"{"timestamp":"2026-10-17T18:06:50Z","event":"Friends","Status":"Online","Name":"Someone"}"#;
+    const CMDR_A: &str = r#"{"timestamp":"2026-10-17T18:06:55Z","event":"Commander","FID":"F0000001","Name":"Alpha"}"#;
+    const LOAD_A: &str = r#"{"timestamp":"2026-10-17T18:06:56Z","event":"LoadGame","FID":"F0000001","Commander":"Alpha","Ship":"Mandalay","ShipID":31,"Credits":1000}"#;
+    const CMDR_B: &str = r#"{"timestamp":"2026-10-17T18:30:00Z","event":"Commander","FID":"F0000002","Name":"Beta"}"#;
+    const SHUTDOWN: &str = r#"{"timestamp":"2026-10-17T18:07:00Z","event":"Shutdown"}"#;
+
+    #[test]
+    fn the_first_commander_line_names_the_owner() {
+        assert_eq!(owner_of_lines([HEAD, FRIEND, FRIEND, CMDR_A, LOAD_A]), Owner::Fid("F0000001".into()));
+    }
+
+    #[test]
+    fn a_loadgame_line_names_the_owner_when_commander_is_missing() {
+        assert_eq!(owner_of_lines([HEAD, LOAD_A]), Owner::Fid("F0000001".into()));
+    }
+
+    #[test]
+    fn a_second_commander_event_with_the_same_fid_is_the_same_owner() {
+        // A relog to the menu and back writes Commander again (1,492 times in
+        // the donor data); the file stays one commander's.
+        assert_eq!(owner_of_lines([HEAD, CMDR_A, LOAD_A, CMDR_A, LOAD_A]), Owner::Fid("F0000001".into()));
+    }
+
+    #[test]
+    fn the_first_fid_wins_even_if_a_later_line_names_another() {
+        // Never observed (0 of 1,396 files); the ingest refuses the later
+        // lines (Task 2). The owner is still the first.
+        assert_eq!(owner_of_lines([HEAD, CMDR_A, CMDR_B]), Owner::Fid("F0000001".into()));
+    }
+
+    #[test]
+    fn a_file_that_shut_down_without_a_commander_is_menu_only() {
+        assert_eq!(owner_of_lines([HEAD, FRIEND, SHUTDOWN]), Owner::MenuOnly);
+    }
+
+    #[test]
+    fn a_file_without_a_commander_that_has_not_shut_down_is_pending() {
+        assert_eq!(owner_of_lines([HEAD, FRIEND]), Owner::Pending);
+        assert_eq!(owner_of_lines(Vec::<&str>::new()), Owner::Pending);
+    }
+
+    #[test]
+    fn junk_lines_are_skipped() {
+        assert_eq!(owner_of_lines([HEAD, "not json", "", "\u{feff}", CMDR_A]), Owner::Fid("F0000001".into()));
+    }
+
+    #[test]
+    fn owner_reads_a_file_from_disk() {
+        let dir = std::env::temp_dir().join(format!("edda-owner-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("Journal.2026-10-17T180648.01.log");
+        std::fs::write(&p, format!("{HEAD}\n{FRIEND}\n{CMDR_A}\n{LOAD_A}\n")).unwrap();
+        assert_eq!(owner(&p).unwrap(), Owner::Fid("F0000001".into()));
+        std::fs::write(&p, format!("{HEAD}\n{SHUTDOWN}\n")).unwrap();
+        assert_eq!(owner(&p).unwrap(), Owner::MenuOnly);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
