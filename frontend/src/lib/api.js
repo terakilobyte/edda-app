@@ -142,6 +142,7 @@ export const COMMANDS = {
   // App self-update
   appUpdateCheck: ["app_update_check"],
   releaseNotesGet: ["release_notes_get"],
+  appVersionGet: ["app_version"],
   releaseNotesSeen: ["release_notes_seen"],
   appUpdateInstall: ["app_update_install"],
   appRestart: ["app_restart"],
@@ -309,7 +310,7 @@ export const {
   findSystem, stationsInSystem, findStation, nearestService, stationMarket, commoditySearch, outfittingSearch, shipyardSearch,
   profitRoutes, cancelSearch, currentRoute, powerplayOptions,
   galaxyStatus, activityHeatmap, feedbackSend, telemetryPrefs, telemetryPrefsSet, speculativeMissions, speculativeMissionsSet, shipScoopInfo, sellHoldSearch, miningSearch, miningMaterials, markAdd, markRemove, markHere, gameState,
-  appUpdateCheck, appUpdateInstall, appRestart, releaseNotesGet, releaseNotesSeen,
+  appUpdateCheck, appUpdateInstall, appRestart, releaseNotesGet, releaseNotesSeen, appVersionGet,
   listenStatus, listenConfigSet, listenSetup, listenModelsRemove, audioDevices, listenPtt, joyDevices, pttCapture,
   galaxyFind, edsmSystem, plotRoute, injectionsAvailable, cancelRoute, importSpanshRoute, routeActivate, routeClear, routeClearInGame, routeFollowStatus, routeActiveGet, routeTargetNext,
   tradeFollowStart, tradeFollowStop, tradeFollowStatus, engineerTour, engineerTourFollow, engineerTourUpdate, carrierRoutePlot, carrierRouteStart, carrierRouteStatus, carrierRouteClear, carrierRouteNext,

@@ -4,7 +4,7 @@
   // moves here). Updates come signed from the community API; the check
   // runs quietly in the background and nothing installs without a say-so.
   import { onMount } from "svelte";
-  import { appUpdateCheck, appUpdateInstall, appRestart, onAppUpdate, releaseNotesGet } from "./api.js";
+  import { appUpdateCheck, appUpdateInstall, appRestart, onAppUpdate, releaseNotesGet, appVersionGet } from "./api.js";
   import WhatsNew from "./WhatsNew.svelte";
   let releaseNotes = $state(null);
   let appVersion = $state("");
@@ -29,7 +29,7 @@
     appBusy = true; appMsg = "";
     try {
       const r = await appUpdateCheck();
-      appVersion = r.current;
+      appVersion ||= r.current;
       appMsg = r.available ? `Version ${r.available} is available.` : `EDDA ${r.current} is the latest version.`;
       if (r.available && appUpdate?.phase !== "ready") appUpdate = { phase: "available", version: r.available };
     } catch (e) { appMsg = String(e); }
@@ -42,6 +42,8 @@
     appBusy = false;
   }
   onMount(() => {
+    // Known without an update check; a dev build says so.
+    appVersionGet().then((v) => (appVersion = v)).catch(() => {});
     const off = onAppUpdate((e) => { appUpdate = e.payload; });
     return () => { off?.(); };
   });

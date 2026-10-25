@@ -17,6 +17,7 @@ export function browserTransport() {
     plot_route: async () => structuredClone(colonia),
     personas: async () => ({ selected: "default", personas: [] }),
     release_notes_get: async () => ({ sections: [], unseen: false, latest: null }),
+    app_version: async () => "0.0.0-dev",
     frontend_log: async () => null,
     setup_completed: async () => null,
     // The Voice tab after "Remove installed voices" (2026-10-17): nothing

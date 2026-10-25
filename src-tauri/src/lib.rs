@@ -543,6 +543,7 @@ pub fn run() {
             carrier_follow::carrier_route_next,
             app_update::app_update_check,
             app_update::release_notes_get,
+            app_update::app_version,
             app_update::release_notes_seen,
             app_update::app_update_install,
             app_update::app_restart,

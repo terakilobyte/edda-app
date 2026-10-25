@@ -30,9 +30,10 @@
   import EngineersPanel from "./lib/EngineersPanel.svelte";
   import { planner } from "./lib/planner.svelte.js";
   import Onboarding from "./lib/Onboarding.svelte";
+  import VersionTag from "./lib/VersionTag.svelte";
   import CommanderStrip from "./lib/CommanderStrip.svelte";
   import WhatsNew from "./lib/WhatsNew.svelte";
-  import { releaseNotesGet, setupCompleted, listCommanders, selectCommander, onJournalChanged } from "./lib/api.js";
+  import { releaseNotesGet, appVersionGet, setupCompleted, listCommanders, selectCommander, onJournalChanged } from "./lib/api.js";
   // The post-update splash: shown once per version, never over the
   // onboarding flow (a fresh install meets Setup first; the notes wait).
   let whatsNew = $state(null);
@@ -92,6 +93,8 @@
   // renders only when there are two or more. Refreshed on journal
   // changes, throttled: the event fires on every sync with new rows.
   let commanders = $state([]);
+  // The running version, beside the wordmark (the maintainer, 2026-10-25).
+  let version = $state("");
   let commandersTimer = null;
   async function refreshCommanders() {
     try { commanders = await listCommanders(); } catch (e) { console.error("commanders unavailable:", e); }
@@ -171,6 +174,7 @@
     // The first sync often finishes before this window is listening: ask.
     try { const st = await getStatus(); if (st?.location || st?.commander) synced = true; } catch {}
     await refreshCommanders();
+    appVersionGet().then((v) => (version = v)).catch(() => {});
     listeners.add(onJournalChanged(() => { clearTimeout(commandersTimer); commandersTimer = setTimeout(refreshCommanders, 2000); }));
     listeners.add(onGameState((e) => (game = e.payload)));
     try { game = await gameState(); } catch {}
@@ -216,7 +220,7 @@
 
 <main>
   <header>
-    <h1><button class="wordmark" onclick={logoEgg} aria-label="EDDA">EDDA</button> <button class="sub expansion" onclick={nameEgg} title="Elite Dangerous Desktop Aid">{alternateName ? "Extremely Dependable Digital Assistant" : "Elite Dangerous Desktop Aid"}</button></h1>
+    <h1><button class="wordmark" onclick={logoEgg} aria-label="EDDA">EDDA</button> <VersionTag {version} /> <button class="sub expansion" onclick={nameEgg} title="Elite Dangerous Desktop Aid">{alternateName ? "Extremely Dependable Digital Assistant" : "Elite Dangerous Desktop Aid"}</button></h1>
     <CommanderStrip {commanders} onSelect={pickCommander} />
     <nav>
       {#each visibleTabs as [k, label]}

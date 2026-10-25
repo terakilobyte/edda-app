@@ -307,6 +307,17 @@ pub fn section_for(version: &str) -> Option<&'static str> {
     Some(body[..end].trim())
 }
 
+/// The version the header shows; a debug build (the dev app) runs
+/// unreleased code, so it says so.
+fn version_label(version: &str, debug: bool) -> String {
+    if debug { format!("{version}-dev") } else { version.to_string() }
+}
+
+#[tauri::command]
+pub fn app_version() -> String {
+    version_label(env!("CARGO_PKG_VERSION"), cfg!(debug_assertions))
+}
+
 #[tauri::command]
 pub async fn release_notes_get(
     state: tauri::State<'_, crate::state::AppState>,
@@ -338,6 +349,14 @@ pub async fn release_notes_seen(
 
 #[cfg(test)]
 mod notes_tests {
+    #[test]
+    fn a_debug_build_says_dev_after_its_version() {
+        // The dev app runs unreleased code: a bare "0.4.8" in a screenshot
+        // of it would claim a release it is not (the maintainer, 2026-10-25).
+        assert_eq!(super::version_label("0.4.8", true), "0.4.8-dev");
+        assert_eq!(super::version_label("0.4.8", false), "0.4.8");
+    }
+
     /// The contract the release script also enforces: the running
     /// version must have a section, and it must be the newest one.
     #[test]
