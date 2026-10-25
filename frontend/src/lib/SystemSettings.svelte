@@ -5,6 +5,7 @@
   let { onSetup = () => {} } = $props();
   import { onMount } from "svelte";
   import FrontierLink from "./FrontierLink.svelte";
+  import ExperimentalSettings from "./ExperimentalSettings.svelte";
   import { ship } from "./ship.svelte.js";
   import { SECTIONS as HUD_SECTIONS, PRESETS, normalise as normaliseLayout, move as moveSection, toggleHidden, toggleCompact, preset as hudPreset } from "./hudLayout.js";
   // One section at a time: seven panels stacked was a wall.
@@ -14,6 +15,7 @@
     ["hud", "HUD"],
     ["database", "Database"],
     ["frontier", "Frontier account"],
+    ["experimental", "Experimental"],
     ["setup", "Setup"],
   ];
   import { capiStatus, capiLinkStart, capiLinkCode, capiUnlink, capiRefreshCarrier, onCapiState } from "./api.js";
@@ -33,7 +35,7 @@
   // Anonymous usage data — the maintainer's opt-out consent (2026-09-05).
   let telemetry = $state(true);
   onMount(async () => { try { telemetry = await telemetryPrefs(); } catch {} });
-  // One database per commander in the journal folder; listed when there are two or more.
+  // One database per commander in the journal folder; listed under Experimental.
   let commanders = $state([]);
   onMount(async () => { try { commanders = await listCommanders(); } catch {} });
   async function setTelemetry(enabled) {
@@ -285,6 +287,8 @@
 
 {#if sec === "follow"}<RouteControlSettings />{/if}
 
+{#if sec === "experimental"}<ExperimentalSettings {commanders} />{/if}
+
 {#if sec === "frontier"}
 <section class="panel">
   <h2>Frontier account <span class="sub">optional · your carrier's real hold, tank and balance</span></h2>
@@ -302,11 +306,6 @@
       <dt>Total on disk</dt><dd class="num">{(db.total_bytes / 1073741824).toFixed(2)} GiB</dd>
       <dt>Journal events</dt><dd class="num">{fmtInt(db.events)}</dd>
       <dt>Combat</dt><dd class="num">{fmtInt(db.kills)} kills · {fmtInt(db.merit_awards)} merit awards</dd>
-      {#if commanders.length > 1}
-        <dt>Commanders</dt>
-        <dd>{#each commanders as c (c.fid)}<div><strong>{c.name || c.fid}</strong> <span class="muted">{(c.store_bytes / 1e6).toFixed(1)} MB{c.selected ? " · selected" : ""}</span></div>{/each}
-          <p class="muted small" style="margin:0.3rem 0 0">Each account in this PC's journal folder has its own database; the selector above the tabs picks which one EDDA shows, speaks and overlays.</p></dd>
-      {/if}
     </dl>
   {/if}
   <div class="row" style="margin-top:0.6rem">

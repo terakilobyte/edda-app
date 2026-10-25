@@ -139,7 +139,9 @@ are equal.
   pipeline but only the **danger set** reaches the voice, prefixed with
   that commander's name: under attack, interdicted, hull below 25%,
   fighter destroyed, carrier jump in 60 s, docking denied. Behind
-  Settings > Voice > "Alerts from other commanders", shipped off. The set
+  Settings > Experimental > "Alerts from the unselected commander" (the
+  toggle began under Voice; the maintainer, 2026-10-24: the feature ships
+  marked experimental, so its controls live together there), shipped off. The set
   is a constant with a test; nothing else from an unselected store is
   spoken.
 - The Frontier link stores one refresh token per FID

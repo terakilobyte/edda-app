@@ -6,7 +6,7 @@
   import {
     voiceStatus, voiceModels, voiceInstallDefault, voiceRemove, voiceUseWindows, voiceUseNone, voicesInstalled, voicesRemoveAll, setVoice, setMuted, personas, setPersona, voiceServerGet, voiceServerSet, voiceServerProbe, signalWatchGet, signalWatchSet,
     speechEngineStatus, speechEngineInstall, speechEngineStart, onSpeechEngineProgress,
-    calloutsGet, calloutsSet, otherCommanderAlerts, otherCommanderAlertsSet,
+    calloutsGet, calloutsSet,
     listenStatus, listenConfigSet, listenSetup, listenPtt, onListenState, onListenHeard, onListenReply, onListenSetup, onListenPartial, joyDevices, pttCapture, audioDevices, listenModelsInstalled, listenModelsRemove,
   } from "./api.js";
   import { useListeners, useTabActive } from "./lifecycle.svelte.js";
@@ -150,10 +150,6 @@
   let signals = $state([]);
   let calloutKinds = $state([]);
   onMount(async () => { try { calloutKinds = await calloutsGet(); } catch {} });
-  // Danger-only alerts from the commanders NOT selected (maintainer,
-  // 2026-10-24); off by default.
-  let otherAlerts = $state(false);
-  onMount(() => { otherCommanderAlerts().then((v) => (otherAlerts = v)).catch(() => {}); });
   async function toggleCallout(id, on) {
     const off = calloutKinds.filter((k) => (k.id === id ? !on : !k.on)).map((k) => k.id);
     try { calloutKinds = await calloutsSet(off); } catch {}
@@ -366,10 +362,6 @@
     {#each calloutKinds as k}<label><input type="checkbox" checked={k.on} onchange={(e) => toggleCallout(k.id, e.target.checked)} /> {k.label}</label>{/each}
   </div>
   <p class="muted small" style="margin:0.5rem 0 0">A switched-off kind is neither spoken nor shown. Instructions while following a route (burn fuel, re-planning) always come through.</p>
-  <p class="muted small" style="margin:0.5rem 0 0">
-    <label><input type="checkbox" checked={otherAlerts} onchange={async (e) => { otherAlerts = e.target.checked; try { await otherCommanderAlertsSet(otherAlerts); } catch {} }} />
-    Alerts from other commanders</label> — when more than one of your accounts is in game, the unselected one speaks only danger: under attack, interdicted, overheating, destroyed, carrier jump scheduled. Off by default.
-  </p>
 </section>
 
 <section class="panel">

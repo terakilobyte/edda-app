@@ -1015,7 +1015,12 @@ verdicts live in the CSV headers under `docs/benches/`.
   (`edda.<FID>.sqlite3`), journal files attributed by their first Commander
   line, companion files by content (Status.json by Balance), a manual
   commander strip, one HUD and voice on the selected commander, danger-only
-  alerts from the others behind an off-by-default toggle. Measured first:
+  alerts from the others behind an off-by-default toggle. Ships marked
+  **experimental** under Settings > Experimental (the maintainer, 2026-10-24:
+  a release may carry it once single-account play is known to be untouched;
+  the sub-tab lists the commanders found, their databases and the alerts
+  toggle; no master switch, since one store per commander is what keeps two
+  accounts apart). Measured first:
   the shipped store blended a two-account folder 263 commander flips in 90
   days (`docs/benches/2026-10-24-two-account-folder-baseline.csv`); the
   registry replay: `docs/benches/2026-10-24-multibox-replay.csv` (run 1
