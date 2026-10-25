@@ -186,6 +186,7 @@ impl Registry {
 
         // 1. Owners: new files and files still pending.
         let mut owned: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut menu_only: Vec<String> = Vec::new();
         {
             let mut inner = self.inner();
             for name in &names {
@@ -221,7 +222,10 @@ impl Registry {
                         }
                         owned.entry(fid).or_default().push(name.clone());
                     }
-                    Owner::MenuOnly => out.menu_only_files += 1,
+                    Owner::MenuOnly => {
+                        out.menu_only_files += 1;
+                        menu_only.push(name.clone());
+                    }
                     Owner::Pending => out.pending_files += 1,
                 }
             }
@@ -236,6 +240,18 @@ impl Registry {
                 if empty {
                     inner.stores.remove(PLACEHOLDER);
                     tracing::info!("placeholder store retired");
+                }
+            }
+            // One commander: the menu launches are theirs, as every file
+            // was before (a menu launch's Shutdown can close a session the
+            // last game file left open). With two they could be either's.
+            let mut real = inner.stores.keys().filter(|f| f.as_str() != PLACEHOLDER);
+            if let (Some(fid), None) = (real.next(), real.next()) {
+                if !menu_only.is_empty() {
+                    let list = owned.entry(fid.clone()).or_default();
+                    list.append(&mut menu_only);
+                    let at: HashMap<&String, usize> = names.iter().enumerate().map(|(i, n)| (n, i)).collect();
+                    list.sort_by_key(|n| at.get(n).copied().unwrap_or(usize::MAX));
                 }
             }
         }
@@ -483,7 +499,9 @@ mod tests {
         std::fs::write(journal.join("Journal.2026-10-17T191000.01.log"), format!("{{\"timestamp\":\"2026-10-17T19:10:00Z\",\"event\":\"Fileheader\",\"part\":1}}\n{CMDR_A}\n{LOAD_A}\n")).unwrap();
         let out = reg.sync_all(|_, _, _| {}).unwrap();
         assert_eq!(out.new_fids, vec!["F0000001".to_string()]);
-        assert_eq!(count(&reg.store("F0000001").unwrap(), "SELECT COUNT(*) FROM events"), 3);
+        // 3 from the file that named the commander, 2 from the earlier menu
+        // launch: with one commander the menu files are theirs.
+        assert_eq!(count(&reg.store("F0000001").unwrap(), "SELECT COUNT(*) FROM events"), 5);
     }
 
     #[test]
@@ -606,6 +624,44 @@ mod tests {
         let out = reg.sync_all(|_, _, _| {}).unwrap();
         assert_eq!(out.new_fids, vec!["F0000001".to_string()], "a stale file that grows is classified again");
         assert_eq!(count(&reg.store("F0000001").unwrap(), "SELECT COUNT(*) FROM events"), 3);
+    }
+
+    #[test]
+    fn one_commander_keeps_its_menu_launches_as_today() {
+        // Single-account A/B against 0.4.8 (2026-10-25): a menu launch's
+        // Shutdown closed a combat session the crashed game file left open;
+        // set aside, the session ran to the next LoadGame. With one
+        // commander the menu files are theirs, as every file was before.
+        let (_d, journal, base) = folder();
+        std::fs::write(journal.join("Journal.2026-10-17T180648.01.log"), format!("{CMDR_A}
+{LOAD_A}
+")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T190000.01.log"), MENU).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        let out = reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!(out.menu_only_files, 1);
+        let a = reg.store("F0000001").unwrap();
+        assert_eq!(count(&a, "SELECT COUNT(*) FROM events WHERE event = 'Shutdown'"), 1, "the menu launch's Shutdown is the commander's");
+        assert_eq!(count(&a, "SELECT COUNT(*) FROM events"), 4);
+        reg.sync_all(|_, _, _| {}).unwrap();
+        assert_eq!(count(&a, "SELECT COUNT(*) FROM events"), 4, "read once");
+    }
+
+    #[test]
+    fn two_commanders_leave_menu_launches_to_nobody() {
+        let (_d, journal, base) = folder();
+        std::fs::write(journal.join("Journal.2026-10-17T180648.01.log"), format!("{CMDR_A}
+{LOAD_A}
+")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T180748.01.log"), format!("{CMDR_B}
+{LOAD_B}
+")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T190000.01.log"), MENU).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        reg.sync_all(|_, _, _| {}).unwrap();
+        for fid in ["F0000001", "F0000002"] {
+            assert_eq!(count(&reg.store(fid).unwrap(), "SELECT COUNT(*) FROM events WHERE event = 'Shutdown'"), 0, "{fid}: a menu launch could be either account");
+        }
     }
 
     #[test]

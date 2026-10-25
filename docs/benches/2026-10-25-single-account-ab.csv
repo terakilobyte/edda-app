@@ -1,6 +1,7 @@
 # Single-account A/B: 0.4.8 (Store::sync, the shipped app path) against the multi-commander branch at 5bbd4ee (Registry::sync_all on one commander), on one frozen copy of the maintainer's own journal folder (141 files, 66 MB), three alternating runs per side, release builds, 2026-10-25. Knob: bash docs/benches/knobs/single-account-ab/run.sh <journal_dir> <scratch> 3 (CARGO_TARGET_DIR set; builds v0.4.8 in .claude/worktrees/ab-048 with its own target dir).
 # Pre-registered: same outcome (equal event count, equal rows in every shared table); cold sync median B <= 1.10 x A; quiet pass median B <= 1.10 x A + 10 ms.
 # Verdict: speed MET, outcome MISSED by one row. Cold medians A 3.25 s / B 3.23 s; quiet passes A 27-33 ms / B 26-31 ms; store 126.0 / 125.9 MB; 30 tables on each side, 27 identical in content. events -21 and journal_files -8: the 8 files that never name a commander (8 Fileheader, 9 Friends, 4 Shutdown) are menu-only and belong to no store under the registry. combat_sessions: 213 rows each, one differs: a session whose game file ended without a Shutdown was closed in 0.4.8 by the next launch's menu-only Shutdown (closed_by shutdown, about 12 h earlier) and on the branch by the next LoadGame (closed_by loadgame, secs +274 of 34,205; kills and credits equal). Every run reproduced the same counts on both sides.
+# Run 2 (after the fix, same day): with exactly one commander the registry hands it the menu-only files, as 0.4.8 did with every file (registry one_commander_keeps_its_menu_launches_as_today RED first; two_commanders_leave_menu_launches_to_nobody guards the multi case). Pre-registered: all 30 tables identical in content (journal_files.updated_at aside), speed lines as run 1. Measured: MET. 30/30 identical on all three runs; cold medians A 3.32 / B 3.27 s; quiet medians A 29 / B 32 ms (bound 41.9). Donor 1's two-commander replay after the fix: unchanged counts (1,256,511 events; 1,004,435 / 252,076; 164 menu-only, 0 pending; purity ok), wall 82.0 s (runs 2-3 recorded 66-69 s; the multi path is untouched by the fix, so read as machine noise, within the 195 s bound).
 metric,side,run,value,note
 cold_s,A,1,3.28,
 cold_s,B,1,3.23,
@@ -23,3 +24,16 @@ journal_files,A,all,131,
 journal_files,B,all,123,-8 menu-only files
 combat_sessions_rows,both,all,213,
 combat_sessions_differing,both,all,1,closed by a menu-only Shutdown in A; by the next LoadGame in B
+cold_s,A,r2-1,3.75,run 2 (after the fix)
+cold_s,B,r2-1,3.27,
+cold_s,A,r2-2,3.21,
+cold_s,B,r2-2,3.30,
+cold_s,A,r2-3,3.32,
+cold_s,B,r2-3,3.22,
+quiet_ms,A,r2-1,37/27/27,
+quiet_ms,B,r2-1,27/32/27,
+quiet_ms,A,r2-2,29/30/29,
+quiet_ms,B,r2-2,38/29/27,
+quiet_ms,A,r2-3,33/35/28,
+quiet_ms,B,r2-3,33/37/38,
+tables_identical,both,r2,30,all three runs; journal_files.updated_at aside
