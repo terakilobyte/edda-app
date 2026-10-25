@@ -81,7 +81,7 @@ Companion attribution by timing was measured and buried: with "the
 commander whose journal wrote most recently" the companion write is
 ambiguous for 15.6% of state lines at a 3 s window (8.9% at 1 s, 31.8% at
 10 s). By content it is not: the two accounts' credit balances are never
-closer than 5.3 M Cr (median gap 2.4 B Cr) and in 133 of 141 concurrent
+close (figures withheld: balance-derived; bench CSV) and in 133 of 141 concurrent
 windows neither side's turnover reached half the gap; cargo tonnage ties
 in 70% of concurrent minutes, but a tie is harmless because the values
 are equal.

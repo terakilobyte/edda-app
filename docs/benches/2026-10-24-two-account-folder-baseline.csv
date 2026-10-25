@@ -1,7 +1,7 @@
-# Two accounts in one journal folder: what the shipped store (0.4.8) does with them (2026-10-24). The maintainer: "it's time to move on to a feature that people have been asking us to support... multiple accounts/multiboxing"; a two-account player donated their Saved Games folder (1,396 journal files, 2025-01-28 .. 2026-10-17). The folder stays on the maintainer's PC; only counts and shapes are recorded, commanders labelled A (main, ~1,960 h) and B (alt, ~520 h).
+# Two accounts in one journal folder: what the shipped store (0.4.8) does with them (2026-10-24). The maintainer: "it's time to move on to a feature that people have been asking us to support... multiple accounts/multiboxing"; a two-account player donated their Saved Games folder (1,396 journal files spanning about 21 months). The folder stays on the maintainer's PC; only counts and shapes are recorded, commanders labelled A (main, ~1,960 h) and B (alt, ~520 h).
 # Instruments: docs/benches/knobs/multibox/survey.py <folder>, survey2.py <folder>, flips.py <store>, ambiguity.py <store>, balance.py <store>; the store is the folder replayed through `cargo run -p ed-store --release --example first_sync -- <folder> <scratch.sqlite3>` (2 min 30 s, 1,493.8 MB, 1,257,243 events; merit_capture cold 47 s).
 # Pre-registered: every "newest row wins" reader changes commander many times during concurrent play; the companion files cannot be attributed by timing; they can by content (Balance).
-# Verdict: as pre-registered. 141 concurrent session pairs (277 h over 69 days, both in the same system in 52); in the last 90 days the Commander reader flips 263 times, Loadout 312, Cargo 287, Missions 265, Materials 263, Location 267, ShipLocker 519; 590 state rows arrive within 60 s of the other commander's; 16 ShipIDs are used by both; the missions table lists both accounts' missions, the carriers table both carriers. Timing attribution of a companion write is ambiguous for 15.6% of state lines at 3 s (8.9% at 1 s, 31.8% at 10 s): BURIED. Content attribution: the two balances are never closer than 5,285,658 Cr (median gap 2,382,192,051), and in 133 of 141 windows no side's in-window turnover reached half the gap; cargo tonnage ties in 70.0% of concurrent minutes but a tie is harmless. Design: docs/superpowers/specs/2026-10-24-multi-commander-design.md (one store per commander, manual selector, one HUD, danger-only alerts from the unselected account).
+# Verdict: as pre-registered. 141 concurrent session pairs (277 h over 69 days, both in the same system in 52); in the last 90 days the Commander reader flips 263 times, Loadout 312, Cargo 287, Missions 265, Materials 263, Location 267, ShipLocker 519; 590 state rows arrive within 60 s of the other commander's; 16 ShipIDs are used by both; the missions table lists both accounts' missions, the carriers table both carriers. Timing attribution of a companion write is ambiguous for 15.6% of state lines at 3 s (8.9% at 1 s, 31.8% at 10 s): BURIED. Content attribution: the two balances are far apart at every concurrent window (figures withheld: balance-derived), and in 133 of 141 windows no side's in-window turnover reached half the gap; cargo tonnage ties in 70.0% of concurrent minutes but a tie is harmless. Design: docs/superpowers/specs/2026-10-24-multi-commander-design.md (one store per commander, manual selector, one HUD, danger-only alerts from the unselected account).
 # Structural facts: files with two FIDs 0; menu-only files with no Commander event 164 (152 with timestamps); lines before the first Commander event, worst case 45 (Friends, Music); Commander events repeated inside one file 1,492 (relog; median gap 16 min); Commander followed by LoadGame within 7 lines in 2,691 of 2,724; same-commander file overlaps 4 (crash-and-relaunch, 38-1,704 s); file-name stem collisions 0; unparsable lines 16.
 metric,scope,A,B,both_or_total,note
 files,folder,990,242,1396,164 menu-only files have no FID
@@ -10,7 +10,7 @@ hours_in_game,journal,1963,517,,sum of file spans
 days_played,journal,343,104,37,days with both
 concurrent_session_pairs,journal,,,141,both accounts in game at once
 concurrent_hours,journal,,,276.6,
-concurrent_days,journal,,,69,2025-11-13 .. 2026-10-17
+concurrent_days,journal,,,69,over about 11 months
 concurrent_pairs_same_system,journal,,,52,
 events_within_1s_of_other,journal,,,29952,inside concurrent windows
 wing_events_in_overlaps,journal,,,158,
@@ -27,8 +27,8 @@ flips_carrierstats_90d,store,,,39,
 cross_commander_rows_within_60s,store,,,590,"Location/FSDJump/Loadout/Cargo/Materials/ShipLocker"
 companion_ambiguity_3s_state_lines_pct,store,,,15.6,timing rule; 8.9 at 1 s; 31.8 at 10 s
 companion_ambiguity_3s_all_lines_pct,store,,,28.5,
-credit_gap_min_cr,store,,,5285658,between the two accounts at LoadGame
-credit_gap_median_cr,store,,,2382192051,
+credit_gap_min_cr,store,,,withheld,between the two accounts at LoadGame; values removed 2026-10-25 (balance-derived)
+credit_gap_median_cr,store,,,withheld,balance-derived
 balance_close_windows,store,,,8,of 141; turnover reached half the gap
 cargo_tonnage_tie_pct,store,,,70.0,of concurrent minutes; harmless tie
 replay_wall_s,store,,,150,first_sync on the folder

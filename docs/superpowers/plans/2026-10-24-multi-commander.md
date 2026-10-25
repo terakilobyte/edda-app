@@ -598,8 +598,8 @@ Add to `crates/ed-store/src/session.rs`:
 /// `LoadGame`'s `Credits` plus every paid-out or paid-in amount since.
 /// Vouchers (`Bounty`, `FactionKillBond`) are not money until redeemed.
 /// Used to tell whose Status.json a Balance belongs to when two accounts
-/// share one folder (their balances were never within 5.3 M Cr of each
-/// other on the donor data, median gap 2.4 B Cr).
+/// share one folder (their balances were never close on the donor data;
+/// figures withheld, balance-derived).
 pub fn credits_estimate(conn: &Connection) -> Result<Option<i64>> {
     let Some((ts, file, offset, credits)) = conn
         .query_row(
