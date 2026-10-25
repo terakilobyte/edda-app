@@ -252,10 +252,10 @@ impl AppState {
     pub fn new(commanders: Arc<ed_store::registry::Registry>, data_dir: PathBuf) -> Self {
         let voice = Arc::new(VoiceHandle::spawn(&data_dir, USER_AGENT));
         let config = Arc::new(Mutex::new(AppConfig::load(&data_dir)));
-        let selected = Mutex::new(Self::initial_selection(
-            &config.lock().unwrap_or_else(|e| e.into_inner()),
-            &commanders,
-        ));
+        let selected = Self::initial_selection(&config.lock().unwrap_or_else(|e| e.into_inner()), &commanders);
+        // The launch selection's store is ingested and derived first.
+        commanders.set_first(&selected);
+        let selected = Mutex::new(selected);
         // Before anything can speak: the greeting fires after the initial
         // sync, and a commander who muted everything must not hear it.
         if config.lock().unwrap_or_else(|e| e.into_inner()).voice_muted {
@@ -347,6 +347,7 @@ impl AppState {
             return Err(format!("no commander {fid} in the journal folder"));
         }
         *self.selected.lock().unwrap_or_else(|e| e.into_inner()) = fid.to_string();
+        self.commanders.set_first(fid);
         self.readers.lock().unwrap_or_else(|e| e.into_inner()).1.clear();
         *self.dock_memo.lock().unwrap_or_else(|e| e.into_inner()) = crate::routing::DockMemo::default();
         // The Frontier link's cache (access token, link state, profile,
@@ -782,6 +783,14 @@ mod commander_tests {
         state.capi.lock().unwrap().last_error = Some("stale".into());
         state.select(ed_store::registry::PLACEHOLDER).unwrap();
         assert_eq!(state.capi.lock().unwrap().last_error, None);
+    }
+
+    #[test]
+    fn selecting_a_commander_puts_its_store_first_in_the_sync() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = test_state(dir.path());
+        state.select(ed_store::registry::PLACEHOLDER).unwrap();
+        assert_eq!(state.commanders.first().as_deref(), Some(ed_store::registry::PLACEHOLDER));
     }
 
     #[test]

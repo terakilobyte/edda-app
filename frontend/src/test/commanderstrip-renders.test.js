@@ -10,14 +10,19 @@ const two = [
 ];
 
 describe("CommanderStrip", () => {
-  it("renders one pill per commander with name, ship and system, the selected one marked", () => {
+  it("renders one pill per commander with the name only, the selected one coloured", () => {
     const { body } = render(CommanderStrip, { props: { commanders: two, onSelect: () => {} } });
     expect(body).toContain("Alpha");
     expect(body).toContain("Beta");
-    expect(body).toContain("Mandalay");
-    expect(body).toContain("Type-9 Heavy");
+    // Name only: ship and system are already on screen (maintainer, 2026-10-24).
+    expect(body).not.toContain("Mandalay");
+    expect(body).not.toContain("Type-9 Heavy");
+    expect(body).not.toContain("Sol");
     expect(body).toContain('aria-pressed="true"');
     expect(body).toContain('aria-pressed="false"');
+    // The selected commander is coloured, not just green text (maintainer, 2026-10-24).
+    expect(body).toMatch(/class="pill selected"[^>]*aria-pressed="true"/);
+    expect(body).not.toMatch(/class="pill selected"[^>]*aria-pressed="false"/);
     expect(body).toContain('class="live"');
     expect(body).not.toMatch(/\bsir\b|\bma'am\b/i);
   });

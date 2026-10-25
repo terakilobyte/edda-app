@@ -165,6 +165,8 @@
     listeners.add(onSyncComplete(() => {
       synced = true;
       sync = null;
+      // The strip was read before the first sync knew any names.
+      refreshCommanders();
     }));
     // The first sync often finishes before this window is listening: ask.
     try { const st = await getStatus(); if (st?.location || st?.commander) synced = true; } catch {}

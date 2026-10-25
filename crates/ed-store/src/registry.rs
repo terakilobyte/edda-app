@@ -56,6 +56,9 @@ struct Inner {
     /// Each companion file's mtime when it was last dispatched; an
     /// unchanged file is not read, parsed or scored again.
     companion_mtimes: HashMap<String, Option<i64>>,
+    /// The commander synced first (the selected one): on a first sync a
+    /// large other store must not keep this one's panels empty.
+    first: Option<String>,
 }
 
 fn file_key(path: &Path) -> Option<(std::time::SystemTime, u64)> {
@@ -89,7 +92,7 @@ impl Registry {
         Ok(Registry {
             base: base.to_path_buf(),
             journal_dir: journal_dir.to_path_buf(),
-            inner: Mutex::new(Inner { stores, owners: HashMap::new(), stale: HashMap::new(), companion_mtimes: HashMap::new() }),
+            inner: Mutex::new(Inner { stores, owners: HashMap::new(), stale: HashMap::new(), companion_mtimes: HashMap::new(), first: None }),
         })
     }
 
@@ -127,6 +130,25 @@ impl Registry {
 
     pub fn stores(&self) -> Vec<(String, Arc<Mutex<Store>>)> {
         self.inner().stores.iter().map(|(k, s)| (k.clone(), s.clone())).collect()
+    }
+
+    /// Sync this commander's store before the others (the app calls it on
+    /// every selection).
+    pub fn set_first(&self, fid: &str) {
+        self.inner().first = Some(fid.to_string());
+    }
+
+    pub fn first(&self) -> Option<String> {
+        self.inner().first.clone()
+    }
+
+    /// The stores in the order a sync ingests and derives them: the
+    /// `first` commander, then the rest by FID.
+    pub fn sync_order(&self) -> Vec<(String, Arc<Mutex<Store>>)> {
+        let first = self.first();
+        let mut all = self.stores();
+        all.sort_by_key(|(fid, _)| Some(fid) != first.as_ref());
+        all
     }
 
     /// The commander whose journal file was modified most recently. Works
@@ -221,7 +243,7 @@ impl Registry {
             tracing::debug!(files = out.menu_only_files, "menu-only journal files ignored");
         }
 
-        let stores = self.stores();
+        let stores = self.sync_order();
         // A FID-less install syncs exactly as today.
         if stores.len() == 1 && stores[0].0 == PLACEHOLDER {
             let stats = stores[0].1.lock().unwrap_or_else(|e| e.into_inner()).sync_with_progress(progress)?;
@@ -402,6 +424,27 @@ mod tests {
         std::fs::create_dir_all(&data).unwrap();
         (dir, journal, data.join("edda.sqlite3"))
     }
+    #[test]
+    fn the_selected_commander_is_synced_first() {
+        // 2026-10-24 dev-app run: the first sync derived the big store (1M
+        // events, ~10 min in debug) before the small one, so the selected
+        // small commander's panels sat empty behind the other account.
+        let (_d, journal, base) = folder();
+        std::fs::write(journal.join("Journal.2026-10-17T180648.01.log"), format!("{CMDR_A}
+{LOAD_A}
+")).unwrap();
+        std::fs::write(journal.join("Journal.2026-10-17T180748.01.log"), format!("{CMDR_B}
+{LOAD_B}
+")).unwrap();
+        let reg = Registry::open(&base, &journal).unwrap();
+        reg.sync_all(|_, _, _| {}).unwrap();
+        let order = |r: &Registry| r.sync_order().into_iter().map(|(f, _)| f).collect::<Vec<_>>();
+        assert_eq!(order(&reg), vec!["F0000001".to_string(), "F0000002".to_string()]);
+        reg.set_first("F0000002");
+        assert_eq!(order(&reg), vec!["F0000002".to_string(), "F0000001".to_string()]);
+        assert_eq!(reg.first().as_deref(), Some("F0000002"));
+    }
+
     fn count(store: &Arc<Mutex<Store>>, sql: &str) -> i64 {
         store.lock().unwrap().conn().query_row(sql, [], |r| r.get(0)).unwrap()
     }
