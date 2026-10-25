@@ -380,6 +380,10 @@ fn aged<T: Serialize>(now: &str, value: Option<T>, ts: Option<String>) -> Option
     Some(Aged { value, as_of: ts, age_hours: (age * 10.0).round() / 10.0 })
 }
 
+/// Minutes after its departure time that a jump is still shown (it may be
+/// under way); past this it is dropped from the status.
+pub const PENDING_GRACE_MIN: i64 = 60;
+
 /// Every carrier the journal knows, owned first, with ages from `now`
 /// (ISO-8601, so tests are deterministic).
 pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
@@ -429,7 +433,11 @@ pub fn status(conn: &Connection, now: &str) -> Result<Vec<CarrierStatus>> {
             let now = ed_domain::freshness::parse_timestamp(now)?;
             Some((dep - now) / 60)
         });
-        let pending_jump = pj_system.map(|system| PendingJump {
+        // An hour past departure the jump is history: either it happened
+        // while the commander was elsewhere (no CarrierJump is written) or
+        // the request lapsed. Either way it is not a schedule.
+        let lapsed = minutes_to_departure.is_some_and(|m| m < -PENDING_GRACE_MIN);
+        let pending_jump = pj_system.filter(|_| !lapsed).map(|system| PendingJump {
             minutes_to_departure,
             system,
             body: pj_body,
@@ -509,8 +517,17 @@ mod tests {
     const SQUADRON: &str = r#"{"timestamp":"2026-08-28T10:00:00Z","event":"CarrierStats","CarrierType":"SquadronCarrier","CarrierID":3700000002,"Callsign":"ABCD","Name":"Squad","FuelLevel":1000,"SpaceUsage":{"TotalCapacity":60000,"FreeSpace":23244},"Finance":{"CarrierBalance":1},"Crew":[]}"#;
 
     fn one(conn: &Connection) -> CarrierStatus {
+        one_at(conn, "2026-01-16T02:00:00Z")
+    }
+
+    /// Before REQUEST's departure (22:57): a pending jump is still shown.
+    fn before_departure(conn: &Connection) -> CarrierStatus {
+        one_at(conn, "2026-01-15T22:40:00Z")
+    }
+
+    fn one_at(conn: &Connection, now: &str) -> CarrierStatus {
         rebuild(conn).unwrap();
-        status(conn, "2026-01-16T02:00:00Z").unwrap().into_iter().find(|c| c.carrier_id == 3700000001).unwrap()
+        status(conn, now).unwrap().into_iter().find(|c| c.carrier_id == 3700000001).unwrap()
     }
 
     #[test]
@@ -548,13 +565,14 @@ mod tests {
         let conn = db();
         ev(&conn, 1, BUY);
         ev(&conn, 2, REQUEST);
-        let c = one(&conn);
+        let c = before_departure(&conn);
         let pj = c.pending_jump.clone().expect("pending");
         assert_eq!(pj.system, "Beta");
         assert_eq!(pj.departure.as_deref(), Some("2026-01-15T22:57:00Z"));
         assert_eq!(c.location.as_ref().unwrap().value, "Alpha");
         ev(&conn, 3, JUMP);
-        let c = one(&conn);
+        // Inside the hour's grace: only the derive can have cleared it.
+        let c = one_at(&conn, "2026-01-15T23:30:00Z");
         assert!(c.pending_jump.is_none());
         let loc = c.location.unwrap();
         assert_eq!((loc.value.as_str(), loc.as_of.as_str()), ("Beta", "2026-01-15T22:58:00Z"));
@@ -584,9 +602,10 @@ mod tests {
         ev(&conn, 1, BUY);
         ev(&conn, 2, REQUEST);
         ev(&conn, 3, r#"{"timestamp":"2026-01-15T22:40:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Alpha","SystemAddress":11,"BodyID":0}"#);
-        assert!(one(&conn).pending_jump.is_some(), "still scheduled while it sits at the origin");
-        ev(&conn, 4, r#"{"timestamp":"2026-01-16T01:00:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Beta","SystemAddress":22,"BodyID":0}"#);
-        let c = one(&conn);
+        assert!(before_departure(&conn).pending_jump.is_some(), "still scheduled while it sits at the origin");
+        ev(&conn, 4, r#"{"timestamp":"2026-01-15T23:20:00Z","event":"CarrierLocation","CarrierType":"FleetCarrier","CarrierID":3700000001,"StarSystem":"Beta","SystemAddress":22,"BodyID":0}"#);
+        // Inside the hour's grace: only the derive can have cleared it.
+        let c = one_at(&conn, "2026-01-15T23:30:00Z");
         assert!(c.pending_jump.is_none());
         assert_eq!(c.location.unwrap().value, "Beta");
     }
@@ -681,6 +700,22 @@ mod tests {
         rebuild(&conn).unwrap();
         let all = status(&conn, "2026-01-16T02:00:00Z").unwrap();
         assert!(all[0].hold_moved.is_empty());
+    }
+
+    #[test]
+    fn a_jump_long_past_its_departure_is_not_shown_as_scheduled() {
+        // 2026-10-24 dev-app run: a squadron carrier read "departs in
+        // -217565 min", a May request whose jump the journal never closed
+        // (the commander was elsewhere and the next heartbeat found it in
+        // a third system).
+        let conn = db();
+        ev(&conn, 1, BUY);
+        ev(&conn, 2, REQUEST);
+        rebuild(&conn).unwrap();
+        let at = |now: &str| status(&conn, now).unwrap().into_iter().find(|c| c.carrier_id == 3700000001).unwrap().pending_jump;
+        assert_eq!(at("2026-01-15T22:40:00Z").and_then(|p| p.minutes_to_departure), Some(17));
+        assert!(at("2026-01-15T23:30:00Z").is_some(), "within the hour after departure the jump may still be under way");
+        assert!(at("2026-01-16T02:00:00Z").is_none(), "hours past departure it is history, not a schedule");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 <script>
-  import { ownCarriers } from "./carriers.js";
+  import { ownCarriers, carrierBadge, jumpText } from "./carriers.js";
   // Every ship from the journal, its build, and a one-click SLEF export for
   // EDSY / Coriolis.
   import { shipsList, shipModules, shipSlef, shipLinks, carrierStatus, capiRefreshCarrier } from "./api.js";
@@ -89,14 +89,14 @@
   {#each mine as c}
     <div class="carrier">
       <div class="name">{c.name ?? c.callsign} <span class="muted small">{c.callsign}</span>
-        {#if c.owned}<span class="pill ok">yours</span>{:else}<span class="pill">squadron</span>{/if}
+        <span class="pill {carrierBadge(c).cls}">{carrierBadge(c).text}</span>
         {#if c.decommissioned}<span class="pill warn">decommissioning</span>{/if}
       </div>
       <div class="muted small">Location: {aged(c.location)}{c.body ? ` (${c.body})` : ""}</div>
       <div class="muted small">Tritium tank: {aged(c.tank_tritium_t, " t")}</div>
       {#if c.capacity}<div class="muted small">Capacity: {fmtInt(c.capacity.value.used_t ?? 0)} t used, {fmtInt(c.capacity.value.free_t ?? 0)} t free of {fmtInt(c.capacity.value.total_t)} t · as of {fmtAge(c.capacity.age_hours)}</div>{/if}
       {#if c.balance_cr != null}<div class="muted small">Balance: {fmtInt(c.balance_cr)} cr · services: {c.services.join(", ") || "none"}</div>{/if}
-      {#if c.pending_jump}<div class="small warn">Jump scheduled to {c.pending_jump.system}{c.pending_jump.minutes_to_departure != null ? ` · departs in ${c.pending_jump.minutes_to_departure} min` : ""}</div>{/if}
+      {#if c.pending_jump}<div class="small warn">{jumpText(c.pending_jump)}</div>{/if}
       <!-- The hold comes ONLY from Frontier's own report (the Frontier
            link, Settings → Frontier account). The journal's running total
            of the commander's own transfers is not the inventory — it
