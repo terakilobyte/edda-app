@@ -7,6 +7,47 @@ Every section leads with a one-paragraph summary (the blurb the website
 shows); everything after it is the full notes, folded behind "Full
 notes" in the app and on the site alike.
 
+## 0.4.9
+
+Multiple commanders, as an experimental feature. A player who runs two
+of their own accounts into one journal folder (a second instance of
+the game on the same PC) now gets one database per commander, never
+mixed, and a selector above the tabs to choose whose panels, voice and
+HUD EDDA follows. With one account nothing changes: on a pilot's own
+journal folder every table EDDA keeps came out identical to 0.4.8's,
+at the same speed. EDDA's version now shows beside its name.
+
+Full notes:
+
+- **Multiple commanders (experimental).** Each journal file belongs to
+  the commander its first Commander line names, and only that
+  commander's database reads it. The game's shared files (Status,
+  Cargo, Market, NavRoute and the rest) are matched to a commander by
+  what they contain, never by which account wrote last; when the
+  contents cannot tell, the panels show nothing rather than the other
+  account's. The selector appears once a second commander has logged
+  in. Danger alerts from the commander you are not following (under
+  attack, interdicted, overheating, destroyed, carrier jump scheduled)
+  can be turned on under Settings > Experimental, off by default.
+  Known limits are listed there: the Frontier account link belongs to
+  the selected commander and drops on a switch, and a commander who sat
+  at the menu for an hour is picked up again on the next journal
+  write. Tell us what breaks.
+- **Your database, renamed.** EDDA's database file is now named after
+  the commander (`edda.<FID>.sqlite3` beside the old name). The first
+  start of 0.4.9 renames it; nothing is copied or lost. A database that
+  had already blended two accounts is split, each commander's copy
+  keeping the bookmarks, and the journal is read again.
+- **Version in the header.** The running version sits beside the EDDA
+  wordmark, and Settings > Application shows it without waiting for an
+  update check.
+- **Squadron carriers.** One card per squadron carrier (a replaced
+  carrier no longer shows twice), no blank cards for carriers known
+  only from a location heartbeat, a squadron carrier you bought reads
+  "squadron · yours", and a jump the journal never closed no longer
+  reads "departs in -217565 min": a departure long past says
+  "departed N min ago".
+
 ## 0.4.8
 
 The Anaconda Mk II is supported on its launch day. EDDA names it, finds
