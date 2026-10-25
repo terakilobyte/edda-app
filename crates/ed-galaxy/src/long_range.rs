@@ -659,7 +659,9 @@ fn refine_leg(g: &Galaxy, req: &RouteRequest, ctl: &Control, leg_of: &dyn Fn(u32
 /// d0 -> Hypins FL-Y d0, 3,864 ly, in every reverse-rim variant; 0.13 s
 /// fuel-blind). `true` on a route or when the check runs out of
 /// `budget_ms` (unknown is admitted; 0 skips the check). ED_NO_LEG_PRECHECK=1
-/// ablates.
+/// ablates. The planner now calls [`blind_leg`] directly (the leg
+/// precheck runs exact first); this form survives for its tests.
+#[cfg(test)]
 fn leg_feasible(g: &Galaxy, req: &RouteRequest, from: u32, to: u32, budget_ms: u64) -> bool {
     let longest = req.fuel.map(|m| m.range_at(0.0)).unwrap_or(req.range_ly).max(req.range_ly);
     !matches!(blind_leg(g, req, from, to, budget_ms, longest, true, true), Err(RouteError::NoRoute))

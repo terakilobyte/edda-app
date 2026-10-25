@@ -36,7 +36,6 @@ struct OurHop {
     distance_ly: f32,
     boosted: bool,
     fuel_after: Option<f32>,
-    name: String,
 }
 
 #[derive(serde::Deserialize)]

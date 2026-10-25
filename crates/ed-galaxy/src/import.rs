@@ -816,10 +816,6 @@ mod tests {
         }
     }
 
-    /// What the v3 writer promises, checked structurally on a fresh build:
-    /// morton-keyed cells, names contiguous in record order, companion
-    /// buckets populated from the bodies' distances.
-    #[test]
     /// A neutron star that is not the arrival star flags the record and
     /// lands in boost.bin with its distance; the record class stays the
     /// arrival star's (2026-09-10, the navroute lesson).
@@ -845,6 +841,10 @@ mod tests {
         assert_eq!(g.boost_secondary(by("Primary")), Some((StarClass::Neutron, 500.0)), "a second neutron beside a neutron primary is still recorded");
     }
 
+    /// What the v3 writer promises, checked structurally on a fresh build:
+    /// morton-keyed cells, names contiguous in record order, companion
+    /// buckets populated from the bodies' distances.
+    #[test]
     fn edgx_v3_build_is_morton_keyed_with_contiguous_names_and_companions() {
         let dir = tempfile::tempdir().unwrap();
         import_reader(

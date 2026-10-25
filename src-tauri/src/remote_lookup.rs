@@ -514,12 +514,7 @@ pub fn nearest_refuel_blocking(state: &AppState, system: &str, pad: ed_store::lo
 /// `GET /v1/stations?systems=a,b,c` (the assistant session, 2fe8099), 200 names per
 /// call. Lower-cased system names. `None` when any call went unanswered
 /// - callers treat that as "no dock known" and warn rather than guess.
-pub async fn docks_by_systems(state: &AppState, systems: &[String], pad: ed_store::lookup::PadSize) -> Option<std::collections::HashSet<String>> {
-    let api = crate::exchange::endpoint(state)?;
-    docks_by_systems_from(state, &api, systems, pad).await
-}
-
-/// [`docks_by_systems`] against a given server.
+/// The caller names the server (the router passes the one it plotted on).
 pub async fn docks_by_systems_from(state: &AppState, api: &str, systems: &[String], pad: ed_store::lookup::PadSize) -> Option<std::collections::HashSet<String>> {
     let mut docks = std::collections::HashSet::new();
     for chunk in systems.chunks(200) {
