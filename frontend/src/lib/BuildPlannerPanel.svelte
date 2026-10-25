@@ -555,7 +555,6 @@
 </section>
 
 <style>
-  .mini { font-size: 0.7rem; padding: 0 0.4rem; }
   .perf { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; align-items: baseline; }
   tr.eng td { background: #7ec8ff10; }
   tr.swap td { background: #ffd47e10; }
