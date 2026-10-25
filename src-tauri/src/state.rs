@@ -376,7 +376,12 @@ impl AppState {
                 .last_writer()
                 .filter(|f| new_fids.contains(f))
                 .unwrap_or_else(|| new_fids[0].clone());
-            let _ = self.select(&pick);
+            if self.select(&pick).is_ok() {
+                // The panels read the old store and re-read only on this
+                // event, as a click on the strip sends it.
+                use crate::events::EmitExt;
+                self.events.emit(crate::events::JOURNAL_CHANGED, 0u64);
+            }
         }
     }
 
@@ -772,6 +777,31 @@ mod commander_tests {
         let out = reg.sync_all(|_, _, _| {}).unwrap();
         state.adopt_new_commanders(&out.new_fids);
         assert_eq!(state.selected_fid(), "F0000001", "the newer file's commander, not the smaller FID");
+    }
+
+    #[test]
+    fn adopting_the_first_commander_tells_the_panels_to_reread() {
+        // A fresh database starts on the placeholder; the first sync's
+        // adoption switches stores behind the panels' backs, and they only
+        // re-read on journal-changed (the maintainer's 2026-10-25 run: the
+        // selected commander stayed blank until clicked away and back).
+        let dir = tempfile::tempdir().unwrap();
+        let state = test_state(dir.path());
+        std::fs::write(
+            dir.path().join("journal").join("Journal.2026-10-17T180000.01.log"),
+            "{\"timestamp\":\"2026-10-17T18:00:00Z\",\"event\":\"Commander\",\"FID\":\"F0000001\",\"Name\":\"C\"}
+",
+        )
+        .unwrap();
+        let rec = Arc::new(crate::events::Recording::default());
+        state.events.install(rec.clone());
+        let out = state.commanders.sync_all(|_, _, _| {}).unwrap();
+        state.adopt_new_commanders(&out.new_fids);
+        assert_eq!(state.selected_fid(), "F0000001");
+        assert!(rec.names().contains(&crate::events::JOURNAL_CHANGED), "got {:?}", rec.names());
+        rec.take();
+        state.adopt_new_commanders(&out.new_fids);
+        assert!(rec.names().is_empty(), "no switch, no event: {:?}", rec.names());
     }
 
     #[test]
